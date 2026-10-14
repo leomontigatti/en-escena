@@ -1,9 +1,11 @@
 import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.server";
 import {
   formatGroupTypeLabel,
+  noExperienceLevelChoice,
   type RegistrationResolution,
   type PortalResolvedRegistrationResolution,
 } from "@/features/portal/choreographies/create/flow";
+import { emptyExperienceLevelLabel } from "@/lib/choreographies/experience-level-requirement";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 
 type SummaryPerson = {
@@ -45,6 +47,13 @@ export function formatExperienceLevelSummary(
   resolution: RegistrationResolution,
   selectedExperienceLevelId: string,
 ) {
+  if (
+    resolution.experienceLevel.requirement === "optional" &&
+    selectedExperienceLevelId === noExperienceLevelChoice
+  ) {
+    return emptyExperienceLevelLabel(resolution.experienceLevel.requirement);
+  }
+
   return (
     resolution.experienceLevel.options.find(
       (option) => option.id === selectedExperienceLevelId,

@@ -15,9 +15,15 @@ import { readPresentationScores } from "./presentation-scores.server";
 
 installDatabaseTestHooks();
 
-async function seedScoredPresentation(input?: { submodalityId?: null }) {
+async function seedScoredPresentation(input?: {
+  experienceLevelId?: null;
+  groupType?: "grupal";
+  submodalityId?: null;
+}) {
   const fixture = await seedJudgingFixture();
   const presentation = await fixture.addPresentation({
+    experienceLevelId: input?.experienceLevelId,
+    groupType: input?.groupType,
     name: "Primera",
     orderNumber: 1,
     submodalityId: input?.submodalityId,
@@ -115,6 +121,38 @@ describe("editing a score as administration", () => {
       ok: false,
       reason: "invalid-sheet",
     });
+  });
+
+  test("edits a `Sin nivel` grupal's single value, as the judge scored it", async () => {
+    const { fixture, presentation, score } = await seedScoredPresentation({
+      experienceLevelId: null,
+      groupType: "grupal",
+    });
+    const technique = await fixture.addCriterion({
+      maximum: 100,
+      name: "Técnica",
+    });
+
+    await expect(
+      editScore({
+        criteriaValues: { [technique.id]: "90" },
+        presentationId: presentation.presentationId,
+        scoreId: score.id,
+      }),
+    ).resolves.toEqual({ ok: false, reason: "invalid-value" });
+    await expect(
+      editScore({
+        presentationId: presentation.presentationId,
+        scoreId: score.id,
+        value: "91.5",
+      }),
+    ).resolves.toEqual({ ok: true });
+    const view = await readPresentationScores({
+      presentationId: presentation.presentationId,
+    });
+    expect(
+      view?.judges.find((judge) => judge.scoreId === score.id),
+    ).toMatchObject({ criteriaValues: {}, value: "91.5" });
   });
 
   test("refuses a score that does not exist, so no judge is given one", async () => {

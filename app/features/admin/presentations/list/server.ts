@@ -1,3 +1,4 @@
+import { experienceLevelRequirement } from "@/lib/choreographies/experience-level-requirement";
 import { eq } from "drizzle-orm";
 import { data, redirect } from "react-router";
 
@@ -535,6 +536,10 @@ function buildPresentationListItem(
     evaluationStatus:
       event.evaluationStatuses.get(row.choreographyId) ?? "pending",
     experienceLevel: row.experienceLevel,
+    experienceLevelRequirement: experienceLevelRequirement({
+      categoryExperienceLevels: row.category.experienceLevels,
+      groupType: row.groupType,
+    }),
     financialStatus: row.financialStatus,
     frozen: event.frozenChoreographyIds.has(row.choreographyId),
     groupType: row.groupType as ChoreographyGroupType,

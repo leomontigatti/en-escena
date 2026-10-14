@@ -160,6 +160,44 @@ describe("the choreography detail as one draft", () => {
     expect(isSaveEnabled()).toBe(true);
   });
 
+  test("offers `Sin nivel` for an optional level, and saves a modality change left on it", async () => {
+    const page = await renderDetailPage({
+      preview: () =>
+        buildPreview({
+          capacityId: "schedule_capacity_9",
+          category: { id: "category_9", name: "Juvenil urbano" },
+          experienceLevel: {
+            options: [{ id: "amateur", name: "Amateur" }],
+            requirement: "optional",
+          },
+          groupType: "grupal",
+          modalityId: "modality_2",
+          submodality: { options: [{ id: "submodality_9", name: "Hip hop" }] },
+        }),
+    });
+
+    await pickOption("Modalidad", "Urbano");
+    await settle();
+    await pickOption("Submodalidad", "Hip hop");
+
+    expect(readTrigger("Nivel de experiencia")).toBe("Sin nivel");
+    expect(isSaveEnabled()).toBe(true);
+
+    await pickOption("Nivel de experiencia", "Amateur");
+    expect(isSaveEnabled()).toBe(true);
+
+    await pickOption("Nivel de experiencia", "Sin nivel");
+    await clickReactDomButton("Guardar");
+    await settle();
+
+    expect(page.saves()).toEqual([
+      expect.objectContaining({
+        experienceLevelId: "",
+        modalityId: "modality_2",
+      }),
+    ]);
+  });
+
   test("shows why there is no category next to the field, and keeps `Guardar` off", async () => {
     await renderDetailPage({
       preview: () =>
@@ -439,7 +477,7 @@ function buildPreview(
         { id: "amateur", name: "Amateur" },
         { id: "profesional", name: "Profesional" },
       ],
-      required: true,
+      requirement: "required",
     },
     classificationKey: getChoreographyDraftClassificationKey({
       dancerIds,
@@ -482,7 +520,7 @@ function duoPreview(
     capacityId: "schedule_capacity_duo",
     category: { id: "category_2", name: "Juvenil dúo" },
     dancerIds: input.dancerIds ?? ["dancer_1", "dancer_2"],
-    experienceLevel: { options: [], required: false },
+    experienceLevel: { options: [], requirement: "notApplicable" },
     groupType: "duo",
     withdrawnDancers: input.withdrawnDancers,
   });
@@ -503,7 +541,7 @@ function urbanoPreview() {
     category: { id: "category_9", name: "Juvenil urbano" },
     experienceLevel: {
       options: [{ id: "amateur", name: "Amateur" }],
-      required: true,
+      requirement: "required",
     },
     modalityId: "modality_2",
     submodality: { options: [{ id: "submodality_9", name: "Hip hop" }] },
@@ -571,7 +609,7 @@ function buildLoaderData(
           lastName: "Suárez",
         },
       ],
-      requiresExperienceLevel: true,
+      experienceLevelRequirement: "required",
       scheduleCapacityId: "schedule_capacity_1",
       scheduleId: "schedule_1",
       scheduleLabel: "1 de mayo de 2026 - 14:00 hs.",

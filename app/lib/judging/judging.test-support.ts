@@ -16,6 +16,7 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
+import type { GroupType } from "@/lib/events/group-types";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSavedEvent } from "@/lib/test-support/events";
 
@@ -58,6 +59,8 @@ export async function seedJudgingFixture(options: { active?: boolean } = {}) {
   const addPresentation = async (input: {
     categoryId?: string;
     experienceLevelId?: ExperienceLevel | null;
+    /** Defaults to a solo, which has to declare a level its category offers. */
+    groupType?: GroupType;
     name: string;
     orderNumber: number;
     professionalEvaluation?: boolean;
@@ -76,6 +79,7 @@ export async function seedJudgingFixture(options: { active?: boolean } = {}) {
         input.experienceLevelId === undefined
           ? catalog.level.id
           : input.experienceLevelId,
+      groupType: input.groupType,
       modalityId: catalog.modality.id,
       name: input.name,
       professionalEvaluation: input.professionalEvaluation,

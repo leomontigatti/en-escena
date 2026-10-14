@@ -14,7 +14,7 @@ describe("choreography creation summary formatters", () => {
       categoryAgeBasis: 14,
       categoryCalculationMode: "oldest",
       dancers: [],
-      experienceLevel: { required: false, options: [] },
+      experienceLevel: { requirement: "notApplicable", options: [] },
       groupType: "solo",
       schedule: {
         status: "auto",

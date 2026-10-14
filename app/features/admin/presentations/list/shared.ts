@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import type { ExperienceLevelRequirement } from "@/lib/choreographies/experience-level-requirement";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-financial-status";
 import type { PresentationEvaluationStatus } from "@/lib/judging/evaluation-status.server";
@@ -123,8 +124,10 @@ export type PresentationListItem = {
   choreographyNumber: number;
   /** Where the presentation stands for the panel, which decides the row's badge. */
   evaluationStatus: PresentationEvaluationStatus;
-  /** The choreography's level; `null` when its category admits none. */
+  /** The choreography's level; `null` when it has none. */
   experienceLevel: ExperienceLevel | null;
+  /** Why an empty level is empty, which is how the `Nivel` cell words it. */
+  experienceLevelRequirement: ExperienceLevelRequirement;
   financialStatus: ChoreographyFinancialStatus;
   /**
    * `Presentación fija`: its schedule already has an evaluated presentation,

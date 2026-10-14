@@ -25,11 +25,17 @@ type JudgingFixture = Awaited<ReturnType<typeof seedJudgingFixture>>;
 /** The day the seeded presentation dances, published unless a test hides it. */
 const presentationDay = "2026-05-01";
 
-async function seedPublishedEvaluation() {
+async function seedPublishedEvaluation(
+  choreography: Pick<
+    Parameters<JudgingFixture["addPresentation"]>[0],
+    "experienceLevelId" | "groupType"
+  > = {},
+) {
   const fixture = await seedJudgingFixture();
   await activateEvent(fixture.event.id);
 
   const presentation = await fixture.addPresentation({
+    ...choreography,
     name: "Primera",
     orderNumber: 1,
     scheduledDate: presentationDay,
@@ -125,6 +131,26 @@ describe("an academy's evaluation detail", () => {
     expect(loaderData.title).toBe("Primera");
     expect(loaderData.average).toBe(90);
     expect(JSON.stringify(loaderData)).not.toContain("N.º");
+  });
+
+  test("words a grupal's empty level by why it is empty", async () => {
+    const { fixture, presentation } = await seedPublishedEvaluation({
+      experienceLevelId: null,
+      groupType: "grupal",
+    });
+    const scored = await fixture.assignJudge(presentation.presentationId);
+
+    await db
+      .insert(scores)
+      .values({ judgeAssignmentId: scored.judgeAssignmentId, value: "90.0" });
+    await publishResults(fixture.event.id);
+
+    const loaderData = await loadEvaluation(
+      fixture,
+      presentation.choreographyId,
+    );
+
+    expect(loaderData.details).toContain("Grupal · Sin nivel");
   });
 
   test("answers not found for another academy's presentation", async () => {

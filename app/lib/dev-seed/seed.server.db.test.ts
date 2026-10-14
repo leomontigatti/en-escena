@@ -1,4 +1,4 @@
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, lt } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -10,10 +10,12 @@ import {
   dancers,
   events,
   judgeAssignments,
+  modalities,
   payments,
   presentations,
   professors,
   scores,
+  submodalities,
   user,
   voteCodes,
   votes,
@@ -24,6 +26,7 @@ import { signInAccessUser } from "@/lib/auth/access-auth.test-support";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import { listAnchorComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
+import { resolveChoreographyRegistrationOperation } from "@/lib/choreographies/registration-resolution.server";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 import { readInscriptionAllocatedAmount } from "@/lib/finances/allocation-pool.server";
 import { createVoteCodeBatch } from "@/lib/grand-final/vote-codes.server";
@@ -136,7 +139,7 @@ describe("dev seed", () => {
 
     await expect(
       db.$count(dancers, eq(dancers.academyId, academyId)),
-    ).resolves.toBe(4);
+    ).resolves.toBe(8);
     await expect(
       db.$count(professors, eq(professors.academyId, academyId)),
     ).resolves.toBe(2);
@@ -153,6 +156,60 @@ describe("dev seed", () => {
     expect(registered.every(({ eventId }) => eventId === activeEvent.id)).toBe(
       true,
     );
+  });
+
+  // A grupal is the one group type whose level is optional, so the wizard's
+  // category step for it needs a category that offers levels and an adult
+  // roster big enough to be a grupal.
+  test("lets the academy's four adults resolve as a grupal whose level is optional", async () => {
+    await seedDevData({ now });
+
+    const activeEvent = await db.query.events.findFirst({
+      where: eq(events.active, true),
+    });
+    const academy = await db.query.academies.findFirst({
+      where: eq(academies.name, "Academia Demo"),
+    });
+    const modality = await db.query.modalities.findFirst({
+      where: eq(modalities.eventId, activeEvent?.id ?? ""),
+    });
+    const submodality = await db.query.submodalities.findFirst({
+      where: eq(submodalities.name, "Lírico"),
+    });
+    if (!activeEvent || !academy || !modality || !submodality) {
+      throw new Error("Expected the seed's event, academy and catalog.");
+    }
+    const adults = await db.query.dancers.findMany({
+      where: and(
+        eq(dancers.academyId, academy.id),
+        lt(dancers.birthDate, "2000-01-01"),
+      ),
+    });
+    expect(adults).toHaveLength(4);
+
+    const result = await resolveChoreographyRegistrationOperation({
+      academyId: academy.id,
+      eventId: activeEvent.id,
+      modalityId: modality.id,
+      submodalityId: submodality.id,
+      dancerIds: adults.map(({ id }) => id),
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      resolution: {
+        groupType: "grupal",
+        category: { status: "resolved", name: "Adultos grupal" },
+        experienceLevel: {
+          requirement: "optional",
+          options: [
+            { id: "amateur", name: "Amateur" },
+            { id: "profesional", name: "Profesional" },
+          ],
+        },
+        schedule: { status: "auto" },
+      },
+    });
   });
 
   test("leaves a payment allocated past the deposit and a frozen presentation, so the lock alerts have data", async () => {

@@ -172,12 +172,16 @@ primary way to get a local login. It creates, on the local `DATABASE_URL`:
   `app/lib/dev-seed/seed.server.ts`; the command prints it.
 - Three events: `Evento Activo` (active, 60 days out), `Evento Futuro` and
   `Evento Finalizado`. The active one has a catalog registrations accept: a
-  modality with two submodalities (`Lírico`, `Contemporáneo`), two categories
-  covering ages 1 to 100, two
+  modality with two submodalities (`Lírico`, `Contemporáneo`), two solo
+  categories and two grupal ones covering ages 1 to 100 each (`Adultos grupal`,
+  18 and over, admits `Amateur` and `Profesional`), two
   schedules on the same day (`Bloque mañana`, `Bloque tarde`) open for
-  registrations with a solo capacity each, and a solo price.
-- Four dancers and two professors in `Academia Demo`, and four choreographies
-  on the active event, each in a different state:
+  registrations with a solo capacity each, the afternoon one taking only the
+  solo categories, and a solo and a grupal price.
+- Eight dancers and two professors in `Academia Demo`: four teenagers and four
+  adults (Eli, Flor, Gabi, Hebe), enough to register a grupal in `Adultos
+grupal`, whose level is optional. Four choreographies on the active event,
+  each in a different state:
 
   | Choreography    | Dancer, block   | State                                                                                                                             |
   | --------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------- |

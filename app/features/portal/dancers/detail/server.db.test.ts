@@ -365,8 +365,9 @@ describe("handlePortalDancerDetailAction", () => {
       params: { dancerId: dancer.id },
     });
 
-    // The move to `Mayor`, which admits no level, cleared the stored one, and
-    // the action reports it so the page can say so.
+    // The move to `Mayor`, which admits no level, cleared the stored one; the
+    // action reports the move, and the level reads `No aplica` with nothing to
+    // pick.
     expect(result).toMatchObject({
       status: "success",
       recategorisedChoreographies: [
@@ -374,7 +375,7 @@ describe("handlePortalDancerDetailAction", () => {
           choreographyId: choreography.id,
           name: "Solo con recálculo",
           categoryName: "Mayor",
-          experienceLevelCleared: true,
+          experienceLevelOutcome: "unchanged",
         },
       ],
     });

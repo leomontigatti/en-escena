@@ -21,8 +21,8 @@ import { saveFinalistPickIntent } from "@/features/judging/finalist-pick/shared"
 import type { JudgePanelActionData } from "@/features/judging/score/action.server";
 import { JudgeScoreDialog } from "@/features/judging/score/dialog";
 import { JudgeScoreSheet } from "@/features/judging/score/sheet";
+import { experienceLevelDisplayLabel } from "@/lib/choreographies/experience-level-requirement";
 import { formatScheduleDayHeading } from "@/lib/choreographies/schedule-formatters";
-import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
 import { judgeScoreStatusBadge } from "@/lib/judging/judge-status";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
@@ -432,18 +432,6 @@ function useResumePresentationId({
   };
 }
 
-function formatExperienceLevel(row: JudgePresentationRow) {
-  if (!row.categoryAdmitsExperienceLevels) {
-    return "No aplica";
-  }
-
-  if (!row.experienceLevel) {
-    return "—";
-  }
-
-  return experienceLevelLabels[row.experienceLevel] ?? row.experienceLevel;
-}
-
 // The admin's presentation list, column for column and muted the same way,
 // with the number's share moved to the level so `Profesional` fits the
 // narrower card. Laid out `fit`: four free-text columns share the row, so each keeps its share
@@ -517,7 +505,12 @@ function buildJudgePresentationColumns(
       header: "Nivel",
       className: "text-muted-foreground",
       cell: (row) => (
-        <DataTableTruncatedText value={formatExperienceLevel(row)} />
+        <DataTableTruncatedText
+          value={experienceLevelDisplayLabel(
+            row.experienceLevel,
+            row.experienceLevelRequirement,
+          )}
+        />
       ),
       width: 10,
     },

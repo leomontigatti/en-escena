@@ -118,6 +118,46 @@ describe("portal choreographies reads", () => {
     });
   });
 
+  test.each([
+    ["grupal", "categoryWithLevel", "optional"],
+    ["solo", "categoryWithLevel", "required"],
+    ["solo", "categoryWithoutLevel", "notApplicable"],
+  ] as const)(
+    "reads a %s's level in the %s as %s",
+    async (groupType, category, requirement) => {
+      const owner = await createAcademySession({
+        academyName: "Academia Nivel",
+        email: "coreografias.detail.nivel@example.com",
+      });
+      const event = await createEventRecord({
+        active: true,
+        name: "Regional 2026",
+      });
+      const catalog = await createEventCatalog(event.id);
+      const choreography = await createChoreographyRecord({
+        academyId: owner.academyId,
+        categoryId: catalog[category].id,
+        eventId: event.id,
+        experienceLevelId: null,
+        groupType,
+        modalityId: catalog.modality.id,
+        name: "Sin nivel",
+        scheduleCapacityId: catalog.scheduleCapacity.id,
+        submodalityId: catalog.submodality.id,
+      });
+
+      const detail = await choreographyDetailLoader({
+        params: { choreographyId: choreography.id },
+        request: new Request(
+          `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+          { headers: { cookie: owner.cookie } },
+        ),
+      });
+
+      expect(detail.choreography.experienceLevelRequirement).toBe(requirement);
+    },
+  );
+
   test("leaves a withdrawn inscription out of the roster", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Retiro",

@@ -24,7 +24,7 @@ import { microphoneErrorMessage } from "./feedback-recorder";
 function buildRow(feedbackAudioUrl: string | null): JudgePresentationRow {
   return {
     academyName: "Academia Sur",
-    categoryAdmitsExperienceLevels: true,
+    experienceLevelRequirement: "required",
     categoryName: "Juvenil",
     criteria: [],
     criteriaValues: {},

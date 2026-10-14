@@ -14,6 +14,7 @@ function buildStatusInput(overrides: Partial<StatusInput> = {}): StatusInput {
   return {
     categoryExperienceLevels: ["amateur"],
     experienceLevelId: "amateur",
+    groupType: "solo",
     hasMusic: true,
     hasProfessors: true,
     placementCheck: {
@@ -61,6 +62,29 @@ describe("choreography operational status", () => {
     expect(getChoreographyOperationalStatusBadgeVariant(incompleteStatus)).toBe(
       "warning",
     );
+  });
+
+  test("raises the pending level only where the level is required", () => {
+    const blankGrupal = deriveChoreographyOperationalStatus(
+      buildStatusInput({ experienceLevelId: null, groupType: "grupal" }),
+    );
+    const blankTrio = deriveChoreographyOperationalStatus(
+      buildStatusInput({ experienceLevelId: null, groupType: "trio" }),
+    );
+    const blankWithoutLevels = deriveChoreographyOperationalStatus(
+      buildStatusInput({
+        categoryExperienceLevels: [],
+        experienceLevelId: null,
+        groupType: "trio",
+      }),
+    );
+
+    expect(blankGrupal).toEqual({ code: "complete", pendingItems: [] });
+    expect(blankTrio).toEqual({
+      code: "incomplete",
+      pendingItems: ["experienceLevel"],
+    });
+    expect(blankWithoutLevels).toEqual({ code: "complete", pendingItems: [] });
   });
 
   test("reports a stored age the category no longer contains", () => {
