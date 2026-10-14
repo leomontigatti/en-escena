@@ -5,14 +5,12 @@ import {
 import { formatInscriptionMoney } from "@/components/shared/roster-inscriptions-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import type { RosterSeminarInscription } from "@/lib/roster/inscriptions";
-import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared";
+import {
+  rosterPersonNoun,
+  type RosterPersonKind,
+} from "@/lib/roster/roster-person-kind.shared";
 import { seminarKindLabels } from "@/lib/seminars/seminar-kinds";
 import { formatDateOnlyAsDayMonthYear } from "@/lib/shared/date-only";
-
-const emptyMessages: Record<RosterPersonKind, string> = {
-  dancer: "Este bailarín no tiene seminarios en el evento activo.",
-  professor: "Este profesor no tiene seminarios en el evento activo.",
-};
 
 /**
  * The seminar inscriptions a dancer or a professor holds in the active event,
@@ -94,7 +92,7 @@ export function RosterSeminarInscriptionsTable({
       columns={columns}
       getRowKey={(inscription) => inscription.id}
       searchPlaceholder="Buscar por instructor o evento"
-      emptyMessage={emptyMessages[personKind]}
+      emptyMessage={`Este ${rosterPersonNoun(personKind, "singular")} no tiene seminarios en el evento activo.`}
       initialSort={{ columnId: "scheduledDate", direction: "asc" }}
     />
   );

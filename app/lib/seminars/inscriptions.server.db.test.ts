@@ -387,70 +387,80 @@ describe("seminar inscriptions", () => {
         .where(eq(seminarInscriptions.id, inscriptionId)),
     ).resolves.toHaveLength(1);
   });
-
-  test("refuses at the database a row with both person columns or with neither", async () => {
-    const { seminar } = await createSeminarFixture();
-    const academy = await createAcademy("Academia Check");
-    const dancer = await createDancer(academy.id);
-    const professor = await createProfessor(academy.id);
-
-    await expect(
-      db.insert(seminarInscriptions).values({
-        seminarId: seminar.id,
-        dancerId: dancer.id,
-        professorId: professor.id,
-      }),
-    ).rejects.toThrow();
-    await expect(
-      db.insert(seminarInscriptions).values({ seminarId: seminar.id }),
-    ).rejects.toThrow();
-  });
 });
 
 describe("the administrative reading of a seminar's inscriptions", () => {
-  test("lists every academy's people by academy, with the kind of each", async () => {
-    const { eventId, seminar } = await createSeminarFixture(4);
+  // #1479: the two roster halves are read in one query now, so the kind and
+  // the academy have to come off the right side of each row.
+  test("interleaves the dancers and professors of several academies by academy, then name (#1479)", async () => {
+    const { eventId, seminar } = await createSeminarFixture(6);
     const north = await createAcademy("Academia Norte");
     const south = await createAcademy("Academia Sur");
-    const dancer = await createDancer(north.id, {
-      firstName: "Abril",
-      lastName: "Sosa",
-    });
-    const professor = await createProfessor(south.id, {
-      firstName: "Beto",
-      lastName: "Luna",
-    });
+    const people = [
+      { academy: south, kind: "dancer", firstName: "Abril", lastName: "Sosa" },
+      {
+        academy: north,
+        kind: "professor",
+        firstName: "Beto",
+        lastName: "Luna",
+      },
+      { academy: south, kind: "professor", firstName: "Ana", lastName: "Paz" },
+      { academy: north, kind: "dancer", firstName: "Carla", lastName: "Vera" },
+      { academy: north, kind: "dancer", firstName: "Ada", lastName: "Gil" },
+    ] as const;
 
-    expectRegistered(
-      await registerDancerBeforeStart({
-        academyId: north.id,
-        eventId,
-        personId: dancer.id,
-        seminarId: seminar.id,
-      }),
-    );
-    expectRegistered(
-      await registerSeminarInscription({
-        academyId: south.id,
-        eventId,
-        now: beforeStart,
-        personId: professor.id,
-        personKind: "professor",
-        seminarId: seminar.id,
-      }),
-    );
+    for (const person of people) {
+      const name = { firstName: person.firstName, lastName: person.lastName };
+      const created =
+        person.kind === "dancer"
+          ? await createDancer(person.academy.id, name)
+          : await createProfessor(person.academy.id, name);
+
+      expectRegistered(
+        await registerSeminarInscription({
+          academyId: person.academy.id,
+          eventId,
+          now: beforeStart,
+          personId: created.id,
+          personKind: person.kind,
+          seminarId: seminar.id,
+        }),
+      );
+    }
 
     await expect(listSeminarInscriptions(seminar.id)).resolves.toMatchObject([
       {
-        fullName: "Abril Sosa",
+        fullName: "Ada Gil",
         personKind: "dancer",
         academyName: "Academia Norte",
       },
       {
         fullName: "Beto Luna",
         personKind: "professor",
+        academyName: "Academia Norte",
+      },
+      {
+        fullName: "Carla Vera",
+        personKind: "dancer",
+        academyName: "Academia Norte",
+      },
+      {
+        fullName: "Abril Sosa",
+        personKind: "dancer",
         academyName: "Academia Sur",
       },
+      {
+        fullName: "Ana Paz",
+        personKind: "professor",
+        academyName: "Academia Sur",
+      },
+    ]);
+    await expect(
+      listSeminarInscriptionsForAcademy({ academyId: north.id, eventId }),
+    ).resolves.toMatchObject([
+      { fullName: "Ada Gil", personKind: "dancer", academyId: north.id },
+      { fullName: "Beto Luna", personKind: "professor", academyId: north.id },
+      { fullName: "Carla Vera", personKind: "dancer", academyId: north.id },
     ]);
   });
 

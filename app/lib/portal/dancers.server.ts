@@ -35,6 +35,7 @@ import {
   type ParticipationStatus,
   toParticipationStatus,
 } from "@/lib/participation/participation.shared";
+import { getRosterPersonNotFoundMessage } from "@/lib/roster/roster-person-kind.shared";
 
 export type PortalDancerListItem = {
   id: string;
@@ -282,7 +283,9 @@ export async function updateDancerForAcademy(
   const dancer = await findDancerForAcademy(academyId, dancerId);
 
   if (!dancer) {
-    throw new Response("No encontramos ese Bailarín.", { status: 404 });
+    throw new Response(getRosterPersonNotFoundMessage("dancer"), {
+      status: 404,
+    });
   }
 
   const validation = await validateUpdateDancerInput(dancer, input);

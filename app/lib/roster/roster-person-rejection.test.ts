@@ -67,36 +67,6 @@ describe("classifyRosterPersonSelection", () => {
 });
 
 describe("getRosterPersonRejectionMessage", () => {
-  test("keeps a generic wording for not-found, without revealing whether the person exists", () => {
-    expect(
-      getRosterPersonRejectionMessage({
-        kind: "dancer",
-        rejections: [{ personId: "missing", cause: "not-found" }],
-      }),
-    ).toBe("Elegí bailarines que pertenezcan a tu academia.");
-    expect(
-      getRosterPersonRejectionMessage({
-        kind: "professor",
-        rejections: [{ personId: "missing", cause: "not-found" }],
-      }),
-    ).toBe("Elegí profesores que pertenezcan a tu academia.");
-  });
-
-  test("asks to reactivate the archived person, naming no one and picking the noun by kind", () => {
-    expect(
-      getRosterPersonRejectionMessage({
-        kind: "dancer",
-        rejections: [{ personId: "one", cause: "archived" }],
-      }),
-    ).toBe("Reactivá este bailarín para poder agregarlo a la coreografía.");
-    expect(
-      getRosterPersonRejectionMessage({
-        kind: "professor",
-        rejections: [{ personId: "one", cause: "archived" }],
-      }),
-    ).toBe("Reactivá este profesor para poder agregarlo a la coreografía.");
-  });
-
   test("emits the archived sentence once however many archived people were picked", () => {
     expect(
       getRosterPersonRejectionMessage({

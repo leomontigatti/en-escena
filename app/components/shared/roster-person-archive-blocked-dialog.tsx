@@ -1,10 +1,8 @@
 import { BlockedActionDialog } from "@/components/shared/blocked-action-dialog";
-import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared";
-
-const titles: Record<RosterPersonKind, string> = {
-  dancer: "No se puede archivar al bailarín",
-  professor: "No se puede archivar al profesor",
-};
+import {
+  rosterPersonNoun,
+  type RosterPersonKind,
+} from "@/lib/roster/roster-person-kind.shared";
 
 /**
  * What `Archivar` opens instead of its confirmation while the person takes part
@@ -30,7 +28,7 @@ export function RosterPersonArchiveBlockedDialog({
       open={open}
       reasons="Está en una coreografía o un seminario del evento activo."
       reasonsTitle="Participa del evento activo"
-      title={titles[kind]}
+      title={`No se puede archivar al ${rosterPersonNoun(kind, "singular")}`}
     />
   );
 }

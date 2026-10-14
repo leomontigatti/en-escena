@@ -1,3 +1,5 @@
+import { pluralize } from "@/lib/shared/text-normalization";
+
 export const mergeAcademyIntent = "merge-academy";
 
 export type AcademyMergeCandidate = {
@@ -37,7 +39,9 @@ export function describeAcademyMerge(input: {
     pluralize(holdings.professors, "profesor", "profesores"),
     pluralize(holdings.choreographies, "coreografía", "coreografías"),
     pluralize(holdings.payments, "pago", "pagos"),
-  ].filter((line): line is string => line !== null);
+  ]
+    .filter((line): line is string => line !== null)
+    .map((line) => `${line}.`);
 
   if (holdings.dancers + holdings.professors > 0) {
     moves.push("Las inscripciones a seminarios de esas personas.");
@@ -51,12 +55,4 @@ export function describeAcademyMerge(input: {
     moves,
     survivorName: input.survivor.name,
   };
-}
-
-function pluralize(total: number, singular: string, plural: string) {
-  if (total === 0) {
-    return null;
-  }
-
-  return `${total} ${total === 1 ? singular : plural}.`;
 }

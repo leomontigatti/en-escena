@@ -1,8 +1,11 @@
 import {
   isSelectableForRoster,
   toRosterPersonStatus,
-  type RosterPersonKind,
 } from "@/lib/roster/roster-person-status.shared";
+import {
+  rosterPersonNoun,
+  type RosterPersonKind,
+} from "@/lib/roster/roster-person-kind.shared";
 
 /**
  * Why a roster person the academy picked cannot be part of a choreography.
@@ -79,16 +82,6 @@ export function classifyRosterPersonSelection<
   return { people, rejections };
 }
 
-const notFoundMessages: Record<RosterPersonKind, string> = {
-  dancer: "Elegí bailarines que pertenezcan a tu academia.",
-  professor: "Elegí profesores que pertenezcan a tu academia.",
-};
-
-const archivedMessages: Record<RosterPersonKind, string> = {
-  dancer: "Reactivá este bailarín para poder agregarlo a la coreografía.",
-  professor: "Reactivá este profesor para poder agregarlo a la coreografía.",
-};
-
 /**
  * One sentence per cause, the archived one first because it is the one the
  * academy can act on: it says what to do, and it uses the verb the rest of the
@@ -113,11 +106,15 @@ export function getRosterPersonRejectionMessage(input: {
   const sentences: string[] = [];
 
   if (hasArchived) {
-    sentences.push(archivedMessages[input.kind]);
+    sentences.push(
+      `Reactivá este ${rosterPersonNoun(input.kind, "singular")} para poder agregarlo a la coreografía.`,
+    );
   }
 
   if (hasNotFound) {
-    sentences.push(notFoundMessages[input.kind]);
+    sentences.push(
+      `Elegí ${rosterPersonNoun(input.kind, "plural")} que pertenezcan a tu academia.`,
+    );
   }
 
   return sentences.join(" ");
