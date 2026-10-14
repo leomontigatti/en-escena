@@ -25,6 +25,7 @@ import {
 import { basePath } from "../shared";
 import {
   confirmedDocumentNumberField,
+  confirmedDocumentPhotoField,
   confirmLinkIntent,
   revokeLinkIntent,
   type IndividualDetailActionData,
@@ -44,6 +45,13 @@ export async function loadIndividualDetail(input: {
   const reader = await requireAdminPanelReader(input.request);
   const individual = await findIndividual(readIndividualId(input.params));
   const linkState = deriveIndividualLinkState(individual);
+  const [documentPhotoUrl, reachedRows] = await Promise.all([
+    loadIndividualDocumentPhotoUrl({
+      documentPhotoStorageKey: individual.documentPhotoStorageKey,
+      storage: createDefaultIndividualDocumentPhotoStorage(),
+    }),
+    previewIndividualLinkRosterRows(individual),
+  ]);
 
   return {
     backToList: buildBackToListHref(readRequestedUrl(input.request).search),
@@ -57,10 +65,7 @@ export async function loadIndividualDetail(input: {
           }
         : null,
     documentPhotoStorageKey: individual.documentPhotoStorageKey,
-    documentPhotoUrl: await loadIndividualDocumentPhotoUrl({
-      documentPhotoStorageKey: individual.documentPhotoStorageKey,
-      storage: createDefaultIndividualDocumentPhotoStorage(),
-    }),
+    documentPhotoUrl,
     individual: {
       documentNumber: individual.documentNumber,
       documentType: individual.documentType,
@@ -71,7 +76,7 @@ export async function loadIndividualDetail(input: {
       phone: individual.phone,
     },
     linkState,
-    reachedRows: await previewIndividualLinkRosterRows(individual.id),
+    reachedRows,
   };
 }
 
@@ -86,10 +91,10 @@ export async function handleIndividualDetailAction(input: {
   const intent = formData.get("intent");
 
   if (intent === confirmLinkIntent) {
-    const documentNumber = formData.get(confirmedDocumentNumberField);
     const result = await confirmIndividualLink({
       confirmedByUserId: writer.id,
-      documentNumber: typeof documentNumber === "string" ? documentNumber : "",
+      documentNumber: readText(formData, confirmedDocumentNumberField),
+      documentPhotoStorageKey: readText(formData, confirmedDocumentPhotoField),
       individualId,
     });
 
@@ -131,7 +136,15 @@ function describeRefusal(
       return "El particular cambió su documento mientras lo revisabas. Revisalo de nuevo antes de confirmar.";
     case "missing-photo":
       return "El particular todavía no subió la foto de su documento.";
+    case "photo-changed":
+      return "El particular cambió la foto de su documento mientras lo revisabas. Revisala de nuevo antes de confirmar.";
   }
+}
+
+function readText(formData: FormData, field: string) {
+  const value = formData.get(field);
+
+  return typeof value === "string" ? value : "";
 }
 
 const confirmingUser = alias(user, "confirming_user");

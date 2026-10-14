@@ -51,9 +51,6 @@ describe("asset kind policy", () => {
     expect(assetKindPolicies.grandFinalBanner.bucket).toBe(
       "en-escena-grand-final-banners",
     );
-    expect(assetKindPolicies.individualDocumentPhoto.bucket).toBe(
-      "en-escena-individual-documents",
-    );
     expect(assetKindPolicies.seminarInstructorPicture.bucket).toBe(
       "enescena-seminar-pictures",
     );

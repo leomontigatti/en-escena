@@ -1,11 +1,4 @@
-import {
-  and,
-  eq,
-  isNotNull,
-  sql,
-  type SQL,
-  type SQLWrapper,
-} from "drizzle-orm";
+import { and, eq, sql, type SQL, type SQLWrapper } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, dancers, individuals, professors } from "@/db/schema";
@@ -44,7 +37,19 @@ export type IndividualLinkConfirmationRefusal =
   | "document-changed"
   /** There is no document photo to have compared the document with. */
   | "missing-photo"
-  | "not-found";
+  | "not-found"
+  /** The individual replaced its photo after administration read it. */
+  | "photo-changed";
+
+/** What the link's state is derived from, as a caller may have loaded it. */
+type IndividualLinkFields = {
+  documentNumber: string;
+  documentPhotoStorageKey: string | null;
+  linkConfirmedDocumentNumber: string | null;
+};
+
+/** An individual's id, or the link fields its caller already read. */
+type IndividualLinkSubject = string | IndividualLinkFields;
 
 /**
  * The rows the individual reaches: the dancers and professors, in any academy
@@ -52,9 +57,9 @@ export type IndividualLinkConfirmationRefusal =
  * individual's, while its link is `Vinculado`; none otherwise.
  */
 export async function listIndividualLinkedRosterRows(
-  individualId: string,
+  subject: IndividualLinkSubject,
 ): Promise<LinkedRosterRow[]> {
-  const individual = await findIndividualLinkFields(individualId);
+  const individual = await resolveIndividualLinkFields(subject);
 
   if (!individual || deriveIndividualLinkState(individual) !== "linked") {
     return [];
@@ -69,9 +74,9 @@ export async function listIndividualLinkedRosterRows(
  * reads goes through here.
  */
 export async function previewIndividualLinkRosterRows(
-  individualId: string,
+  subject: IndividualLinkSubject,
 ): Promise<LinkedRosterRow[]> {
-  const individual = await findIndividualLinkFields(individualId);
+  const individual = await resolveIndividualLinkFields(subject);
 
   return individual
     ? await listRosterRowsCarryingDocument(individual.documentNumber)
@@ -80,12 +85,14 @@ export async function previewIndividualLinkRosterRows(
 
 /**
  * Administration's confirmation that the document is the individual's, for
- * the number it read (`documentNumber`): when the individual changed it in
- * between, or has no photo to compare it with, nothing is written.
+ * the number and the photo it compared (`documentNumber`,
+ * `documentPhotoStorageKey`): when the individual changed either in between,
+ * or has no photo, nothing is written.
  */
 export async function confirmIndividualLink(input: {
   confirmedByUserId: string;
   documentNumber: string;
+  documentPhotoStorageKey: string;
   individualId: string;
 }): Promise<
   { ok: true } | { ok: false; reason: IndividualLinkConfirmationRefusal }
@@ -101,7 +108,7 @@ export async function confirmIndividualLink(input: {
       and(
         eq(individuals.id, input.individualId),
         eq(individuals.documentNumber, input.documentNumber),
-        isNotNull(individuals.documentPhotoStorageKey),
+        eq(individuals.documentPhotoStorageKey, input.documentPhotoStorageKey),
       ),
     )
     .returning({ id: individuals.id });
@@ -112,23 +119,33 @@ export async function confirmIndividualLink(input: {
 
   const individual = await findIndividualLinkFields(input.individualId);
 
-  if (!individual) {
-    return { ok: false, reason: "not-found" };
-  }
-
   return {
     ok: false,
-    reason:
-      individual.documentPhotoStorageKey === null
-        ? "missing-photo"
-        : "document-changed",
+    reason: describeConfirmationRefusal(individual, input),
   };
+}
+
+function describeConfirmationRefusal(
+  individual: IndividualLinkFields | undefined,
+  read: { documentNumber: string },
+): IndividualLinkConfirmationRefusal {
+  if (!individual) {
+    return "not-found";
+  }
+
+  if (individual.documentPhotoStorageKey === null) {
+    return "missing-photo";
+  }
+
+  return individual.documentNumber === read.documentNumber
+    ? "photo-changed"
+    : "document-changed";
 }
 
 /** Clears the confirmation, so the link goes back to `Pendiente`. */
 export async function revokeIndividualLink(
   individualId: string,
-): Promise<{ ok: boolean }> {
+): Promise<{ ok: true } | { ok: false; reason: "not-found" }> {
   const revoked = await db
     .update(individuals)
     .set({
@@ -139,7 +156,7 @@ export async function revokeIndividualLink(
     .where(eq(individuals.id, individualId))
     .returning({ id: individuals.id });
 
-  return { ok: revoked.length > 0 };
+  return revoked.length > 0 ? { ok: true } : { ok: false, reason: "not-found" };
 }
 
 /** `deriveIndividualLinkState` in SQL, for a list to filter on. */
@@ -151,7 +168,15 @@ export function individualLinkStateSql(): SQL<IndividualLinkState> {
   end`;
 }
 
-async function findIndividualLinkFields(individualId: string) {
+async function resolveIndividualLinkFields(subject: IndividualLinkSubject) {
+  return typeof subject === "string"
+    ? await findIndividualLinkFields(subject)
+    : subject;
+}
+
+async function findIndividualLinkFields(
+  individualId: string,
+): Promise<IndividualLinkFields | undefined> {
   return await db.query.individuals.findFirst({
     columns: {
       documentNumber: true,
@@ -165,17 +190,27 @@ async function findIndividualLinkFields(individualId: string) {
 /**
  * The number alone is the key, as within an academy (PRD #1090), with its
  * separators dropped on both sides: a row loaded before numbers were stored
- * normalized still matches.
+ * normalized still matches. `digits` is never empty, so a row whose number is
+ * only separators matches nothing.
  */
-function sameDocumentNumber(column: SQLWrapper, documentNumber: string) {
-  return sql`regexp_replace(${column}, ${documentSeparators}, '', 'g') = regexp_replace(${documentNumber}, ${documentSeparators}, '', 'g')`;
+function sameDocumentNumber(column: SQLWrapper, digits: string) {
+  return sql`regexp_replace(${column}, ${documentSeparatorsPattern}, '', 'g') = ${digits}`;
 }
 
-const documentSeparators = "[.[:space:]-]+";
+/** The same separators in SQL and in TypeScript. */
+const documentSeparatorsPattern = "[.[:space:]-]+";
+const documentSeparators = /[.\s-]+/g;
 
 async function listRosterRowsCarryingDocument(
   documentNumber: string,
 ): Promise<LinkedRosterRow[]> {
+  const digits = documentNumber.replace(documentSeparators, "");
+
+  // Separators alone are no number: they would match every row loaded so.
+  if (digits === "") {
+    return [];
+  }
+
   const [dancerRows, professorRows] = await Promise.all([
     db
       .select({
@@ -189,10 +224,7 @@ async function listRosterRowsCarryingDocument(
       .from(dancers)
       .innerJoin(academies, eq(academies.id, dancers.academyId))
       .where(
-        and(
-          academyOwner(),
-          sameDocumentNumber(dancers.documentNumber, documentNumber),
-        ),
+        and(academyOwner(), sameDocumentNumber(dancers.documentNumber, digits)),
       ),
     db
       .select({
@@ -208,7 +240,7 @@ async function listRosterRowsCarryingDocument(
       .where(
         and(
           academyOwner(),
-          sameDocumentNumber(professors.documentNumber, documentNumber),
+          sameDocumentNumber(professors.documentNumber, digits),
         ),
       ),
   ]);

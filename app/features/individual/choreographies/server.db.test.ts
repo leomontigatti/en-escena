@@ -361,6 +361,7 @@ async function seedLinkedIndividual() {
   const confirmation = await confirmIndividualLink({
     confirmedByUserId: admin.userId,
     documentNumber,
+    documentPhotoStorageKey: "individuals/photo.jpg",
     individualId: individual.individualId,
   });
 

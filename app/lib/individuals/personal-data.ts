@@ -35,13 +35,12 @@ const individualPersonalDataFields = [
   "phone",
 ] as const;
 
-export type IndividualPersonalDataField =
+type IndividualPersonalDataField =
   (typeof individualPersonalDataFields)[number];
 
 /** As the form holds them, and as an action reads them back. */
-export type IndividualPersonalDataValues = Record<
-  IndividualPersonalDataField,
-  string
+export type IndividualPersonalDataValues = z.input<
+  typeof individualPersonalDataSchema
 >;
 
 export type IndividualPersonalData = {

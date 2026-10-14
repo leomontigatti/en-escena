@@ -10,6 +10,7 @@ import {
 
 import {
   confirmedDocumentNumberField,
+  confirmedDocumentPhotoField,
   confirmLinkIntent,
   revokeLinkIntent,
 } from "./shared";
@@ -31,36 +32,29 @@ export function LinkDialogs({
   dialog: LinkDialog;
   onClose: () => void;
 }) {
-  const closeOnDismiss = (open: boolean) => {
-    if (!open) {
-      onClose();
-    }
-  };
-
-  switch (dialog) {
-    case null:
-      return null;
-    case "blocked":
-      return (
-        <BlockedActionDialog
-          open
-          onOpenChange={closeOnDismiss}
-          title="No se puede confirmar el vínculo"
-          description="Se confirma comparando la foto del documento con los datos de la cuenta."
-          reasonsTitle="Falta la foto del documento"
-          reasons="El particular todavía no la subió desde Mis datos."
-        />
-      );
-    case "confirm":
-    case "revoke":
-      return (
-        <LinkConfirmationDialog
-          {...copy}
-          isRevoking={dialog === "revoke"}
-          onClose={onClose}
-        />
-      );
+  if (dialog === null) {
+    return null;
   }
+
+  if (dialog === "blocked") {
+    return (
+      <BlockedActionDialog
+        open
+        onOpenChange={(open) => closeWhenDismissed(open, onClose)}
+        title="No se puede confirmar el vínculo"
+        description="Se confirma comparando la foto del documento con los datos de la cuenta."
+        reasonsTitle="Falta la foto del documento"
+        reasons="El particular todavía no la subió desde Mis datos."
+      />
+    );
+  }
+
+  return (
+    <LinkConfirmationDialog
+      {...(dialog === "revoke" ? revokeDialog(copy) : confirmDialog(copy))}
+      onClose={onClose}
+    />
+  );
 }
 
 type LinkConfirmationCopy = {
@@ -68,52 +62,81 @@ type LinkConfirmationCopy = {
   documentLabel: string;
   /** The stored number, which the confirmation names. */
   documentNumber: string;
+  /** The photo on screen, which the confirmation names too. */
+  documentPhotoStorageKey: string | null;
   fullName: string;
   reachedRowCount: number;
 };
 
+/** What one of the two confirmations says and posts. */
+type LinkDialogContent = {
+  confirmLabel: string;
+  description: string;
+  destructive: boolean;
+  /** The hidden fields the action reads, `intent` included. */
+  fields: Record<string, string>;
+  intent: string;
+  title: string;
+};
+
+function confirmDialog(copy: LinkConfirmationCopy): LinkDialogContent {
+  return {
+    confirmLabel: "Confirmar vínculo",
+    description: describeConfirmation(copy),
+    destructive: false,
+    fields: {
+      [confirmedDocumentNumberField]: copy.documentNumber,
+      [confirmedDocumentPhotoField]: copy.documentPhotoStorageKey ?? "",
+    },
+    intent: confirmLinkIntent,
+    title: "¿Confirmar el vínculo?",
+  };
+}
+
+function revokeDialog(copy: LinkConfirmationCopy): LinkDialogContent {
+  return {
+    confirmLabel: "Revocar vínculo",
+    description: `${copy.fullName} deja de ver su participación en las academias hasta que se vuelva a confirmar.`,
+    destructive: true,
+    fields: {},
+    intent: revokeLinkIntent,
+    title: "¿Revocar el vínculo?",
+  };
+}
+
 function LinkConfirmationDialog({
-  isRevoking,
+  fields,
+  intent,
   onClose,
-  ...copy
-}: LinkConfirmationCopy & { isRevoking: boolean; onClose: () => void }) {
+  ...content
+}: LinkDialogContent & { onClose: () => void }) {
   const navigation = useOptionalNavigation();
-  const intent = isRevoking ? revokeLinkIntent : confirmLinkIntent;
   const isPending = isRouteFormPending(navigation, { intent });
 
   useCloseOnceSettled({ isPending, onClose });
 
   return (
     <ConfirmationDialog
-      confirmLabel={isRevoking ? "Revocar vínculo" : "Confirmar vínculo"}
-      description={
-        isRevoking
-          ? `${copy.fullName} deja de ver su participación en las academias hasta que se vuelva a confirmar.`
-          : describeConfirmation(copy)
-      }
-      destructive={isRevoking}
+      {...content}
       form={linkFormId}
       isPending={isPending}
-      onOpenChange={(open) => {
-        if (!open) {
-          onClose();
-        }
-      }}
+      onOpenChange={(open) => closeWhenDismissed(open, onClose)}
       open
-      title={isRevoking ? "¿Revocar el vínculo?" : "¿Confirmar el vínculo?"}
     >
       <Form id={linkFormId} method="post">
         <input type="hidden" name="intent" value={intent} />
-        {isRevoking ? null : (
-          <input
-            type="hidden"
-            name={confirmedDocumentNumberField}
-            value={copy.documentNumber}
-          />
-        )}
+        {Object.entries(fields).map(([name, value]) => (
+          <input key={name} type="hidden" name={name} value={value} />
+        ))}
       </Form>
     </ConfirmationDialog>
   );
+}
+
+function closeWhenDismissed(open: boolean, onClose: () => void) {
+  if (!open) {
+    onClose();
+  }
 }
 
 function describeConfirmation({

@@ -3,7 +3,6 @@ import { z } from "zod";
 import {
   individualPersonalDataSchema,
   type IndividualPersonalDataFieldErrors,
-  type IndividualPersonalDataValues,
 } from "@/lib/individuals/personal-data";
 
 // The document photo rides on the `Mis datos` form. The file input carries a
@@ -12,14 +11,12 @@ import {
 export const documentPhotoFileField = "documentPhoto";
 export const documentPhotoStorageKeyField = "documentPhotoStorageKey";
 
-export type MisDatosFormValues = IndividualPersonalDataValues & {
-  [documentPhotoStorageKeyField]: string;
-};
-
 export const misDatosFormSchema = z.intersection(
   individualPersonalDataSchema,
   z.object({ [documentPhotoStorageKeyField]: z.string() }),
 );
+
+export type MisDatosFormValues = z.input<typeof misDatosFormSchema>;
 
 export type IndividualPersonalDataActionData =
   | { status: "success"; message: string }

@@ -132,6 +132,7 @@ async function seedIndividualsInEachState() {
   await confirmIndividualLink({
     confirmedByUserId: admin.userId,
     documentNumber: "32333444",
+    documentPhotoStorageKey: "individuals/carla.jpg",
     individualId: carla.individualId,
   });
 

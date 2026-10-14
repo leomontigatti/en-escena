@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { academies, individuals } from "@/db/schema";
+import { academies } from "@/db/schema";
 import {
   handleIndividualPersonalDataAction,
   loadIndividualPersonalData,
@@ -26,41 +26,20 @@ import { createIndividualUser } from "@/lib/test-support/individuals";
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 const bucket = "en-escena-individual-documents";
-const storageState = vi.hoisted(() => ({ baseDir: "" }));
-
-// Only the factory is replaced, and by the real filesystem store over a
-// temporary volume: the key layout, the policy and the replacement ordering
-// stay real.
-vi.mock(
-  "@/lib/storage/individual-document-photos.server",
-  async (importOriginal) => {
-    const original =
-      await importOriginal<
-        typeof import("@/lib/storage/individual-document-photos.server")
-      >();
-
-    return {
-      ...original,
-      createDefaultIndividualDocumentPhotoStorage: () =>
-        original.createFilesystemIndividualDocumentPhotoStorage({
-          baseDir: storageState.baseDir,
-          now: () => 1_000_000,
-          secret: "volume-signing-secret",
-        }),
-    };
-  },
-);
 
 installDatabaseTestHooks();
 
+let storageVolumeDir = "";
+
+// A temporary storage volume behind the app's own storage client.
 beforeEach(async () => {
-  storageState.baseDir = await mkdtemp(
-    join(tmpdir(), "en-escena-individuals-"),
-  );
+  storageVolumeDir = await mkdtemp(join(tmpdir(), "en-escena-individuals-"));
+  vi.stubEnv("STORAGE_VOLUME_DIR", storageVolumeDir);
 });
 
 afterEach(async () => {
-  await rm(storageState.baseDir, { force: true, recursive: true });
+  vi.unstubAllEnvs();
+  await rm(storageVolumeDir, { force: true, recursive: true });
 });
 
 const misDatosUrl = "http://localhost/particular/mis-datos";
@@ -114,32 +93,24 @@ describe("the individual's `Mis datos`", () => {
     );
 
     expect(result).toEqual({ status: "success", message: "Datos guardados." });
-    await expect(
-      db.query.individuals.findFirst({
-        columns: {
-          documentNumber: true,
-          documentType: true,
-          firstName: true,
-          lastName: true,
-        },
-        where: eq(individuals.id, individual.individualId),
-      }),
-    ).resolves.toEqual({
-      documentNumber: "40111222",
-      documentType: "dni",
-      firstName: "María José",
-      lastName: "del Valle",
+    await expect(loadMisDatos(individual.cookie)).resolves.toMatchObject({
+      values: {
+        documentNumber: "40111222",
+        documentType: "dni",
+        firstName: "María José",
+        lastName: "del Valle",
+        phone: "1198765432",
+      },
     });
+    // No reader shows the owner row's names, so they are read directly.
     await expect(
       db.query.academies.findFirst({
-        columns: { contactName: true, kind: true, name: true, phone: true },
+        columns: { contactName: true, name: true },
         where: eq(academies.id, individual.ownerId),
       }),
     ).resolves.toEqual({
       contactName: "María José del Valle",
-      kind: "individual",
       name: "María José del Valle",
-      phone: "1198765432",
     });
   });
 
@@ -174,12 +145,9 @@ describe("the individual's `Mis datos`", () => {
       },
       values: { ...typed, documentPhotoStorageKey: "" },
     });
-    await expect(
-      db.query.individuals.findFirst({
-        columns: { documentNumber: true, firstName: true },
-        where: eq(individuals.id, individual.individualId),
-      }),
-    ).resolves.toEqual({ documentNumber: "30123456", firstName: "Ana" });
+    await expect(loadMisDatos(individual.cookie)).resolves.toMatchObject({
+      values: { documentNumber: "30123456", firstName: "Ana" },
+    });
   });
 
   test("refuses an academy, which has no personal data here", async () => {
@@ -374,7 +342,9 @@ describe("the individual's link in `Mis datos`", () => {
   test("a revocation takes the link back to `Pendiente`", async () => {
     const individual = await createLinkedIndividual();
 
-    await revokeIndividualLink(individual.individualId);
+    await expect(
+      revokeIndividualLink(individual.individualId),
+    ).resolves.toEqual({ ok: true });
 
     await expect(loadMisDatos(individual.cookie)).resolves.toMatchObject({
       linkState: "pending",
@@ -397,9 +367,11 @@ async function createLinkedIndividual() {
     email: "admin@example.com",
     role: "admin",
   });
+  const stored = await loadMisDatos(individual.cookie);
   const confirmed = await confirmIndividualLink({
     confirmedByUserId: admin.userId,
     documentNumber: "30123456",
+    documentPhotoStorageKey: stored.values.documentPhotoStorageKey,
     individualId: individual.individualId,
   });
 
@@ -439,9 +411,7 @@ async function saveMisDatos(
 async function storedPhotos(individualId: string) {
   try {
     return (
-      await readdir(
-        join(storageState.baseDir, bucket, "individuals", individualId),
-      )
+      await readdir(join(storageVolumeDir, bucket, "individuals", individualId))
     ).sort();
   } catch {
     return [];

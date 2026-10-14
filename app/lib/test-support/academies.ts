@@ -16,6 +16,8 @@ async function createAcademyUser(input: {
   /** The user's name; the email when left out. */
   name?: string;
   phone?: string;
+  /** The user's permission; `academy` by default. */
+  role?: "academy" | "individual";
   suspended?: boolean;
 }) {
   const signUpResult = await createAccessUser({
@@ -28,7 +30,7 @@ async function createAcademyUser(input: {
     .update(user)
     .set({
       emailVerified: true,
-      role: "academy",
+      role: input.role ?? "academy",
       suspended: input.suspended ?? false,
     })
     .where(eq(user.id, signUpResult.response.user.id));

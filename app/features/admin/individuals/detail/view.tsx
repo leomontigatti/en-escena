@@ -79,6 +79,7 @@ export function IndividualDetailRouteView({
           dialog={dialog}
           documentLabel={formatIdentityDocument(individual) ?? ""}
           documentNumber={individual.documentNumber}
+          documentPhotoStorageKey={loaderData.documentPhotoStorageKey}
           fullName={fullName}
           onClose={() => setDialog(null)}
           reachedRowCount={loaderData.reachedRows.length}

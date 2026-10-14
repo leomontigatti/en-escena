@@ -21,40 +21,19 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 import { handleIndividualDetailAction, loadIndividualDetail } from "./server";
 
-const storageState = vi.hoisted(() => ({ baseDir: "" }));
-
-// Only the factory is replaced, by the real filesystem store over a temporary
-// volume, so the signed address the detail reads stays real.
-vi.mock(
-  "@/lib/storage/individual-document-photos.server",
-  async (importOriginal) => {
-    const original =
-      await importOriginal<
-        typeof import("@/lib/storage/individual-document-photos.server")
-      >();
-
-    return {
-      ...original,
-      createDefaultIndividualDocumentPhotoStorage: () =>
-        original.createFilesystemIndividualDocumentPhotoStorage({
-          baseDir: storageState.baseDir,
-          now: () => 1_000_000,
-          secret: "volume-signing-secret",
-        }),
-    };
-  },
-);
-
 installDatabaseTestHooks();
 
+let storageVolumeDir = "";
+
+// A temporary storage volume behind the app's own storage client.
 beforeEach(async () => {
-  storageState.baseDir = await mkdtemp(
-    join(tmpdir(), "en-escena-particulares-"),
-  );
+  storageVolumeDir = await mkdtemp(join(tmpdir(), "en-escena-particulares-"));
+  vi.stubEnv("STORAGE_VOLUME_DIR", storageVolumeDir);
 });
 
 afterEach(async () => {
-  await rm(storageState.baseDir, { force: true, recursive: true });
+  vi.unstubAllEnvs();
+  await rm(storageVolumeDir, { force: true, recursive: true });
 });
 
 const documentNumber = "30123456";
@@ -120,6 +99,7 @@ describe("the `Particulares` detail", () => {
     const result = await handleIndividualDetailAction(
       postRequest(individual.individualId, admin.cookie, {
         documentNumber,
+        documentPhotoStorageKey: photoKey,
         intent: "confirm-link",
       }),
     );
@@ -156,6 +136,7 @@ describe("the `Particulares` detail", () => {
     const result = await handleIndividualDetailAction(
       postRequest(individual.individualId, admin.cookie, {
         documentNumber,
+        documentPhotoStorageKey: photoKey,
         intent: "confirm-link",
       }),
     );
@@ -164,6 +145,31 @@ describe("the `Particulares` detail", () => {
       status: "error",
       message:
         "El particular cambió su documento mientras lo revisabas. Revisalo de nuevo antes de confirmar.",
+    });
+    await expect(
+      loadIndividualDetail(await detailRequest(individual.individualId)),
+    ).resolves.toMatchObject({ linkState: "pending" });
+  });
+
+  test("refuses to confirm a photo the individual replaced since it was read", async () => {
+    const individual = await seedIndividual();
+    const admin = await createSignedInRequest({
+      email: "admin@example.com",
+      role: "admin",
+    });
+
+    const result = await handleIndividualDetailAction(
+      postRequest(individual.individualId, admin.cookie, {
+        documentNumber,
+        documentPhotoStorageKey: "individuals/ana/document-0.jpg",
+        intent: "confirm-link",
+      }),
+    );
+
+    expect(result).toEqual({
+      status: "error",
+      message:
+        "El particular cambió la foto de su documento mientras lo revisabas. Revisala de nuevo antes de confirmar.",
     });
     await expect(
       loadIndividualDetail(await detailRequest(individual.individualId)),
@@ -180,6 +186,7 @@ describe("the `Particulares` detail", () => {
     await handleIndividualDetailAction(
       postRequest(individual.individualId, admin.cookie, {
         documentNumber,
+        documentPhotoStorageKey: photoKey,
         intent: "confirm-link",
       }),
     );
@@ -216,6 +223,7 @@ describe("the `Particulares` detail", () => {
         handleIndividualDetailAction(
           postRequest(individual.individualId, auditor.cookie, {
             documentNumber,
+            documentPhotoStorageKey: photoKey,
             intent,
           }),
         ),

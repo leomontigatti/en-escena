@@ -183,6 +183,28 @@ describe("the roster rows an individual's link reaches", () => {
     expect(rows.map((row) => row.id)).toEqual([formatted.id, spaced.id]);
   });
 
+  test("never matches a number that is only separators", async () => {
+    const academy = await seedAcademy("Estudio Sur");
+    await createDancer(academy.id, {
+      documentType: "other",
+      documentNumber: "- -",
+    });
+    const individual = await createIndividualUser({
+      documentNumber: ".-.",
+      documentPhotoStorageKey: "individuals/photo.jpg",
+      documentType: "other",
+      email: `particular.${crypto.randomUUID()}@example.com`,
+    });
+    await confirm(individual.individualId, ".-.");
+
+    await expect(
+      listIndividualLinkedRosterRows(individual.individualId),
+    ).resolves.toEqual([]);
+    await expect(
+      previewIndividualLinkRosterRows(individual.individualId),
+    ).resolves.toEqual([]);
+  });
+
   test("never reaches a row an individual's own owner row holds", async () => {
     const owner = await createAcademyUser({
       academyName: "Otra Particular",
@@ -226,9 +248,27 @@ describe("confirming the link", () => {
       confirmIndividualLink({
         confirmedByUserId: admin.userId,
         documentNumber: "99888777",
+        documentPhotoStorageKey: photoKey,
         individualId: individual.individualId,
       }),
     ).resolves.toEqual({ ok: false, reason: "document-changed" });
+  });
+
+  test("refuses a photo the individual replaced after administration read it", async () => {
+    const individual = await seedIndividualWithPhoto();
+    const admin = await seedAdmin();
+
+    await expect(
+      confirmIndividualLink({
+        confirmedByUserId: admin.userId,
+        documentNumber,
+        documentPhotoStorageKey: "individuals/older-photo.jpg",
+        individualId: individual.individualId,
+      }),
+    ).resolves.toEqual({ ok: false, reason: "photo-changed" });
+    await expect(
+      listIndividualLinkedRosterRows(individual.individualId),
+    ).resolves.toEqual([]);
   });
 
   test("refuses an individual without a document photo", async () => {
@@ -242,9 +282,19 @@ describe("confirming the link", () => {
       confirmIndividualLink({
         confirmedByUserId: admin.userId,
         documentNumber,
+        documentPhotoStorageKey: photoKey,
         individualId: individual.individualId,
       }),
     ).resolves.toEqual({ ok: false, reason: "missing-photo" });
+  });
+});
+
+describe("revoking the link", () => {
+  test("says when there is no such individual", async () => {
+    await expect(revokeIndividualLink(crypto.randomUUID())).resolves.toEqual({
+      ok: false,
+      reason: "not-found",
+    });
   });
 });
 
@@ -262,19 +312,22 @@ async function seedAcademy(academyName: string) {
   });
 }
 
+const photoKey = "individuals/photo.jpg";
+
 async function seedIndividualWithPhoto() {
   return await createIndividualUser({
     documentNumber,
-    documentPhotoStorageKey: "individuals/photo.jpg",
+    documentPhotoStorageKey: photoKey,
     email: `particular.${crypto.randomUUID()}@example.com`,
   });
 }
 
-async function confirm(individualId: string) {
+async function confirm(individualId: string, number = documentNumber) {
   const admin = await seedAdmin();
   const result = await confirmIndividualLink({
     confirmedByUserId: admin.userId,
-    documentNumber,
+    documentNumber: number,
+    documentPhotoStorageKey: photoKey,
     individualId,
   });
 
