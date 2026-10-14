@@ -149,7 +149,7 @@ describe("dancer birth date choreography correction", () => {
           choreographyId: clearChoreography.id,
           name: "Limpia",
           categoryName: "Limpia nivel Mayor",
-          experienceLevelOutcome: "cleared",
+          experienceLevelOutcome: "unchanged",
         },
       ]),
     });

@@ -535,7 +535,8 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
     );
 
     // The payload carries what the page reports back: the choreography moved
-    // to a category that admits no level, so the stored one was cleared.
+    // to a category that admits no level, so the stored one was cleared and
+    // reads `No aplica`, with nothing left to pick.
     expect(ninaResult).toMatchObject({
       status: "success",
       recategorisedChoreographies: [
@@ -543,7 +544,7 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
           choreographyId: choreography.id,
           name: "Umbral",
           categoryName: catalog.olderCategory.name,
-          experienceLevelOutcome: "cleared",
+          experienceLevelOutcome: "unchanged",
         },
       ],
     });

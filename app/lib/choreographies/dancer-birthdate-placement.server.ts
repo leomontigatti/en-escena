@@ -89,7 +89,13 @@ export function resolveExperienceLevelOutcome(input: {
   const { experienceLevel } = input.resolution;
   const experienceLevelId = input.placement.experienceLevelId;
 
-  if (input.previousExperienceLevelId !== null && experienceLevelId === null) {
+  // A category that admits no levels has nothing to pick: the empty level
+  // reads `No aplica` and the move needs no repair.
+  if (
+    input.previousExperienceLevelId !== null &&
+    experienceLevelId === null &&
+    experienceLevel.requirement !== "notApplicable"
+  ) {
     return "cleared";
   }
 
