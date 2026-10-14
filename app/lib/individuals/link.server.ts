@@ -69,21 +69,6 @@ export async function listIndividualLinkedRosterRows(
 }
 
 /**
- * The rows the individual's document would reach, whatever its link state:
- * what administration reads before confirming the link. Nothing the individual
- * reads goes through here.
- */
-export async function previewIndividualLinkRosterRows(
-  subject: IndividualLinkSubject,
-): Promise<LinkedRosterRow[]> {
-  const individual = await resolveIndividualLinkFields(subject);
-
-  return individual
-    ? await listRosterRowsCarryingDocument(individual.documentNumber)
-    : [];
-}
-
-/**
  * Administration's confirmation that the document is the individual's, for
  * the number and the photo it compared (`documentNumber`,
  * `documentPhotoStorageKey`): when the individual changed either in between,

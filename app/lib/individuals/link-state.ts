@@ -1,7 +1,8 @@
 // The state of an individual's link to the roster rows that carry its document
 // (ADR-0019). It is derived from the `individual` row, never stored, so no
-// write can leave it stale. Client-safe: `Mis datos` and the `Particulares`
-// admin section read the same labels.
+// write can leave it stale. Client-safe: `Mis datos` reads these labels, and
+// administration names the same states in words of its own
+// (`app/features/admin/users/individual-link-badge.tsx`).
 
 export type IndividualLinkState = "linked" | "pending" | "unlinked";
 
@@ -12,16 +13,11 @@ const individualLinkStateLabels = {
 } as const satisfies Record<IndividualLinkState, string>;
 
 /** In the order an individual goes through them, for a facet. */
-const individualLinkStates = [
+export const individualLinkStates = [
   "unlinked",
   "pending",
   "linked",
 ] as const satisfies readonly IndividualLinkState[];
-
-export const individualLinkStateOptions = individualLinkStates.map((state) => ({
-  label: individualLinkStateLabels[state],
-  value: state,
-}));
 
 export function isIndividualLinkState(
   value: string,

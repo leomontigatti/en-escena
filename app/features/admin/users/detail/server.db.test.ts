@@ -7,19 +7,17 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { individuals } from "@/db/schema";
-import {
-  createDancer,
-  createProfessor,
-} from "@/features/portal/choreographies/test-support/db";
+import { createDancer } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyRecord } from "@/features/portal/test-support/db";
 import { listIndividualLinkedRosterRows } from "@/lib/individuals/link.server";
+import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import { createIndividualUser } from "@/lib/test-support/individuals";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
-import { handleIndividualDetailAction, loadIndividualDetail } from "./server";
+import { action, loader } from "./server";
 
 installDatabaseTestHooks();
 
@@ -27,7 +25,7 @@ let storageVolumeDir = "";
 
 // A temporary storage volume behind the app's own storage client.
 beforeEach(async () => {
-  storageVolumeDir = await mkdtemp(join(tmpdir(), "en-escena-particulares-"));
+  storageVolumeDir = await mkdtemp(join(tmpdir(), "en-escena-usuarios-"));
   vi.stubEnv("STORAGE_VOLUME_DIR", storageVolumeDir);
 });
 
@@ -39,45 +37,41 @@ afterEach(async () => {
 const documentNumber = "30123456";
 const photoKey = "individuals/ana/document-1.jpg";
 
-describe("the `Particulares` detail", () => {
-  test("shows the data, the photo and the rows the link would reach before it is confirmed", async () => {
-    const academy = await createAcademyRecord({
-      academyName: "Estudio Sur",
-      email: "sur@example.com",
-    });
-    const dancer = await createDancer(academy.id, {
-      documentType: "dni",
-      documentNumber,
-    });
-    const professor = await createProfessor(academy.id, {
-      documentType: "dni",
-      documentNumber,
-    });
+describe("an individual's user detail", () => {
+  test("shows the individual's data, its photo and its link state", async () => {
     const individual = await seedIndividual();
 
-    const data = await loadIndividualDetail(
-      await detailRequest(individual.individualId),
-    );
+    const data = await loader(await detailRequest(individual.userId));
 
     expect(data).toMatchObject({
       canWrite: true,
-      confirmation: null,
       individual: {
+        confirmation: null,
         documentNumber,
+        documentPhotoStorageKey: photoKey,
         documentType: "dni",
         email: "ana@example.com",
         firstName: "Ana",
-        id: individual.individualId,
         lastName: "Pérez",
+        linkState: "pending",
         phone: "3511234567",
       },
-      linkState: "pending",
+      user: { userType: "individual" },
     });
-    expect(data.documentPhotoUrl).toContain(encodeURIComponent(photoKey));
-    expect(data.reachedRows.map((row) => row.id)).toEqual([
-      dancer.id,
-      professor.id,
-    ]);
+    expect(data.individual?.documentPhotoUrl).toContain(
+      encodeURIComponent(photoKey),
+    );
+  });
+
+  test("carries no individual for an internal or an academy user", async () => {
+    const academy = await createAcademyUser({
+      academyName: "Academia Norte",
+      email: "norte@example.com",
+    });
+
+    await expect(
+      loader(await detailRequest(academy.userId)),
+    ).resolves.toMatchObject({ individual: null });
   });
 
   test("an admin confirms the link for the document it read", async () => {
@@ -96,8 +90,8 @@ describe("the `Particulares` detail", () => {
       role: "admin",
     });
 
-    const result = await handleIndividualDetailAction(
-      postRequest(individual.individualId, admin.cookie, {
+    const result = await action(
+      postRequest(individual.userId, admin.cookie, {
         documentNumber,
         documentPhotoStorageKey: photoKey,
         intent: "confirm-link",
@@ -112,13 +106,13 @@ describe("the `Particulares` detail", () => {
       listIndividualLinkedRosterRows(individual.individualId),
     ).resolves.toMatchObject([{ id: dancer.id }]);
 
-    const data = await loadIndividualDetail(
-      await detailRequest(individual.individualId),
-    );
+    const data = await loader(await detailRequest(individual.userId));
 
-    expect(data.linkState).toBe("linked");
-    expect(data.confirmation).toMatchObject({ confirmedByName: "Laura Admin" });
-    expect(data.confirmation?.confirmedAt).toBeInstanceOf(Date);
+    expect(data.individual?.linkState).toBe("linked");
+    expect(data.individual?.confirmation).toMatchObject({
+      confirmedByName: "Laura Admin",
+    });
+    expect(data.individual?.confirmation?.confirmedAt).toBeInstanceOf(Date);
   });
 
   test("refuses to confirm a document the individual changed since it was read", async () => {
@@ -133,22 +127,23 @@ describe("the `Particulares` detail", () => {
       .set({ documentNumber: "30123457" })
       .where(eq(individuals.id, individual.individualId));
 
-    const result = await handleIndividualDetailAction(
-      postRequest(individual.individualId, admin.cookie, {
+    const result = await action(
+      postRequest(individual.userId, admin.cookie, {
         documentNumber,
         documentPhotoStorageKey: photoKey,
         intent: "confirm-link",
       }),
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
+      form: "link",
       status: "error",
       message:
         "El particular cambió su documento mientras lo revisabas. Revisalo de nuevo antes de confirmar.",
     });
     await expect(
-      loadIndividualDetail(await detailRequest(individual.individualId)),
-    ).resolves.toMatchObject({ linkState: "pending" });
+      loader(await detailRequest(individual.userId)),
+    ).resolves.toMatchObject({ individual: { linkState: "pending" } });
   });
 
   test("refuses to confirm a photo the individual replaced since it was read", async () => {
@@ -158,22 +153,23 @@ describe("the `Particulares` detail", () => {
       role: "admin",
     });
 
-    const result = await handleIndividualDetailAction(
-      postRequest(individual.individualId, admin.cookie, {
+    const result = await action(
+      postRequest(individual.userId, admin.cookie, {
         documentNumber,
         documentPhotoStorageKey: "individuals/ana/document-0.jpg",
         intent: "confirm-link",
       }),
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
+      form: "link",
       status: "error",
       message:
         "El particular cambió la foto de su documento mientras lo revisabas. Revisala de nuevo antes de confirmar.",
     });
     await expect(
-      loadIndividualDetail(await detailRequest(individual.individualId)),
-    ).resolves.toMatchObject({ linkState: "pending" });
+      loader(await detailRequest(individual.userId)),
+    ).resolves.toMatchObject({ individual: { linkState: "pending" } });
   });
 
   test("an admin revokes a confirmed link", async () => {
@@ -183,45 +179,64 @@ describe("the `Particulares` detail", () => {
       role: "admin",
     });
 
-    await handleIndividualDetailAction(
-      postRequest(individual.individualId, admin.cookie, {
+    await action(
+      postRequest(individual.userId, admin.cookie, {
         documentNumber,
         documentPhotoStorageKey: photoKey,
         intent: "confirm-link",
       }),
     );
-    const result = await handleIndividualDetailAction(
-      postRequest(individual.individualId, admin.cookie, {
-        intent: "revoke-link",
-      }),
+    const result = await action(
+      postRequest(individual.userId, admin.cookie, { intent: "revoke-link" }),
     );
 
     expect(result).toEqual({ status: "success", message: "Vínculo revocado." });
     await expect(
-      loadIndividualDetail(await detailRequest(individual.individualId)),
-    ).resolves.toMatchObject({ confirmation: null, linkState: "pending" });
+      loader(await detailRequest(individual.userId)),
+    ).resolves.toMatchObject({
+      individual: { confirmation: null, linkState: "pending" },
+    });
   });
 
-  test("the auditor reads the detail but cannot confirm or revoke", async () => {
+  test("answers 404 to a link action on a user with no individual behind it", async () => {
+    const academy = await createAcademyUser({
+      academyName: "Academia Norte",
+      email: "norte@example.com",
+    });
+    const admin = await createSignedInRequest({
+      email: "admin@example.com",
+      role: "admin",
+    });
+
+    await expectThrownResponse(
+      action(
+        postRequest(academy.userId, admin.cookie, { intent: "revoke-link" }),
+      ),
+      404,
+    );
+  });
+
+  test("refuses the auditor the detail and both link actions", async () => {
     const individual = await seedIndividual();
     const auditor = await createSignedInRequest({
       email: "auditor@example.com",
       role: "auditor",
     });
 
-    await expect(
-      loadIndividualDetail({
-        params: { individualId: individual.individualId },
-        request: new Request(detailUrl(individual.individualId), {
+    await expectThrownResponse(
+      loader({
+        params: { userId: individual.userId },
+        request: new Request(detailUrl(individual.userId), {
           headers: { cookie: auditor.cookie },
         }),
       }),
-    ).resolves.toMatchObject({ canWrite: false, linkState: "pending" });
+      403,
+    );
 
     for (const intent of ["confirm-link", "revoke-link"]) {
       await expectThrownResponse(
-        handleIndividualDetailAction(
-          postRequest(individual.individualId, auditor.cookie, {
+        action(
+          postRequest(individual.userId, auditor.cookie, {
             documentNumber,
             documentPhotoStorageKey: photoKey,
             intent,
@@ -236,10 +251,31 @@ describe("the `Particulares` detail", () => {
     ).resolves.toEqual([]);
   });
 
-  test("answers 404 for an individual that does not exist", async () => {
+  test("refuses an academy the detail and the confirmation", async () => {
+    const individual = await seedIndividual();
+    const academy = await createAcademyUser({
+      academyName: "Academia Norte",
+      email: "norte@example.com",
+    });
+
     await expectThrownResponse(
-      loadIndividualDetail(await detailRequest(crypto.randomUUID())),
-      404,
+      loader({
+        params: { userId: individual.userId },
+        request: new Request(detailUrl(individual.userId), {
+          headers: { cookie: academy.cookie },
+        }),
+      }),
+      403,
+    );
+    await expectThrownResponse(
+      action(
+        postRequest(individual.userId, academy.cookie, {
+          documentNumber,
+          documentPhotoStorageKey: photoKey,
+          intent: "confirm-link",
+        }),
+      ),
+      403,
     );
   });
 });
@@ -255,22 +291,22 @@ async function seedIndividual() {
   });
 }
 
-function detailUrl(individualId: string) {
-  return `http://localhost/administracion/particulares/${individualId}`;
+function detailUrl(userId: string) {
+  return `http://localhost/administracion/usuarios/${userId}`;
 }
 
-async function detailRequest(individualId: string) {
+async function detailRequest(userId: string) {
   const { request } = await createSignedInRequest({
     email: `admin.${crypto.randomUUID()}@example.com`,
-    requestUrl: detailUrl(individualId),
+    requestUrl: detailUrl(userId),
     role: "admin",
   });
 
-  return { params: { individualId }, request };
+  return { params: { userId }, request };
 }
 
 function postRequest(
-  individualId: string,
+  userId: string,
   cookie: string,
   values: Record<string, string>,
 ) {
@@ -281,8 +317,8 @@ function postRequest(
   }
 
   return {
-    params: { individualId },
-    request: new Request(detailUrl(individualId), {
+    params: { userId },
+    request: new Request(detailUrl(userId), {
       body,
       headers: { cookie },
       method: "POST",

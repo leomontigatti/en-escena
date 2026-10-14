@@ -22,16 +22,24 @@ import {
   type DetailUser,
   reactivateUserIntent,
   type DetailViewActionData,
-  type UserDetailLoaderData,
 } from "@/lib/admin/users/user-detail.shared";
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
+import { IndividualLinkReviewBadge } from "../individual-link-badge";
 import { UserAccessStateBadge } from "../user-access-state-badge";
+
+import {
+  IndividualDataCard,
+  IndividualLinkActions,
+  IndividualLinkAlert,
+} from "./individual/view";
+import type { IndividualLinkDetail } from "./individual/shared";
+import type { UserDetailRouteLoaderData } from "./shared";
 
 type InternalUserDetailRouteViewProps = {
   actionData?: DetailViewActionData;
-  loaderData: UserDetailLoaderData;
+  loaderData: UserDetailRouteLoaderData;
 };
 
 export function InternalUserDetailRouteView({
@@ -39,6 +47,7 @@ export function InternalUserDetailRouteView({
   loaderData,
 }: InternalUserDetailRouteViewProps) {
   const savedUser = loaderData.user;
+  const { individual } = loaderData;
   const canManageInternalUser =
     loaderData.canWrite && savedUser.userType === "internal";
   const errorData = actionData?.status === "error" ? actionData : undefined;
@@ -54,11 +63,7 @@ export function InternalUserDetailRouteView({
   return (
     <AdminResourceLayout
       title={savedUser.name}
-      titleBadge={
-        savedUser.state === "suspended" ? (
-          <UserAccessStateBadge state={savedUser.state} />
-        ) : undefined
-      }
+      titleBadge={<UserTitleBadges individual={individual} user={savedUser} />}
       description={getDetailDescription(
         savedUser.userType,
         loaderData.canWrite,
@@ -66,17 +71,53 @@ export function InternalUserDetailRouteView({
       headerAction={
         canManageInternalUser ? (
           <UserActionsMenu successData={successData} user={savedUser} />
+        ) : individual && loaderData.canWrite ? (
+          <IndividualLinkActions individual={individual} />
         ) : null
       }
       requireSelectedEvent={false}
     >
-      <UserDetailBody
-        actionData={errorData}
-        backToList={loaderData.backToList}
-        canManageInternalUser={canManageInternalUser}
-        user={savedUser}
-      />
+      {individual ? (
+        <>
+          <IndividualLinkAlert individual={individual} />
+          <IndividualDataCard
+            backToList={loaderData.backToList}
+            individual={individual}
+          />
+        </>
+      ) : (
+        <UserDetailBody
+          actionData={errorData}
+          backToList={loaderData.backToList}
+          canManageInternalUser={canManageInternalUser}
+          user={savedUser}
+        />
+      )}
     </AdminResourceLayout>
+  );
+}
+
+/** A suspension, and an individual's link state, beside the name. */
+function UserTitleBadges({
+  individual,
+  user,
+}: {
+  individual: IndividualLinkDetail | null;
+  user: DetailUser;
+}) {
+  if (user.state !== "suspended" && !individual) {
+    return null;
+  }
+
+  return (
+    <>
+      {user.state === "suspended" ? (
+        <UserAccessStateBadge state={user.state} />
+      ) : null}
+      {individual ? (
+        <IndividualLinkReviewBadge state={individual.linkState} />
+      ) : null}
+    </>
   );
 }
 

@@ -65,7 +65,6 @@ type LinkConfirmationCopy = {
   /** The photo on screen, which the confirmation names too. */
   documentPhotoStorageKey: string | null;
   fullName: string;
-  reachedRowCount: number;
 };
 
 /** What one of the two confirmations says and posts. */
@@ -142,16 +141,6 @@ function closeWhenDismissed(open: boolean, onClose: () => void) {
 function describeConfirmation({
   documentLabel,
   fullName,
-  reachedRowCount,
 }: LinkConfirmationCopy) {
-  if (reachedRowCount === 0) {
-    return `Ninguna academia cargó todavía a alguien con ${documentLabel}. ${fullName} va a ver su participación en cuanto una lo haga.`;
-  }
-
-  const rows =
-    reachedRowCount === 1
-      ? "la fila de academia"
-      : `las ${reachedRowCount} filas de academia`;
-
-  return `${fullName} va a ver su participación en ${rows} con ${documentLabel}, y en las que se carguen después con ese documento.`;
+  return `${fullName} va a ver su participación en las academias que lo cargaron con ${documentLabel}, y en las que lo carguen después con ese documento.`;
 }

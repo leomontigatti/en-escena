@@ -11,7 +11,6 @@ import { createAcademyRecord } from "@/features/portal/test-support/db";
 import {
   confirmIndividualLink,
   listIndividualLinkedRosterRows,
-  previewIndividualLinkRosterRows,
   revokeIndividualLink,
 } from "@/lib/individuals/link.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
@@ -200,9 +199,6 @@ describe("the roster rows an individual's link reaches", () => {
     await expect(
       listIndividualLinkedRosterRows(individual.individualId),
     ).resolves.toEqual([]);
-    await expect(
-      previewIndividualLinkRosterRows(individual.individualId),
-    ).resolves.toEqual([]);
   });
 
   test("never reaches a row an individual's own owner row holds", async () => {
@@ -221,21 +217,6 @@ describe("the roster rows an individual's link reaches", () => {
     await expect(
       listIndividualLinkedRosterRows(individual.individualId),
     ).resolves.toEqual([]);
-  });
-});
-
-describe("what administration reads before confirming", () => {
-  test("previews the rows the document would reach while the link is pending", async () => {
-    const academy = await seedAcademy("Estudio Sur");
-    const dancer = await createDancer(academy.id, {
-      documentType: "dni",
-      documentNumber,
-    });
-    const individual = await seedIndividualWithPhoto();
-
-    const rows = await previewIndividualLinkRosterRows(individual.individualId);
-
-    expect(rows.map((row) => row.id)).toEqual([dancer.id]);
   });
 });
 

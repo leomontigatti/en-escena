@@ -8,12 +8,12 @@ import {
 } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import type { UserDetailRouteLoaderData } from "@/features/admin/users/detail/shared";
 import { InternalUserDetailRouteView } from "@/features/admin/users/detail/view";
 import {
   buildDetailActionSuccess,
   type DetailUser,
   type DetailViewActionData,
-  type UserDetailLoaderData,
 } from "@/lib/admin/users/user-detail.shared";
 import {
   createReactDomTestRenderer,
@@ -419,10 +419,13 @@ async function chooseMenuItem(label: string) {
   });
 }
 
-function buildLoaderData(user: Partial<DetailUser> = {}): UserDetailLoaderData {
+function buildLoaderData(
+  user: Partial<DetailUser> = {},
+): UserDetailRouteLoaderData {
   return {
     backToList: "/administracion/usuarios",
     canWrite: true,
+    individual: null,
     user: {
       academyId: null,
       academyName: null,

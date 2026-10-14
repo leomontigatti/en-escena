@@ -5,7 +5,6 @@ import {
   ClipboardList,
   GraduationCap,
   HandCoins,
-  IdCard,
   Music2,
   Presentation,
   ShieldUser,
@@ -240,12 +239,5 @@ const auditorHomeCards = [
       "Consultá los seminarios del evento activo y exportá sus inscriptos.",
     icon: Presentation,
     to: "/administracion/seminarios",
-  },
-  {
-    title: "Particulares",
-    description:
-      "Consultá los particulares y el vínculo de su documento con las academias.",
-    icon: IdCard,
-    to: "/administracion/particulares",
   },
 ] satisfies HomeAccessCardItem[];

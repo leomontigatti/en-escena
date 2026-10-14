@@ -2,8 +2,11 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { user } from "@/db/schema";
+import { confirmIndividualLink } from "@/lib/individuals/link.server";
+import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { expectThrownResponse } from "@/lib/test-support/http";
+import { createIndividualUser } from "@/lib/test-support/individuals";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -72,6 +75,99 @@ describe("users list loader", () => {
     ]);
   });
 });
+
+describe("an individual's link on the users list", () => {
+  test("carries each individual's link state and none for any other user", async () => {
+    const { ana, bruno, carla } = await seedIndividualsInEachState();
+    const academy = await createAcademyUser({
+      academyName: "Academia Norte",
+      contactName: "Nora Norte",
+      email: "norte@example.com",
+    });
+
+    const data = await loader({ request: await listRequest("") });
+    const linkStates = Object.fromEntries(
+      data.users.map((savedUser) => [savedUser.id, savedUser.linkState]),
+    );
+
+    expect(linkStates).toMatchObject({
+      [academy.userId]: null,
+      [ana.userId]: "unlinked",
+      [bruno.userId]: "pending",
+      [carla.userId]: "linked",
+    });
+  });
+
+  test("filters by link state, which leaves only individuals", async () => {
+    const { bruno } = await seedIndividualsInEachState();
+    await createAcademyUser({
+      academyName: "Academia Norte",
+      email: "norte@example.com",
+    });
+
+    const data = await loader({
+      request: await listRequest("?vinculo=pending"),
+    });
+
+    expect(data.users.map((savedUser) => savedUser.id)).toEqual([bruno.userId]);
+    expect(data.filters.linkState).toBe("pending");
+  });
+
+  test("drops a link state the list does not know from the address", async () => {
+    const response = await expectThrownResponse(
+      loader({ request: await listRequest("?vinculo=verificado") }),
+      302,
+    );
+
+    expect(response.headers.get("Location")).toBe("/administracion/usuarios");
+  });
+
+  test("refuses the auditor", async () => {
+    const { request } = await createSignedInRequest({
+      email: `auditor.${crypto.randomUUID()}@example.com`,
+      requestUrl: "http://localhost/administracion/usuarios?vinculo=pending",
+      role: "auditor",
+    });
+
+    await expectThrownResponse(loader({ request }), 403);
+  });
+});
+
+async function seedIndividualsInEachState() {
+  const ana = await createIndividualUser({
+    documentNumber: "30123456",
+    email: "ana@example.com",
+    firstName: "Ana",
+    lastName: "Acosta",
+  });
+  const bruno = await createIndividualUser({
+    documentNumber: "31222333",
+    documentPhotoStorageKey: "individuals/bruno.jpg",
+    email: "bruno@example.com",
+    firstName: "Bruno",
+    lastName: "Benítez",
+  });
+  const carla = await createIndividualUser({
+    documentNumber: "32333444",
+    documentPhotoStorageKey: "individuals/carla.jpg",
+    email: "carla@example.com",
+    firstName: "Carla",
+    lastName: "Castro",
+  });
+  const admin = await createSignedInRequest({
+    email: `confirma.${crypto.randomUUID()}@example.com`,
+    role: "admin",
+  });
+
+  await confirmIndividualLink({
+    confirmedByUserId: admin.userId,
+    documentNumber: "32333444",
+    documentPhotoStorageKey: "individuals/carla.jpg",
+    individualId: carla.individualId,
+  });
+
+  return { ana, bruno, carla };
+}
 
 async function insertJudges(count: number) {
   await db.insert(user).values(

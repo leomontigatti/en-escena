@@ -35,8 +35,7 @@ const administrationRoutes = import.meta.glob<{ loader?: ChildLoader }>(
 
 /**
  * The routes reviewed for the auditor (PRD #1448): the five sections and their
- * exports, then the seminar list and its export, without the seminar detail;
- * then `Particulares`, which the auditor reads and cannot write (PRD #1650).
+ * exports, then the seminar list and its export, without the seminar detail.
  */
 const auditorReviewedRoutes = new Set([
   "administracion._index",
@@ -57,8 +56,6 @@ const auditorReviewedRoutes = new Set([
   "administracion_.coreografias.exportar",
   "administracion_.pagos.exportar",
   "administracion_.seminarios.exportar",
-  "administracion.particulares",
-  "administracion.particulares_.$individualId",
 ]);
 
 const unreviewedRoutes = Object.entries(administrationRoutes).flatMap(
