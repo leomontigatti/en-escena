@@ -11,6 +11,8 @@ async function createAcademyUser(input: {
   academyName: string;
   contactName?: string;
   email: string;
+  /** `individual` seeds a `Particular` owner row (ADR-0019); `academy` by default. */
+  kind?: "academy" | "individual";
   /** The user's name; the email when left out. */
   name?: string;
   phone?: string;
@@ -35,6 +37,7 @@ async function createAcademyUser(input: {
     .insert(academies)
     .values({
       userId: signUpResult.response.user.id,
+      kind: input.kind,
       name: input.academyName,
       contactName: input.contactName ?? input.academyName,
       phone: input.phone ?? "1111-1111",

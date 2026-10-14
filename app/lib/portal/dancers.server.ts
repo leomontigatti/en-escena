@@ -2,6 +2,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { dancers } from "@/db/schema";
+import { requireAcademyOwner } from "@/lib/academies/owner-kind.server";
 import {
   deriveDancerVerificationStatus,
   invalidatesDancerVerification,
@@ -189,6 +190,8 @@ export async function createDancerForAcademy(
     storeDocumentImages?: StoreNewDancerDocumentImages;
   } = {},
 ): Promise<CreateDancerResult> {
+  await requireAcademyOwner(academyId);
+
   const validation = await validateCreateDancerInput(academyId, input);
 
   if (!validation.ok) {

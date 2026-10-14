@@ -137,4 +137,19 @@ describe("deleteEmptyAcademy", () => {
       message: "No se puede eliminar la academia: tiene 1 coreografía.",
     });
   });
+
+  test("never deletes an owner row of kind individual, empty or not", async () => {
+    const { academyId, userId } = await createAcademyUser({
+      academyName: "Ana Particular",
+      email: "ana.particular@example.com",
+      kind: "individual",
+    });
+
+    await expect(deleteEmptyAcademy(academyId)).rejects.toMatchObject({
+      status: 404,
+    });
+    await expect(
+      db.select({ id: user.id }).from(user).where(eq(user.id, userId)),
+    ).resolves.toEqual([{ id: userId }]);
+  });
 });

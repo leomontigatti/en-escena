@@ -3,6 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
 import { academies, choreographies, comprobantes, seminars } from "@/db/schema";
+import { academyOwner } from "@/lib/academies/owner-kind.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { readAnchorFromJoins } from "@/lib/comprobantes/anchor-context.server";
 import type { ComprobanteAnchorReading } from "@/lib/comprobantes/anchor-reading";
@@ -112,11 +113,18 @@ export async function loadComprobantesList(
   const [{ count: totalUnfilteredCount }] = await db
     .select({ count: sql<number>`count(*)` })
     .from(comprobantes)
+    .innerJoin(
+      academies,
+      and(eq(comprobantes.academyId, academies.id), academyOwner()),
+    )
     .where(eq(comprobantes.eventId, selectedEventId));
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)` })
     .from(comprobantes)
-    .innerJoin(academies, eq(comprobantes.academyId, academies.id))
+    .innerJoin(
+      academies,
+      and(eq(comprobantes.academyId, academies.id), academyOwner()),
+    )
     .leftJoin(
       choreographies,
       eq(comprobantes.choreographyId, choreographies.id),
@@ -154,7 +162,10 @@ export async function loadComprobantesList(
       academyName: academies.name,
     })
     .from(comprobantes)
-    .innerJoin(academies, eq(comprobantes.academyId, academies.id))
+    .innerJoin(
+      academies,
+      and(eq(comprobantes.academyId, academies.id), academyOwner()),
+    )
     .leftJoin(
       choreographies,
       eq(comprobantes.choreographyId, choreographies.id),

@@ -14,6 +14,7 @@ import {
   holdsSeminarInscriptionInPeriod,
 } from "@/features/admin/period-export/server";
 import { buildPeriodExportFileName } from "@/features/admin/period-export/shared";
+import { academyOwner } from "@/lib/academies/owner-kind.server";
 
 import { dancersExportColumns } from "./sheet";
 
@@ -36,7 +37,10 @@ export async function loadDancersExport(request: Request): Promise<Response> {
       lastName: dancers.lastName,
     })
     .from(dancers)
-    .innerJoin(academies, eq(academies.id, dancers.academyId))
+    .innerJoin(
+      academies,
+      and(eq(academies.id, dancers.academyId), academyOwner()),
+    )
     .where(
       or(
         exists(

@@ -14,6 +14,7 @@ import {
   user,
   votes,
 } from "@/db/schema";
+import { academyOwner } from "@/lib/academies/owner-kind.server";
 import { lockAcademyPools } from "@/lib/finances/allocation-pool.server";
 import { formatSpanishList } from "@/lib/shared/text-normalization";
 
@@ -75,7 +76,12 @@ export async function mergeAcademies(input: {
         userId: academies.userId,
       })
       .from(academies)
-      .where(inArray(academies.id, [input.removedId, input.survivorId]))
+      .where(
+        and(
+          inArray(academies.id, [input.removedId, input.survivorId]),
+          academyOwner(),
+        ),
+      )
       .orderBy(asc(academies.id))
       .for("update");
     const removed = locked.find((academy) => academy.id === input.removedId);
@@ -172,7 +178,7 @@ export async function loadAcademyMergeOptions(academyId: string): Promise<{
       .select({ email: user.email, id: academies.id, name: academies.name })
       .from(academies)
       .innerJoin(user, eq(user.id, academies.userId))
-      .where(ne(academies.id, academyId))
+      .where(and(ne(academies.id, academyId), academyOwner()))
       .orderBy(asc(academies.name)),
     db.$count(choreographies, eq(choreographies.academyId, academyId)),
     db.$count(comprobantes, eq(comprobantes.academyId, academyId)),

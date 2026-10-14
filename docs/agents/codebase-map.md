@@ -236,11 +236,12 @@ admin consults and edits the academy contact data. The per-academy financial
 summary lives in `Admin Finances`, not here.
 
 - Domain: `docs/domain/access.md`
-- ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`
+- ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`, `docs/adr/0019-individual-owns-its-own-pool.md`
 - Routes: `app/routes/administracion.academias.tsx`, `app/routes/administracion.academias_.$academyId.tsx`
 - Feature modules: `app/features/admin/academies/list/`, `app/features/admin/academies/detail/`
 - Shared modules kept in `app/lib` because the update behavior is reused by the portal profile: `app/lib/academies/academy-profile.server.ts`
-- Tests: `app/lib/admin/academies/academy-detail-route.server.db.test.ts`
+- Owner kind: an `academy` row is an academy or an `individual` (`academy.kind`). Every read that enumerates academies filters through `academyOwner()` in `app/lib/academies/owner-kind.server.ts`, and roster creation refuses an individual through `requireAcademyOwner()` there.
+- Tests: `app/lib/admin/academies/academy-detail-route.server.db.test.ts`, `app/features/admin/academies/list/server.db.test.ts`
 
 ## Admin Events And `Bases del evento`
 

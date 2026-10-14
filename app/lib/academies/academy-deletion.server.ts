@@ -1,4 +1,4 @@
-import { count, eq, inArray, or } from "drizzle-orm";
+import { and, count, eq, inArray, or } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -10,6 +10,7 @@ import {
   seminarInscriptions,
   user,
 } from "@/db/schema";
+import { academyOwner } from "@/lib/academies/owner-kind.server";
 import { formatSpanishList, pluralize } from "@/lib/shared/text-normalization";
 
 export type DeleteAcademyResult =
@@ -38,7 +39,7 @@ export async function deleteEmptyAcademy(
         userId: academies.userId,
       })
       .from(academies)
-      .where(eq(academies.id, academyId))
+      .where(and(eq(academies.id, academyId), academyOwner()))
       .limit(1);
 
     if (!academy) {

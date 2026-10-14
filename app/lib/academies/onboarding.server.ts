@@ -1,8 +1,9 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
+import { academyOwner } from "@/lib/academies/owner-kind.server";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { redirectToLoginForRequest } from "@/lib/auth/access-redirects.server";
 import {
@@ -138,7 +139,7 @@ async function findAcademiesNamed(name: string): Promise<AcademyNameMatch[]> {
       name: academies.name,
     })
     .from(academies)
-    .where(normalizedTextEquals(academies.name, name))
+    .where(and(normalizedTextEquals(academies.name, name), academyOwner()))
     .orderBy(academies.createdAt);
 }
 

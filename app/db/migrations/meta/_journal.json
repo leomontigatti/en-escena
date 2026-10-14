@@ -421,6 +421,13 @@
       "when": 1791810197407,
       "tag": "0059_withdrawal_is_final",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1792010882035,
+      "tag": "0060_academy_kind",
+      "breakpoints": true
     }
   ]
 }

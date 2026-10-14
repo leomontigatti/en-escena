@@ -10,6 +10,7 @@ import {
   schedules,
   user,
 } from "@/db/schema";
+import { academyOwner } from "@/lib/academies/owner-kind.server";
 import { grandFinalEligibility } from "@/lib/grand-final/eligibility.server";
 import { readEventJudges } from "@/lib/grand-final/event-judges.server";
 import { lockEvent } from "@/lib/grand-final/result.server";
@@ -495,7 +496,10 @@ export async function readJudgeFinalistPicks(input: {
       modalityId: finalistPicks.modalityId,
     })
     .from(finalistPicks)
-    .innerJoin(academies, eq(academies.id, finalistPicks.academyId))
+    .innerJoin(
+      academies,
+      and(eq(academies.id, finalistPicks.academyId), academyOwner()),
+    )
     .where(
       and(
         eq(finalistPicks.judgeId, input.judgeId),
@@ -534,7 +538,9 @@ export async function readAcademyNames(
   const rows = await db
     .select({ id: academies.id, name: academies.name })
     .from(academies)
-    .where(inArray(academies.id, [...new Set(academyIds)]));
+    .where(
+      and(inArray(academies.id, [...new Set(academyIds)]), academyOwner()),
+    );
 
   return new Map(rows.map((row) => [row.id, row.name]));
 }

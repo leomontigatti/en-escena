@@ -9,6 +9,7 @@ import {
   votingRoundFinalists,
   votingRounds,
 } from "@/db/schema";
+import { academyOwner } from "@/lib/academies/owner-kind.server";
 import type { FinalistBannerKeys } from "@/lib/grand-final/banners.server";
 import {
   findTieBreakBlockers,
@@ -220,7 +221,10 @@ export async function readCurrentVotingRound(
       second: votingRoundFinalists.secondStorageKey,
     })
     .from(votingRoundFinalists)
-    .innerJoin(academies, eq(academies.id, votingRoundFinalists.academyId))
+    .innerJoin(
+      academies,
+      and(eq(academies.id, votingRoundFinalists.academyId), academyOwner()),
+    )
     .where(eq(votingRoundFinalists.roundId, round.id));
 
   return {
@@ -264,7 +268,7 @@ async function readOpenFacts(executor: Executor, eventId: string) {
               eq(finalistBanners.eventId, eventId),
             ),
           )
-          .where(inArray(academies.id, academyIds));
+          .where(and(inArray(academies.id, academyIds), academyOwner()));
   const blockers: VotingRoundOpenBlocker[] = [];
 
   if (rounds.some((round) => round.closedAt === null)) {
