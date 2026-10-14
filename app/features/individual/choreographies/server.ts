@@ -90,7 +90,11 @@ export async function loadIndividualChoreographies(
     };
   }
 
-  const rows = await listIndividualLinkedRosterRows(individual.id);
+  // The link reaches archived rows too (an admin reads them before
+  // confirming); a row its academy archived takes no part in the event here.
+  const rows = (await listIndividualLinkedRosterRows(individual.id)).filter(
+    (row) => row.status === "active",
+  );
   const dancerIds = rows
     .filter((row) => row.kind === "dancer")
     .map((row) => row.id);

@@ -5,6 +5,7 @@ import { db } from "@/db";
 import {
   choreographyDancers,
   choreographyProfessors,
+  dancers,
   presentations,
   scores,
   user,
@@ -117,6 +118,39 @@ describe("loadIndividualChoreographies", () => {
       ["Academia Norte", "Grupal Norte", ["professor"], null],
       ["Academia Pirueta", "Solo de Ana", ["dancer"], null],
     ]);
+  });
+
+  test("leaves out the choreographies of a row its academy archived", async () => {
+    const fixture = await seedJudgingFixture();
+    const academyId = fixture.academy.academy.id;
+    const danced = await addChoreography(fixture, {
+      academyId,
+      name: "Solo Archivado",
+    });
+    const taught = await addChoreography(fixture, {
+      academyId,
+      name: "Grupal Archivada",
+    });
+    const dancer = await inscribeDancer(academyId, danced.id);
+    await db
+      .update(dancers)
+      .set({ active: false })
+      .where(eq(dancers.id, dancer.id));
+    const professor = await createProfessor(academyId, {
+      active: false,
+      documentNumber,
+      documentType: "dni",
+    });
+    await db
+      .insert(choreographyProfessors)
+      .values({ choreographyId: taught.id, professorId: professor.id });
+    const individual = await seedLinkedIndividual();
+
+    await expect(load(individual.cookie)).resolves.toEqual({
+      choreographies: [],
+      hasActiveEvent: true,
+      linkState: "linked",
+    });
   });
 
   test("shows a published result as the owning academy reads it, and none while unpublished", async () => {

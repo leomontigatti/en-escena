@@ -128,11 +128,12 @@ export function IndividualPersonalDataRouteView({
         </Alert>
         <Alert variant="info">
           <Info aria-hidden="true" />
-          <AlertTitle>Cambiar el documento anula el vínculo</AlertTitle>
+          <AlertTitle>
+            Cambiar el número de documento anula el vínculo
+          </AlertTitle>
           <AlertDescription>
-            Si cambiás el tipo o el número de documento, dejás de ver tus
-            coreografías hasta que administración vuelva a confirmar el vínculo
-            con la foto.
+            Si cambiás el número de documento, dejás de ver tus coreografías
+            hasta que administración vuelva a confirmar el vínculo con la foto.
           </AlertDescription>
         </Alert>
       </AlertStack>
@@ -223,7 +224,7 @@ export function IndividualPersonalDataRouteView({
 
 const linkStateDescriptions = {
   linked:
-    "Administración confirmó tu documento. Si lo cambiás, el vínculo vuelve a quedar pendiente hasta que lo confirme de nuevo.",
+    "Administración confirmó tu documento. Si cambiás su número, el vínculo vuelve a quedar pendiente hasta que lo confirme de nuevo.",
   pending:
     "Administración va a comparar la foto con tu nombre y tu documento para confirmar el vínculo.",
   unlinked:
