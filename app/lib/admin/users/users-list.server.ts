@@ -1,15 +1,18 @@
-import { and, asc, eq, inArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { INTERNAL_USER_ROLES } from "@/lib/auth/internal-user-roles";
+import { userAccessStateCondition } from "@/lib/auth/user-access-state.server";
+import {
+  readUserAccessStateFilter,
+  toUserAccessState,
+} from "@/lib/auth/user-access-state.shared";
 import { adminListPageSize } from "@/lib/admin/admin-list";
 import {
   userListSpec,
   type UserListFilters,
   type UserListItem,
-  type UserListRole,
-  type UserListState,
 } from "@/lib/admin/users/users-list.shared";
 import { paginateList, readListQuery } from "@/lib/list-query/list-query";
 import { listSearchCondition } from "@/lib/list-query/list-query.server";
@@ -20,11 +23,10 @@ export function readUserFilters(
   const listQuery = readListQuery(searchParams, userListSpec);
 
   return {
-    archived: readArchivedFilter(searchParams.get("archivado")),
     page: listQuery.page,
     query: listQuery.search,
     role: readRoleFilter(searchParams.get("rol")),
-    state: readStateFilter(searchParams.get("estado")),
+    state: readStateFilter(searchParams),
     type: readTypeFilter(searchParams.get("tipo")),
   };
 }
@@ -76,7 +78,7 @@ export async function listUsers(input: { filters: UserListFilters }): Promise<{
     mainRole: row.role,
     name:
       row.role === "academy" ? (row.academyContactName ?? row.name) : row.name,
-    state: getUserListState(row),
+    state: toUserAccessState(row),
     userType:
       row.role === "academy" ? ("academy" as const) : ("internal" as const),
   }));
@@ -87,21 +89,6 @@ export async function listUsers(input: { filters: UserListFilters }): Promise<{
     totalCount,
     totalPages,
   };
-}
-
-function getUserListState(row: {
-  role: UserListRole;
-  suspended: boolean;
-}): UserListState {
-  if (row.role === "academy") {
-    return "active";
-  }
-
-  if (row.suspended) {
-    return "suspended";
-  }
-
-  return "active";
 }
 
 function buildUserWhere(filters: UserListFilters): SQL<unknown> | undefined {
@@ -130,39 +117,20 @@ function buildUserWhere(filters: UserListFilters): SQL<unknown> | undefined {
     clauses.push(eq(user.role, filters.role));
   }
 
-  if (filters.archived) {
-    clauses.push(eq(user.suspended, true));
-    clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
-  } else if (filters.state !== "suspended") {
-    clauses.push(
-      or(eq(user.role, "academy"), eq(user.suspended, false)) ?? sql`false`,
-    );
-  }
-
-  if (filters.state === "active") {
-    clauses.push(
-      or(eq(user.role, "academy"), eq(user.suspended, false)) ?? sql`false`,
-    );
-  } else if (filters.state === "suspended") {
-    clauses.push(eq(user.suspended, true));
-    clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
-  }
-
-  if (clauses.length === 0) {
-    return undefined;
-  }
+  clauses.push(userAccessStateCondition(filters.state ?? "active"));
 
   return and(...clauses);
 }
 
-function readStateFilter(value: string | null): UserListFilters["state"] {
-  switch (value) {
-    case "active":
-    case "suspended":
-      return value;
-    default:
-      return "all";
-  }
+/**
+ * `?archivado=si` was a second spelling of `?estado=suspended`. It is read as
+ * that state so a saved link lands on the canonical URL instead of breaking.
+ */
+function readStateFilter(searchParams: URLSearchParams) {
+  return (
+    readUserAccessStateFilter(searchParams) ??
+    (searchParams.get("archivado") === "si" ? "suspended" : null)
+  );
 }
 
 function readRoleFilter(value: string | null): UserListFilters["role"] {
@@ -185,8 +153,4 @@ function readTypeFilter(value: string | null): UserListFilters["type"] {
     default:
       return "all";
   }
-}
-
-function readArchivedFilter(value: string | null) {
-  return value === "si";
 }

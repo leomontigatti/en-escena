@@ -9,7 +9,6 @@ import {
 import { FieldGroup } from "@/components/ui/field";
 import {
   detailUserRoleOptions,
-  detailUserStateOptions,
   type DetailUser,
 } from "@/lib/admin/users/user-detail.shared";
 
@@ -32,11 +31,6 @@ export function InternalUserDetailCard({
         label="Permiso principal"
         options={detailUserRoleOptions}
         value={user.mainRole}
-      />
-      <ReadOnlySelectField
-        label="Estado"
-        options={detailUserStateOptions}
-        value={user.state}
       />
     </ReadOnlyUserPage>
   );

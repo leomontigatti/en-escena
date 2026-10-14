@@ -27,6 +27,8 @@ import {
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
+import { UserAccessStateBadge } from "../user-access-state-badge";
+
 type InternalUserDetailRouteViewProps = {
   actionData?: DetailViewActionData;
   loaderData: UserDetailLoaderData;
@@ -52,6 +54,11 @@ export function InternalUserDetailRouteView({
   return (
     <AdminResourceLayout
       title={savedUser.name}
+      titleBadge={
+        savedUser.state === "suspended" ? (
+          <UserAccessStateBadge state={savedUser.state} />
+        ) : undefined
+      }
       description={getDetailDescription(
         savedUser.userType,
         loaderData.canManage,
