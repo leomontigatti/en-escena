@@ -6,7 +6,6 @@ import * as adminDancersModule from "@/lib/admin/dancers/dancers.server";
 import * as adminProfessorsModule from "@/lib/admin/professors/professors.server";
 import * as adminEventModalitiesActionModule from "@/features/admin/modalities/action.server";
 import * as internalAccessModule from "@/lib/auth/internal-access.server";
-import * as internalNavigationModule from "@/lib/auth/internal-navigation.server";
 import * as eventsManagementModule from "@/lib/events/management.server";
 import * as eventBasesModule from "@/lib/events/bases.server";
 import * as eventReadinessModule from "@/lib/events/registration-readiness.server";
@@ -106,8 +105,8 @@ export async function measureCriticalRequestBaseline(): Promise<
       surface: "administracion",
       setupSpies: [
         trackAsync(
-          internalNavigationModule,
-          "requireAdminPanelUser",
+          internalAccessModule,
+          "requireAdminPanelReader",
           "authSessionMs",
         ),
         trackAsync(
@@ -128,8 +127,8 @@ export async function measureCriticalRequestBaseline(): Promise<
       surface: "administracion",
       setupSpies: [
         trackAsync(
-          internalNavigationModule,
-          "requireAdminPanelUser",
+          internalAccessModule,
+          "requireAdminPanelWriter",
           "authSessionMs",
         ),
         trackAsync(db.query.events, "findMany", "mainQueryMs"),
@@ -151,8 +150,8 @@ export async function measureCriticalRequestBaseline(): Promise<
       surface: "administracion",
       setupSpies: [
         trackAsync(
-          internalNavigationModule,
-          "requireAdminPanelUser",
+          internalAccessModule,
+          "requireAdminPanelWriter",
           "authSessionMs",
         ),
         trackAsync(eventsManagementModule, "createEvent", "actionMs"),
@@ -198,8 +197,8 @@ export async function measureCriticalRequestBaseline(): Promise<
       surface: "administracion",
       setupSpies: [
         trackAsync(
-          internalNavigationModule,
-          "requireAdminPanelUser",
+          internalAccessModule,
+          "requireAdminPanelWriter",
           "authSessionMs",
         ),
         trackAsync(db.query.events, "findFirst", "mainQueryMs"),
@@ -226,8 +225,8 @@ export async function measureCriticalRequestBaseline(): Promise<
       surface: "administracion",
       setupSpies: [
         trackAsync(
-          internalNavigationModule,
-          "requireAdminPanelUser",
+          internalAccessModule,
+          "requireAdminPanelWriter",
           "authSessionMs",
         ),
         trackAsync(eventsManagementModule, "updateEvent", "actionMs"),
@@ -266,8 +265,8 @@ export async function measureCriticalRequestBaseline(): Promise<
       surface: "administracion",
       setupSpies: [
         trackAsync(
-          internalNavigationModule,
-          "requireAdminPanelUser",
+          internalAccessModule,
+          "requireAdminPanelWriter",
           "authSessionMs",
         ),
         trackAsync(
@@ -293,8 +292,8 @@ export async function measureCriticalRequestBaseline(): Promise<
       surface: "administracion",
       setupSpies: [
         trackAsync(
-          internalNavigationModule,
-          "requireAdminPanelUser",
+          internalAccessModule,
+          "requireAdminPanelWriter",
           "authSessionMs",
         ),
         trackAsync(
@@ -334,7 +333,7 @@ export async function measureCriticalRequestBaseline(): Promise<
       setupSpies: [
         trackAsync(
           internalAccessModule,
-          "requireInternalUser",
+          "requireAdminPanelReader",
           "authSessionMs",
         ),
         trackAsync(
@@ -357,7 +356,7 @@ export async function measureCriticalRequestBaseline(): Promise<
       setupSpies: [
         trackAsync(
           internalAccessModule,
-          "requireInternalUser",
+          "requireAdminPanelReader",
           "authSessionMs",
         ),
         trackAsync(

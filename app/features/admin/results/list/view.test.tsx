@@ -58,7 +58,7 @@ function buildLoaderData(
   overrides: Partial<ResultsListResult> = {},
 ): ResultsListResult {
   return {
-    canPublish: true,
+    canWrite: true,
     days: ["2026-11-20"],
     filters: {
       day: null,
@@ -202,7 +202,7 @@ describe("ResultsListView publication", () => {
         publishedAt: new Date("2026-03-14T23:30:00Z"),
         publishedCount: 3,
       },
-      { canPublish: false },
+      { canWrite: false },
     );
 
     expect(findButton("Acciones", { exact: true })).toBeUndefined();

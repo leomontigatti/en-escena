@@ -170,7 +170,7 @@ describe("`/administracion/academias` detail", () => {
 
     expect(loaderData.academy.name).toBe("Academia Norte");
     expect(loaderData.academy.email).toBe("academia.detalle@example.com");
-    expect(loaderData.canEdit).toBe(true);
+    expect(loaderData.canWrite).toBe(true);
 
     expect(markup).toContain("Academia Norte");
     expect(markup).toContain("Nombre de la academia");
@@ -400,7 +400,7 @@ describe("`/administracion/academias` detail", () => {
     );
     const markup = renderDetail(loaderData);
 
-    expect(loaderData.canEdit).toBe(false);
+    expect(loaderData.canWrite).toBe(false);
     expect(markup).toContain("Academia Oeste");
     expect(markup).toContain("Volver");
     expect(markup).not.toContain("Guardar");

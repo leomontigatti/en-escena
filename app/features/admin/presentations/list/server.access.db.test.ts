@@ -28,7 +28,7 @@ describe("the participation list route", () => {
     });
 
     await expect(loadPresentationListRouteData(request)).resolves.toMatchObject(
-      { canOrder: true },
+      { canWrite: true },
     );
   });
 

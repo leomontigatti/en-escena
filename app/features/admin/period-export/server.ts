@@ -9,7 +9,7 @@ import {
   seminars,
 } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { requireAuditorExportReader } from "@/lib/auth/internal-access.server";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { seminarInscriptionPersonColumn } from "@/lib/roster/roster-person-kind.server";
 import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
@@ -35,7 +35,7 @@ export async function readPeriodExport(request: Request): Promise<{
   eventName: string;
   period: ExportPeriod;
 }> {
-  await requireInternalUser(request, ["auditor"]);
+  await requireAuditorExportReader(request);
   const period = readExportPeriod(readRequestedUrl(request).searchParams);
 
   if (period.from !== null && period.to !== null && period.from > period.to) {

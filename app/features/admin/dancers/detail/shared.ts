@@ -63,7 +63,7 @@ export const dancerFieldNames = [
 export type DancerDetailLoaderData = {
   activeEventStartDate: string | null;
   backToList: string;
-  canEdit: boolean;
+  canWrite: boolean;
   dancer: NonNullable<Awaited<ReturnType<typeof findDancer>>>;
   documentImageUrls: {
     back: string | null;
@@ -336,12 +336,12 @@ export function getInitialDialogIntent({
 }
 
 export function buildDancerDetailViewState({
-  canEdit,
+  canWrite,
   dancer,
   isParticipatingInActiveEvent,
   watchedValues,
 }: {
-  canEdit: boolean;
+  canWrite: boolean;
   dancer: DancerDetailLoaderData["dancer"];
   isParticipatingInActiveEvent: boolean;
   watchedValues: DancerEditFormValues;
@@ -355,7 +355,7 @@ export function buildDancerDetailViewState({
   });
   const verificationCode = dancer.verificationStatus.code;
   const birthDateMayNeedRecalculation =
-    canEdit &&
+    canWrite &&
     dancer.participatedInAnyEvent &&
     watchedValues.birthDate !== dancer.birthDate;
   const editConsequence = getEditConsequence({
@@ -366,7 +366,7 @@ export function buildDancerDetailViewState({
   return {
     birthDateMayNeedRecalculation,
     canVerifyIdentity:
-      canEdit && canVerifyDancerIdentity(dancer.verificationStatus),
+      canWrite && canVerifyDancerIdentity(dancer.verificationStatus),
     editConsequence,
     verificationAlert: getVerificationAlert(verificationCode),
     verificationAlertTitle: getVerificationAlertTitle(verificationCode),

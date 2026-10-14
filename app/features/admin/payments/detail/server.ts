@@ -11,8 +11,11 @@ import {
   type CreatePaymentFormValues,
 } from "@/features/admin/payments/create/shared";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { requireAdminUser } from "@/lib/auth/internal-access.server";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import {
+  requireAdminPanelReader,
+  requireAdminPanelWriter,
+} from "@/lib/auth/internal-access.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import { lockPaymentPool } from "@/lib/finances/allocation-pool.server";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import { resolvePaymentAvailableAmount } from "@/lib/finances/payment-available-amount.server";
@@ -59,7 +62,7 @@ export type PaymentDetailActionData =
   | UpdatePaymentSuccessActionData;
 
 export async function loadPaymentDetail(request: Request, paymentId: string) {
-  const user = await requireInternalUser(request, ["admin", "auditor"]);
+  const user = await requireAdminPanelReader(request);
   const eventContext = await loadEventContext(request);
 
   const payment = await db
@@ -106,8 +109,7 @@ export async function loadPaymentDetail(request: Request, paymentId: string) {
       allocatedAmount,
       amount: paymentDetail.amount,
     }),
-    canDelete: user.role === "admin",
-    canEdit: user.role === "admin",
+    canWrite: canWriteInAdminPanel(user.role),
     payment: paymentDetail,
     selectedEventId: eventContext.selectedEventId ?? paymentDetail.eventId,
     values: getPaymentFormValues(paymentDetail),
@@ -118,7 +120,7 @@ export async function handlePaymentDetailAction(
   request: Request,
   paymentId: string,
 ): Promise<PaymentDetailActionData | never> {
-  await requireAdminUser(request);
+  await requireAdminPanelWriter(request);
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
 

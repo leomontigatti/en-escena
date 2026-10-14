@@ -14,10 +14,7 @@ import {
   recheckComprobanteIntent,
 } from "@/features/admin/finances/comprobante-emission/shared";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import {
-  requireAdminUser,
-  requireInternalUser,
-} from "@/lib/auth/internal-access.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { seminarAnchor } from "@/lib/comprobantes/anchor";
 import {
   getFacturaCEmissionDeps,
@@ -52,7 +49,7 @@ export async function loadSeminarFinanceDetail(input: {
   params: { academyId?: string; seminarId?: string };
   request: Request;
 }) {
-  await requireInternalUser(input.request, ["admin"]);
+  await requireAdminPanelWriter(input.request);
 
   const academyId = readFinanceAcademyId(input.params);
   const seminarId = readSeminarId(input.params);
@@ -172,7 +169,7 @@ export async function handleSeminarFinanceAction(input: {
   // production they are resolved from the environment (cert+key, sales point).
   resolveEmissionDeps?: () => FacturaCEmissionDeps;
 }): Promise<SeminarFinanceActionData | never> {
-  await requireAdminUser(input.request);
+  await requireAdminPanelWriter(input.request);
 
   const academyId = readFinanceAcademyId(input.params);
   const seminarId = readSeminarId(input.params);

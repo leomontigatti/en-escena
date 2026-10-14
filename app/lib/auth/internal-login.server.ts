@@ -4,10 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { account, user } from "@/db/schema";
 import { normalizeInternalUsername } from "@/lib/auth/internal-username.server";
-import {
-  isInternalUserRole,
-  type InternalUserRole,
-} from "@/lib/auth/internal-user-roles";
+import { isInternalUserRole, type UserRole } from "@/lib/auth/user-role.shared";
 import { normalizeEmail } from "@/lib/shared/email-normalization";
 
 const emailSchema = z.email();
@@ -17,7 +14,7 @@ export type CredentialUser = {
   id: string;
   email: string;
   emailVerified: boolean;
-  role: "academy" | InternalUserRole;
+  role: UserRole;
   suspended: boolean;
   match: CredentialUserIdentifierMatch;
 };

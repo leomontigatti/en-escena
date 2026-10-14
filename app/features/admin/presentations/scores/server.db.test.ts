@@ -75,7 +75,7 @@ describe("the presentation's scores route", () => {
         request,
       }),
     ).resolves.toMatchObject({
-      canEdit: true,
+      canWrite: true,
       presentation: { average: 90, award: "gold", name: "Primera" },
     });
   });

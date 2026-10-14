@@ -1,7 +1,7 @@
 import { redirect } from "react-router";
 
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { listCategories } from "@/lib/categories/repository.server";
 import { listModalities } from "@/lib/modalities/repository.server";
 import { getEventRegistrationOpenBlockers } from "@/lib/schedules/registration-open.server";
@@ -9,7 +9,7 @@ import { getScheduleDependencySummary } from "@/lib/schedules/schedule-dependenc
 import { listSchedules } from "@/lib/schedules/repository.server";
 
 async function loadEventScheduleContext(request: Request) {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
 
   const eventContext = await loadEventContext(request);
 

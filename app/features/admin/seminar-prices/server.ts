@@ -1,11 +1,11 @@
 import { redirect } from "react-router";
 
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { listSeminarPrices } from "@/lib/seminar-prices/repository.server";
 
 async function loadSeminarPriceContext(request: Request) {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
 
   const eventContext = await loadEventContext(request);
 

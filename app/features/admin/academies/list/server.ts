@@ -4,12 +4,12 @@ import { db } from "@/db";
 import { academies, choreographies } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { getAcademyDataStatus } from "@/lib/academies/academy-data-status";
-import { canWriteInAdminPanel } from "@/lib/auth/admin-panel-access";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
+import { requireAdminPanelReader } from "@/lib/auth/internal-access.server";
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 
 export async function loadAcademiesList(request: Request) {
-  const user = await requireInternalUser(request, ["admin", "auditor"]);
+  const user = await requireAdminPanelReader(request);
   const eventContext = await loadEventContext(request);
   const academyRows = await db.query.academies.findMany({
     columns: {

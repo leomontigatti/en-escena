@@ -3,6 +3,7 @@ import { eq, or } from "drizzle-orm";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { buildInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.server";
+import { canUserWriteInAdminPanel } from "@/lib/admin/users/internal-user-actor.server";
 import { isReservedInternalUsername } from "@/lib/auth/internal-username.server";
 import {
   internalUsernameRuleMessage,
@@ -14,9 +15,9 @@ import {
   deleteInternalCredentialUser,
 } from "@/lib/auth/internal-user-auth.server";
 import {
-  isInternalUserRole,
   type InternalUserRole,
-} from "@/lib/auth/internal-user-roles";
+  isInternalUserRole,
+} from "@/lib/auth/user-role.shared";
 
 const PASSWORD_MIN_LENGTH = 8;
 
@@ -41,12 +42,7 @@ type CreateInternalUserResult =
 export async function createInternalUser(
   input: CreateInternalUserInput,
 ): Promise<CreateInternalUserResult> {
-  const adminUser = await db.query.user.findFirst({
-    columns: { id: true, role: true },
-    where: eq(user.id, input.createdByUserId),
-  });
-
-  if (adminUser?.role !== "admin") {
+  if (!(await canUserWriteInAdminPanel(input.createdByUserId))) {
     return creationError("Solo administración puede crear usuarios internos.");
   }
 

@@ -170,7 +170,7 @@ export type PresentationListResult = {
   assignableJudges: AssignableJudge[];
   /** The judges on the listed rows, named, so the dialog can take any off. */
   assignedJudges: AssignableJudge[];
-  canOrder: boolean;
+  canWrite: boolean;
   /** The rows of the chosen day, before the search and the facets narrow it. */
   dayRowCount: number;
   days: string[];

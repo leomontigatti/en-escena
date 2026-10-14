@@ -9,7 +9,7 @@ import {
   isOnExportDay,
 } from "@/features/admin/day-export/shared";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { readEventProgram } from "@/lib/presentations/event-program.server";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
@@ -32,7 +32,7 @@ export async function readProgramExport(request: Request): Promise<{
   /** With the choreography, which a richer export reads more about. */
   rows: (ProgramExportRow & { choreographyId: string })[];
 }> {
-  await requireInternalUser(request, ["admin"]);
+  await requireAdminPanelWriter(request);
   const { selectedEventId } = await loadEventContext(request);
   const day = readRequestedUrl(request).searchParams.get(exportDayParam);
 

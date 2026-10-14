@@ -70,7 +70,7 @@ import type { PresentationScoresLoaderData } from "./server";
 /**
  * One presentation's panel, which only administration and the auditor read.
  * The auditor sees exactly this and writes nothing, so the page has no role of
- * its own to render — what it offers to act on is `canEdit`'s to decide.
+ * its own to render — what it offers to act on is `canWrite`'s to decide.
  *
  * Every number a judge gave is written with a decimal point, as the judge typed
  * it: the scoring surface is the deliberate exception to es-AR formatting, and
@@ -93,7 +93,7 @@ export function PresentationScoresView({
 }: {
   loaderData: PresentationScoresLoaderData;
 }) {
-  const { canEdit, presentation } = loaderData;
+  const { canWrite, presentation } = loaderData;
 
   return (
     <AdminResourceLayout
@@ -106,7 +106,7 @@ export function PresentationScoresView({
         />
       }
       headerAction={
-        <PresentationActions canEdit={canEdit} presentation={presentation} />
+        <PresentationActions canWrite={canWrite} presentation={presentation} />
       }
     >
       <AlertStack>
@@ -124,7 +124,7 @@ export function PresentationScoresView({
         <MetricCard title="Promedio" value={averageText(presentation)} />
         <MetricCard title="Premio" value={awardText(presentation)} />
       </div>
-      <PanelScores canEdit={canEdit} presentation={presentation} />
+      <PanelScores canWrite={canWrite} presentation={presentation} />
     </AdminResourceLayout>
   );
 }
@@ -138,10 +138,10 @@ type Presentation = PresentationScoresLoaderData["presentation"];
  * does not.
  */
 function PresentationActions({
-  canEdit,
+  canWrite,
   presentation,
 }: {
-  canEdit: boolean;
+  canWrite: boolean;
   presentation: Presentation;
 }) {
   const submit = useSubmit();
@@ -165,7 +165,7 @@ function PresentationActions({
               Ver la coreografía
             </Link>
           </DropdownMenuItem>
-          {canEdit && presentation.disqualified ? (
+          {canWrite && presentation.disqualified ? (
             <DropdownMenuItem
               disabled={isSettling}
               onSelect={() => submitIntent("reinstate")}
@@ -174,7 +174,7 @@ function PresentationActions({
             </DropdownMenuItem>
           ) : null}
         </DropdownMenuGroup>
-        {canEdit && !presentation.disqualified ? (
+        {canWrite && !presentation.disqualified ? (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
@@ -232,10 +232,10 @@ function awardText(presentation: Presentation) {
  * nobody is assigned.
  */
 function PanelScores({
-  canEdit,
+  canWrite,
   presentation,
 }: {
-  canEdit: boolean;
+  canWrite: boolean;
   presentation: Presentation;
 }) {
   if (presentation.judges.length === 0) {
@@ -256,15 +256,15 @@ function PanelScores({
     );
   }
 
-  return <JudgeScores canEdit={canEdit} presentation={presentation} />;
+  return <JudgeScores canWrite={canWrite} presentation={presentation} />;
 }
 
 /** The page's one leave guard, over every judge's form ({@link useScoreDraftsGuard}). */
 function JudgeScores({
-  canEdit,
+  canWrite,
   presentation,
 }: {
-  canEdit: boolean;
+  canWrite: boolean;
   presentation: Presentation;
 }) {
   const { discardDialog, onDraftChange } = useScoreDraftsGuard();
@@ -273,13 +273,13 @@ function JudgeScores({
     <>
       {presentation.criteria.length === 0 ? (
         <SingleScoresTable
-          canEdit={canEdit}
+          canWrite={canWrite}
           judges={presentation.judges}
           onDraftChange={onDraftChange}
         />
       ) : (
         <JudgeSheets
-          canEdit={canEdit}
+          canWrite={canWrite}
           criteria={presentation.criteria}
           judges={presentation.judges}
           onDraftChange={onDraftChange}
@@ -291,11 +291,11 @@ function JudgeScores({
 }
 
 function SingleScoresTable({
-  canEdit,
+  canWrite,
   judges,
   onDraftChange,
 }: {
-  canEdit: boolean;
+  canWrite: boolean;
   judges: readonly PresentationJudgeScore[];
   onDraftChange: DraftChangeHandler;
 }) {
@@ -313,7 +313,7 @@ function SingleScoresTable({
           <TableRow key={judge.judgeAssignmentId}>
             <TableCell>{judge.judgeName}</TableCell>
             <TableCell>
-              {canEdit && judge.scoreId ? (
+              {canWrite && judge.scoreId ? (
                 <SingleScoreForm
                   onDraftChange={onDraftChange}
                   scoreId={judge.scoreId}
@@ -351,12 +351,12 @@ function ScoresTable({ children }: { children: ReactNode }) {
  * rather than as a grid nobody can scan on a phone at the side of a stage.
  */
 function JudgeSheets({
-  canEdit,
+  canWrite,
   criteria,
   judges,
   onDraftChange,
 }: {
-  canEdit: boolean;
+  canWrite: boolean;
   criteria: readonly JudgeSheetCriterion[];
   judges: readonly PresentationJudgeScore[];
   onDraftChange: DraftChangeHandler;
@@ -386,7 +386,7 @@ function JudgeSheets({
           key={judge.judgeAssignmentId}
           value={judge.judgeAssignmentId}
         >
-          {canEdit && judge.scoreId ? (
+          {canWrite && judge.scoreId ? (
             <SheetForm
               criteria={criteria}
               judge={judge}

@@ -13,10 +13,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  type DetailUserRole,
-  suspendUserIntent,
-} from "@/lib/admin/users/user-detail.shared";
+import { suspendUserIntent } from "@/lib/admin/users/user-detail.shared";
+import type { UserRole } from "@/lib/auth/user-role.shared";
 import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 
 /**
@@ -35,7 +33,7 @@ export function SuspendUserDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userName: string;
-  userRole: DetailUserRole;
+  userRole: UserRole;
 }) {
   const navigation = useOptionalNavigation();
   const isPending = isRouteFormPending(navigation, {

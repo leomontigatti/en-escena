@@ -1,4 +1,4 @@
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { readComprobanteAnchorContext } from "@/lib/comprobantes/anchor-context.server";
 import { renderComprobanteQrSvg } from "@/lib/comprobantes/arca/qr-code.server";
 import { listAnchorComprobantes } from "@/lib/comprobantes/comprobantes.server";
@@ -44,7 +44,7 @@ export async function loadComprobantePrint(
   request: Request,
   comprobanteId: string,
 ): Promise<Response> {
-  await requireInternalUser(request, ["admin"]);
+  await requireAdminPanelWriter(request);
 
   const record = await getComprobantePrintRecord(comprobanteId);
 

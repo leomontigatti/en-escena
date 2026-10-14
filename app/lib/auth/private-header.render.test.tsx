@@ -7,9 +7,6 @@ import { PortalShell } from "@/components/portal/ui";
 
 vi.mock("@/lib/auth/internal-access.server", () => ({
   requireAcademyUser: vi.fn(),
-}));
-
-vi.mock("@/lib/auth/internal-navigation.server", () => ({
   requireAdminPanelReader: vi.fn(),
   requireJudgePanelUser: vi.fn(),
 }));

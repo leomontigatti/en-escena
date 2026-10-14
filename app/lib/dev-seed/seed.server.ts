@@ -22,7 +22,7 @@ import {
   user,
 } from "@/db/schema";
 import { createAccessUser } from "@/lib/auth/access-auth.test-support";
-import type { InternalUserRole } from "@/lib/auth/internal-user-roles";
+import type { UserRole } from "@/lib/auth/user-role.shared";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import {
@@ -220,7 +220,7 @@ export async function seedDevData(input: {
 async function createVerifiedUser(input: {
   email: string;
   name: string;
-  role: "academy" | InternalUserRole;
+  role: UserRole;
 }) {
   // Real Better Auth sign-up, so the password hash is the one sign-in checks.
   const { user: created } = await createAccessUser({

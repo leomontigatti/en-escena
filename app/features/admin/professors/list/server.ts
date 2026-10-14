@@ -5,14 +5,14 @@ import {
   listProfessors,
   readProfessorFilters,
 } from "@/lib/admin/professors/professors.server";
-import { canWriteInAdminPanel } from "@/lib/auth/admin-panel-access";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
+import { requireAdminPanelReader } from "@/lib/auth/internal-access.server";
 import { toProfessorAppliedListQuery } from "@/lib/admin/professors/professors.shared";
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 export async function loadProfessorsList(request: Request) {
-  const user = await requireInternalUser(request, ["admin", "auditor"]);
+  const user = await requireAdminPanelReader(request);
   const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {

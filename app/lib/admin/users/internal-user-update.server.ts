@@ -2,10 +2,11 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { accessSession, user } from "@/db/schema";
+import { canUserWriteInAdminPanel } from "@/lib/admin/users/internal-user-actor.server";
 import {
-  isInternalUserRole,
   type InternalUserRole,
-} from "@/lib/auth/internal-user-roles";
+  isInternalUserRole,
+} from "@/lib/auth/user-role.shared";
 
 type UpdateInternalUserInput = {
   userId: string;
@@ -27,12 +28,7 @@ type UpdateInternalUserResult =
 export async function updateInternalUser(
   input: UpdateInternalUserInput,
 ): Promise<UpdateInternalUserResult> {
-  const adminUser = await db.query.user.findFirst({
-    columns: { id: true, role: true },
-    where: eq(user.id, input.updatedByUserId),
-  });
-
-  if (adminUser?.role !== "admin") {
+  if (!(await canUserWriteInAdminPanel(input.updatedByUserId))) {
     return updateError("Solo administración puede editar usuarios internos.");
   }
 

@@ -1,5 +1,5 @@
 import { createInternalUser } from "@/lib/admin/users/internal-user-create.server";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 
 import {
@@ -10,12 +10,12 @@ import {
 } from "./shared";
 
 export async function loader({ request }: { request: Request }) {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
   return {};
 }
 
 export async function action({ request }: { request: Request }) {
-  const appUser = await requireAdminPanelUser(request);
+  const appUser = await requireAdminPanelWriter(request);
   const formData = await request.formData();
   const values = readCreateInternalUserFormValues(formData);
   const parsed = createInternalUserSchema.safeParse(values);

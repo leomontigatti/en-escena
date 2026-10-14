@@ -40,7 +40,7 @@ export function InternalUserDetailRouteView({
 }: InternalUserDetailRouteViewProps) {
   const savedUser = loaderData.user;
   const canManageInternalUser =
-    loaderData.canManage && savedUser.userType === "internal";
+    loaderData.canWrite && savedUser.userType === "internal";
   const errorData = actionData?.status === "error" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
 
@@ -61,7 +61,7 @@ export function InternalUserDetailRouteView({
       }
       description={getDetailDescription(
         savedUser.userType,
-        loaderData.canManage,
+        loaderData.canWrite,
       )}
       headerAction={
         canManageInternalUser ? (

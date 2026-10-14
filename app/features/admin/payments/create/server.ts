@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { requireAdminUser } from "@/lib/auth/internal-access.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 
@@ -18,7 +18,7 @@ import {
 } from "./shared";
 
 export async function loadPaymentCreate(request: Request) {
-  await requireAdminUser(request);
+  await requireAdminPanelWriter(request);
   const eventContext = await loadEventContext(request);
 
   return {
@@ -31,7 +31,7 @@ export async function loadPaymentCreate(request: Request) {
 export async function handlePaymentCreateAction(
   request: Request,
 ): Promise<CreatePaymentActionData | never> {
-  await requireAdminUser(request);
+  await requireAdminPanelWriter(request);
   const eventContext = await loadEventContext(request);
   const formData = await request.formData();
   const values = readCreatePaymentValues(formData);

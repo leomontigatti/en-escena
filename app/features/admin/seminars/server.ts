@@ -2,11 +2,11 @@ import { redirect } from "react-router";
 
 import { listExportableSeminarIds } from "@/features/admin/seminars/export/server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { canWriteInAdminPanel } from "@/lib/auth/admin-panel-access";
 import {
   requireAdminPanelReader,
-  requireAdminPanelUser,
-} from "@/lib/auth/internal-navigation.server";
+  requireAdminPanelWriter,
+} from "@/lib/auth/internal-access.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import { seminarHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import { hasCoveredSeminarInscription } from "@/lib/seminars/covered-inscriptions.server";
 import { listSeminarInscriptions } from "@/lib/seminars/inscription-rosters.server";
@@ -25,7 +25,7 @@ import {
 } from "./shared";
 
 export async function loadSeminarContext(request: Request) {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
 
   return await loadSeminarEventContext(request);
 }

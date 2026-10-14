@@ -41,7 +41,7 @@ import {
   hasCredentialAccount,
   type CredentialUser,
 } from "@/lib/auth/internal-login.server";
-import { isInternalUserRole } from "@/lib/auth/internal-user-roles";
+import { isInternalUserRole } from "@/lib/auth/user-role.shared";
 import { getPostLoginPathForUserId } from "@/lib/auth/internal-navigation.server";
 import { getEmptyFieldErrors } from "@/lib/shared/form-validation";
 import { normalizeEmail } from "@/lib/shared/email-normalization";
