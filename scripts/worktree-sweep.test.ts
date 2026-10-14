@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  type BranchFacts,
   type WorktreeFacts,
+  branchSweepVerdict,
+  classifyBranch,
   classifyWorktree,
+  isManagedByT3,
   parseAcceptedList,
+  t3WorktreeFolders,
   parseSweepArgs,
   sweepVerdict,
 } from "./worktree-sweep";
@@ -93,13 +98,14 @@ describe("classifyWorktree", () => {
     });
   });
 
-  it("keeps a worktree the user named with --keep, by folder or full path", () => {
+  it("keeps a worktree the user named with --keep, by folder, full path or branch", () => {
     expect(sweepVerdict(merged, { keep: ["t3code-1"] })).toEqual({
       remove: false,
       reason: "kept on request",
     });
     expect(sweepVerdict(merged, { keep: ["/wt/t3code-1"] }).remove).toBe(false);
     expect(sweepVerdict(merged, { keep: ["t3code-2"] }).remove).toBe(true);
+    expect(sweepVerdict(merged, { keep: ["t3code/1"] }).remove).toBe(false);
   });
 
   it("keeps a removable worktree the accepted dry run did not list", () => {
@@ -113,6 +119,118 @@ describe("classifyWorktree", () => {
 
   it("puts unsaved work ahead of a merged PR", () => {
     expect(classifyWorktree({ ...merged, dirty: true }).remove).toBe(false);
+  });
+});
+
+describe("isManagedByT3", () => {
+  const folders = ["/home/me/.t3/worktrees", "/data/wt"];
+
+  it.each([
+    "/home/me/.t3/worktrees/en-escena/fix-x",
+    "/data/wt/en-escena/fix-y",
+  ])("claims %s, inside one of T3's worktree folders", (worktreePath) => {
+    expect(isManagedByT3(worktreePath, folders)).toBe(true);
+  });
+
+  it.each([
+    "/home/me/projects/en-escena/.claude/worktrees/agent-1",
+    "/tmp/fallow-audit-base-cache-abc",
+    "/home/me/.t3/worktrees-old/en-escena/fix-x",
+    "/home/me/.t3/worktrees",
+  ])("leaves %s to the sweep", (worktreePath) => {
+    expect(isManagedByT3(worktreePath, folders)).toBe(false);
+  });
+});
+
+describe("t3WorktreeFolders", () => {
+  it("adds the worktreesDirectory setting and the folders it held before", () => {
+    expect(
+      t3WorktreeFolders(
+        "/home/me/.t3",
+        JSON.stringify({
+          worktreesDirectory: "~/wt",
+          previousWorktreesDirectories: ["/old/wt", "relative/wt", ""],
+        }),
+        "/home/me",
+      ),
+    ).toEqual(["/home/me/.t3/worktrees", "/home/me/wt", "/old/wt"]);
+  });
+
+  it("is T3's own folder alone without settings", () => {
+    expect(t3WorktreeFolders("/home/me/.t3", undefined)).toEqual([
+      "/home/me/.t3/worktrees",
+    ]);
+  });
+
+  it("refuses settings it cannot read rather than guess T3's worktrees", () => {
+    expect(() => t3WorktreeFolders("/home/me/.t3", "{not json")).toThrow(
+      /settings\.json/,
+    );
+  });
+});
+
+const mergedBranch: BranchFacts = {
+  branch: "fix/x",
+  commitsNotOnRemote: 0,
+  commitsAheadOfMaster: 3,
+  pullRequest: { number: 10, state: "MERGED" },
+};
+
+describe("classifyBranch", () => {
+  it.each<[string, Partial<BranchFacts>, string]>([
+    ["a merged PR", {}, "PR #10 merged"],
+    [
+      "a closed PR",
+      { pullRequest: { number: 11, state: "CLOSED" } },
+      "PR #11 closed",
+    ],
+    [
+      "no PR and no commits",
+      { pullRequest: undefined, commitsAheadOfMaster: 0 },
+      "no PR and no commits beyond master",
+    ],
+  ])("deletes a branch with %s", (_, facts, reason) => {
+    expect(classifyBranch({ ...mergedBranch, ...facts })).toEqual({
+      remove: true,
+      reason,
+    });
+  });
+
+  it.each<[string, Partial<BranchFacts>, string]>([
+    [
+      "commits no remote has",
+      { commitsNotOnRemote: 2 },
+      "2 commits on no remote",
+    ],
+    [
+      "an open PR",
+      { pullRequest: { number: 12, state: "OPEN" } },
+      "PR #12 open",
+    ],
+    ["commits without a PR", { pullRequest: undefined }, "3 commits and no PR"],
+    [
+      "an unreadable head",
+      { unreadable: "bad object" },
+      "could not inspect: bad object",
+    ],
+  ])("keeps a branch with %s", (_, facts, reason) => {
+    expect(classifyBranch({ ...mergedBranch, ...facts })).toEqual({
+      remove: false,
+      reason,
+    });
+  });
+
+  it("spares a branch named with --keep and one the dry run did not list", () => {
+    expect(branchSweepVerdict(mergedBranch, { keep: ["fix/x"] })).toEqual({
+      remove: false,
+      reason: "kept on request",
+    });
+    expect(
+      branchSweepVerdict(mergedBranch, { accepted: new Set(["fix/y"]) }),
+    ).toEqual({ remove: false, reason: "not in the accepted dry run" });
+    expect(
+      branchSweepVerdict(mergedBranch, { accepted: new Set(["fix/x"]) }).remove,
+    ).toBe(true);
   });
 });
 

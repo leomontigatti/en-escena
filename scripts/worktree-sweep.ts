@@ -4,87 +4,204 @@ import {
   readFileSync,
   readdirSync,
   readlinkSync,
+  realpathSync,
   renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { git, prune, run } from "./worktree-db";
 
-// `pnpm worktree:sweep` removes the worktrees threads left behind, then drops
-// their databases (`pnpm db:worktree`). It lists by default and acts only with
-// `--apply`. A worktree goes only when nothing in it can be lost: its PR merged
+// `pnpm worktree:sweep` cleans up after finished threads what T3 Code's
+// storage cleanup does not (docs/agents/t3-dependencies.md). T3 removes the
+// worktrees it made, in its worktree folders, once their PR merges or their
+// last thread is deleted; the sweep only reports those. It removes the other
+// worktrees (Agent-tool ones under `.claude/worktrees/`, fallow audit caches),
+// deletes local branches no worktree holds, T3's leftovers included, and drops
+// the `en-escena-wt-*` database of every worktree that is gone
+// (`pnpm db:worktree`). It lists by default and acts only with `--apply`.
+// A worktree or branch goes only when nothing in it can be lost: its PR merged
 // or closed, or it never committed; no uncommitted change, no commit that is on
-// neither a remote nor the PR, and no process running inside it. Every other
-// worktree is kept and reported with the reason, as is each one named with
-// `--keep <folder or path>` (repeatable). `--apply` removes only what the last
-// dry run listed, the list the user accepted: a thread that became removable
+// neither a remote nor the PR, and no process running inside. Every other one
+// is kept and reported with the reason, as is each one named with `--keep
+// <folder, path or branch>` (repeatable). `--apply` removes only what the last
+// dry run listed, the list the user accepted: anything that became removable
 // since waits for the next dry run. Run by the `housekeeping` skill.
 
 type PullRequest = { number: number; state: "OPEN" | "MERGED" | "CLOSED" };
 
-export type WorktreeFacts = {
-  path: string;
-  branch: string | undefined;
-  dirty: boolean;
+export type BranchFacts = {
+  branch: string;
   commitsNotOnRemote: number;
   commitsAheadOfMaster: number;
-  inUseBy: string | undefined;
   /** Git could not answer one of the questions above. */
   unreadable?: string;
   pullRequest: PullRequest | undefined;
+};
+
+export type WorktreeFacts = Omit<BranchFacts, "branch"> & {
+  path: string;
+  branch: string | undefined;
+  dirty: boolean;
+  inUseBy: string | undefined;
 };
 
 type Verdict = { remove: boolean; reason: string };
 
 const FALLOW_CACHE = /^fallow-audit-base-cache-/;
 
+const T3_HOME =
+  process.env.T3CODE_HOME?.trim() || path.join(os.homedir(), ".t3");
+
+// The folders whose worktrees T3's storage cleanup counts as its own, as its
+// `managedWorktreesDirectories` lists them: `<T3 home>/worktrees`, the
+// "worktreesDirectory" setting and the folders that setting held before.
+export function t3WorktreeFolders(
+  t3Home: string,
+  settingsText: string | undefined,
+  userHome = os.homedir(),
+): string[] {
+  const folders = [path.join(t3Home, "worktrees")];
+  let settings: unknown;
+
+  try {
+    settings = settingsText === undefined ? {} : JSON.parse(settingsText);
+  } catch {
+    throw new Error(
+      "Could not read T3's settings.json, so the sweep cannot tell T3's worktrees from its own.",
+    );
+  }
+
+  const { worktreesDirectory, previousWorktreesDirectories } = (settings ??
+    {}) as Record<string, unknown>;
+
+  for (const setting of [
+    worktreesDirectory,
+    ...(Array.isArray(previousWorktreesDirectories)
+      ? previousWorktreesDirectories
+      : []),
+  ]) {
+    if (typeof setting !== "string" || setting === "") continue;
+
+    const expanded = setting.replace(/^~(?=$|[\\/])/, userHome);
+
+    if (path.isAbsolute(expanded)) folders.push(path.resolve(expanded));
+  }
+
+  return folders;
+}
+
+function readT3WorktreeFolders(): string[] {
+  const settingsFile = path.join(T3_HOME, "userdata", "settings.json");
+
+  return t3WorktreeFolders(
+    T3_HOME,
+    existsSync(settingsFile) ? readFileSync(settingsFile, "utf8") : undefined,
+  ).map(canonical);
+}
+
+// T3 compares canonical paths, so a symlinked home still matches.
+function canonical(target: string): string {
+  return existsSync(target) ? realpathSync(target) : target;
+}
+
+export function isManagedByT3(
+  worktreePath: string,
+  t3Folders: readonly string[],
+): boolean {
+  return t3Folders.some((folder) => {
+    const relative = path.relative(folder, worktreePath);
+
+    return (
+      relative !== "" &&
+      !relative.startsWith("..") &&
+      !path.isAbsolute(relative)
+    );
+  });
+}
+
 type SweepOptions = {
-  /** Folders or paths the user spared with `--keep`. */
+  /** Folders, paths or branches the user spared with `--keep`. */
   keep?: readonly string[];
-  /** The paths the accepted dry run listed for removal; `--apply` only. */
+  /** The worktree paths and branches the accepted dry run listed; `--apply` only. */
   accepted?: ReadonlySet<string>;
 };
 
-/** `classifyWorktree`, then the user's say: `--keep` and the accepted list. */
-export function sweepVerdict(
-  facts: WorktreeFacts,
-  { keep = [], accepted }: SweepOptions = {},
+function withUserSay(
+  verdict: Verdict,
+  key: string,
+  names: readonly string[],
+  { keep = [], accepted }: SweepOptions,
 ): Verdict {
-  if (
-    keep.some(
-      (name) => name === facts.path || name === path.basename(facts.path),
-    )
-  ) {
+  if (keep.some((name) => names.includes(name))) {
     return { remove: false, reason: "kept on request" };
   }
-
-  const verdict = classifyWorktree(facts);
-
-  if (verdict.remove && accepted && !accepted.has(facts.path)) {
+  if (verdict.remove && accepted && !accepted.has(key)) {
     return { remove: false, reason: "not in the accepted dry run" };
   }
 
   return verdict;
 }
 
+/** `classifyWorktree`, then the user's say: `--keep` and the accepted list. */
+export function sweepVerdict(
+  facts: WorktreeFacts,
+  options: SweepOptions = {},
+): Verdict {
+  return withUserSay(
+    classifyWorktree(facts),
+    facts.path,
+    [
+      facts.path,
+      path.basename(facts.path),
+      ...(facts.branch ? [facts.branch] : []),
+    ],
+    options,
+  );
+}
+
+/** `classifyBranch`, then the user's say: `--keep` and the accepted list. */
+export function branchSweepVerdict(
+  facts: BranchFacts,
+  options: SweepOptions = {},
+): Verdict {
+  return withUserSay(
+    classifyBranch(facts),
+    facts.branch,
+    [facts.branch],
+    options,
+  );
+}
+
 export function classifyWorktree(facts: WorktreeFacts): Verdict {
   const keep = (reason: string) => ({ remove: false, reason });
-  const remove = (reason: string) => ({ remove: true, reason });
 
   if (facts.unreadable) return keep(`could not inspect: ${facts.unreadable}`);
   if (facts.inUseBy) return keep(`in use by ${facts.inUseBy}`);
   if (facts.dirty) return keep("uncommitted changes");
   if (FALLOW_CACHE.test(path.basename(facts.path))) {
-    return remove("fallow audit cache");
+    return { remove: true, reason: "fallow audit cache" };
   }
   if (facts.commitsNotOnRemote > 0) {
     return keep(`${facts.commitsNotOnRemote} commits on no remote`);
   }
   if (!facts.branch) return keep("detached HEAD");
+
+  return classifyBranch({ ...facts, branch: facts.branch });
+}
+
+export function classifyBranch(facts: BranchFacts): Verdict {
+  const keep = (reason: string) => ({ remove: false, reason });
+  const remove = (reason: string) => ({ remove: true, reason });
+
+  if (facts.unreadable) return keep(`could not inspect: ${facts.unreadable}`);
+  if (facts.commitsNotOnRemote > 0) {
+    return keep(`${facts.commitsNotOnRemote} commits on no remote`);
+  }
 
   const pr = facts.pullRequest;
 
@@ -111,7 +228,7 @@ function listWorktrees(): Worktree[] {
   }
 
   // The first entry is always the main checkout.
-  return worktrees.slice(1);
+  return worktrees;
 }
 
 type ListedPullRequest = PullRequest & {
@@ -183,11 +300,13 @@ function isAncestor(commit: string, of: string): boolean {
   }
 }
 
-function gatherFacts(): WorktreeFacts[] {
-  const pullRequests = pullRequestsByBranch();
+function gatherFacts(
+  worktrees: Worktree[],
+  pullRequests: Map<string, ListedPullRequest>,
+): WorktreeFacts[] {
   const processes = processesByCwd();
 
-  return listWorktrees().map(({ path: worktreePath, branch }) => {
+  return worktrees.map(({ path: worktreePath, branch }) => {
     const pr = branch ? pullRequests.get(branch) : undefined;
     const inside = processes.find(
       ({ cwd }) =>
@@ -216,12 +335,17 @@ function inspect(
   pr: ListedPullRequest | undefined,
   inUseBy: string | undefined,
 ): WorktreeFacts {
-  const head = git(["-C", worktreePath, "rev-parse", "HEAD"]);
-
   return {
     path: worktreePath,
     branch,
     dirty: git(["-C", worktreePath, "status", "--porcelain"]) !== "",
+    inUseBy,
+    ...commitFacts(git(["-C", worktreePath, "rev-parse", "HEAD"]), pr),
+  };
+}
+
+function commitFacts(head: string, pr: ListedPullRequest | undefined) {
+  return {
     // A squash-merged branch is often deleted from origin afterwards; its
     // commits are safe when the PR's head holds them.
     commitsNotOnRemote:
@@ -229,18 +353,65 @@ function inspect(
         ? 0
         : count([head, "--not", "--remotes"]),
     commitsAheadOfMaster: count([`origin/master..${head}`]),
-    inUseBy,
     pullRequest: pr && { number: pr.number, state: pr.state },
   };
 }
 
+// Local branches no worktree has checked out: those of the worktrees T3
+// removed (it keeps their branches) and of any removed by hand.
+function gatherBranchFacts(
+  checkedOut: ReadonlySet<string>,
+  pullRequests: Map<string, ListedPullRequest>,
+): BranchFacts[] {
+  return git(["for-each-ref", "refs/heads", "--format=%(refname:short)"])
+    .split("\n")
+    .filter((branch) => branch !== "" && branch !== "master")
+    .filter((branch) => !checkedOut.has(branch))
+    .map((branch) => {
+      try {
+        return {
+          branch,
+          ...commitFacts(
+            git(["rev-parse", `refs/heads/${branch}`]),
+            pullRequests.get(branch),
+          ),
+        };
+      } catch (error) {
+        return {
+          branch,
+          commitsNotOnRemote: 0,
+          commitsAheadOfMaster: 0,
+          pullRequest: undefined,
+          unreadable: String(error).split("\n")[0],
+        };
+      }
+    });
+}
+
 type Judged = { facts: WorktreeFacts; verdict: Verdict };
+type JudgedBranch = { facts: BranchFacts; verdict: Verdict };
 
 function printList(title: string, judged: Judged[]) {
   console.log(`\n${title} ${judged.length}:`);
 
   for (const { facts, verdict } of judged) {
     console.log(`  ${facts.path}  ${facts.branch ?? ""}  (${verdict.reason})`);
+  }
+}
+
+function printBranches(title: string, judged: JudgedBranch[]) {
+  console.log(`\n${title} ${judged.length}:`);
+
+  for (const { facts, verdict } of judged) {
+    console.log(`  ${facts.branch}  (${verdict.reason})`);
+  }
+}
+
+function deleteBranch({ facts }: JudgedBranch) {
+  try {
+    run("git", ["branch", "-D", facts.branch]);
+  } catch (error) {
+    console.error(`Left branch ${facts.branch}: ${String(error)}`);
   }
 }
 
@@ -268,7 +439,9 @@ export function parseSweepArgs(args: readonly string[]) {
       const name = args[index + 1];
 
       if (!name || name.startsWith("-")) {
-        throw new Error("--keep needs a worktree folder or path after it.");
+        throw new Error(
+          "--keep needs a worktree folder, path or branch after it.",
+        );
       }
       keep.push(name);
       index += 1;
@@ -314,7 +487,7 @@ export function parseAcceptedList(text: string, file: string): Set<string> {
     !paths.every((entry) => typeof entry === "string")
   ) {
     throw new Error(
-      `${file} is not a list of worktree paths: run \`pnpm worktree:sweep\` again to rewrite it.`,
+      `${file} is not a list of worktree paths and branches: run \`pnpm worktree:sweep\` again to rewrite it.`,
     );
   }
 
@@ -327,15 +500,46 @@ function sweep({ apply, keep }: { apply: boolean; keep: string[] }) {
   run("git", ["worktree", "prune"]);
   run("git", ["fetch", "--quiet", "origin"]);
 
-  const judged = gatherFacts().map((facts) => ({
+  const [mainCheckout, ...worktrees] = listWorktrees();
+  const pullRequests = pullRequestsByBranch();
+  const t3Folders = readT3WorktreeFolders();
+  const isT3s = ({ path: p }: Worktree) =>
+    isManagedByT3(canonical(p), t3Folders);
+  const leftToT3 = worktrees.filter(isT3s);
+  const judged = gatherFacts(
+    worktrees.filter((worktree) => !isT3s(worktree)),
+    pullRequests,
+  ).map((facts) => ({
     facts,
     verdict: sweepVerdict(facts, { keep, accepted }),
   }));
+  const branches = gatherBranchFacts(
+    new Set(
+      [mainCheckout, ...worktrees].flatMap(({ branch }) =>
+        branch ? [branch] : [],
+      ),
+    ),
+    pullRequests,
+  ).map((facts) => ({
+    facts,
+    verdict: branchSweepVerdict(facts, { keep, accepted }),
+  }));
   const removed = judged.filter(({ verdict }) => verdict.remove);
   const kept = judged.filter(({ verdict }) => !verdict.remove);
+  const deleted = branches.filter(({ verdict }) => verdict.remove);
 
   printList(apply ? "Removing" : "Would remove", removed);
   printList("Keeping", kept);
+  printBranches(apply ? "Deleting branches" : "Would delete branches", deleted);
+  printBranches(
+    "Keeping branches",
+    branches.filter(({ verdict }) => !verdict.remove),
+  );
+  console.log(
+    `\nLeft to T3's storage cleanup ${leftToT3.length} (Settings → Storage → Last run says why one stays):`,
+  );
+  for (const { path: p, branch } of leftToT3)
+    console.log(`  ${p}  ${branch ?? ""}`);
   console.log("");
 
   if (!apply) {
@@ -345,18 +549,22 @@ function sweep({ apply, keep }: { apply: boolean; keep: string[] }) {
     const tempFile = `${listFile}.${process.pid}.tmp`;
     writeFileSync(
       tempFile,
-      JSON.stringify(removed.map(({ facts }) => facts.path)),
+      JSON.stringify([
+        ...removed.map(({ facts }) => facts.path),
+        ...deleted.map(({ facts }) => facts.branch),
+      ]),
     );
     renameSync(tempFile, listFile);
-    prune(
-      true,
-      kept.map(({ facts }) => facts.path),
-    );
+    prune(true, [
+      ...kept.map(({ facts }) => facts.path),
+      ...leftToT3.map(({ path: p }) => p),
+    ]);
     console.log("\nNothing changed. Re-run with --apply to remove the above.");
     return;
   }
 
   removed.forEach(removeWorktree);
+  deleted.forEach(deleteBranch);
   rmSync(acceptedListFile(), { force: true });
   // Re-listed rather than taken from `kept`: a removal that failed keeps its
   // worktree, and with it its database.

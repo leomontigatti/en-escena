@@ -74,7 +74,7 @@ runs the same setup by hand; re-running it is safe: it migrates, and seeds only
 a database it just created. The dev server holds its port strictly and fails when another process
 has it, rather than moving to a port the session did not expect.
 
-`pnpm worktree:sweep` removes finished worktrees and drops their databases (see
+`pnpm worktree:sweep` drops the database of every worktree that is gone, including those T3's storage cleanup removed (see
 [workflows.md](agents/workflows.md#branches-worktrees-and-t3-code-threads)). The main checkout keeps
 `en-escena`; `TEST_DATABASE_URL` and the storage directory stay shared.
 

@@ -52,4 +52,6 @@ Codex, "call the Skill tool with X" means open `.agents/skills/X/SKILL.md` and f
 - **Fallow**: [fallow.md](docs/agents/fallow.md).
 - **Architecture Review** (the weekly T3 Code scheduled task):
   [architecture-review.md](docs/agents/architecture-review.md).
+- **T3 Code dependencies** (what a T3 update can break or simplify):
+  [t3-dependencies.md](docs/agents/t3-dependencies.md).
 - **Upstream skills**: [vendored-skills.md](docs/agents/vendored-skills.md).
