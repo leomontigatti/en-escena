@@ -34,7 +34,7 @@ On the first round of a full-review-tier PR, ask CodeRabbit for its review of th
 review: CodeRabbit edits its reply to the request into "Action not completed" with "Pull request
 base or head changed". Then ask once more, on the new head. No other round asks it.
 
-Then wait, and end your turn. No subagent, no `sleep`:
+Then wait, and end your turn. No subagent, and no `sleep` in the foreground:
 
 - **In T3 Code** (the `watch_pull_request` tool, `mcp__t3-code__watch_pull_request`, is
   available): call it on the PR. T3 wakes the thread when a check fails, when the required checks
@@ -73,12 +73,19 @@ A review-body finding is one CodeRabbit puts in its review's body rather than in
 (outside-diff comments, nitpicks); it is unanswered until a top-level comment from someone other
 than a bot follows that review.
 
-**A check still running**: wait for the rest with `gh pr checks <n> --watch` in the background,
-with a timeout of 1500000 ms, then read the round again. T3 wakes on the first red check while
-others may still run, and this wait lets one push answer the whole round. It also covers a fresh
-push nothing has reported on yet (when it exits at once on that, run it once more) and a pending
-`CodeRabbit` status after you asked for a review: a review that lands a minute after its status
-still wakes a T3 watch. When the wait times out with only `CodeRabbit` pending, or CodeRabbit's
+**A check still running**: wait for the rest in the background, with a timeout of 1500000 ms,
+then read the round again:
+
+```sh
+until [ "$(gh pr view <n> --json statusCheckRollup --jq '.statusCheckRollup | length')" -gt 0 ]; do sleep 10; done
+gh pr checks <n> --watch
+```
+
+The loop covers a fresh push (yours or `gh pr update-branch`): until GitHub registers its first
+check, `gh pr checks --watch` exits at once with "no checks reported", and running it again
+fails the same way. T3 wakes on the first red check while others may still run, and this wait
+lets one push answer the whole round. It also covers a pending `CodeRabbit` status after you
+asked for a review: a review that lands a minute after its status still wakes a T3 watch. When the wait times out with only `CodeRabbit` pending, or CodeRabbit's
 status is red or its latest comment declines (a rate limit, "Review limit reached", a skip), note
 the reason for the report and read the round without it: a silent CodeRabbit is never a NEEDS
 YOU. Anything else still running after that wait is step 5 as BLOCKED, naming what is stuck.

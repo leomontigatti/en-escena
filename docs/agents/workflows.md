@@ -114,6 +114,17 @@ Rules for a session:
   the thread on that branch (or link the PR) instead of checking it out in
   another worktree. The PR body is written with the `pr` skill; how UI
   evidence is attached is in [pull-requests.md](./pull-requests.md).
+- **A launched thread reports to its own inbox.** A thread started with
+  `t3_thread_launch` babysits its own PR and hands back to the user; its
+  `unwatch_pull_request` wakes nobody else, so the launching thread never hears
+  that the PR is ready. When the user hands the merge to the launcher, the child
+  still babysits and the launcher owns only the wait for READY:
+  `list_thread_pull_requests` with the child's `threadId` shows its PR, the
+  launcher calls `watch_pull_request` on it, and it merges when its own read of
+  the round (the `babysit-pr` state table) says READY. That list is also the
+  only source for a child PR's state or watch, and a launcher turn that ends
+  before a child has opened its PR names that child in its report, since
+  nothing will wake the launcher for it.
 - **Read-only threads** (writing issues, triage, reviewing a PR without editing
   code) can be started with the "local" workspace mode, in the main checkout;
   they must not change branches. T3 still runs the setup script there, without
