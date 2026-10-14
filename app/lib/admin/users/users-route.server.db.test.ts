@@ -280,10 +280,9 @@ function renderRoute(
           "0": {
             users: [],
             filters: {
-              archived: false,
               query: "",
               role: "all",
-              state: "all",
+              state: null,
               type: "all",
             },
             ...loaderData,

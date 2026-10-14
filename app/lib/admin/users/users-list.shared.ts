@@ -1,4 +1,5 @@
 import type { InternalUserRole } from "@/lib/auth/internal-user-roles";
+import type { UserAccessState } from "@/lib/auth/user-access-state.shared";
 import {
   buildCanonicalListSearch,
   type ListQuerySpec,
@@ -6,18 +7,14 @@ import {
 
 export type UserListRole = "academy" | InternalUserRole;
 
-export type UserListState = "active" | "suspended";
-
-export type UserListStateFilter = "active" | "suspended";
-
 export type UserListType = "academy" | "internal";
 
 export type UserListFilters = {
-  archived: boolean;
   page: number;
   query: string;
   role: UserListRole | "all";
-  state: UserListStateFilter | "all";
+  /** `null` is no state chosen, and the list then shows the active users. */
+  state: UserAccessState | null;
   type: UserListType | "all";
 };
 
@@ -27,7 +24,7 @@ export type UserListItem = {
   identifier: string;
   mainRole: UserListRole;
   name: string;
-  state: UserListState;
+  state: UserAccessState;
   userType: UserListType;
 };
 
@@ -43,10 +40,9 @@ export const userListSpec: ListQuerySpec<"nombre"> = {
 /** The list's facets as the URL writes them, each absent at its default. */
 export function toUserListFacets(filters: UserListFilters) {
   return {
-    estado: filters.state === "all" ? null : filters.state,
+    estado: filters.state,
     rol: filters.role === "all" ? null : filters.role,
     tipo: filters.type === "all" ? null : filters.type,
-    archivado: filters.archived ? "si" : null,
   };
 }
 
