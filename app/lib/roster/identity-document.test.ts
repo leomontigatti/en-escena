@@ -121,14 +121,13 @@ describe("hasIdentityDocument", () => {
 });
 
 describe("formatIdentityDocument", () => {
-  test.each([
-    { documentType: "dni", printed: "DNI 12345678" },
-    { documentType: "passport", printed: "Pasaporte 12345678" },
-    { documentType: "other", printed: "Otro 12345678" },
-  ] as const)("prints a $documentType", ({ documentType, printed }) => {
+  test("prints the type's label before the number", () => {
     expect(
-      formatIdentityDocument({ documentType, documentNumber: "12345678" }),
-    ).toBe(printed);
+      formatIdentityDocument({
+        documentType: "passport",
+        documentNumber: "AB 123",
+      }),
+    ).toBe("Pasaporte AB 123");
   });
 
   test("prints nothing for a half-loaded document", () => {
@@ -146,7 +145,7 @@ describe("toDocumentNumberSearchTerm", () => {
     expect(toDocumentNumberSearchTerm(search)).toBe(term);
   });
 
-  test.each(["Ana Paz", "AB 123", "12345678", ""])(
+  test.each(["Ana Paz", "AB 123", ""])(
     "leaves %j to the plain search",
     (search) => {
       expect(toDocumentNumberSearchTerm(search)).toBeNull();

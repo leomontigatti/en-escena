@@ -282,7 +282,7 @@ Person loaded by an academy to take part in choreographies. Their document **num
 _Avoid_: `professor`, `user`
 
 **`identityDocument`** — ui: "Documento de identidad"
-The type and number pair a **`dancer`** or a **`professor`** may carry, loaded whole or not at all: half a document is not a state a person can be in. Its type is `DNI`, `Pasaporte` or `Otro`, and its number is held in one canonical form (a DNI is its digits alone, with no dots, spaces or hyphens), so the same person's number reads the same wherever it was typed. A person without one reads `Sin documento`.
+The type and number pair a **`dancer`** or a **`professor`** may carry, loaded whole or not at all: half a document is not a state a person can be in. Its type is `DNI`, `Pasaporte` or `Otro`, and its number is held in one canonical form (a DNI is its digits alone, with no dots, spaces or hyphens), so the same person's number reads the same wherever it was typed; a person without one reads `Sin documento`.
 _Avoid_: DNI (a type, not the pair), identification, `documentImage`
 
 **`dancerVerificationStatus`** — ui: "Estado de verificación de bailarín"
