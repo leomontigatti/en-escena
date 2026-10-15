@@ -134,13 +134,13 @@ shell. The mutations are in [coderabbit-triage.md](coderabbit-triage.md#commands
 Then go back to step 2, unless:
 
 - an **ask** is open: step 5 as NEEDS YOU, after pushing the rest;
-- this was the third push: step 5 as NEEDS YOU, listing what is still open.
+- this was the third round of fixes: step 5 as NEEDS YOU, listing what is still open.
 
 ## 4b. Bring the branch up to date
 
 Branch protection wants the branch current with `master`, and nothing else updates it: reading
-the round reaches `BEHIND` only once the round is otherwise clean, so this happens once, after the
-fixes.
+the round reaches `BEHIND` only once the round is otherwise clean, after the fixes. A `master` that
+moves while CI runs brings it back, so it can take more than one update.
 
 - **`BEHIND`**: `gh pr update-branch <n>`, which merges `master` in on GitHub when it merges
   clean; then `git fetch origin <branch> && git merge --ff-only origin/<branch>` on the head
@@ -157,8 +157,9 @@ fixes.
   the user signs off on first, so go straight to step 5 as NEEDS YOU naming the stack and the
   rebase the user needs to run.
 
-Either one counts as a push toward the three: if this was the third push, step 5 as NEEDS YOU,
-listing what is still open; otherwise go back to step 2.
+A clean `update-branch` is not a round of fixes: it never counts toward the three. A conflict
+merge does, since resolving it is a change you made: if it was the third round, step 5 as NEEDS
+YOU, listing what is still open. Otherwise go back to step 2.
 
 ## 5. Report
 
@@ -166,15 +167,17 @@ In T3, call `unwatch_pull_request` on the PR first, so the thread returns to the
 push-notification tool is available, send the verdict line through it. Before reporting READY, look at the round's declines once. When one matches a shape declined on
 an earlier PR, add it under "Rubric candidates" in the pattern format of the rubric.
 
-Report to the user in this shape:
+Report to the user as plain markdown in the reply, so long lines wrap, in this shape (a line with
+nothing to list is left out):
 
-```
-Verdict: READY | NEEDS YOU | BLOCKED | MERGED — one line why
-PR: #<n> at <short sha>; checks <green|what is red>; CodeRabbit: <n passes | skipped: why>
-Needs you: <each ask, with the finding and the options>   (omit when empty)
-Fixed: <finding> → <sha>                                  (one line each)
-Declined: <finding> — <reason>                            (one line each)
-Rubric candidates: <pattern>                              (omit when empty)
+```markdown
+**READY | NEEDS YOU | BLOCKED | MERGED:** one sentence why.
+
+- **PR:** #<n> at `<short sha>`, checks <green | what is red>, CodeRabbit <n passes | skipped: why>
+- **Needs you:** each ask, with the finding and the options
+- **Fixed:** <finding> → `<sha>`, one bullet each
+- **Declined:** <finding>: <reason>, one bullet each
+- **Rubric candidates:** <pattern>
 ```
 
 A CodeRabbit pass is a review it posted on the PR; a pass that finds nothing posts no review, only
