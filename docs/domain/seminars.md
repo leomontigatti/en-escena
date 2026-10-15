@@ -156,12 +156,18 @@ How a seminar inscription is priced from those rows:
 
 ## The inscription
 
-- An `Inscripción a seminario` registers **exactly one roster person**, a
-  `Bailarín` or a `Profesor`, into one seminar. There is no "student": the
-  people an academy can register are the people on its roster.
-- **Only an academy creates one**, from the `Portal de academias`, and only
-  for its own roster. Administration never creates a seminar inscription: unlike
+- An `Inscripción a seminario` registers **exactly one person** into one
+  seminar: a roster person, a `Bailarín` or a `Profesor`, or an `individual`
+  (`Particular`) registering itself (ADR-0019). There is no "student": the
+  people an academy can register are the people on its roster. The individual
+  is an inscription person kind, not a roster kind: no roster table holds it.
+- **An academy creates one** from the `Portal de academias`, only for its own
+  roster; **an individual creates its own** from its area's `Seminarios`, owned
+  by its owner row, under the same quota, reservation, deposit, cut-off and
+  removal rules. Administration never creates a seminar inscription: unlike
   the choreography roster, there is no administrative registration path.
+  Administration lists and exports an individual's inscription beside the
+  academies' ones, as `Particular`, and removes it as any other.
 - Eligibility is `Estado de alta` alone, with the same grandfather rule as the
   choreography roster: a person can be registered when they are active, and an
   archived person already on the seminar stays on it, stays visible and stays
@@ -191,7 +197,10 @@ How a seminar inscription is priced from those rows:
   it has. It says
   the money stays allocated and the place is freed, and its button reads
   `Retirar inscripción`. No amount appears on either side of the portal: what a
-  seminar costs is read in `Resumen financiero`.
+  seminar costs is read in `Resumen financiero`. The individual's `Seminarios`
+  is the exception: it shows what each seminar costs the individual (its
+  inscription's effective price, or today's ordinary price before it
+  registers), because that page is where it decides to register.
 - **A withdrawal is final** (#1496). Registering the same person again is an
   ordinary registration: it inserts a new row, with its own `createdAt`, no
   money and the ordinary quota rule — a reservation when a place is free, none
@@ -202,7 +211,8 @@ How a seminar inscription is priced from those rows:
   decides once.
 - **The row gains `selectedPriceId` and `withdrawnAt`**, the same two fields a
   choreography inscription carries and nothing else financial. It gains no
-  `academyId`: the academy is read through the person, by every reader through
+  `academyId`: the academy is read through the person —an individual's through
+  its owner row of kind `individual`— by every reader through
   `app/lib/seminars/inscription-person.server.ts`. Every roster surface
   lists **active rows only**, through `activeSeminarInscription()`; withdrawn
   rows are read under `Finanzas`, badged `Retirada`.

@@ -14,7 +14,8 @@ import {
 import { academies } from "./academies";
 import { choreographies, choreographyDancers } from "./choreographies";
 import { createTable } from "./core";
-import { events, seminarInscriptions, seminars } from "./events";
+import { events } from "./events";
+import { seminarInscriptions, seminars } from "./seminars";
 
 // The issuer's VAT condition, frozen in the snapshot. The issuer is
 // `Proyecciones Artísticas Asociación Civil` (CUIT 30717611590), EXEMPT from VAT

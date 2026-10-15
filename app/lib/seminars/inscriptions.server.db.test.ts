@@ -18,10 +18,14 @@ import {
   listSeminarInscriptionsForAcademy,
   listSeminarPersonOptionsForAcademy,
 } from "@/lib/seminars/inscription-rosters.server";
+import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
+import { countCoveredSeminarInscriptions } from "@/lib/seminars/covered-inscriptions.server";
 import { createSeminar, listSeminars } from "@/lib/seminars/repository.server";
+import { coverSeminarInscriptionDeposit } from "@/lib/seminars/seminars.test-support";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSavedEvent, eventDates } from "@/lib/test-support/events";
+import { createIndividualUser } from "@/lib/test-support/individuals";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -544,5 +548,264 @@ describe("the administrative reading of a seminar's inscriptions", () => {
       error: "No encontramos esa inscripción.",
     });
     await expect(listSeminarInscriptions(seminar.id)).resolves.toHaveLength(1);
+  });
+});
+
+// #1665: an individual (`Particular`) registers itself, owned by its own owner
+// row, under the academies' rules.
+describe("an individual's own seminar inscription", () => {
+  async function createIndividual(
+    name = { firstName: "Clara", lastName: "Ríos" },
+  ) {
+    return createIndividualUser({
+      email: `${crypto.randomUUID()}@example.com`,
+      ...name,
+    });
+  }
+
+  function registerIndividual(
+    individual: { individualId: string; ownerId: string },
+    input: { eventId: string; seminarId: string; now?: Date },
+  ) {
+    return registerSeminarInscription({
+      academyId: individual.ownerId,
+      eventId: input.eventId,
+      now: input.now ?? beforeStart,
+      personId: individual.individualId,
+      personKind: "individual",
+      seminarId: input.seminarId,
+    });
+  }
+
+  async function readReservedUntil(inscriptionId: string) {
+    const [row] = await db
+      .select({ reservedUntil: seminarInscriptions.reservedUntil })
+      .from(seminarInscriptions)
+      .where(eq(seminarInscriptions.id, inscriptionId));
+
+    return row?.reservedUntil ?? null;
+  }
+
+  test("registers itself, reserves a free place and is read back as a `Particular`", async () => {
+    const { eventId, seminar } = await createSeminarFixture(2);
+    const academy = await createAcademy("Academia Norte");
+    const dancer = await createDancer(academy.id, {
+      firstName: "Abril",
+      lastName: "Sosa",
+    });
+    const individual = await createIndividual();
+
+    const inscriptionId = expectRegistered(
+      await registerIndividual(individual, {
+        eventId,
+        seminarId: seminar.id,
+      }),
+    );
+    expectRegistered(
+      await registerDancerBeforeStart({
+        academyId: academy.id,
+        eventId,
+        personId: dancer.id,
+        seminarId: seminar.id,
+      }),
+    );
+
+    await expect(readReservedUntil(inscriptionId)).resolves.not.toBeNull();
+    await expect(
+      listSeminarInscriptionsForAcademy({
+        academyId: individual.ownerId,
+        eventId,
+      }),
+    ).resolves.toMatchObject([
+      {
+        id: inscriptionId,
+        fullName: "Clara Ríos",
+        personId: individual.individualId,
+        personKind: "individual",
+        seminarId: seminar.id,
+      },
+    ]);
+    // Administration reads it beside the academies' rows, and it counts as
+    // one more on the roster.
+    await expect(listSeminarInscriptions(seminar.id)).resolves.toMatchObject([
+      { fullName: "Abril Sosa", personKind: "dancer" },
+      { id: inscriptionId, fullName: "Clara Ríos", personKind: "individual" },
+    ]);
+    await expect(listSeminars(eventId)).resolves.toMatchObject([
+      { id: seminar.id, registeredCount: 2 },
+    ]);
+  });
+
+  test("registers into a full seminar without a place, and covering the deposit takes one", async () => {
+    const { eventId, seminar } = await createSeminarFixture(1);
+    await createSeminarRegistrationPrices(eventId);
+    const academy = await createAcademy("Academia Llena");
+    const dancer = await createDancer(academy.id);
+    const individual = await createIndividual();
+    const dancerInscriptionId = expectRegistered(
+      await registerDancerBeforeStart({
+        academyId: academy.id,
+        eventId,
+        personId: dancer.id,
+        seminarId: seminar.id,
+      }),
+    );
+
+    const inscriptionId = expectRegistered(
+      await registerIndividual(individual, {
+        eventId,
+        seminarId: seminar.id,
+      }),
+    );
+    await expect(readReservedUntil(inscriptionId)).resolves.toBeNull();
+
+    // The academy's row frees the place; the individual's money takes it.
+    await removeSeminarInscription({
+      inscriptionId: dancerInscriptionId,
+      seminarId: seminar.id,
+    });
+    await coverSeminarInscriptionDeposit({
+      academyId: individual.ownerId,
+      eventId,
+      inscriptionId,
+      seminarId: seminar.id,
+    });
+
+    await expect(countCoveredSeminarInscriptions(seminar.id)).resolves.toBe(1);
+  });
+
+  test("refuses a second inscription of itself and somebody else's individual", async () => {
+    const { eventId, seminar } = await createSeminarFixture(5);
+    const individual = await createIndividual();
+    const other = await createIndividual({
+      firstName: "Dora",
+      lastName: "Vega",
+    });
+
+    expectRegistered(
+      await registerIndividual(individual, {
+        eventId,
+        seminarId: seminar.id,
+      }),
+    );
+
+    await expect(
+      registerIndividual(individual, { eventId, seminarId: seminar.id }),
+    ).resolves.toMatchObject({ ok: false, code: "already-registered" });
+    await expect(
+      registerSeminarInscription({
+        academyId: individual.ownerId,
+        eventId,
+        now: beforeStart,
+        personId: other.individualId,
+        personKind: "individual",
+        seminarId: seminar.id,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: "ineligible-person" });
+  });
+
+  test("closes registration and its own removal when the seminar starts, but not administration's", async () => {
+    const { eventId, seminar } = await createSeminarFixture();
+    const individual = await createIndividual();
+    const inscriptionId = expectRegistered(
+      await registerIndividual(individual, {
+        eventId,
+        seminarId: seminar.id,
+      }),
+    );
+    const late = await createIndividual({
+      firstName: "Dora",
+      lastName: "Vega",
+    });
+
+    await expect(
+      registerIndividual(late, {
+        eventId,
+        now: afterStart,
+        seminarId: seminar.id,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: "started" });
+    await expect(
+      deleteSeminarInscriptionForAcademy({
+        academyId: individual.ownerId,
+        eventId,
+        inscriptionId,
+        now: afterStart,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: "started" });
+    await expect(
+      removeSeminarInscription({ inscriptionId, seminarId: seminar.id }),
+    ).resolves.toEqual({ ok: true, withdrawn: false });
+    await expect(listSeminarInscriptions(seminar.id)).resolves.toEqual([]);
+  });
+
+  test("deletes its inscription without money and withdraws one with money", async () => {
+    const { eventId, seminar } = await createSeminarFixture(5);
+    await createSeminarRegistrationPrices(eventId);
+    const individual = await createIndividual();
+    const register = () =>
+      registerIndividual(individual, { eventId, seminarId: seminar.id });
+    const removeOwn = (inscriptionId: string) =>
+      deleteSeminarInscriptionForAcademy({
+        academyId: individual.ownerId,
+        eventId,
+        inscriptionId,
+        now: beforeStart,
+      });
+
+    const unpaid = expectRegistered(await register());
+    await expect(removeOwn(unpaid)).resolves.toEqual({
+      ok: true,
+      withdrawn: false,
+    });
+    await expect(
+      db
+        .select({ id: seminarInscriptions.id })
+        .from(seminarInscriptions)
+        .where(eq(seminarInscriptions.id, unpaid)),
+    ).resolves.toEqual([]);
+
+    const paid = expectRegistered(await register());
+    await coverSeminarInscriptionDeposit({
+      academyId: individual.ownerId,
+      eventId,
+      inscriptionId: paid,
+      seminarId: seminar.id,
+    });
+    await expect(removeOwn(paid)).resolves.toEqual({
+      ok: true,
+      withdrawn: true,
+    });
+
+    // A withdrawal is final: registering again is a new row beside it.
+    const again = expectRegistered(await register());
+    expect(again).not.toBe(paid);
+    await expect(
+      listSeminarInscriptionsForAcademy({
+        academyId: individual.ownerId,
+        eventId,
+      }),
+    ).resolves.toMatchObject([{ id: again }]);
+  });
+
+  test("is not an academy's to remove", async () => {
+    const { eventId, seminar } = await createSeminarFixture();
+    const academy = await createAcademy("Academia Ajena");
+    const individual = await createIndividual();
+    const inscriptionId = expectRegistered(
+      await registerIndividual(individual, {
+        eventId,
+        seminarId: seminar.id,
+      }),
+    );
+
+    await expect(
+      deleteSeminarInscriptionForAcademy({
+        academyId: academy.id,
+        eventId,
+        inscriptionId,
+        now: beforeStart,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: "inscription-not-found" });
   });
 });

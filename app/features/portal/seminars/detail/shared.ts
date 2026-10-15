@@ -1,5 +1,5 @@
 import type { InscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
-import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
+import type { InscriptionPersonKind } from "@/lib/roster/roster-person-kind.shared";
 
 import type {
   deletePortalSeminarInscriptionIntent,
@@ -10,7 +10,7 @@ import type {
 export type PortalSeminarDetailInscription = {
   id: string;
   fullName: string;
-  personKind: RosterPersonKind;
+  personKind: InscriptionPersonKind;
   /** Whether taking it off the seminar withdraws the row instead of deleting
    * it, which is the only thing the portal reads of a seminar inscription's
    * money: the amount itself belongs to `Resumen financiero`. */

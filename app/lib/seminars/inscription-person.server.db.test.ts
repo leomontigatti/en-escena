@@ -8,6 +8,7 @@ import {
   createProfessor,
 } from "@/lib/choreographies/registration.test-support";
 import { seminarInscriptionPersonValues } from "@/lib/roster/roster-person-kind.server";
+import type { InscriptionPersonKind } from "@/lib/roster/roster-person-kind.shared";
 import {
   seminarInscriptionOwnedBy,
   seminarInscriptionPerson,
@@ -15,6 +16,7 @@ import {
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSavedEvent, eventDates } from "@/lib/test-support/events";
+import { createIndividualUser } from "@/lib/test-support/individuals";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -61,7 +63,7 @@ async function createFixture() {
 
 async function register(
   seminarId: string,
-  person: { kind: "dancer" | "professor"; personId: string },
+  person: { kind: InscriptionPersonKind; personId: string },
 ) {
   const [inserted] = await db
     .insert(seminarInscriptions)
@@ -109,6 +111,57 @@ describe("a seminar inscription's person and owner (#1664)", () => {
       ]);
     },
   );
+
+  // #1665: an individual registers itself, owned by its own owner row.
+  test("reads an individual's kind, name and owner row off the inscription", async () => {
+    const fixture = await createFixture();
+    const individual = await createIndividualUser({
+      email: `${crypto.randomUUID()}@example.com`,
+      firstName: "Clara",
+      lastName: "Ríos",
+    });
+    const inscriptionId = await register(fixture.seminarId, {
+      kind: "individual",
+      personId: individual.individualId,
+    });
+
+    const rows = await db
+      .select({
+        academyId: seminarInscriptionPerson.academyId,
+        firstName: seminarInscriptionPerson.firstName,
+        kind: seminarInscriptionPerson.kind,
+        lastName: seminarInscriptionPerson.lastName,
+        personId: seminarInscriptionPerson.personId,
+      })
+      .from(seminarInscriptions)
+      .innerJoin(
+        seminarInscriptionPerson,
+        eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
+      )
+      .where(eq(seminarInscriptions.id, inscriptionId));
+
+    expect(rows).toEqual([
+      {
+        academyId: individual.ownerId,
+        firstName: "Clara",
+        kind: "individual",
+        lastName: "Ríos",
+        personId: individual.individualId,
+      },
+    ]);
+    await expect(
+      db
+        .select({ id: seminarInscriptions.id })
+        .from(seminarInscriptions)
+        .where(seminarInscriptionOwnedBy(individual.ownerId)),
+    ).resolves.toEqual([{ id: inscriptionId }]);
+    await expect(
+      db
+        .select({ id: seminarInscriptions.id })
+        .from(seminarInscriptions)
+        .where(seminarInscriptionOwnedBy(fixture.arco.academyId)),
+    ).resolves.toEqual([]);
+  });
 
   test("narrows to the inscriptions whose person belongs to the academies", async () => {
     const fixture = await createFixture();

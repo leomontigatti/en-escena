@@ -1,12 +1,12 @@
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { seminarInscriptions, seminars } from "@/db/schema";
+import { individuals, seminarInscriptions, seminars } from "@/db/schema";
 import {
   isSelectableForRoster,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
-import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
+import type { InscriptionPersonKind } from "@/lib/roster/roster-person-kind.shared";
 import {
   rosterPersonTable,
   seminarInscriptionPersonColumn,
@@ -38,7 +38,9 @@ export type RegisterSeminarInscriptionInput = {
   eventId: string;
   now: Date;
   personId: string;
-  personKind: RosterPersonKind;
+  /** A roster person of the academy, or the individual its owner row is
+   * (ADR-0019): `academyId` is then the individual's owner row. */
+  personKind: InscriptionPersonKind;
   seminarId: string;
 };
 
@@ -84,6 +86,9 @@ export const seminarInscriptionNotFoundMessage =
 const ineligiblePersonMessage =
   "Elegí una persona activa del plantel de tu academia.";
 const alreadyRegisteredMessage = "Esa persona ya está inscripta.";
+/** The individual registers itself, so the refusal speaks to it. */
+const individualAlreadyRegisteredMessage =
+  "Ya estás inscripto en este seminario.";
 const seminarNotFoundMessage = "No encontramos ese seminario.";
 
 /**
@@ -187,7 +192,12 @@ async function insertInscription(
     .returning({ id: seminarInscriptions.id });
 
   if (!inserted) {
-    return failure("already-registered", alreadyRegisteredMessage);
+    return failure(
+      "already-registered",
+      input.personKind === "individual"
+        ? individualAlreadyRegisteredMessage
+        : alreadyRegisteredMessage,
+    );
   }
 
   return { ok: true, inscriptionId: inserted.id };
@@ -248,8 +258,8 @@ export async function deleteSeminarInscriptionForAcademy(
 
 /**
  * The owning academy is read through the person, as it is everywhere else: the
- * inscription stores no academy of its own, so both roster tables are joined
- * and whichever half is filled answers.
+ * inscription stores no academy of its own. An individual's owner row owns the
+ * individual's inscriptions, so its removal is this same path.
  */
 async function findAcademyInscription(input: DeleteSeminarInscriptionInput) {
   const [row] = await db
@@ -337,10 +347,29 @@ async function isPersonEligibleForSeminar(
   });
 }
 
+/**
+ * The person, read only within the registering owner: a roster person of the
+ * academy, or the individual whose owner row is registering it. An individual
+ * has no `Estado de alta`, so it is always active.
+ */
 async function findAcademyPerson(
   tx: Transaction,
   input: RegisterSeminarInscriptionInput,
-) {
+): Promise<{ active: boolean } | undefined> {
+  if (input.personKind === "individual") {
+    const [individual] = await tx
+      .select({ id: individuals.id })
+      .from(individuals)
+      .where(
+        and(
+          eq(individuals.id, input.personId),
+          eq(individuals.academyId, input.academyId),
+        ),
+      );
+
+    return individual ? { active: true } : undefined;
+  }
+
   const table = rosterPersonTable(input.personKind);
   const [person] = await tx
     .select({ active: table.active })

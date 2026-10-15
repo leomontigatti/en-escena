@@ -1,0 +1,6 @@
+ALTER TABLE "en_escena_seminar_inscription" DROP CONSTRAINT "seminar_inscription_exactly_one_person";--> statement-breakpoint
+ALTER TABLE "en_escena_seminar_inscription" ADD COLUMN "individual_id" varchar(255);--> statement-breakpoint
+ALTER TABLE "en_escena_seminar_inscription" ADD CONSTRAINT "seminar_inscription_individual_fk" FOREIGN KEY ("individual_id") REFERENCES "public"."en_escena_individual"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "seminar_inscription_individual_id_idx" ON "en_escena_seminar_inscription" USING btree ("individual_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "seminar_inscription_seminar_individual_unique" ON "en_escena_seminar_inscription" USING btree ("seminar_id","individual_id") WHERE "en_escena_seminar_inscription"."individual_id" is not null and "en_escena_seminar_inscription"."withdrawn_at" is null;--> statement-breakpoint
+ALTER TABLE "en_escena_seminar_inscription" ADD CONSTRAINT "seminar_inscription_exactly_one_person" CHECK (num_nonnulls("en_escena_seminar_inscription"."dancer_id", "en_escena_seminar_inscription"."professor_id", "en_escena_seminar_inscription"."individual_id") = 1);

@@ -15,7 +15,8 @@ import {
 import { academies } from "./academies";
 import { choreographyDancers } from "./choreographies";
 import { createTable } from "./core";
-import { events, seminarInscriptions } from "./events";
+import { events } from "./events";
+import { seminarInscriptions } from "./seminars";
 
 export const paymentMethod = pgEnum("en_escena_finance_payment_method", [
   "transferencia",

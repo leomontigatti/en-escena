@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AudioLines, User } from "lucide-react";
+import { AudioLines, Presentation, User } from "lucide-react";
 import {
   Link,
   Outlet,
@@ -41,6 +41,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import type { loadIndividualShell } from "@/features/individual/shell/server";
+import { individualSeminarsPath } from "@/features/individual/seminars/shared";
 import { INDIVIDUAL_AREA_PATH } from "@/lib/auth/user-role.shared";
 
 export const individualProfilePath = `${INDIVIDUAL_AREA_PATH}/perfil`;
@@ -61,6 +62,11 @@ const navigationGroups = [
         label: "Coreografías",
         to: individualChoreographiesPath,
         icon: AudioLines,
+      },
+      {
+        label: "Seminarios",
+        to: individualSeminarsPath,
+        icon: Presentation,
       },
     ],
   },

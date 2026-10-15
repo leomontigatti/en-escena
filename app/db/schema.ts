@@ -4,6 +4,7 @@ export * from "./schema/academies";
 export * from "./schema/individuals";
 export * from "./schema/roster";
 export * from "./schema/events";
+export * from "./schema/seminars";
 export * from "./schema/prices";
 export * from "./schema/choreographies";
 export * from "./schema/finances";

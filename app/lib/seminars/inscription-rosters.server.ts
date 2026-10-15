@@ -21,6 +21,7 @@ import {
 } from "@/lib/roster/roster-person-status.shared";
 import {
   rosterPersonKinds,
+  type InscriptionPersonKind,
   type RosterPersonKind,
 } from "@/lib/roster/roster-person-kind.shared";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
@@ -34,7 +35,7 @@ export type SeminarInscriptionListItem = {
   id: string;
   seminarId: string;
   personId: string;
-  personKind: RosterPersonKind;
+  personKind: InscriptionPersonKind;
   fullName: string;
   academyId: string;
   createdAt: Date;
@@ -50,7 +51,7 @@ export type SeminarInscriptionListItem = {
 export type SeminarInscriptionRow = {
   id: string;
   fullName: string;
-  personKind: RosterPersonKind;
+  personKind: InscriptionPersonKind;
   academyName: string;
   /** Whether removing it withdraws the row instead of deleting it. The two
    * removal confirmations read it to say which of the two they are about to do
