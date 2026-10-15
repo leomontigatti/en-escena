@@ -7,6 +7,19 @@
 export const seminarStartedMessage = "El seminario ya comenzó.";
 
 /**
+ * The two refusals of one person registered from both sides once an
+ * individual's link is confirmed (ADR-0019). The academy is told only that the
+ * person registered itself; the individual is told which academy registered
+ * it, which its own `Seminarios` also lists before it tries.
+ */
+export const registeredAsIndividualMessage =
+  "Ya está inscripto como particular.";
+
+export function registeredByAcademyMessage(academyName: string) {
+  return `${academyName} ya te inscribió en este seminario.`;
+}
+
+/**
  * The refusal of the one write the quota governs: **covering the deposit is what
  * takes the place**, so the seminar fills up against allocations and never
  * against registrations. Surfaced by the money dialog's error alert, which is

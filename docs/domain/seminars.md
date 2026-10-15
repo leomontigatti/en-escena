@@ -122,7 +122,12 @@ How a seminar inscription is priced from those rows:
   seminar's event, or a `professor` linked to a choreography of that event,
   **on the roster row the inscription names** and regardless of that
   choreography's money. A person dancing for academy A and registered into a
-  seminar by academy B is a non-participant on B's inscription. The direction is
+  seminar by academy B is a non-participant on B's inscription (#615 is where
+  that could change). An **individual's** inscription is participant when any
+  row its `Vinculado` link reaches meets the same predicate, in any academy and
+  whatever that row's `Estado de alta`; without a confirmed link it is priced as
+  a non-participant (ADR-0019,
+  `app/lib/finances/seminar-participation.server.ts`). The direction is
   choreography → seminar only: a seminar still makes nobody `Participando`.
 - **Resolution.** The candidate rows for an inscription are the event's rows of
   the seminar's kind for the person's participant cell, **falling back to the
@@ -187,6 +192,17 @@ How a seminar inscription is priced from those rows:
 - One row on the roster per seminar and person, beside any withdrawn ones. The
   same person may hold an inscription in any
   number of seminars; overlapping times are not checked.
+- **One person, one side.** Once an individual's link is `Vinculado`, the
+  individual and the rows its link reaches are one person to a seminar
+  (`app/lib/seminars/linked-person-refusals.server.ts`, under the seminar's
+  lock): the individual is refused when a reached row holds an inscription on
+  the roster, by a message naming that row's academy, and an academy is refused
+  `Ya está inscripto como particular` when the row it registers is reached by an
+  individual holding one. Without a confirmed link neither is refused; a
+  duplicate made before the confirmation is administration's to remove. The
+  individual's `Seminarios` lists the academies' inscriptions of the rows its
+  link reaches read-only, with the academy that made them, and its registration
+  says `Tu academia verá esta inscripción` while the link is `Vinculado`.
 - Registration is open **until the seminar starts**, independent of whether any
   `Cronograma` of the event has `Inscripciones abiertas`. Once started, the academy can neither add nor delete;
   the rows stay listed as read-only history while the event is active, and leave
@@ -211,8 +227,8 @@ How a seminar inscription is priced from those rows:
   `Retirar inscripción`. No amount appears on either side of the portal: what a
   seminar costs is read in `Resumen financiero`. The individual's `Seminarios`
   is the exception: it shows what each seminar costs the individual (its
-  inscription's effective price, or today's ordinary price before it
-  registers), because that page is where it decides to register.
+  inscription's effective price, or today's price in its participant cell before
+  it registers), because that page is where it decides to register.
 - **A withdrawal is final** (#1496). Registering the same person again is an
   ordinary registration: it inserts a new row, with its own `createdAt`, no
   money and the ordinary quota rule — a reservation when a place is free, none

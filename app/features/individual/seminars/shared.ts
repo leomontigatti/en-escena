@@ -31,7 +31,8 @@ export type IndividualSeminarRow = {
   startTime: string;
   /**
    * What the individual pays: its inscription's effective price once it holds
-   * one, today's ordinary price of the seminar otherwise. Null when nothing
+   * one, otherwise today's price of the seminar in its participant cell, which
+   * is the participant one only through a confirmed link. Null when nothing
    * prices it, which a seminar open for registration rules out.
    */
   priceAmount: number | null;
@@ -43,12 +44,25 @@ export type IndividualSeminarRow = {
    * its deposit. */
   startsBeforePaymentDeadline: boolean;
   inscription: IndividualSeminarInscription | null;
+  /** The inscriptions academies made in this seminar for the rows the
+   * individual's `Vinculado` link reaches: read-only, and what refuses its own
+   * registration while one is on the roster. */
+  academyInscriptions: IndividualAcademyMadeInscription[];
+};
+
+/** An academy's inscription of a row the individual's link reaches. */
+export type IndividualAcademyMadeInscription = {
+  academyName: string;
+  id: string;
 };
 
 export type IndividualSeminarsLoaderData = {
   hasActiveEvent: boolean;
   /** Whether the event's price list lets anybody register yet. */
   hasRegistrationPrices: boolean;
+  /** The link is `Vinculado`: the academies it reaches see the individual's
+   * inscriptions, which the registration says. */
+  isLinked: boolean;
   seminars: IndividualSeminarRow[];
 };
 

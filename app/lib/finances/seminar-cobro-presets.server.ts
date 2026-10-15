@@ -60,15 +60,14 @@ import {
   lockSeminars,
   type LockedSeminar,
 } from "./seminar-money-support.server";
+import type { SeminarInscriptionPersonIds } from "./seminar-participation.server";
 
 const seminarNotFoundMessage = "No encontramos ese seminario.";
 
-type ActiveSeminarInscription = {
-  dancerId: string | null;
+type ActiveSeminarInscription = SeminarInscriptionPersonIds & {
   firstName: string;
   id: string;
   lastName: string;
-  professorId: string | null;
   selectedPriceId: string | null;
   seminarId: string;
 };
@@ -243,6 +242,7 @@ async function readActiveSeminarInscriptions(
       firstName: seminarInscriptionPerson.firstName,
       id: seminarInscriptions.id,
       lastName: seminarInscriptionPerson.lastName,
+      individualId: seminarInscriptions.individualId,
       professorId: seminarInscriptions.professorId,
       seminarId: seminarInscriptions.seminarId,
       selectedPriceId: seminarInscriptions.selectedPriceId,

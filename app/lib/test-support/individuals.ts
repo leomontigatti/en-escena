@@ -1,7 +1,9 @@
 import { db } from "@/db";
 import { individuals } from "@/db/schema";
+import { confirmIndividualLink } from "@/lib/individuals/link.server";
 import type { IdentityDocumentType } from "@/lib/roster/identity-document";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 /**
  * A signed-in `Particular` as onboarding leaves it (ADR-0019): the user with
@@ -46,4 +48,37 @@ export async function createIndividualUser(input: {
     ownerId: owner.academyId,
     userId: owner.userId,
   };
+}
+
+/**
+ * A `Particular` whose link administration confirmed (`Vinculado`): it reaches
+ * every academy row carrying `documentNumber`.
+ */
+export async function createLinkedIndividualUser(
+  input: Parameters<typeof createIndividualUser>[0],
+) {
+  const documentNumber = input.documentNumber ?? "30123456";
+  const documentPhotoStorageKey =
+    input.documentPhotoStorageKey ?? "individuals/photo.jpg";
+  const individual = await createIndividualUser({
+    ...input,
+    documentNumber,
+    documentPhotoStorageKey,
+  });
+  const admin = await createSignedInRequest({
+    email: `admin.${crypto.randomUUID()}@example.com`,
+    role: "admin",
+  });
+  const confirmed = await confirmIndividualLink({
+    confirmedByUserId: admin.userId,
+    documentNumber,
+    documentPhotoStorageKey,
+    individualId: individual.individualId,
+  });
+
+  if (!confirmed.ok) {
+    throw new Error(`Expected the link to be confirmed: ${confirmed.reason}`);
+  }
+
+  return individual;
 }

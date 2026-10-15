@@ -33,6 +33,7 @@ function buildSeminar(
     isFull: false,
     startsBeforePaymentDeadline: false,
     inscription: null,
+    academyInscriptions: [],
     ...overrides,
   };
 }
@@ -43,6 +44,7 @@ function buildLoaderData(
   return {
     hasActiveEvent: true,
     hasRegistrationPrices: true,
+    isLinked: false,
     seminars: [buildSeminar()],
     ...overrides,
   };
@@ -137,7 +139,45 @@ describe("IndividualSeminarsView", () => {
     expect(dialog?.textContent).toContain("$ 30.000");
     expect(dialog?.textContent).toContain("Reserva de lugar");
     expect(dialog?.textContent).toContain("Tenés 48 horas");
+    expect(dialog?.textContent).not.toContain(
+      "Tu academia verá esta inscripción",
+    );
     expect(findByText("button", "Inscribirme")).toBeDefined();
+  });
+
+  test("tells a linked individual in the registration that its academy will see it", async () => {
+    await renderView(buildLoaderData({ isLinked: true }));
+
+    await openSeminar("Abril Sosa");
+
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+      "Tu academia verá esta inscripción",
+    );
+  });
+
+  test("shows an academy's inscription read-only, naming the academy", async () => {
+    await renderView(
+      buildLoaderData({
+        seminars: [
+          buildSeminar({
+            academyInscriptions: [
+              { academyName: "Academia Norte", id: "inscription_1" },
+            ],
+          }),
+        ],
+      }),
+    );
+
+    expect(document.body.textContent).toContain("Inscripto por Academia Norte");
+
+    await openSeminar("Abril Sosa");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain(
+      "Academia Norte ya te inscribió en este seminario.",
+    );
+    expect(findByText("button", "Inscribirme")).toBeUndefined();
   });
 
   test("warns in the registration that a full seminar holds no place", async () => {

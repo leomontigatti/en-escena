@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import {
   choreographyDancers,
+  dancers,
   paymentAllocations,
   payments,
   seminarInscriptions,
@@ -17,6 +18,10 @@ import { hasCoveredSeminarInscription } from "@/lib/seminars/covered-inscription
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { createSavedEvent } from "@/lib/test-support/events";
+import {
+  createIndividualUser,
+  createLinkedIndividualUser,
+} from "@/lib/test-support/individuals";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -111,6 +116,8 @@ async function seedSeminarPricingFixture(
     dancingAcademyId: dancing.academy.academy.id,
     eventId: event.id,
     outsiderInscriptionId: outsiderInscription.id,
+    outsiderId: outsider.id,
+    participantId: participant.id,
     participantInscriptionId: participantInscription.id,
     priceIds,
     seminarId: seminar.id,
@@ -344,5 +351,128 @@ describe("the academy's figures over both kinds", () => {
       status: "complete",
     });
     expect(seminarRow.financialStatus).toBe("depositPending");
+  });
+});
+
+// #1666: an individual's participant cell is read on every row its confirmed
+// link reaches, in any academy; an academy's stays on its own row.
+describe("an individual's participant cell", () => {
+  const documentNumber = "30123456";
+
+  async function registerIndividualOf(
+    fixture: Awaited<ReturnType<typeof seedSeminarPricingFixture>>,
+    options: { linked: boolean },
+  ) {
+    await db
+      .update(dancers)
+      .set({ documentNumber })
+      .where(eq(dancers.id, fixture.participantId));
+    const input = {
+      documentNumber,
+      documentPhotoStorageKey: "individuals/photo.jpg",
+      email: `particular.${crypto.randomUUID()}@example.com`,
+    };
+    const individual = options.linked
+      ? await createLinkedIndividualUser(input)
+      : await createIndividualUser(input);
+    const [inscription] = await db
+      .insert(seminarInscriptions)
+      .values({
+        individualId: individual.individualId,
+        seminarId: fixture.seminarId,
+      })
+      .returning();
+
+    return { inscriptionId: inscription.id, ownerId: individual.ownerId };
+  }
+
+  async function readIndividualThresholds(
+    fixture: Awaited<ReturnType<typeof seedSeminarPricingFixture>>,
+    individual: { inscriptionId: string; ownerId: string },
+  ) {
+    const thresholds = await readSeminarInscriptionThresholds(db, {
+      academyId: individual.ownerId,
+      eventId: fixture.eventId,
+      inscriptionIds: [individual.inscriptionId],
+    });
+
+    return thresholds.get(individual.inscriptionId);
+  }
+
+  test("pays the participant price when its link reaches a row participating in another academy", async () => {
+    const fixture = await seedSeminarPricingFixture();
+    const individual = await registerIndividualOf(fixture, { linked: true });
+
+    const thresholds = await readIndividualThresholds(fixture, individual);
+
+    expect(thresholds?.totalAmount).toBe(prices.specialParticipant);
+    expect(thresholds?.priceRow?.id).toBe(
+      fixture.priceIds.get("specialParticipant"),
+    );
+  });
+
+  test("pays the ordinary price without a confirmed link", async () => {
+    const fixture = await seedSeminarPricingFixture();
+    const individual = await registerIndividualOf(fixture, { linked: false });
+
+    await expect(
+      readIndividualThresholds(fixture, individual),
+    ).resolves.toMatchObject({ totalAmount: prices.specialOutsider });
+  });
+
+  test("pays the ordinary price when the rows its link reaches do not participate", async () => {
+    const fixture = await seedSeminarPricingFixture();
+    const individual = await registerIndividualOf(fixture, { linked: true });
+    await db
+      .delete(choreographyDancers)
+      .where(eq(choreographyDancers.dancerId, fixture.participantId));
+
+    await expect(
+      readIndividualThresholds(fixture, individual),
+    ).resolves.toMatchObject({ totalAmount: prices.specialOutsider });
+  });
+
+  test("keeps the participant price once the deposit is covered, even when participation ends", async () => {
+    const fixture = await seedSeminarPricingFixture();
+    const individual = await registerIndividualOf(fixture, { linked: true });
+    await db
+      .update(seminarInscriptions)
+      .set({ selectedPriceId: fixture.priceIds.get("specialParticipant") })
+      .where(eq(seminarInscriptions.id, individual.inscriptionId));
+    await allocate({
+      academyId: individual.ownerId,
+      amount: prices.specialParticipant / 2,
+      eventId: fixture.eventId,
+      inscriptionId: individual.inscriptionId,
+      paymentNumber: 1,
+    });
+
+    await db
+      .delete(choreographyDancers)
+      .where(eq(choreographyDancers.dancerId, fixture.participantId));
+
+    await expect(
+      readIndividualThresholds(fixture, individual),
+    ).resolves.toMatchObject({
+      covered: true,
+      totalAmount: prices.specialParticipant,
+    });
+  });
+
+  test("leaves an academy's own row on the per-row rule", async () => {
+    const fixture = await seedSeminarPricingFixture();
+    await registerIndividualOf(fixture, { linked: true });
+    // The outsider carries the same document in the other academy: the
+    // individual's link does not lend her the participant cell.
+    await db
+      .update(dancers)
+      .set({ documentNumber })
+      .where(eq(dancers.id, fixture.outsiderId));
+
+    const thresholds = await readThresholds(fixture);
+
+    expect(thresholds.get(fixture.outsiderInscriptionId)?.totalAmount).toBe(
+      prices.specialOutsider,
+    );
   });
 });

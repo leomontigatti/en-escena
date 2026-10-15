@@ -25,7 +25,10 @@ import { coverSeminarInscriptionDeposit } from "@/lib/seminars/seminars.test-sup
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSavedEvent, eventDates } from "@/lib/test-support/events";
-import { createIndividualUser } from "@/lib/test-support/individuals";
+import {
+  createIndividualUser,
+  createLinkedIndividualUser,
+} from "@/lib/test-support/individuals";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -807,5 +810,175 @@ describe("an individual's own seminar inscription", () => {
         now: beforeStart,
       }),
     ).resolves.toMatchObject({ ok: false, code: "inscription-not-found" });
+  });
+});
+
+// #1666: one person holds one inscription per seminar, whichever side made it,
+// once the individual's link is confirmed.
+describe("the same person registered from both sides", () => {
+  const documentNumber = "30123456";
+
+  function registerIndividual(
+    individual: { individualId: string; ownerId: string },
+    input: { eventId: string; seminarId: string },
+  ) {
+    return registerSeminarInscription({
+      academyId: individual.ownerId,
+      eventId: input.eventId,
+      now: beforeStart,
+      personId: individual.individualId,
+      personKind: "individual",
+      seminarId: input.seminarId,
+    });
+  }
+
+  function createLinkedIndividual() {
+    return createLinkedIndividualUser({
+      documentNumber,
+      email: `${crypto.randomUUID()}@example.com`,
+    });
+  }
+
+  test("refuses the individual, naming the academy, when a row its link reaches holds an inscription", async () => {
+    const { eventId, seminar } = await createSeminarFixture();
+    const academy = await createAcademy("Academia Norte");
+    const dancer = await createDancer(academy.id, {
+      documentType: "dni",
+      documentNumber: "30.123.456",
+    });
+    expectRegistered(
+      await registerDancerBeforeStart({
+        academyId: academy.id,
+        eventId,
+        personId: dancer.id,
+        seminarId: seminar.id,
+      }),
+    );
+    const individual = await createLinkedIndividual();
+
+    await expect(
+      registerIndividual(individual, { eventId, seminarId: seminar.id }),
+    ).resolves.toEqual({
+      ok: false,
+      code: "registered-by-academy",
+      error: "Academia Norte ya te inscribió en este seminario.",
+    });
+  });
+
+  test("lets the individual register once the academy's inscription is withdrawn", async () => {
+    const { eventId, seminar } = await createSeminarFixture();
+    const academy = await createAcademy("Academia Norte");
+    const professor = await createProfessor(academy.id, {
+      documentType: "dni",
+      documentNumber,
+    });
+    const academyInscriptionId = expectRegistered(
+      await registerSeminarInscription({
+        academyId: academy.id,
+        eventId,
+        now: beforeStart,
+        personId: professor.id,
+        personKind: "professor",
+        seminarId: seminar.id,
+      }),
+    );
+    await db
+      .update(seminarInscriptions)
+      .set({ withdrawnAt: beforeStart })
+      .where(eq(seminarInscriptions.id, academyInscriptionId));
+    const individual = await createLinkedIndividual();
+
+    expectRegistered(
+      await registerIndividual(individual, { eventId, seminarId: seminar.id }),
+    );
+  });
+
+  test("refuses the academy when a linked individual already holds an inscription", async () => {
+    const { eventId, seminar } = await createSeminarFixture();
+    const academy = await createAcademy("Academia Norte");
+    const dancer = await createDancer(academy.id, {
+      documentType: "dni",
+      documentNumber,
+    });
+    const professor = await createProfessor(academy.id, {
+      documentType: "dni",
+      documentNumber,
+    });
+    const individual = await createLinkedIndividual();
+    expectRegistered(
+      await registerIndividual(individual, { eventId, seminarId: seminar.id }),
+    );
+
+    await expect(
+      registerDancerBeforeStart({
+        academyId: academy.id,
+        eventId,
+        personId: dancer.id,
+        seminarId: seminar.id,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      code: "registered-as-individual",
+      error: "Ya está inscripto como particular.",
+    });
+    await expect(
+      registerSeminarInscription({
+        academyId: academy.id,
+        eventId,
+        now: beforeStart,
+        personId: professor.id,
+        personKind: "professor",
+        seminarId: seminar.id,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: "registered-as-individual" });
+  });
+
+  test("refuses neither side without a confirmed link", async () => {
+    const { eventId, seminar } = await createSeminarFixture();
+    const academy = await createAcademy("Academia Norte");
+    const dancer = await createDancer(academy.id, {
+      documentType: "dni",
+      documentNumber,
+    });
+    // `Pendiente`: the photo is there, nobody confirmed it.
+    const pending = await createIndividualUser({
+      documentNumber,
+      documentPhotoStorageKey: "individuals/photo.jpg",
+      email: `${crypto.randomUUID()}@example.com`,
+    });
+    expectRegistered(
+      await registerIndividual(pending, { eventId, seminarId: seminar.id }),
+    );
+
+    expectRegistered(
+      await registerDancerBeforeStart({
+        academyId: academy.id,
+        eventId,
+        personId: dancer.id,
+        seminarId: seminar.id,
+      }),
+    );
+
+    const other = await createSeminarFixture();
+    const otherAcademy = await createAcademy("Academia Sur");
+    const otherDancer = await createDancer(otherAcademy.id, {
+      documentType: "dni",
+      documentNumber,
+    });
+    expectRegistered(
+      await registerDancerBeforeStart({
+        academyId: otherAcademy.id,
+        eventId: other.eventId,
+        personId: otherDancer.id,
+        seminarId: other.seminar.id,
+      }),
+    );
+
+    expectRegistered(
+      await registerIndividual(pending, {
+        eventId: other.eventId,
+        seminarId: other.seminar.id,
+      }),
+    );
   });
 });

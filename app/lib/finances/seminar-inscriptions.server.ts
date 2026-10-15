@@ -189,6 +189,7 @@ async function readSeminarPersonRows(
       id: seminarInscriptions.id,
       instructorName: seminars.instructorName,
       lastName: seminarInscriptionPerson.lastName,
+      individualId: seminarInscriptions.individualId,
       professorId: seminarInscriptions.professorId,
       requiredDepositPercentage: seminars.requiredDepositPercentage,
       scheduledDate: seminars.scheduledDate,
