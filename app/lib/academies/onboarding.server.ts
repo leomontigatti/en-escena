@@ -46,7 +46,12 @@ export async function requireAcademyOnboardingUser(request: Request) {
     throw redirect("/ingresar");
   }
 
-  if (await hasAcademy(identity.user.id)) {
+  const academy = await db.query.academies.findFirst({
+    columns: { id: true },
+    where: eq(academies.userId, identity.user.id),
+  });
+
+  if (academy) {
     throw redirect("/portal");
   }
 
@@ -113,7 +118,7 @@ export async function completeAcademyOnboarding(input: {
     // hydration) collides with the first; the academy is this user's anyway.
     if (
       isUniqueViolation(error) &&
-      (await hasAcademy(onboardingUser.user.id))
+      (await holdsAcademyAccount(onboardingUser.user.id))
     ) {
       return { headers: onboardingUser.headers, ok: true as const };
     }
@@ -131,11 +136,20 @@ export async function completeAcademyOnboarding(input: {
   return { headers: onboardingUser.headers, ok: true as const };
 }
 
-async function hasAcademy(userId: string) {
-  const academy = await db.query.academies.findFirst({
-    columns: { id: true },
-    where: eq(academies.userId, userId),
-  });
+/** An academy, not the `Particular` account another tab may have opened. */
+async function holdsAcademyAccount(userId: string) {
+  const [academy] = await db
+    .select({ id: academies.id })
+    .from(academies)
+    .innerJoin(user, eq(user.id, academies.userId))
+    .where(
+      and(
+        eq(academies.userId, userId),
+        academyOwner(),
+        eq(user.role, "academy"),
+      ),
+    )
+    .limit(1);
 
   return academy !== undefined;
 }

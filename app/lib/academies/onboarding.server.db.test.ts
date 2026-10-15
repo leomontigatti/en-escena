@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
+import { completeIndividualOnboarding } from "@/lib/individuals/onboarding.server";
 import {
   action as academyOnboardingAction,
   loader as academyOnboardingLoader,
@@ -237,6 +238,48 @@ describe("academy onboarding route", () => {
     await expect(
       db.query.academies.findMany({ columns: { userId: true } }),
     ).resolves.toEqual([{ userId: "user-doble" }]);
+  });
+
+  // The same race against the `Particular` form in another tab: the owner row
+  // that wins is an individual's, so the academy was not created.
+  test("refuses an academy submit that loses the race to the same user's `Particular` account", async () => {
+    getVerifiedAccessIdentity.mockResolvedValue(
+      accessIdentity("ambas@example.com", "user-ambas"),
+    );
+
+    const [individualOutcome, academyOutcome] = await Promise.allSettled([
+      completeIndividualOnboarding({
+        request: new Request("http://localhost/registro/particular"),
+        values: {
+          documentNumber: "30123456",
+          documentType: "dni",
+          firstName: "Ana",
+          lastName: "Cruz",
+          phone: "3511234567",
+        },
+      }),
+      academyOnboardingAction(
+        routeActionArgs(
+          createOnboardingRequest({
+            academyName: "Academia Ambas",
+            contactName: "Contacto",
+            phone: "1112345678",
+          }),
+        ),
+      ),
+    ]);
+
+    expect(individualOutcome).toMatchObject({
+      status: "fulfilled",
+      value: { ok: true },
+    });
+    expect(academyOutcome).toMatchObject({
+      status: "fulfilled",
+      value: { status: "error" },
+    });
+    await expect(
+      db.query.academies.findMany({ columns: { kind: true } }),
+    ).resolves.toEqual([{ kind: "individual" }]);
   });
 
   test("warns when another academy already uses the typed name and creates nothing", async () => {
