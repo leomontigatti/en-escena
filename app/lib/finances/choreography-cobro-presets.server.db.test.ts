@@ -418,6 +418,36 @@ describe("payChoreographiesPreset", () => {
   });
 });
 
+describe("payChoreographiesPreset on a choreography whose group type moved", () => {
+  // #660: a roster save below the deposit leaves the stored solo row behind;
+  // funding without a pick for the new group type would freeze it there.
+  test("refuses to fund an inscription storing a row of another group type when no price is picked for its own", async () => {
+    const fixture = await seedPresetFixture([10000]);
+    const [choreographyId] = fixture.choreographyIds;
+    await db
+      .update(choreographyDancers)
+      .set({ selectedPriceId: fixture.priceId })
+      .where(eq(choreographyDancers.id, fixture.inscriptionIds[0]!));
+    await db
+      .update(choreographies)
+      .set({ groupType: "duo" })
+      .where(eq(choreographies.id, choreographyId!));
+
+    const result = await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds: [choreographyId!],
+      eventId: fixture.eventId,
+      priceIdByGroupType: { solo: fixture.priceId },
+      stage: "deposit",
+    });
+
+    expect(result).toMatchObject({ ok: false });
+    await expect(
+      readAllocations([fixture.inscriptionIds[0]!]),
+    ).resolves.toEqual([]);
+  });
+});
+
 describe.skipIf(isPgliteTestBackend())(
   "payChoreographiesPreset racing a draft save",
   () => {
@@ -437,12 +467,19 @@ describe.skipIf(isPgliteTestBackend())(
       const [choreographyId] = fixture.choreographyIds;
 
       const result = await runBehindAHolder({
-        waitingOn: "choreography lock",
-        hold: async (tx) =>
+        waitingOn: "inscription lock",
+        // What the draft save holds while it moves the group type.
+        hold: async (tx) => {
+          await tx
+            .select({ id: choreographyDancers.id })
+            .from(choreographyDancers)
+            .where(eq(choreographyDancers.choreographyId, choreographyId!))
+            .for("update");
           await tx
             .update(choreographies)
             .set({ groupType: "duo" })
-            .where(eq(choreographies.id, choreographyId!)),
+            .where(eq(choreographies.id, choreographyId!));
+        },
         contender: () =>
           payChoreographiesPreset({
             academyId: fixture.academyId,

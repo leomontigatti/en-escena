@@ -462,10 +462,18 @@ async function loadInscriptionMoneyContext(
   tx: Transaction,
   input: InscriptionMoneyInput,
 ): Promise<InscriptionMoneyContext> {
+  // The pool's lock, taken before the group type is read: a draft save moving
+  // the group type holds it until it commits, so the price is picked against
+  // the committed one (#660).
+  await tx
+    .select({ id: choreographyDancers.id })
+    .from(choreographyDancers)
+    .where(eq(choreographyDancers.id, input.inscriptionId))
+    .for("update");
+
   const choreographyRow = await loadChoreographyScheduleRow(
     tx,
     input.choreographyId,
-    { lock: "share" },
   );
 
   if (

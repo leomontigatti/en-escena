@@ -23,6 +23,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import {
   choreographies,
   choreographyDancers,
+  prices,
   scheduleCapacities,
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
@@ -55,9 +56,14 @@ export type CobroStage = "deposit" | "balance";
  * The price the administrator picked, keyed by group type. One entry per group
  * type present in the selection: the picker filters to the choreography's group
  * type, so a selection spanning two group types asks twice. A missing entry is
- * not an error — the inscription keeps whatever price already resolves for it.
+ * not an error — the inscription keeps whatever price already resolves for it —
+ * unless the row it stores is of another group type: funding it would freeze
+ * that row (#660).
  */
 export type PresetPriceSelection = Record<string, string>;
+
+const groupTypeWithoutPriceMessage =
+  "Elegí un precio para cada tipo de grupo: hay inscripciones que guardan el precio de otro tipo de grupo.";
 
 type PresetChoreography = {
   groupType: string;
@@ -79,16 +85,6 @@ export async function payChoreographiesPreset(input: {
   }
 
   return await runCobro(async (tx) => {
-    const selected = await readSelectedChoreographies(tx, {
-      academyId: input.academyId,
-      choreographyIds,
-      eventId: input.eventId,
-    });
-
-    if (selected.length !== choreographyIds.length) {
-      return { ok: false, message: choreographyNotFoundMessage };
-    }
-
     const inscriptions = await tx
       .select({
         choreographyId: choreographyDancers.choreographyId,
@@ -108,6 +104,20 @@ export async function payChoreographiesPreset(input: {
       // until the preset has priced and funded.
       .orderBy(asc(choreographyDancers.id))
       .for("update");
+
+    // Read once the inscriptions are locked: a draft save moving a group type
+    // holds them until it commits, so each price is picked against the
+    // committed group type (#660). A foreign id is refused here, and the
+    // rollback releases what it locked.
+    const selected = await readSelectedChoreographies(tx, {
+      academyId: input.academyId,
+      choreographyIds,
+      eventId: input.eventId,
+    });
+
+    if (selected.length !== choreographyIds.length) {
+      return { ok: false, message: choreographyNotFoundMessage };
+    }
 
     if (inscriptions.length === 0) {
       return {
@@ -205,6 +215,52 @@ async function fundOwedThreshold(
 }
 
 /**
+ * Funding an inscription with no pick for its own group type would cover the
+ * deposit of the row it stores, and freeze it there when that row is of another
+ * group type: the state the roster save refuses to leave behind (#660).
+ */
+function storesRowOfAnotherGroupType(input: {
+  choreography: PresetChoreography;
+  inscription: { selectedPriceId: string | null };
+  storedGroupTypes: Map<string, string>;
+}) {
+  const { selectedPriceId } = input.inscription;
+  const storedGroupType = selectedPriceId
+    ? input.storedGroupTypes.get(selectedPriceId)
+    : undefined;
+
+  return (
+    storedGroupType !== undefined &&
+    storedGroupType !== input.choreography.groupType
+  );
+}
+
+/** The group type of each row the inscriptions store, by price id. */
+async function readStoredGroupTypes(
+  tx: Transaction,
+  inscriptions: Array<{ selectedPriceId: string | null }>,
+): Promise<Map<string, string>> {
+  const priceIds = [
+    ...new Set(
+      inscriptions.flatMap(({ selectedPriceId }) =>
+        selectedPriceId ? [selectedPriceId] : [],
+      ),
+    ),
+  ];
+
+  if (priceIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await tx
+    .select({ groupType: prices.groupType, id: prices.id })
+    .from(prices)
+    .where(inArray(prices.id, priceIds));
+
+  return new Map(rows.map((row) => [row.id, row.groupType]));
+}
+
+/**
  * The selected choreographies, scoped to the academy and event of the list the
  * action was fired from. A row missing here is a row that does not belong to
  * this list, which is why the caller compares counts instead of trusting ids
@@ -232,10 +288,7 @@ async function readSelectedChoreographies(
         eq(choreographies.eventId, input.eventId),
         inArray(choreographies.id, input.choreographyIds),
       ),
-    )
-    // The group type is what picks each price: a draft save moving it holds
-    // the row `FOR UPDATE`, so the preset waits and prices the committed one.
-    .for("share", { of: choreographies });
+    );
 
   return rows.map((row) => ({
     groupType: row.groupType,
@@ -279,6 +332,8 @@ async function applySelectedPrices(
   // the same rows cannot deadlock.
   await lockPriceRows(tx, Object.values(input.priceIdByGroupType));
 
+  const storedGroupTypes = await readStoredGroupTypes(tx, input.inscriptions);
+
   for (const inscription of input.inscriptions) {
     const choreography = byId.get(inscription.choreographyId);
     const priceId = choreography
@@ -287,7 +342,21 @@ async function applySelectedPrices(
 
     // A waived inscription owes nothing whatever its price, so a pick does not
     // reach it: it keeps the row it goes back to if the waiver is taken off.
-    if (!choreography || !priceId || inscription.waivedAt !== null) {
+    if (!choreography || inscription.waivedAt !== null) {
+      continue;
+    }
+
+    if (!priceId) {
+      if (
+        storesRowOfAnotherGroupType({
+          choreography,
+          inscription,
+          storedGroupTypes,
+        })
+      ) {
+        return { ok: false, message: groupTypeWithoutPriceMessage };
+      }
+
       continue;
     }
 

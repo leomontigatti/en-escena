@@ -337,6 +337,7 @@ function isStale(
   choreography: ChoreographyDetail,
   locked: {
     categoryId: string;
+    groupType: string;
     modalityId: string;
     professionalEvaluation: boolean;
     scheduleCapacityId: string | null;
@@ -345,6 +346,8 @@ function isStale(
 ) {
   return (
     locked.categoryId !== choreography.categoryId ||
+    // The group-type pin is decided against the group type it reads here.
+    locked.groupType !== choreography.groupType ||
     locked.modalityId !== choreography.modalityId ||
     // The academy writes it too, from the portal: a save decided on the old
     // answer must not put it back, nor slip a change past the evaluation check.
@@ -373,6 +376,7 @@ async function writeDraft(input: {
   const [locked] = await tx
     .select({
       categoryId: choreographies.categoryId,
+      groupType: choreographies.groupType,
       modalityId: choreographies.modalityId,
       professionalEvaluation: choreographies.professionalEvaluation,
       scheduleCapacityId: choreographies.scheduleCapacityId,
@@ -426,7 +430,7 @@ async function writeDraft(input: {
  * The preview's group-type pin asked again under the row lock, against the
  * group type the save writes: it holds whether or not the capacity moves, and
  * a choreography on its schedule's total moves none. The money writers read the
- * group type under a share lock on the same row, so none can price against the
+ * group type after locking their inscriptions, so none can price against the
  * old one once this save has passed.
  */
 async function isGroupTypePinned(input: {

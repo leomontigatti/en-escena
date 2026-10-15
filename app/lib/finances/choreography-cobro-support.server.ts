@@ -149,17 +149,12 @@ export async function hasCrossedStoredDepositThreshold(
  * effective schedule is resolved with `resolveChoreographyPricingScheduleId`. It
  * accepts the connection or a transaction; it returns `null` if the choreography
  * does not exist.
- *
- * A money write passes `lock: "share"` before it prices an inscription off the
- * row: the draft save locks the row `FOR UPDATE` while it moves the group type,
- * so whichever commits second reads the other's write (#660).
  */
 export async function loadChoreographyScheduleRow(
   executor: Transaction | typeof db,
   choreographyId: string,
-  options: { lock?: "share" } = {},
 ) {
-  const query = executor
+  const [choreographyRow] = await executor
     .select({
       academyId: choreographies.academyId,
       eventId: choreographies.eventId,
@@ -173,9 +168,6 @@ export async function loadChoreographyScheduleRow(
       eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
     )
     .where(eq(choreographies.id, choreographyId));
-  const [choreographyRow] = options.lock
-    ? await query.for(options.lock, { of: choreographies })
-    : await query;
 
   return choreographyRow ?? null;
 }
