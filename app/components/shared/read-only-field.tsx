@@ -14,6 +14,11 @@ type ReadOnlyFieldProps = {
   className?: string;
   contentClassName?: string;
   displayValue?: string;
+  /**
+   * Why the value cannot stand, for a field derived from the others: it reads
+   * as this field's error even though nothing here can be typed.
+   */
+  error?: ReactNode;
   hiddenValue?: string;
   id?: string;
   inputClassName?: string;
@@ -33,7 +38,7 @@ type ReadOnlyFieldProps = {
 
 type ReadOnlyTextareaFieldProps = Omit<
   ReadOnlyFieldProps,
-  "displayValue" | "inputClassName" | "trailing"
+  "displayValue" | "error" | "inputClassName" | "trailing"
 > & {
   textareaClassName?: string;
 };
@@ -60,6 +65,7 @@ function ReadOnlyField({
   className,
   contentClassName,
   displayValue,
+  error,
   hiddenValue,
   id: providedId,
   inputClassName,
@@ -79,18 +85,20 @@ function ReadOnlyField({
       className={className}
       contentClassName={contentClassName}
       disabled
+      error={error}
       id={id}
       label={label}
       labelClassName={labelClassName}
       orientation={orientation}
     >
-      {({ describedBy }) => (
+      {({ describedBy, isInvalid }) => (
         <>
           <HiddenReadOnlyValue name={name} value={hiddenValue ?? value} />
           <div className={cn("relative", trailing && "@container")}>
             <Input
               id={id}
               aria-describedby={describedBy}
+              aria-invalid={isInvalid ? true : undefined}
               autoComplete={autoComplete}
               value={displayValue ?? value}
               disabled
@@ -99,7 +107,8 @@ function ReadOnlyField({
               className={cn("pr-9", inputClassName)}
             />
             {trailing ? (
-              <div className="absolute top-1/2 right-9 -translate-y-1/2">
+              // A control of its own: the field's error colour is not its.
+              <div className="absolute top-1/2 right-9 -translate-y-1/2 text-foreground">
                 {trailing}
               </div>
             ) : null}

@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   ReadOnlyDateField,
+  ReadOnlyField,
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
 
@@ -36,5 +37,23 @@ describe("ReadOnlyField", () => {
     expect(markup).toContain('name="documentType"');
     expect(markup).toContain('value="dni"');
     expect(markup).toContain('value="DNI"');
+  });
+
+  // A value derived from other fields can be wrong without the user being able
+  // to type into it: the reason still has to read as this field's error.
+  test("marks a locked field invalid when it carries an error", () => {
+    const markup = renderToStaticMarkup(
+      <ReadOnlyField
+        error="Con este elenco no existe una categoría válida."
+        id="category"
+        label="Categoría"
+        value=""
+      />,
+    );
+
+    expect(markup).toContain('data-invalid="true"');
+    expect(markup).toContain('aria-invalid="true"');
+    expect(markup).toContain('aria-describedby="category-error"');
+    expect(markup).toContain("Con este elenco no existe una categoría válida.");
   });
 });

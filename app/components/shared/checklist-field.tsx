@@ -26,6 +26,8 @@ type ChecklistFieldProps<
   control: Control<TFieldValues>;
   disabled?: boolean;
   emptySelectionMessage: string;
+  /** An error the form does not own, such as a server preview's reason. */
+  error?: string;
   /** Posts each checked option as a hidden input, for a form that submits its own fields. */
   inputName?: string;
   label: string;
@@ -62,6 +64,7 @@ function ChecklistField<
   control,
   disabled = false,
   emptySelectionMessage,
+  error,
   inputName,
   label,
   name,
@@ -84,7 +87,7 @@ function ChecklistField<
             checkedStateOf={(value) => selected.includes(value)}
             disabled={disabled}
             emptySelectionMessage={emptySelectionMessage}
-            error={fieldState.error?.message}
+            error={fieldState.error?.message ?? error}
             label={label}
             noOptionsMessage={noOptionsMessage}
             onToggle={(value) => {
@@ -206,6 +209,7 @@ function Checklist({
               key={option.value}
               checked={checkedStateOf(option.value)}
               disabled={disabled}
+              invalid={Boolean(error)}
               option={option}
               onToggle={() => onToggle(option.value)}
             />
@@ -287,17 +291,20 @@ function readEmptyMessage({
 function ChecklistRow({
   checked,
   disabled,
+  invalid,
   onToggle,
   option,
 }: {
   checked: ChecklistCheckedState;
   disabled: boolean;
+  invalid: boolean;
   onToggle: () => void;
   option: ChecklistOption;
 }) {
   return (
     <ChoiceCard disabled={disabled} label={option.label}>
       <Checkbox
+        aria-invalid={invalid ? true : undefined}
         checked={checked}
         disabled={disabled}
         onCheckedChange={onToggle}
