@@ -91,9 +91,9 @@ export async function action({ request }: Route.ActionArgs) {
     acknowledgedDuplicateIds: readAcknowledgedDuplicateIds(formData),
     city: parsed.data.city,
     contactName: parsed.data.contactName,
+    onboardingUser: await requireAcademyOnboardingUser(request),
     phone: parsed.data.phone,
     province: parsed.data.province,
-    request,
   });
 
   if (!result.ok && "warning" in result) {
