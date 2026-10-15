@@ -46,6 +46,18 @@ const fullTierAreas: { area: string; pattern: RegExp }[] = [
       /^app\/(lib\/auth|lib\/admin\/users|features\/admin\/users)\/|^app\/routes\/(api\.auth|ingresar|salir|cambiar-contrasena|recuperar-acceso|registro|administracion\.usuarios)|^app\/db\/schema\/access\.ts$/,
   },
   { area: "migration", pattern: /^app\/db\/migrations\// },
+  // A file named for the area wherever it lives: the directories above miss
+  // modules that sit with their caller (`lib/admin/events/bases-action/prices.server.ts`).
+  {
+    area: "money",
+    pattern: /^app\/[^ ]*(price|payment|financ|comprobante)/i,
+  },
+  {
+    area: "results or judging",
+    pattern:
+      /^app\/[^ ]*(score|judg|vote|result|ranking|finalist)|^app\/features\/portal\/presentations\//i,
+  },
+  { area: "auth", pattern: /^app\/[^ ]*(auth|password|permission)/i },
   {
     area: "script that deletes or overwrites",
     pattern:
@@ -107,28 +119,27 @@ const modelNames: Record<ReviewModel, string> = {
 /**
  * What each tier requires. The full tier runs correctness on both model
  * families, a trial that compares them (CORRECTNESS.md in the `code-review` skill); the middle tier
- * takes either, since the reviewer is the family the implementer is not.
+ * takes either, since the reviewer is the family the implementer is not, and never Luna.
  */
-const requirements: Record<
-  ReviewTier,
-  { axis: RecordedAxis["axis"]; model?: ReviewModel }[]
-> = {
+type Requirement = { axis: RecordedAxis["axis"]; models?: ReviewModel[] };
+
+const requirements: Record<ReviewTier, Requirement[]> = {
   full: [
     { axis: "standards" },
     { axis: "spec" },
-    { axis: "correctness", model: "sol" },
-    { axis: "correctness", model: "opus" },
+    { axis: "correctness", models: ["sol"] },
+    { axis: "correctness", models: ["opus"] },
   ],
-  "readback+correctness": [{ axis: "readback" }, { axis: "correctness" }],
+  "readback+correctness": [
+    { axis: "readback" },
+    { axis: "correctness", models: ["sol", "opus"] },
+  ],
   readback: [{ axis: "readback" }],
 };
 
-function requirementLabel(requirement: {
-  axis: string;
-  model?: ReviewModel;
-}): string {
-  return requirement.model
-    ? `${requirement.axis} (${modelNames[requirement.model]})`
+function requirementLabel(requirement: Requirement): string {
+  return requirement.models
+    ? `${requirement.axis} (${requirement.models.map((model) => modelNames[model]).join(" or ")})`
     : requirement.axis;
 }
 
@@ -180,7 +191,8 @@ function reviewerFindings(
     const recorded = record.axes.filter(
       (axis) =>
         axis.axis === requirement.axis &&
-        (requirement.model === undefined || axis.model === requirement.model),
+        (requirement.models === undefined ||
+          requirement.models.includes(axis.model)),
     );
 
     if (recorded.length === 0) {
@@ -188,7 +200,9 @@ function reviewerFindings(
         `Tier ${tier} needs a ${requirementLabel(requirement)} line in the record.`,
       );
     } else if (recorded.every((axis) => axis.skipped)) {
-      warnings.push(`${requirementLabel(recorded[0])} is recorded as skipped.`);
+      warnings.push(
+        `${requirementLabel({ axis: recorded[0].axis, models: [recorded[0].model] })} is recorded as skipped.`,
+      );
     }
   }
 

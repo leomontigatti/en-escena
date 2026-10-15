@@ -62,6 +62,12 @@ describe("review tier", () => {
       "app/db/migrations/0042_add_column.sql",
       "app/db/schema/comprobantes.ts",
       "scripts/staging-reset.sh",
+      // Found by the Sol correctness review of this script: money and scores
+      // outside the areas' own directories.
+      "app/lib/admin/events/bases-action/prices.server.ts",
+      "app/lib/events/never-expiring-price.ts",
+      "app/features/portal/presentations/detail/server.ts",
+      "app/lib/academies/registration-auth.server.ts",
     ]) {
       expect(tierOf([path]), path).toMatchObject({ tier: "full" });
     }
@@ -185,6 +191,23 @@ describe("reviewers a tier requires", () => {
       }),
     ).toEqual({ violations: [], warnings: [] });
   });
+  test("the middle tier's correctness reviewer is Sol or Opus", () => {
+    const record = parseReviewRecord(
+      recordBody([
+        "Tier: readback+correctness, reviewed 1a2b3c4",
+        "- readback (Luna): nothing surprising",
+        "- correctness (Luna): no findings",
+      ]),
+    );
+
+    expect(
+      checkReviewRecord({
+        changedPaths: ["app/root.tsx"],
+        laterCommits: [],
+        record,
+      }).violations,
+    ).toEqual([expect.stringContaining("correctness (Sol or Opus)")]);
+  });
 });
 
 describe("commits after the review", () => {
@@ -237,7 +260,7 @@ describe("skipped and listed reviewers", () => {
     expect(requiredAxes("readback")).toEqual(["readback"]);
     expect(requiredAxes("readback+correctness")).toEqual([
       "readback",
-      "correctness",
+      "correctness (Sol or Opus)",
     ]);
     expect(requiredAxes("full")).toEqual([
       "standards",
