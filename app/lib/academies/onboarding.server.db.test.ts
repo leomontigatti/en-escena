@@ -211,8 +211,8 @@ describe("academy onboarding route", () => {
   // the "no academy yet" check, and the second insert collides with the
   // first. The academy is theirs either way, so both land in the portal.
   test("sends a submit that loses the race to its own first submit to the portal", async () => {
-    getVerifiedAccessIdentity.mockResolvedValue(
-      accessIdentity("doble@example.com", "user-doble"),
+    getVerifiedAccessIdentity.mockImplementation(
+      identityOnceBothArrive(accessIdentity("doble@example.com", "user-doble")),
     );
     const submit = () =>
       academyOnboardingAction(
@@ -243,8 +243,8 @@ describe("academy onboarding route", () => {
   // The same race against the `Particular` form in another tab: the owner row
   // that wins is an individual's, so the academy was not created.
   test("refuses an academy submit that loses the race to the same user's `Particular` account", async () => {
-    getVerifiedAccessIdentity.mockResolvedValue(
-      accessIdentity("ambas@example.com", "user-ambas"),
+    getVerifiedAccessIdentity.mockImplementation(
+      identityOnceBothArrive(accessIdentity("ambas@example.com", "user-ambas")),
     );
 
     const [individualOutcome, academyOutcome] = await Promise.allSettled([
@@ -422,6 +422,28 @@ describe("academy onboarding route", () => {
     ).resolves.toBeUndefined();
   });
 });
+
+/**
+ * Holds each submit at its identity until both have asked for it, so both
+ * guards read the database before either writes: the race, every run.
+ */
+function identityOnceBothArrive(identity: ReturnType<typeof accessIdentity>) {
+  let arrived = 0;
+  let release = () => {};
+  const bothArrived = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+
+  return async () => {
+    arrived += 1;
+    if (arrived === 2) {
+      release();
+    }
+    await bothArrived;
+
+    return identity;
+  };
+}
 
 function accessIdentity(email: string, id: string) {
   return {
