@@ -34,6 +34,11 @@ protection, so making a job required is a human step in the repo settings.
   body edit too, and in `ci.yml` that would re-run the build and the Postgres
   shards on every description change. The title reaches the script through
   `env: PR_TITLE`, never interpolated into a `run:` block.
+- `review-record` (`review-record.yml`): `pnpm check:review-record` over the PR
+  body's `## Review` record (the `pr` skill): the reviewers the diff's tier
+  requires are named, and no code commit landed after the reviewed one. Its own
+  file for the same `edited` reason; it skips drafts and Dependabot's PRs. It
+  is a required context only once branch protection names it.
 
 The commit gate before any of these is `.husky/pre-commit`: gitleaks on the
 staged diff, `lint-staged`, `check:comment-language`, `typecheck`,

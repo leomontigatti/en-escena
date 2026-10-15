@@ -109,7 +109,8 @@ job, ending in container cleanup: the failure sits just before the last `##[erro
 A red `CodeRabbit` status is not a check to triage: it is CodeRabbit declining to review, handled
 as in step 2.
 
-- Caused by the diff: **fix**.
+- Caused by the diff: **fix**. A red `review-record` is fixed in the PR body, by the record its
+  log asks for, after running any review round it names.
 - A flake (a timeout, a runner or network error): `gh run rerun <run-id> --failed`, once per head
   commit. The same failure twice is not a flake.
 - Anything else: **ask**.
@@ -117,7 +118,10 @@ as in step 2.
 ## 4. Answer the round
 
 1. Make every **fix**, test-first where the finding is about behaviour (the `tdd` skill). Run the
-   validation list for what you touched, then commit once and push once.
+   validation list for what you touched, and commit once. When a fix changes more than docs or
+   agent configuration, run `implement` step 5's fix round over it before pushing, and update the
+   PR body's `## Review` record: the new reviewed commit, and the round's findings on the
+   correctness lines. Then push once. A push the record does not cover turns `review-record` red.
 2. On each fixed thread, reply with the commit SHA and resolve it. On each declined thread, reply
    with the concrete reason from the code and resolve it.
 3. Answer the review-body findings in one top-level PR comment: each finding with its SHA or its reason.

@@ -1,6 +1,6 @@
 ---
 name: reviewer-opus
-description: The reviewer agent on Opus instead of Sol. Use for the correctness axis of implement's step 5, so the axis that hunts for bugs brings a second model family.
+description: The reviewer agent on Opus instead of Sol. Use for the Opus correctness reviewer of implement's step 5, which runs beside Sol's in the full tier.
 model: opus
 tools: Read, Grep, Glob, Bash
 ---

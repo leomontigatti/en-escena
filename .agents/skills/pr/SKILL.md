@@ -44,6 +44,12 @@ picture when the point is structure or order>
 
 <optional: what breaks, and for whom, if the change is wrong>
 
+## Review
+
+Tier: <tier>, reviewed <short sha>
+
+- <axis> (<model>): <findings, fixed, declined; how many the other correctness reviewer also found>
+
 Closes #N
 ```
 
@@ -175,11 +181,40 @@ door the reviewer has to act on also goes first, above `## Summary`.
 tables, every academy's finances page, the agents' review step. Consider all of it: layout shift,
 mobile, other callers of a changed module, consumers of a changed doc.
 
+## Review
+
+The record of `implement` step 5, which CI reads (`pnpm check:review-record`, rules in
+`scripts/review-record.ts`). The first line is the tier, as `pnpm review:tier` prints it or
+raised, and the **reviewed commit**: the commit the last review round covered. Then one line per
+reviewer, its axis (`readback`, `standards`, `spec`, `correctness`) and model (`Sol`, `Opus`,
+`Luna`) in that shape:
+
+```markdown
+## Review
+
+Tier: full, reviewed 1a2b3c4
+
+- standards (Sol): 1 finding, fixed
+- spec (Sol): no findings
+- correctness (Sol): 2 findings, 1 fixed, 1 declined; 1 also found by Opus
+- correctness (Opus): 1 finding, fixed; 1 also found by Sol
+```
+
+- Count every finding, the fix rounds' included. The correctness lines are the data the
+  two-family trial compares ([CORRECTNESS.md](../code-review/CORRECTNESS.md#the-two-family-trial)),
+  so name the overlap.
+- An axis that could not run says `skipped, <why>`: no spec, or a harness with no way to the
+  model. CI accepts it and warns.
+- A commit pushed later that touches more than docs or agent configuration fails the check until
+  its own review round runs and the record names the new commit. A merge from the base does not
+  count.
+
 ## PRD PRs
 
 One PR carries every sub-issue of a PRD. Its body is one paragraph saying what the PRD delivers,
 then `## Sub-issues` listing every sub-issue as a checkbox that carries its own keyword
-(`- [ ] Closes #N <title>`), then `## Merge Danger` for the whole chain, then `Closes #<PRD>`.
+(`- [ ] Closes #N <title>`), then `## Merge Danger` for the whole chain, then `## Review` once the
+chain has been reviewed, then `Closes #<PRD>`.
 GitHub closes only the numbers that follow a closing keyword, and closing a parent does not close
 its sub-issues: a bare `- [x] #N` stays open after the merge. The PRD holds the rest.
 

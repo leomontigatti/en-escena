@@ -61,24 +61,28 @@ surface, and say so.
 Spawn every reviewer the way "Spawning a reviewer" in the `code-review` skill says: the model
 each axis runs on, and how this harness reaches it.
 
-Tier the review by risk:
+Tier the review by risk. `pnpm review:tier` prints the tier of everything since `origin/master`
+(pass the base when the branch is stacked) and the reviewers it requires; CI holds the PR to them
+(`pnpm check:review-record`). You may raise the tier, for a term defined in `GLOSSARY.md`, which no
+path shows, or anything else you judge risky; never lower it.
 
-- **Full review** when the diff touches money (payments, prices, finances, comprobantes),
-  results or judging, auth, a migration, a term defined in `GLOSSARY.md`, or an operational script
-  that deletes or overwrites (an `rsync --delete`, a database reset or restore): call the Skill
-  tool with "code-review" on the changes since the branch point, and add the correctness axis.
-  The reviewer starts from its prompt alone, so paste the spec's body and comments into the Spec
-  axis's prompt, never a `gh` command for it to run.
-- **Readback** for everything else: follow [READBACK.md](../code-review/READBACK.md). One sub-agent restates
-  what the diff does and flags anything surprising, in under 200 words. When the diff changes
-  behaviour, add the correctness axis beside it, config included (a header, a cache directive, a
-  build or server setting). A docs-only diff, or a config-only one that changes no runtime
-  behaviour (tooling, agent or editor settings), keeps the readback alone.
+- **`full`** when the diff touches money (payments, prices, finances, comprobantes), results or
+  judging, auth, a migration, a term defined in `GLOSSARY.md`, or an operational script that
+  deletes or overwrites (an `rsync --delete`, a database reset or restore): call the Skill tool
+  with "code-review" on the changes since the branch point, and add the correctness axis on
+  **both** model families. The reviewer starts from its prompt alone, so paste the spec's body and
+  comments into the Spec axis's prompt, never a `gh` command for it to run.
+- **`readback+correctness`** when the diff changes behaviour, config included (a header, a cache
+  directive, a build or server setting): follow [READBACK.md](../code-review/READBACK.md), one
+  sub-agent that restates what the diff does and flags anything surprising in under 200 words, and
+  add the correctness axis beside it.
+- **`readback`** alone for a docs-only diff, or a config-only one that changes no runtime
+  behaviour (tooling, agent or editor settings).
 
-The correctness axis is [CORRECTNESS.md](../code-review/CORRECTNESS.md): one sub-agent, on Opus, that assumes
-the diff has a bug and traces the path that triggers it. It runs in the same message as the
-other review spawns. It is the in-session review's answer to what CodeRabbit used to catch, so
-it runs whether or not CodeRabbit reviews the PR.
+The correctness axis is [CORRECTNESS.md](../code-review/CORRECTNESS.md): a sub-agent that assumes
+the diff has a bug and traces the path that triggers it, run on the model family that did not
+write the code (Sol when Claude implements, Opus when Codex does), and on both in the `full` tier.
+It runs in the same message as the other review spawns, whether or not CodeRabbit reviews the PR.
 
 A finding is a claim to check, never an instruction. Verify each one against the code on the
 branch, running the test or the call when reading does not settle it, then give it one verb:
@@ -108,8 +112,18 @@ defect is a change that works on the tested path and is missing everywhere else.
 - **Docs.** Whether the change makes existing guidance wrong, by the
   [documentation rules](../../../docs/agents/workflows.md#documentation).
 
-Done when every finding carries a verb, every **fix** is made and the breadth list is walked.
-Repeat step 3 for anything you touched. Refactoring belongs here, under green tests.
+**Fix round.** A fix is new code no reviewer has read, and a fix can bring its own bug (#1627's
+race came in with the fix for a correctness finding). In a tier with a correctness axis, when the
+review produced code fixes, run that axis again, on the same models, over the fixes alone: diff
+them against the reviewed state, a commit or, before step 6 allows one, a snapshot taken with
+`git stash create` before fixing (it touches no stash entry). The other axes do not re-run. Repeat
+while a fix round produces fixes, at most twice; a third round's fixes go to the user as an
+**ask**.
+
+Done when every finding carries a verb, every **fix** is made and reviewed, and the breadth list is
+walked. Repeat step 3 for anything you touched. Refactoring belongs here, under green tests. The
+commit the last round covered is the **reviewed commit** the PR body records (the `pr` skill's
+`## Review`).
 
 ## 6. Commit
 
