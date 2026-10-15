@@ -189,7 +189,7 @@ seminar tab and read-only `(seminar, academy)` detail of the portal
 - Routes: `app/routes/portal.seminarios.tsx`, `app/routes/portal.seminarios_.$seminarId.tsx`
 - Feature modules: `app/features/portal/seminars/list/`, `app/features/portal/seminars/detail/`
 - Shared feature modules: `app/features/portal/seminars/shared.ts`
-- Domain modules: `app/lib/seminars/inscriptions.server.ts`, `app/lib/seminars/inscription-rosters.server.ts`, `app/lib/seminars/registration-window.ts`, `app/lib/seminars/registration-refusals.ts`, `app/lib/seminars/inscription-withdrawal.server.ts`
+- Domain modules: `app/lib/seminars/inscriptions.server.ts`, `app/lib/seminars/inscription-rosters.server.ts`, `app/lib/seminars/inscription-person.server.ts` (the inscription's person and owner academy, for every reader), `app/lib/seminars/registration-window.ts`, `app/lib/seminars/registration-refusals.ts`, `app/lib/seminars/inscription-withdrawal.server.ts`
 - Tests: `app/lib/seminars/inscriptions.server.db.test.ts`, `app/lib/seminars/inscription-withdrawal.server.db.test.ts`, `app/lib/seminars/registration-window.test.ts`, `app/features/portal/seminars/list/server.db.test.ts`, `app/features/portal/seminars/list/view.test.tsx`, `app/features/portal/seminars/detail/server.db.test.ts`, `app/features/portal/seminars/detail/view.test.tsx`
 
 ## Admin Shell And Dashboard

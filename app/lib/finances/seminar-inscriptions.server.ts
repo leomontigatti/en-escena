@@ -1,13 +1,7 @@
-import { and, eq, sql, type SQL } from "drizzle-orm";
+import { and, eq, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  academies,
-  dancers,
-  professors,
-  seminarInscriptions,
-  seminars,
-} from "@/db/schema";
+import { academies, seminarInscriptions, seminars } from "@/db/schema";
 import type {
   InscriptionAnomaly,
   InscriptionFinancialStatus,
@@ -17,6 +11,10 @@ import {
   type SeminarInscriptionFinanceRow,
 } from "@/lib/finances/seminar-inscription-thresholds.server";
 import { readSeminarPlaces } from "@/lib/seminars/covered-inscriptions.server";
+import {
+  seminarInscriptionOwnedBy,
+  seminarInscriptionPerson,
+} from "@/lib/seminars/inscription-person.server";
 
 /**
  * One seminar inscription with what it owes: a row of the `(seminar, academy)`
@@ -173,25 +171,24 @@ function byAcademyThenPersonThenSeminar(
 async function readSeminarPersonRows(
   input: SeminarInscriptionFinanceScope,
 ): Promise<SeminarPersonRow[]> {
-  const academyId = sql<string>`coalesce(${dancers.academyId}, ${professors.academyId})`;
   const conditions: SQL[] = [eq(seminars.eventId, input.eventId)];
 
   if ("seminarId" in input) {
     conditions.push(
       eq(seminarInscriptions.seminarId, input.seminarId),
-      eq(academyId, input.academyId),
+      seminarInscriptionOwnedBy(input.academyId),
     );
   }
 
   return db
     .select({
-      academyId,
+      academyId: seminarInscriptionPerson.academyId,
       academyName: academies.name,
       dancerId: seminarInscriptions.dancerId,
-      firstName: sql<string>`coalesce(${dancers.firstName}, ${professors.firstName})`,
+      firstName: seminarInscriptionPerson.firstName,
       id: seminarInscriptions.id,
       instructorName: seminars.instructorName,
-      lastName: sql<string>`coalesce(${dancers.lastName}, ${professors.lastName})`,
+      lastName: seminarInscriptionPerson.lastName,
       professorId: seminarInscriptions.professorId,
       requiredDepositPercentage: seminars.requiredDepositPercentage,
       scheduledDate: seminars.scheduledDate,
@@ -202,8 +199,10 @@ async function readSeminarPersonRows(
     })
     .from(seminarInscriptions)
     .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
-    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
-    .innerJoin(academies, eq(academies.id, academyId))
+    .innerJoin(
+      seminarInscriptionPerson,
+      eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
+    )
+    .innerJoin(academies, eq(academies.id, seminarInscriptionPerson.academyId))
     .where(and(...conditions));
 }

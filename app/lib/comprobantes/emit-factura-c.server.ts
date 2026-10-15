@@ -1,19 +1,18 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-target.server";
 import {
   choreographies,
-  dancers,
   events,
   paymentAllocations,
-  professors,
   choreographyDancers,
   seminarInscriptions,
   seminars,
 } from "@/db/schema";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
+import { seminarInscriptionOwnedBy } from "@/lib/seminars/inscription-person.server";
 
 import { ArcaClient, getArcaClient } from "./arca/client.server";
 import type { ArcaAttemptedVoucher } from "./arca/contingency.server";
@@ -414,16 +413,13 @@ async function readAnchorInscriptionIds(
     return rows.map((row) => row.id);
   }
 
-  const academyId = sql<string>`coalesce(${dancers.academyId}, ${professors.academyId})`;
   const rows = await executor
     .select({ id: seminarInscriptions.id })
     .from(seminarInscriptions)
-    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
     .where(
       and(
         eq(seminarInscriptions.seminarId, anchor.seminarId),
-        eq(academyId, anchor.academyId),
+        seminarInscriptionOwnedBy(anchor.academyId),
       ),
     );
 

@@ -202,7 +202,8 @@ How a seminar inscription is priced from those rows:
   decides once.
 - **The row gains `selectedPriceId` and `withdrawnAt`**, the same two fields a
   choreography inscription carries and nothing else financial. It gains no
-  `academyId`: the academy is read through the person. Every roster surface
+  `academyId`: the academy is read through the person, by every reader through
+  `app/lib/seminars/inscription-person.server.ts`. Every roster surface
   lists **active rows only**, through `activeSeminarInscription()`; withdrawn
   rows are read under `Finanzas`, badged `Retirada`.
 - **Registration is unlimited.** The insert counts nothing against the quota and

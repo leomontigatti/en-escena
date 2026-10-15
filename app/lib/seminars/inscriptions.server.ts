@@ -1,12 +1,7 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  dancers,
-  professors,
-  seminarInscriptions,
-  seminars,
-} from "@/db/schema";
+import { seminarInscriptions, seminars } from "@/db/schema";
 import {
   isSelectableForRoster,
   toRosterPersonStatus,
@@ -26,6 +21,7 @@ import { removeSeminarInscriptionFromRoster } from "@/lib/seminars/inscription-w
 import { seminarStartedMessage } from "@/lib/seminars/registration-refusals";
 import { hasSeminarStarted } from "@/lib/seminars/registration-window";
 import { getSeminarReservationEndsAt } from "@/lib/seminars/seminar-reservations";
+import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -258,16 +254,16 @@ export async function deleteSeminarInscriptionForAcademy(
 async function findAcademyInscription(input: DeleteSeminarInscriptionInput) {
   const [row] = await db
     .select({
-      academyId: sql<
-        string | null
-      >`coalesce(${dancers.academyId}, ${professors.academyId})`,
+      academyId: seminarInscriptionPerson.academyId,
       scheduledDate: seminars.scheduledDate,
       startTime: seminars.startTime,
     })
     .from(seminarInscriptions)
     .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
-    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+    .innerJoin(
+      seminarInscriptionPerson,
+      eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
+    )
     .where(
       and(
         eq(seminarInscriptions.id, input.inscriptionId),

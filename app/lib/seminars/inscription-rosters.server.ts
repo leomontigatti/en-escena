@@ -10,20 +10,11 @@
  * surfaces instead.
  */
 
-import { and, eq, inArray, or, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  academies,
-  dancers,
-  professors,
-  seminarInscriptions,
-  seminars,
-} from "@/db/schema";
-import {
-  rosterPersonTable,
-  seminarInscriptionPersonOf,
-} from "@/lib/roster/roster-person-kind.server";
+import { academies, seminarInscriptions, seminars } from "@/db/schema";
+import { rosterPersonTable } from "@/lib/roster/roster-person-kind.server";
 import {
   isSelectableForRoster,
   toRosterPersonStatus,
@@ -33,6 +24,10 @@ import {
   type RosterPersonKind,
 } from "@/lib/roster/roster-person-kind.shared";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
+import {
+  seminarInscriptionOwnedBy,
+  seminarInscriptionPerson,
+} from "@/lib/seminars/inscription-person.server";
 import { findSeminarInscriptionsWithEvidence } from "@/lib/seminars/inscription-withdrawal.server";
 
 export type SeminarInscriptionListItem = {
@@ -69,20 +64,20 @@ export type SeminarPersonOption = {
   fullName: string;
 };
 
-/**
- * The person columns of an inscription row, read off whichever roster table
- * holds the person: both are left-joined and the
- * `seminar_inscription_exactly_one_person` CHECK is what makes the coalesce
- * total — there is always exactly one side to take. The academy is read through
- * the person, as it is everywhere else.
- */
+/** The person columns of an inscription row; the academy is read through the
+ * person, as it is everywhere else. */
 const inscriptionPersonFields = {
-  dancerId: seminarInscriptions.dancerId,
-  professorId: seminarInscriptions.professorId,
-  firstName: sql<string>`coalesce(${dancers.firstName}, ${professors.firstName})`,
-  lastName: sql<string>`coalesce(${dancers.lastName}, ${professors.lastName})`,
-  academyId: sql<string>`coalesce(${dancers.academyId}, ${professors.academyId})`,
+  personId: seminarInscriptionPerson.personId,
+  personKind: seminarInscriptionPerson.kind,
+  firstName: seminarInscriptionPerson.firstName,
+  lastName: seminarInscriptionPerson.lastName,
+  academyId: seminarInscriptionPerson.academyId,
 };
+
+const joinsInscriptionPerson = eq(
+  seminarInscriptionPerson.inscriptionId,
+  seminarInscriptions.id,
+);
 
 /**
  * Every **active** inscription of one seminar, whichever academy made it.
@@ -101,9 +96,8 @@ export async function listSeminarInscriptions(
       academyName: academies.name,
     })
     .from(seminarInscriptions)
-    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
-    .innerJoin(academies, eq(academies.id, inscriptionPersonFields.academyId))
+    .innerJoin(seminarInscriptionPerson, joinsInscriptionPerson)
+    .innerJoin(academies, eq(academies.id, seminarInscriptionPerson.academyId))
     .where(
       and(
         eq(seminarInscriptions.seminarId, seminarId),
@@ -116,7 +110,7 @@ export async function listSeminarInscriptions(
       .map((row): SeminarInscriptionRow => ({
         id: row.id,
         fullName: `${row.firstName} ${row.lastName}`,
-        personKind: seminarInscriptionPersonOf(row).kind,
+        personKind: row.personKind,
         academyName: row.academyName,
         hasMoney: false,
       }))
@@ -144,14 +138,10 @@ export async function listSeminarInscriptionsForAcademy(input: {
       createdAt: seminarInscriptions.createdAt,
     })
     .from(seminarInscriptions)
-    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+    .innerJoin(seminarInscriptionPerson, joinsInscriptionPerson)
     .where(
       and(
-        or(
-          eq(dancers.academyId, input.academyId),
-          eq(professors.academyId, input.academyId),
-        ),
+        seminarInscriptionOwnedBy(input.academyId),
         inArray(seminarInscriptions.seminarId, eventSeminarIds),
         activeSeminarInscription(),
       ),
@@ -159,20 +149,16 @@ export async function listSeminarInscriptionsForAcademy(input: {
 
   return withEvidenceFlag(
     rows
-      .map((row): SeminarInscriptionListItem => {
-        const person = seminarInscriptionPersonOf(row);
-
-        return {
-          id: row.id,
-          seminarId: row.seminarId,
-          personId: person.personId,
-          personKind: person.kind,
-          fullName: `${row.firstName} ${row.lastName}`,
-          academyId: row.academyId,
-          createdAt: row.createdAt,
-          hasMoney: false,
-        };
-      })
+      .map((row): SeminarInscriptionListItem => ({
+        id: row.id,
+        seminarId: row.seminarId,
+        personId: row.personId,
+        personKind: row.personKind,
+        fullName: `${row.firstName} ${row.lastName}`,
+        academyId: row.academyId,
+        createdAt: row.createdAt,
+        hasMoney: false,
+      }))
       .sort(byFullName),
   );
 }

@@ -21,15 +21,10 @@
  * which price, or how many places it takes.
  */
 
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  dancers,
-  professors,
-  seminarInscriptions,
-  seminars,
-} from "@/db/schema";
+import { seminarInscriptions, seminars } from "@/db/schema";
 import { formatDancerName } from "@/lib/finances/formatters";
 import {
   deriveInscriptionFinancialFigures,
@@ -47,6 +42,10 @@ import {
   readSeminarPlaces,
   type SeminarPlaces,
 } from "@/lib/seminars/covered-inscriptions.server";
+import {
+  seminarInscriptionOwnedBy,
+  seminarInscriptionPerson,
+} from "@/lib/seminars/inscription-person.server";
 
 import { spreadFromPool } from "./allocation-pool.server";
 import type { CobroStage } from "./choreography-cobro-presets.server";
@@ -210,10 +209,7 @@ function academyInscriptionsIn(input: {
   return and(
     inArray(seminarInscriptions.seminarId, input.seminarIds),
     activeSeminarInscription(),
-    eq(
-      sql`coalesce(${dancers.academyId}, ${professors.academyId})`,
-      input.academyId,
-    ),
+    seminarInscriptionOwnedBy(input.academyId),
   );
 }
 
@@ -228,8 +224,6 @@ async function lockActiveSeminarInscriptions(
   await executor
     .select({ id: seminarInscriptions.id })
     .from(seminarInscriptions)
-    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
     .where(academyInscriptionsIn(input))
     .orderBy(asc(seminarInscriptions.id))
     .for("update", { of: seminarInscriptions });
@@ -246,21 +240,23 @@ async function readActiveSeminarInscriptions(
   return await executor
     .select({
       dancerId: seminarInscriptions.dancerId,
-      firstName: sql<string>`coalesce(${dancers.firstName}, ${professors.firstName})`,
+      firstName: seminarInscriptionPerson.firstName,
       id: seminarInscriptions.id,
-      lastName: sql<string>`coalesce(${dancers.lastName}, ${professors.lastName})`,
+      lastName: seminarInscriptionPerson.lastName,
       professorId: seminarInscriptions.professorId,
       seminarId: seminarInscriptions.seminarId,
       selectedPriceId: seminarInscriptions.selectedPriceId,
     })
     .from(seminarInscriptions)
-    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+    .innerJoin(
+      seminarInscriptionPerson,
+      eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
+    )
     .where(academyInscriptionsIn(input))
     .orderBy(
       seminarInscriptions.seminarId,
-      sql`coalesce(${dancers.lastName}, ${professors.lastName})`,
-      sql`coalesce(${dancers.firstName}, ${professors.firstName})`,
+      seminarInscriptionPerson.lastName,
+      seminarInscriptionPerson.firstName,
       seminarInscriptions.id,
     );
 }

@@ -1,12 +1,7 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  dancers,
-  professors,
-  seminarInscriptions,
-  seminars,
-} from "@/db/schema";
+import { seminarInscriptions, seminars } from "@/db/schema";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import {
   type OperationalFinanceRollup,
@@ -17,6 +12,10 @@ import {
   resolveSeminarInscriptions,
   type SeminarInscriptionFinanceRow,
 } from "@/lib/finances/seminar-inscription-thresholds.server";
+import {
+  seminarInscriptionOwnedBy,
+  seminarInscriptionPerson,
+} from "@/lib/seminars/inscription-person.server";
 
 /**
  * One `(seminar, academy)` unit: the money an academy owes and paid for one
@@ -147,11 +146,9 @@ async function readSeminarUnitRows(input: {
     return [];
   }
 
-  const academyId = sql<string>`coalesce(${dancers.academyId}, ${professors.academyId})`;
-
   return (input.executor ?? db)
     .select({
-      academyId,
+      academyId: seminarInscriptionPerson.academyId,
       dancerId: seminarInscriptions.dancerId,
       id: seminarInscriptions.id,
       instructorName: seminars.instructorName,
@@ -165,12 +162,14 @@ async function readSeminarUnitRows(input: {
     })
     .from(seminarInscriptions)
     .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
-    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+    .innerJoin(
+      seminarInscriptionPerson,
+      eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
+    )
     .where(
       and(
         eq(seminars.eventId, input.eventId),
-        inArray(academyId, input.academyIds),
+        seminarInscriptionOwnedBy(input.academyIds),
       ),
     );
 }

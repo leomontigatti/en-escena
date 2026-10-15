@@ -25,16 +25,10 @@
  * the rest of the academy's roster.
  */
 
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  dancers,
-  professors,
-  seminarInscriptions,
-  seminarPrices,
-  seminars,
-} from "@/db/schema";
+import { seminarInscriptions, seminarPrices, seminars } from "@/db/schema";
 import {
   calculateDepositAmount,
   deriveInscriptionFinancialFigures,
@@ -58,6 +52,7 @@ import {
 } from "@/lib/seminars/covered-inscriptions.server";
 import { seminarNoPlacesForDepositMessage } from "@/lib/seminars/registration-refusals";
 import { countSeminarPlacesShort } from "@/lib/seminars/seminar-places";
+import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
 
 import {
   readInscriptionAllocatedAmount,
@@ -195,15 +190,15 @@ export async function readSeminarInscriptionMoneyTarget(input: {
 }): Promise<SeminarInscriptionMoneyInput | null> {
   const [target] = await db
     .select({
-      academyId: sql<
-        string | null
-      >`coalesce(${dancers.academyId}, ${professors.academyId})`,
+      academyId: seminarInscriptionPerson.academyId,
       seminarId: seminarInscriptions.seminarId,
     })
     .from(seminarInscriptions)
     .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
-    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+    .innerJoin(
+      seminarInscriptionPerson,
+      eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
+    )
     .where(
       and(
         eq(seminarInscriptions.id, input.inscriptionId),
@@ -561,12 +556,17 @@ async function loadSeminarMoneyContext(
 
   const [inscription] = await tx
     .select({
+      academyId: seminarInscriptionPerson.academyId,
       dancerId: seminarInscriptions.dancerId,
       id: seminarInscriptions.id,
       professorId: seminarInscriptions.professorId,
       selectedPriceId: seminarInscriptions.selectedPriceId,
     })
     .from(seminarInscriptions)
+    .innerJoin(
+      seminarInscriptionPerson,
+      eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
+    )
     .where(
       and(
         eq(seminarInscriptions.id, input.inscriptionId),
@@ -579,9 +579,7 @@ async function loadSeminarMoneyContext(
     return { ok: false, message: seminarInscriptionNotFoundMessage };
   }
 
-  const personAcademyId = await readPersonAcademyId(tx, inscription);
-
-  if (personAcademyId !== input.academyId) {
+  if (inscription.academyId !== input.academyId) {
     return { ok: false, message: seminarInscriptionNotFoundMessage };
   }
 
@@ -600,29 +598,4 @@ async function loadSeminarMoneyContext(
     },
     seminar,
   };
-}
-
-async function readPersonAcademyId(
-  executor: Executor,
-  inscription: { dancerId: string | null; professorId: string | null },
-): Promise<string | null> {
-  if (inscription.dancerId !== null) {
-    const dancer = await executor.query.dancers.findFirst({
-      columns: { academyId: true },
-      where: eq(dancers.id, inscription.dancerId),
-    });
-
-    return dancer?.academyId ?? null;
-  }
-
-  if (inscription.professorId !== null) {
-    const professor = await executor.query.professors.findFirst({
-      columns: { academyId: true },
-      where: eq(professors.id, inscription.professorId),
-    });
-
-    return professor?.academyId ?? null;
-  }
-
-  return null;
 }

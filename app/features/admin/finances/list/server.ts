@@ -1,12 +1,10 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   academies,
   choreographies,
-  dancers,
   payments,
-  professors,
   seminarInscriptions,
   seminars,
 } from "@/db/schema";
@@ -18,6 +16,7 @@ import {
   type OperationalFinanceAmount,
 } from "@/lib/finances/operational-summary";
 import { readAcademyEventOperationalFinanceSummaries } from "@/lib/finances/operational-summary.server";
+import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
 
 export type FinanceAccountRow = {
   academyId: string;
@@ -90,7 +89,6 @@ export async function loadFinancesList(request: Request) {
  * has no academy column: it is read through the person, as everywhere else.
  */
 async function listAcademyIdsForEvent(eventId: string) {
-  const seminarAcademyId = sql<string>`coalesce(${dancers.academyId}, ${professors.academyId})`;
   const [
     academyIdsWithChoreographies,
     academyIdsWithPayments,
@@ -109,11 +107,13 @@ async function listAcademyIdsForEvent(eventId: string) {
       .from(payments)
       .where(eq(payments.eventId, eventId)),
     db
-      .selectDistinct({ academyId: seminarAcademyId })
+      .selectDistinct({ academyId: seminarInscriptionPerson.academyId })
       .from(seminarInscriptions)
       .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
-      .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-      .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+      .innerJoin(
+        seminarInscriptionPerson,
+        eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
+      )
       .where(eq(seminars.eventId, eventId)),
   ]);
 
