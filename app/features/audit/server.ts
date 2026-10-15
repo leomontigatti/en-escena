@@ -11,6 +11,7 @@ import {
 } from "@/lib/grand-final/audit-totals.server";
 import { auditPath } from "@/lib/grand-final/audit-url";
 import { readFormString } from "@/lib/shared/forms";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 import {
   openAuditLinkSchema,
@@ -127,7 +128,7 @@ export async function handleAuditAction(
   request: Request,
   deps: AuditPageDeps = createDefaultAuditPageDeps(),
 ) {
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const parsed = openAuditLinkSchema.safeParse({
     token: readFormString(formData, "token"),
   });

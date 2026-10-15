@@ -15,6 +15,7 @@ import {
   recheckComprobanteAnnulment,
 } from "@/lib/comprobantes/emit-nota-credito.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 import {
   annulComprobanteConfirmValue,
@@ -109,7 +110,7 @@ export async function handleComprobanteDetailAction(input: {
 }): Promise<ComprobanteDetailActionData | never> {
   await requireAdminPanelWriter(input.request);
 
-  const formData = await input.request.formData();
+  const formData = await readFormData(input.request);
   const intent = String(formData.get("intent") ?? "");
 
   if (intent === annulComprobanteIntent) {

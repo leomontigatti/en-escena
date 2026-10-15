@@ -34,6 +34,7 @@ import {
   readProfessorUpdateValues,
 } from "./shared";
 import { getRosterPersonNotFoundMessage } from "@/lib/roster/roster-person-kind.shared";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 export async function loadProfessorDetail(input: {
   request: Request;
@@ -103,7 +104,7 @@ export async function handleProfessorDetailAction(input: {
   }
 
   const professorId = readProfessorId(input.params);
-  const formData = await input.request.formData();
+  const formData = await readFormData(input.request);
   const intent = formData.get("intent");
   const professor = await findProfessor({
     professorId,

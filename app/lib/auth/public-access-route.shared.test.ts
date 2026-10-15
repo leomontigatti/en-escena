@@ -157,6 +157,21 @@ describe("public access route shared helpers", () => {
     });
   });
 
+  test("refuses a body that is not a form with a 400 instead of failing", async () => {
+    const refusal = await parsePublicAccessForm({
+      request: new Request("http://localhost/ingresar", {
+        method: "POST",
+        body: JSON.stringify({ email: "academia@example.com" }),
+        headers: { "content-type": "application/json" },
+      }),
+      schema: z.object({ email: z.string() }),
+      fieldNames: ["email"] as const,
+    }).catch((error: unknown) => error);
+
+    expect(refusal).toBeInstanceOf(Response);
+    expect((refusal as Response).status).toBe(400);
+  });
+
   test("maps public access result to the expected toast id", () => {
     expect(
       getPublicAccessResultToastId({

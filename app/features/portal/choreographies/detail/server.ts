@@ -14,6 +14,7 @@ import {
 } from "@/lib/storage/choreography-music.server";
 import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
+import { readFormData } from "@/lib/shared/read-form-data";
 import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 
 const choreographySavedMessage =
@@ -97,7 +98,7 @@ export async function handlePortalChoreographyDetailRouteAction({
     academyId: academy.id,
     choreographyId,
     eventId: selectedEventId,
-    formData: await request.formData(),
+    formData: await readFormData(request),
   });
 
   return await executeMusicUpdateAction(action);

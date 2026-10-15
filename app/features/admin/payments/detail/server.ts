@@ -21,6 +21,7 @@ import type { Executor } from "@/lib/finances/choreography-cobro-support.server"
 import { resolvePaymentAvailableAmount } from "@/lib/finances/payment-available-amount.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 import { listPaymentAcademyOptions } from "../academy-options.server";
 import { readPaymentDeletionImpact } from "./deletion-impact.server";
@@ -121,7 +122,7 @@ export async function handlePaymentDetailAction(
   paymentId: string,
 ): Promise<PaymentDetailActionData | never> {
   await requireAdminPanelWriter(request);
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const intent = String(formData.get("intent") ?? "");
 
   if (intent === updatePaymentIntent) {

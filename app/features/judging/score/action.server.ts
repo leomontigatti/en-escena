@@ -13,6 +13,7 @@ import {
   sheetValuesMessage,
 } from "@/lib/judging/score-value";
 import { readFormString } from "@/lib/shared/forms";
+import { readFormData } from "@/lib/shared/read-form-data";
 import { readSheetValues } from "./form-shared";
 import { formatUploadRejection } from "@/lib/storage/asset-kinds";
 
@@ -68,7 +69,7 @@ export async function handleJudgePanelAction(
   request: Request,
 ): Promise<FinalistPickActionData | JudgePanelActionData> {
   const judge = await requireJudgePanelUser(request);
-  const formData = await request.formData();
+  const formData = await readFormData(request);
 
   if (readFormString(formData, "intent") === saveFinalistPickIntent) {
     return await handleFinalistPickAction(judge.id, formData);

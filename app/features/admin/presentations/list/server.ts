@@ -41,6 +41,7 @@ import {
   type PresentationWarning,
 } from "@/lib/presentations/warnings";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
+import { readFormData } from "@/lib/shared/read-form-data";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import { namedListDay, selectListDay } from "@/lib/shared/url-tab";
 
@@ -236,7 +237,7 @@ export async function handlePresentationListAction(
 ): Promise<PresentationListActionData | ReturnType<typeof data>> {
   await requireAdminPanelWriter(request);
   const eventContext = await loadEventContext(request);
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const intent = formData.get("intent");
 
   if (!eventContext.selectedEventId) {

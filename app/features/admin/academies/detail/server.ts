@@ -23,6 +23,7 @@ import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { readFormString } from "@/lib/shared/forms";
 import { mergeSurvivorFieldName } from "@/lib/shared/merge";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 import {
   academyDetailSchema,
@@ -66,7 +67,7 @@ export async function handleAcademyDetailAction({
 }): Promise<AcademyDetailActionData> {
   await requireAdminPanelWriter(request);
   const academy = await readAcademy(params.academyId);
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const intent = readFormString(formData, "intent");
 
   if (intent === deleteAcademyIntent) {

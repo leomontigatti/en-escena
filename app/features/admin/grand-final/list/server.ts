@@ -4,6 +4,7 @@ import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { readGrandFinalPicks } from "@/lib/grand-final/picks-overview.server";
 import { readFormString } from "@/lib/shared/forms";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 import {
   handleAuditLinkIntent,
@@ -100,7 +101,7 @@ export async function handleGrandFinalListAction(
   request: Request,
 ): Promise<GrandFinalListActionData | ReturnType<typeof data>> {
   await requireAdminPanelWriter(request);
-  const formData = await request.formData();
+  const formData = await readFormData(request);
 
   if (voteCodeBatchIntents.includes(readFormString(formData, "intent"))) {
     return await handleVoteCodeBatchIntent(request, formData);

@@ -20,6 +20,7 @@ import {
   type PortalProfessorDetailLoaderData,
 } from "@/features/portal/professors/detail/shared";
 import { getRosterPersonNotFoundMessage } from "@/lib/roster/roster-person-kind.shared";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 export async function loadPortalProfessorDetail({
   request,
@@ -63,7 +64,7 @@ export async function handlePortalProfessorDetailAction({
   const { academy } = await requireAcademyUser(request);
   const professorId = readProfessorId(params);
 
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const intent = readFormString(formData, "intent");
 
   if (intent === archiveProfessorIntent) {

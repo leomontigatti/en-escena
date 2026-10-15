@@ -12,6 +12,7 @@ import {
   readSeminarInscriptionFinanceRows,
   type SeminarInscriptionFinanceDetailRow,
 } from "@/lib/finances/seminar-inscriptions.server";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 /**
  * Every seminar inscription of the event, across academies: who owes what for
@@ -82,6 +83,6 @@ export async function handleSeminarInscriptionFinancesAction(
 
   return await runSeminarInscriptionMoneyIntent({
     eventId: eventContext.selectedEventId,
-    formData: await request.formData(),
+    formData: await readFormData(request),
   });
 }
