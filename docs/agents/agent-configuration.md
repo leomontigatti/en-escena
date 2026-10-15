@@ -42,9 +42,10 @@ files holds instructions of its own.
   `code-review` skill for the reviewers, [Delegating to subagents](#delegating-to-subagents)
   below for research. The `.toml` wrappers repeat the model for Codex, which reads it
   nowhere else.
-- **The correctness axis runs on Opus** under Claude Code, through `reviewer-opus`, so the
-  axis that hunts for bugs is a second model family beside the Codex axes. Codex cannot run
-  Opus, so under Codex the axis is spawned as `reviewer`, on Sol like the rest.
+- **The correctness axis runs on the model family that did not write the code**: Sol through
+  `delegate_task` when Claude implements, Opus when Codex does (through T3's `delegate_task`;
+  Codex cannot spawn Opus natively), and both in the `full` tier, through `reviewer-opus` under
+  Claude Code. "Spawning a reviewer" in the `code-review` skill holds the details.
 - **Codex reads `.codex/` from the main checkout, even in a worktree** (verified on
   codex-cli 0.159): a T3 worktree gets the hooks and the `research`, `reviewer` and
   `reviewer-luna` agents only once they are on the branch the main checkout has out, while
