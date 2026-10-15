@@ -179,7 +179,8 @@ async function readSeminarUnitRows(input: {
  * A seminar the academy registered nobody in but a linked individual is in
  * (ADR-0019), as the academy's finances list it: every figure zero, since the
  * individual's inscription owes the academy nothing, and `registrationCount`
- * zero, since it counts the academy's own. Built by the portal loaders beside
+ * zero, since it counts the academy's own; the portal loaders add the linked
+ * inscriptions to it afterwards. Built by the portal loaders beside
  * this read's rows, never inside it, so no total, `Saldo disponible` or preset
  * can count it.
  */

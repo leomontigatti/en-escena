@@ -9,7 +9,6 @@ import {
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
 import { activateEvent } from "@/lib/events/management.server";
-import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summary";
 import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { coverSeminarInscriptionDeposit } from "@/lib/seminars/seminars.test-support";
@@ -137,7 +136,14 @@ describe("the individual's Finanzas", () => {
     await expect(load(individual.cookie)).resolves.toEqual({
       activeEvent: null,
       seminarFinanceRows: [],
-      summary: emptyOperationalFinanceSummary(),
+      summary: {
+        availableBalanceAmount: 0,
+        depositAmount: { amount: 0, status: "complete" },
+        owedBalanceAmount: { amount: 0, status: "complete" },
+        owedDepositAmount: { amount: 0, status: "complete" },
+        totalAmount: { amount: 0, status: "complete" },
+        totalPaidAmount: 0,
+      },
     });
   });
 
