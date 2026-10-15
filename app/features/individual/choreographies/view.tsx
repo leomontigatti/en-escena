@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import { AwardBadge } from "@/components/shared/award-badge";
+import { choreographyClassificationColumns } from "@/components/shared/choreography-classification-columns";
 import {
   ClientDataTable,
   DataTableTruncatedText,
@@ -17,8 +18,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { individualProfilePath } from "@/features/individual/shell/view";
+import { formatCategoryAndGroupType } from "@/lib/choreographies/classification";
 import type { IndividualLinkState } from "@/lib/individuals/link-state";
-import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { rosterPersonNoun } from "@/lib/roster/roster-person-kind.shared";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
@@ -66,29 +67,7 @@ function buildChoreographyColumns(
       cell: (row) => <DataTableTruncatedText value={row.academyName} />,
       sortValue: (row) => row.academyName,
     },
-    {
-      id: "modality",
-      header: "Modalidad / Submodalidad",
-      width: 21,
-      className: "text-muted-foreground",
-      cell: (row) => (
-        <DataTableTruncatedText
-          value={formatPrimaryAndSecondaryValue(
-            row.modalityName,
-            row.submodalityName,
-          )}
-        />
-      ),
-    },
-    {
-      id: "categoryGroup",
-      header: "Categoría / Tipo de grupo",
-      width: 20,
-      className: "text-muted-foreground",
-      cell: (row) => (
-        <DataTableTruncatedText value={formatCategoryAndGroup(row)} />
-      ),
-    },
+    ...choreographyClassificationColumns<IndividualChoreographyRow>(),
     {
       id: "award",
       header: "Premio",
@@ -244,7 +223,7 @@ function IndividualChoreographyCard({
         {[
           row.academyName,
           formatPrimaryAndSecondaryValue(row.modalityName, row.submodalityName),
-          formatCategoryAndGroup(row),
+          formatCategoryAndGroupType(row.categoryName, row.groupType),
         ].join(" · ")}
       </p>
       <div className="flex items-center justify-between gap-3">
@@ -280,13 +259,6 @@ function formatRoles(row: IndividualChoreographyRow) {
   return row.roles
     .map((role) => rosterPersonNoun(role, "singularCapitalized"))
     .join(" y ");
-}
-
-function formatCategoryAndGroup(row: IndividualChoreographyRow) {
-  return formatPrimaryAndSecondaryValue(
-    row.categoryName,
-    formatGroupTypeLabel(row.groupType),
-  );
 }
 
 /** The average reads the way scores do everywhere: with a point, as stored. */

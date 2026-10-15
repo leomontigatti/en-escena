@@ -1,3 +1,4 @@
+import { choreographyClassificationColumns } from "@/components/shared/choreography-classification-columns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 
@@ -25,8 +26,6 @@ import { experienceLevelDisplayLabel } from "@/lib/choreographies/experience-lev
 import { formatScheduleDayHeading } from "@/lib/choreographies/schedule-formatters";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
 import { judgeScoreStatusBadge } from "@/lib/judging/judge-status";
-import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
-import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 import { showToastMessage } from "@/lib/shared/toasts";
 import { dayTabParam, useUrlTab } from "@/lib/shared/url-tab";
 
@@ -472,34 +471,7 @@ function buildJudgePresentationColumns(
       cell: (row) => <DataTableTruncatedText value={row.academyName} />,
       width: 13,
     },
-    {
-      id: "modality",
-      header: "Modalidad / Submodalidad",
-      className: "text-muted-foreground",
-      cell: (row) => (
-        <DataTableTruncatedText
-          value={formatPrimaryAndSecondaryValue(
-            row.modalityName,
-            row.submodalityName,
-          )}
-        />
-      ),
-      width: 21,
-    },
-    {
-      id: "categoryGroup",
-      header: "Categoría / Tipo de grupo",
-      className: "text-muted-foreground",
-      cell: (row) => (
-        <DataTableTruncatedText
-          value={formatPrimaryAndSecondaryValue(
-            row.categoryName,
-            formatGroupTypeLabel(row.groupType),
-          )}
-        />
-      ),
-      width: 20,
-    },
+    ...choreographyClassificationColumns<JudgePresentationRow>(),
     {
       id: "experienceLevel",
       header: "Nivel",

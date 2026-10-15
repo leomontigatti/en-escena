@@ -6,7 +6,7 @@ import { DataTableTruncatedText } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
-import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
+import { formatCategoryAndGroupType } from "@/lib/choreographies/classification";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 import { cn } from "@/lib/shared/utils";
 
@@ -67,10 +67,7 @@ export function ProgramRowCard({
       <p className={cn("text-xs wrap-break-word text-muted-foreground", faded)}>
         {[
           formatPrimaryAndSecondaryValue(row.modalityName, row.submodalityName),
-          formatPrimaryAndSecondaryValue(
-            row.categoryName,
-            formatGroupTypeLabel(row.groupType),
-          ),
+          formatCategoryAndGroupType(row.categoryName, row.groupType),
           showLevel ? row.levelLabel : null,
         ]
           .filter(Boolean)

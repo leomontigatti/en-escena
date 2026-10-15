@@ -1,3 +1,4 @@
+import { choreographyClassificationColumns } from "@/components/shared/choreography-classification-columns";
 import { AudioLines, Clock, Settings, Users } from "lucide-react";
 
 import {
@@ -20,8 +21,6 @@ import {
 } from "@/lib/choreographies/operational-status";
 import { choreographyDetailPath } from "@/lib/choreographies/admin-paths";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
-import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
-import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 import { describeEmptyList } from "@/lib/list-query/list-query";
 import { participationCountsExportPath } from "@/features/admin/choreographies/export/shared";
 import { PeriodExportMenu } from "@/features/admin/period-export/menu";
@@ -108,34 +107,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     filterValue: (choreography) => choreography.academyName,
     sortValue: (choreography) => choreography.academyName,
   },
-  {
-    id: "modality",
-    header: "Modalidad / Submodalidad",
-    width: 21,
-    className: "text-muted-foreground",
-    cell: (choreography) => (
-      <DataTableTruncatedText
-        value={formatPrimaryAndSecondaryValue(
-          choreography.modalityName,
-          choreography.submodalityName,
-        )}
-      />
-    ),
-  },
-  {
-    id: "categoryGroup",
-    header: "Categoría / Tipo de grupo",
-    width: 20,
-    className: "text-muted-foreground",
-    cell: (choreography) => (
-      <DataTableTruncatedText
-        value={formatPrimaryAndSecondaryValue(
-          choreography.categoryName,
-          formatGroupTypeLabel(choreography.groupType),
-        )}
-      />
-    ),
-  },
+  ...choreographyClassificationColumns<ChoreographyRow>(),
   {
     id: "status",
     header: "Estado",
