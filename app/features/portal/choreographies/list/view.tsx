@@ -1,3 +1,4 @@
+import { choreographyClassificationColumns } from "@/components/shared/choreography-classification-columns";
 import { AudioLines, Plus, Settings, Users } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -28,7 +29,6 @@ import {
   formatGroupTypeLabel as formatChoreographyGroupTypeLabel,
   type PortalChoreographyListItem,
 } from "@/lib/portal/choreographies";
-import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
 type PortalChoreographiesListRouteProps = {
   loaderData: Awaited<ReturnType<typeof loadPortalChoreographiesList>>;
@@ -123,43 +123,9 @@ function ChoreographyTable({
           .join(" "),
       sortValue: (choreography) => choreography.name,
     },
-    {
-      id: "modality",
-      header: "Modalidad / Submodalidad",
-      width: 21,
-      cell: (choreography) => (
-        <DataTableTruncatedText
-          className="text-muted-foreground"
-          value={formatPrimaryAndSecondaryValue(
-            choreography.modalityName,
-            choreography.submodalityName,
-          )}
-        />
-      ),
-      filterValue: (choreography) =>
-        [choreography.modalityName, choreography.submodalityName]
-          .filter(Boolean)
-          .join(" "),
-    },
-    {
-      id: "categoryGroup",
-      header: "Categoría / Tipo de grupo",
-      width: 22,
-      cell: (choreography) => (
-        <DataTableTruncatedText
-          className="text-muted-foreground"
-          value={formatPrimaryAndSecondaryValue(
-            choreography.categoryName,
-            formatChoreographyGroupTypeLabel(choreography.groupType),
-          )}
-        />
-      ),
-      filterValue: (choreography) =>
-        [
-          choreography.categoryName,
-          formatChoreographyGroupTypeLabel(choreography.groupType),
-        ].join(" "),
-    },
+    ...choreographyClassificationColumns<PortalChoreographyListItem>({
+      widths: { modality: 21, categoryGroup: 22 },
+    }),
     {
       id: "status",
       header: "Estado",

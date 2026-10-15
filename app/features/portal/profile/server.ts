@@ -9,6 +9,7 @@ import {
   requestPasswordRecoveryIntent,
   updateAcademyProfileIntent,
 } from "@/features/portal/profile/shared";
+import { readFormData } from "@/lib/shared/read-form-data";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 export async function loadPortalProfile(request: Request) {
@@ -22,7 +23,7 @@ export async function loadPortalProfile(request: Request) {
 
 export async function handlePortalProfileAction(request: Request) {
   const { academy, user } = await requireAcademyUser(request);
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const intent = readFormString(formData, "intent");
 
   if (intent === requestPasswordRecoveryIntent) {

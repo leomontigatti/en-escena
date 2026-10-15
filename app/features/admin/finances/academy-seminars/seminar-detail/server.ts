@@ -28,6 +28,7 @@ import {
 } from "@/lib/finances/seminar-inscription-allocation.server";
 import { readSeminarInscriptionFinanceRows } from "@/lib/finances/seminar-inscriptions.server";
 import { getSeminar } from "@/lib/seminars/repository.server";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 import {
   seminarFinanceDetailUrl,
@@ -183,7 +184,7 @@ export async function handleSeminarFinanceAction(input: {
   }
 
   const eventId = eventContext.selectedEventId;
-  const formData = await input.request.formData();
+  const formData = await readFormData(input.request);
   const intent = String(formData.get("intent") ?? "");
   const emissionContext = {
     anchor: seminarAnchor(seminarId, academyId),

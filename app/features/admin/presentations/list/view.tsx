@@ -1,3 +1,4 @@
+import { choreographyClassificationColumns } from "@/components/shared/choreography-classification-columns";
 import { Gavel, ListOrdered } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFetcher } from "react-router";
@@ -26,8 +27,6 @@ import {
 } from "@/components/ui/tooltip";
 import { experienceLevelDisplayLabel } from "@/lib/choreographies/experience-level-requirement";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
-import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
-import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
 import { showToastMessage } from "@/lib/shared/toasts";
 import { describeEmptyList } from "@/lib/list-query/list-query";
@@ -132,34 +131,7 @@ function buildPresentationColumns({
       className: "text-muted-foreground",
       cell: (row) => <DataTableTruncatedText value={row.academyName} />,
     },
-    {
-      id: "modality",
-      header: "Modalidad / Submodalidad",
-      width: 21,
-      className: "text-muted-foreground",
-      cell: (row) => (
-        <DataTableTruncatedText
-          value={formatPrimaryAndSecondaryValue(
-            row.modalityName,
-            row.submodalityName,
-          )}
-        />
-      ),
-    },
-    {
-      id: "categoryGroup",
-      header: "Categoría / Tipo de grupo",
-      width: 20,
-      className: "text-muted-foreground",
-      cell: (row) => (
-        <DataTableTruncatedText
-          value={formatPrimaryAndSecondaryValue(
-            row.categoryName,
-            formatGroupTypeLabel(row.groupType),
-          )}
-        />
-      ),
-    },
+    ...choreographyClassificationColumns<PresentationListItem>(),
     {
       id: "experienceLevel",
       header: "Nivel",

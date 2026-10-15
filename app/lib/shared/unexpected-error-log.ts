@@ -17,7 +17,19 @@ function toAbsolutePattern(pattern: string) {
 
 function describeErrorStack(error: unknown) {
   if (error instanceof Error) {
-    return error.stack ?? `${error.name}: ${error.message}`;
+    const headline = `${error.name}: ${error.message}`;
+
+    if (!error.stack) {
+      return headline;
+    }
+
+    // V8 opens the stack with the headline; Firefox and Safari write only the
+    // frames, and every reader takes the first line for what failed.
+    const firstLine = error.stack.split("\n", 1)[0];
+
+    return firstLine.includes(error.message.split("\n", 1)[0] || error.name)
+      ? error.stack
+      : `${headline}\n${error.stack}`;
   }
 
   // Anything can be thrown, including a value `String()` cannot print, and
@@ -37,6 +49,9 @@ const MAX_SENT_PER_PAGE = 10;
 // the bug.
 const MAX_SENT_STACK_LENGTH = 6000;
 let sentOnThisPage = 0;
+// A navigation whose data request fails rejects every route's loader with the
+// one error, and React Router calls `onError` once per boundary that holds it.
+const reportedOnThisPage = new WeakSet<object>();
 
 /**
  * Writes the one `[client:unexpected]` line for an error `<HydratedRouter>`
@@ -51,6 +66,14 @@ function reportUnexpectedClientError(
 ) {
   if (isDeliberateRefusal(error)) {
     return;
+  }
+
+  if (typeof error === "object" && error !== null) {
+    if (reportedOnThisPage.has(error)) {
+      return;
+    }
+
+    reportedOnThisPage.add(error);
   }
 
   // The browser cannot read the session cookie and React Router does not say

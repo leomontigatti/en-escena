@@ -5,6 +5,7 @@ import {
 } from "@/lib/portal/professors.server";
 import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 import type { CreateProfessorActionData } from "./shared";
 
@@ -21,7 +22,7 @@ export async function handlePortalProfessorCreateAction(request: Request) {
 
   return await handleCreateProfessorAction({
     academyId: academy.id,
-    formData: await request.formData(),
+    formData: await readFormData(request),
   });
 }
 

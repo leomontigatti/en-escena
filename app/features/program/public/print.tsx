@@ -1,3 +1,4 @@
+import { choreographyClassificationColumns } from "@/components/shared/choreography-classification-columns";
 import type { ReactNode } from "react";
 
 import { DataTableTruncatedText } from "@/components/shared/data-table";
@@ -9,14 +10,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import type {
   EventProgramCeremonySchedule,
   EventProgramRow,
   EventProgramSchedule,
 } from "@/lib/presentations/event-program.server";
 import { isDateOnly } from "@/lib/shared/date-only";
-import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 import { cn } from "@/lib/shared/utils";
 
 import { formatProgramOrderNumber } from "../shared";
@@ -68,27 +67,9 @@ const publicProgramColumns: ProgramPrintColumn<EventProgramRow>[] = [
     className: "text-muted-foreground",
     cell: (row) => <DataTableTruncatedText value={row.academyName} />,
   },
-  {
-    id: "modality",
-    header: "Modalidad / Submodalidad",
-    width: 20,
-    className: "text-muted-foreground",
-    cell: (row) => (
-      <PrintPair primary={row.modalityName} secondary={row.submodalityName} />
-    ),
-  },
-  {
-    id: "categoryGroup",
-    header: "Categoría / Tipo de grupo",
-    width: 20,
-    className: "text-muted-foreground",
-    cell: (row) => (
-      <PrintPair
-        primary={row.categoryName}
-        secondary={formatGroupTypeLabel(row.groupType)}
-      />
-    ),
-  },
+  ...choreographyClassificationColumns<EventProgramRow>({
+    widths: { modality: 20, categoryGroup: 20 },
+  }),
   {
     id: "dancers",
     header: "Bailarines",
@@ -97,24 +78,6 @@ const publicProgramColumns: ProgramPrintColumn<EventProgramRow>[] = [
     cell: (row) => <PrintLines lines={row.dancerNames} />,
   },
 ];
-
-/**
- * A pair on one line, "Jazz · Lírico" as the screen lists write it. A missing
- * secondary value leaves the primary alone.
- */
-function PrintPair({
-  primary,
-  secondary,
-}: {
-  primary: string;
-  secondary: string | null;
-}) {
-  return (
-    <DataTableTruncatedText
-      value={formatPrimaryAndSecondaryValue(primary, secondary)}
-    />
-  );
-}
 
 /** Two lines tall, whatever it holds, so every row of a page is one height. */
 function PrintLines({ lines }: { lines: string[] }) {

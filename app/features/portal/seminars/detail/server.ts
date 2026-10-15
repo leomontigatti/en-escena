@@ -24,6 +24,7 @@ import {
   readSeminarInscriptionFinanceRows,
   type SeminarInscriptionFinanceDetailRow,
 } from "@/lib/finances/seminar-inscriptions.server";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 import {
   deletePortalSeminarInscriptionIntent,
@@ -135,7 +136,7 @@ export async function handlePortalSeminarDetailAction(input: {
   request: Request;
 }): Promise<PortalSeminarDetailActionData> {
   const { academy } = await requireAcademyUser(input.request);
-  const formData = await input.request.formData();
+  const formData = await readFormData(input.request);
   const intent = formData.get("intent");
 
   if (

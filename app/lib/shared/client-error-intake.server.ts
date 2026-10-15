@@ -23,9 +23,20 @@ type ClientErrorIntakeDependencies = {
   sendAlert: SendOpsAlert;
   limit: { requests: number; windowMs: number };
   alertsPerHour: number;
+  lostConnectionAddressesPerHour: number;
 };
 
 const HOUR_MS = 60 * 60 * 1000;
+// What `fetch` throws in Chrome, Safari and Firefox when the connection drops
+// under a navigation's data request: the user's network failed, no code of
+// ours did, so the row is kept without its own alert. Matched as a prefix:
+// Safari may add the host it could not reach.
+const LOST_CONNECTION_LINES = [
+  "TypeError: Failed to fetch",
+  "TypeError: Load failed",
+  "TypeError: NetworkError when attempting to fetch resource.",
+];
+const noAlert: SendOpsAlert = async () => false;
 // Past this many addresses in one window the limiter refuses new ones rather
 // than grow: a spread that wide is an attack, not a broken page.
 const MAX_TRACKED_ADDRESSES = 10_000;
@@ -48,6 +59,7 @@ function createClientErrorIntake({
   sendAlert,
   limit,
   alertsPerHour,
+  lostConnectionAddressesPerHour,
 }: ClientErrorIntakeDependencies) {
   const isWithinLimit = createFixedWindowLimiter(limit);
   const isWithinAlertBudget = createFixedWindowLimiter({
@@ -56,6 +68,32 @@ function createClientErrorIntake({
   });
   const sendBudgetedAlert: SendOpsAlert = async (text) =>
     isWithinAlertBudget("client") ? sendAlert(text) : false;
+  const outageWatch = createOutageWatch(lostConnectionAddressesPerHour);
+
+  // A lost connection never alerts on its own. The server never sees a
+  // request the proxy, TLS or a CSP rule broke, so lost connections from many
+  // users at once are the only sign of it, and that sends the alert.
+  const watchLostConnection = async (
+    request: Request,
+    route: string,
+  ): Promise<SendOpsAlert> => {
+    if (outageWatch.isOutage(readClientAddress(request))) {
+      // Outside the hourly budget: the watch alerts once an hour on its own,
+      // and an outage must not wait behind twenty other reports.
+      const delivered = await sendAlert(
+        [
+          `[client:lost-connection] ${route}`,
+          `${lostConnectionAddressesPerHour} addresses lost the connection within the hour: check the proxy, not the code.`,
+        ].join("\n"),
+      );
+
+      if (!delivered) {
+        outageWatch.releaseAlert();
+      }
+    }
+
+    return noAlert;
+  };
 
   return async (request: Request): Promise<Response> => {
     if (!isSameOrigin(request)) {
@@ -82,6 +120,10 @@ function createClientErrorIntake({
       return answer(400);
     }
 
+    const sendReportAlert = isLostConnection(parsed.data.stack)
+      ? await watchLostConnection(request, parsed.data.route)
+      : sendBudgetedAlert;
+
     await recordUnexpectedError(
       {
         source: "client",
@@ -92,11 +134,17 @@ function createClientErrorIntake({
         release: readRelease(),
         stack: parsed.data.stack,
       },
-      { sendAlert: sendBudgetedAlert },
+      { sendAlert: sendReportAlert },
     );
 
     return answer(204);
   };
+}
+
+function isLostConnection(stack: string) {
+  const firstLine = stack.split("\n", 1)[0];
+
+  return LOST_CONNECTION_LINES.some((line) => firstLine.startsWith(line));
 }
 
 // A browser's `fetch` always sends `Origin` on a POST, and `Sec-Fetch-Site`
@@ -147,6 +195,41 @@ function toIpv6Network(address: string) {
     : headGroups;
 
   return `${groups.slice(0, 4).join(":")}::/64`;
+}
+
+// Counts the distinct addresses losing the connection in the hour. The report
+// that reaches `addresses` claims the hour's one alert, so two at once send
+// one; an undelivered alert hands the claim to the next report.
+function createOutageWatch(addresses: number) {
+  let window = {
+    startedAt: Date.now(),
+    seen: new Set<string>(),
+    alerted: false,
+  };
+
+  return {
+    isOutage(address: string) {
+      if (Date.now() - window.startedAt >= HOUR_MS) {
+        window = { startedAt: Date.now(), seen: new Set(), alerted: false };
+      }
+
+      if (window.alerted) {
+        return false;
+      }
+
+      // Past the threshold the set stops growing: its size is all it says.
+      if (window.seen.size < addresses) {
+        window.seen.add(address);
+      }
+
+      window.alerted = window.seen.size >= addresses;
+
+      return window.alerted;
+    },
+    releaseAlert() {
+      window.alerted = false;
+    },
+  };
 }
 
 function createFixedWindowLimiter({

@@ -23,6 +23,7 @@ import {
 } from "@/lib/grand-final/picks-overview.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { readFormString } from "@/lib/shared/forms";
+import { readFormData } from "@/lib/shared/read-form-data";
 import {
   createDefaultGrandFinalBannerStorage,
   loadGrandFinalBannerUrl,
@@ -168,7 +169,7 @@ export async function handleAcademyGrandFinalAction(
 ): Promise<AcademyGrandFinalActionData | ReturnType<typeof data>> {
   await requireAdminPanelWriter(request);
   const eventId = await requireSelectedEventId(request);
-  const formData = await request.formData();
+  const formData = await readFormData(request);
 
   if (readFormString(formData, "intent") !== saveAcademyGrandFinalIntent) {
     throw new Response("Acción no soportada.", { status: 400 });

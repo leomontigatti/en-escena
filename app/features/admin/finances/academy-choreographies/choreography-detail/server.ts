@@ -42,6 +42,7 @@ import {
   releaseInscriptionExcessIntent,
   removeInscriptionMoneyIntent,
 } from "@/features/admin/finances/inscription-money/intents";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 import {
   choreographyDetailUrl,
@@ -193,7 +194,7 @@ export async function handleChoreographyFinanceAction(input: {
   }
 
   const eventId = eventContext.selectedEventId;
-  const formData = await input.request.formData();
+  const formData = await readFormData(input.request);
   const intent = String(formData.get("intent") ?? "");
 
   if (

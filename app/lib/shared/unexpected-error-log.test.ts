@@ -63,6 +63,35 @@ describe("reportUnexpectedClientError", () => {
     });
   });
 
+  test("reports an error once when React Router hands it over for each boundary it reached", () => {
+    // A navigation whose data request fails rejects every route's loader with
+    // the same error, and `onError` runs once per boundary holding it.
+    const error = new TypeError("Failed to fetch");
+
+    reportUnexpectedClientError(error, { pattern: "portal" });
+    reportUnexpectedClientError(error, { pattern: "portal" });
+
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(fetchFake).toHaveBeenCalledTimes(1);
+  });
+
+  test("starts the report with the error's name and message when the browser's stack leaves them out", () => {
+    // Firefox and Safari write only the frames, and the server reads the
+    // first line to tell a lost connection from a bug.
+    const error = new TypeError(
+      "NetworkError when attempting to fetch resource.",
+    );
+    error.stack =
+      "singleFetch@https://sistema.enescena.com.ar/assets/errorBoundaries-Dudvcpwz.js:2:7095\n";
+
+    reportUnexpectedClientError(error, { pattern: "portal" });
+
+    const sent = JSON.parse(String(fetchFake.mock.calls[0][1]?.body));
+    expect(sent.stack).toBe(
+      "TypeError: NetworkError when attempting to fetch resource.\nsingleFetch@https://sistema.enescena.com.ar/assets/errorBoundaries-Dudvcpwz.js:2:7095\n",
+    );
+  });
+
   test("trims a long browser stack so the report fits the endpoint's 8 KB", () => {
     const error = new Error("too much recursion");
     error.stack = `InternalError: too much recursion\n${"render@https://sistema.enescena.com.ar/assets/chunk-DkS2F3a_.js:1:23456\n".repeat(200)}`;

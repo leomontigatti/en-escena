@@ -17,6 +17,7 @@ import {
 } from "@/lib/judging/score-value";
 import { readSheetValues } from "@/features/judging/score/form-shared";
 import { readFormString } from "@/lib/shared/forms";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 /**
  * The route adapter of the scores view: who may read one presentation's panel
@@ -87,7 +88,7 @@ export async function handlePresentationScoresAction(input: {
 }): Promise<PresentationScoresActionData | ReturnType<typeof data>> {
   await requireAdminPanelWriter(input.request);
 
-  const formData = await input.request.formData();
+  const formData = await readFormData(input.request);
   const presentationId = input.params.presentationId ?? "";
   const intent = readFormString(formData, "intent");
 

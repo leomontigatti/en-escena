@@ -26,6 +26,7 @@ import {
 import { updateInternalUser } from "@/lib/admin/users/internal-user-update.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
+import { readFormData } from "@/lib/shared/read-form-data";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 type LoaderArgs = {
@@ -64,7 +65,7 @@ export async function action({
 }: ActionArgs): Promise<DetailActionData | DetailSuccessData> {
   const appUser = await requireAdminPanelWriter(request);
   const userId = requireUserId(params.userId);
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const intent = formData.get("intent");
   const parsedIntent = userStatusIntentSchema.safeParse(intent);
 

@@ -5,9 +5,8 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import type { DancerInscription } from "@/lib/dancers/inscriptions";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
-import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
+import { formatCategoryAndGroupType } from "@/lib/choreographies/classification";
 import type { RosterChoreography } from "@/lib/roster/inscriptions";
-import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
 const moneyFormatter = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -124,10 +123,7 @@ function buildChoreographyColumns<TRow extends RosterChoreography>(
       header: "Categoría / Tipo de grupo",
       className: "text-muted-foreground",
       cell: (row) =>
-        formatPrimaryAndSecondaryValue(
-          row.categoryName,
-          formatGroupTypeLabel(row.groupType),
-        ),
+        formatCategoryAndGroupType(row.categoryName, row.groupType),
     },
   ];
 }

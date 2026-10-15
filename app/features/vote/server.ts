@@ -24,6 +24,7 @@ import {
   type VotingRoundFinalist,
 } from "@/lib/grand-final/voting-round.server";
 import { readFormString } from "@/lib/shared/forms";
+import { readFormData } from "@/lib/shared/read-form-data";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import {
   createDefaultGrandFinalBannerStorage,
@@ -277,7 +278,7 @@ export async function handleVoteAction(
   request: Request,
   signIn: VoterSignIn | null = createDefaultVoterSignIn(),
 ) {
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const parsed = voteFormSchema.safeParse({
     academyId: readFormString(formData, "academyId"),
     codigo: readFormString(formData, "codigo"),
