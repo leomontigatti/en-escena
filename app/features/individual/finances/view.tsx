@@ -9,6 +9,7 @@ import {
 } from "@/components/shared/data-table";
 import { FinancialStatusBadge } from "@/components/shared/financial-status-badge";
 import { ListTabs } from "@/components/shared/list-tabs";
+import { PaymentInstructionsAlert } from "@/components/shared/payment-instructions-alert";
 import { Badge } from "@/components/ui/badge";
 import { formatComprobanteAnchorLabel } from "@/lib/comprobantes/anchor-reading";
 import {
@@ -258,6 +259,12 @@ export function IndividualFinancesView({
       title="Finanzas"
       description={description}
     >
+      {/* As on the portal's `Pagos`: how to pay comes before what is owed. */}
+      {loaderData.paymentInstructions ? (
+        <PaymentInstructionsAlert
+          instructions={loaderData.paymentInstructions}
+        />
+      ) : null}
       <OperationalFinanceMetrics
         availableBalanceAmount={summary.availableBalanceAmount}
         depositAmount={summary.depositAmount}

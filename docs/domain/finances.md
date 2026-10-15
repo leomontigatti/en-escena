@@ -495,8 +495,10 @@ and is not a `payment`.
 - **Where they show**: the payments page of the `Portal de academias`, as an
   info note between the page subtitle and the payment list or its empty state,
   in the `Evento activo` only, with a copy control on the `CBU/CVU` and the
-  `Alias` and the `Titular` and `CUIT` read together. Nowhere else — not the
-  finances page, not the portal home, not any admin list.
+  `Alias` and the `Titular` and `CUIT` read together; and the same note above
+  the figures of an individual's `Finanzas` (see [Surfaces](#surfaces)).
+  Nowhere else — not the academy's finances
+  page, not the portal home, not any admin list.
 
 ## Payment allocations
 
@@ -1230,15 +1232,15 @@ apart beyond these surfaces:
 - The payment form's picker offers academies and individuals in two titled
   sections. The global comprobantes list and the collection export carry an
   individual's comprobantes and payments under its name.
-- A comprobante issued for an individual prints its name and its document in
-  the receptor block. The fiscal receptor sent to ARCA stays the final
+- A comprobante issued for an individual prints its name in the receptor
+  block, never its document. The fiscal receptor sent to ARCA stays the final
   consumer, as for an academy.
 - `Descuento por bailarín` does not apply: an individual holds no choreography
   inscriptions.
 - The individual's area has `Finanzas`, read-only: the five metrics over its
   own account and three tabs — its seminars with their status, its payments,
-  its comprobantes. There are no payment instructions and no printable
-  comprobante there.
+  its comprobantes. Above them it shows the event's `Instrucciones de pago`,
+  as the portal's `Pagos` does. There is no printable comprobante there.
 
 ## Retired vocabulary
 

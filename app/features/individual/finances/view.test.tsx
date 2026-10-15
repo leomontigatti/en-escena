@@ -10,6 +10,7 @@ import type { loadIndividualFinances } from "./server";
 import { IndividualFinancesView } from "./view";
 
 type LoaderData = Awaited<ReturnType<typeof loadIndividualFinances>>;
+type ActiveEventLoaderData = Exclude<LoaderData, { activeEvent: null }>;
 
 describe("IndividualFinancesView", () => {
   const renderer = createReactDomTestRenderer();
@@ -32,6 +33,29 @@ describe("IndividualFinancesView", () => {
     expect(document.body.textContent).toContain("$ 15.000");
   });
 
+  test("shows the event's payment instructions only when the event has them", async () => {
+    await render({
+      ...loaderDataFixture(),
+      paymentInstructions: {
+        alias: "mi.alias-01",
+        bankName: null,
+        cbu: null,
+        holderCuit: null,
+        holderName: null,
+        text: null,
+      },
+    });
+
+    expect(
+      document.querySelector('[data-slot="alert"]')?.textContent,
+    ).toContain("mi.alias-01");
+
+    renderer.cleanup();
+    await render(loaderDataFixture());
+
+    expect(document.querySelector('[data-slot="alert"]')).toBeNull();
+  });
+
   async function render(loaderData: LoaderData, search = "") {
     await renderer.renderAsync(
       renderInDataRouter(
@@ -42,7 +66,7 @@ describe("IndividualFinancesView", () => {
   }
 });
 
-function loaderDataFixture(): LoaderData {
+function loaderDataFixture(): ActiveEventLoaderData {
   const amount = (value: number) => ({
     amount: value,
     status: "complete" as const,
@@ -70,6 +94,7 @@ function loaderDataFixture(): LoaderData {
         status: "valid",
       },
     ],
+    paymentInstructions: null,
     payments: [
       {
         id: "payment_1",

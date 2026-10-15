@@ -10,7 +10,7 @@ import {
 } from "@/features/portal/test-support/db";
 import { seminarAnchor } from "@/lib/comprobantes/anchor";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
-import { activateEvent } from "@/lib/events/management.server";
+import { activateEvent, updateEvent } from "@/lib/events/management.server";
 import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { coverSeminarInscriptionDeposit } from "@/lib/seminars/seminars.test-support";
@@ -169,6 +169,33 @@ describe("the individual's Finanzas", () => {
     expect(loaderData.summary.availableBalanceAmount).toBe(0);
   });
 
+  // The individual pays like an academy, so it reads the same `Instrucciones
+  // de pago` the portal's `Pagos` shows.
+  test("reads the active event's payment instructions", async () => {
+    const event = await createActiveEvent();
+    const result = await updateEvent(event.id, {
+      endsAt: event.endsAt,
+      name: event.name,
+      paymentInstructionsAlias: "mi.alias-01",
+      paymentInstructionsCbu: "0070099330004512345678",
+      paymentInstructionsText: "Poné tu nombre en la referencia.",
+      requiredDepositPercentage: event.requiredDepositPercentage,
+      startsAt: event.startsAt,
+    });
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+    const individual = await createIndividual();
+
+    const loaderData = await load(individual.cookie);
+
+    expect(loaderData.paymentInstructions).toMatchObject({
+      alias: "mi.alias-01",
+      cbu: "0070099330004512345678",
+      text: "Poné tu nombre en la referencia.",
+    });
+  });
+
   test("reads nothing without an active event", async () => {
     const individual = await createIndividual();
 
@@ -177,6 +204,7 @@ describe("the individual's Finanzas", () => {
     expect(loaderData).toMatchObject({
       activeEvent: null,
       comprobantes: [],
+      paymentInstructions: null,
       payments: [],
       seminarFinanceRows: [],
     });

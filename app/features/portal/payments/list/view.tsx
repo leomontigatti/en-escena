@@ -3,7 +3,7 @@ import { HandCoins } from "lucide-react";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import { ClientDataTable } from "@/components/shared/data-table";
 import type { loadPortalAcademyPayments } from "@/features/portal/payments/list/server";
-import { PortalPaymentInstructionsAlert } from "@/features/portal/payments/list/payment-instructions-alert";
+import { PaymentInstructionsAlert } from "@/components/shared/payment-instructions-alert";
 import {
   ownerPaymentColumns,
   ownerPaymentFacetedFilterIds,
@@ -41,9 +41,7 @@ export function PortalAcademyPaymentsRouteView({
   // `PortalListPage` in each: the page's own `flex flex-col gap-6` separates it
   // from the subtitle and from what follows.
   const instructionsAlert = loaderData.paymentInstructions ? (
-    <PortalPaymentInstructionsAlert
-      instructions={loaderData.paymentInstructions}
-    />
+    <PaymentInstructionsAlert instructions={loaderData.paymentInstructions} />
   ) : null;
 
   if (loaderData.payments.length === 0) {
