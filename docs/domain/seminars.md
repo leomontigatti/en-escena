@@ -168,6 +168,18 @@ How a seminar inscription is priced from those rows:
   the choreography roster, there is no administrative registration path.
   Administration lists and exports an individual's inscription beside the
   academies' ones, as `Particular`, and removes it as any other.
+- **An academy sees a linked individual's inscription, read-only.** When the
+  individual's confirmed link reaches an **active** `Bailarín` or `Profesor` of
+  the academy, its non-withdrawn inscriptions show on the academy's seminar
+  detail with the `Particular` kind, no `Estado` and no removal, and on its
+  seminar financial detail at `$0` badged `Particular`, after the unit's
+  figures, its `Saldo disponible` and the presets were derived without them.
+  Nothing of the individual's money reaches the academy, and the row names the
+  person as the academy's own row does. Archiving or deleting that row, or
+  revoking the link, takes it away
+  (`app/lib/seminars/linked-individual-inscriptions.server.ts`). A seminar the
+  academy itself registered nobody in has no financial unit, so there it is
+  seen on the seminar detail only.
 - Eligibility is `Estado de alta` alone, with the same grandfather rule as the
   choreography roster: a person can be registered when they are active, and an
   archived person already on the seminar stays on it, stays visible and stays

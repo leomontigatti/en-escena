@@ -13,6 +13,7 @@ import {
   listSeminarInscriptionsForAcademy,
   listSeminarPersonOptionsForAcademy,
 } from "@/lib/seminars/inscription-rosters.server";
+import { readLinkedIndividualSeminarInscriptions } from "@/lib/seminars/linked-individual-inscriptions.server";
 import { hasSeminarStarted } from "@/lib/seminars/registration-window";
 import { getSeminar } from "@/lib/seminars/repository.server";
 import { doesSeminarStartBeforePaymentDeadline } from "@/lib/seminars/seminar-reservations";
@@ -66,19 +67,29 @@ export async function loadPortalSeminarDetail(input: {
   // than of the seminar: while a participant cell has no deadline-less `Común`
   // row, every seminar of the event is closed to registration.
   const now = new Date();
-  const [inscriptions, people, hasRegistrationPrices, financeRows] =
-    await Promise.all([
-      listSeminarInscriptionsForAcademy({
-        academyId: academy.id,
-        eventId: activeEvent.id,
-      }),
-      listSeminarPersonOptionsForAcademy(academy.id),
-      hasSeminarRegistrationPrices(activeEvent.id),
-      readSeminarInscriptionFinanceRows(
-        { academyId: academy.id, eventId: activeEvent.id, seminarId },
-        now,
-      ),
-    ]);
+  const [
+    inscriptions,
+    people,
+    hasRegistrationPrices,
+    financeRows,
+    linkedIndividualInscriptions,
+  ] = await Promise.all([
+    listSeminarInscriptionsForAcademy({
+      academyId: academy.id,
+      eventId: activeEvent.id,
+    }),
+    listSeminarPersonOptionsForAcademy(academy.id),
+    hasSeminarRegistrationPrices(activeEvent.id),
+    readSeminarInscriptionFinanceRows(
+      { academyId: academy.id, eventId: activeEvent.id, seminarId },
+      now,
+    ),
+    readLinkedIndividualSeminarInscriptions({
+      academyId: academy.id,
+      eventId: activeEvent.id,
+      seminarId,
+    }),
+  ]);
   const financeRowsById = new Map(
     financeRows.map((row) => [row.inscriptionId, row]),
   );
@@ -103,13 +114,26 @@ export async function loadPortalSeminarDetail(input: {
         now,
       ),
     },
-    inscriptions: seminarInscriptions.map((inscription) => ({
-      id: inscription.id,
-      fullName: inscription.fullName,
-      personKind: inscription.personKind,
-      hasMoney: inscription.hasMoney,
-      status: toStatusBadge(financeRowsById.get(inscription.id)),
-    })),
+    inscriptions: [
+      ...seminarInscriptions.map((inscription) => ({
+        id: inscription.id,
+        fullName: inscription.fullName,
+        personKind: inscription.personKind,
+        hasMoney: inscription.hasMoney,
+        readOnly: false,
+        status: toStatusBadge(financeRowsById.get(inscription.id)),
+      })),
+      // Named as the academy's own row names the person, and holding nothing
+      // of the individual's money: not even whether it has any.
+      ...linkedIndividualInscriptions.map((inscription) => ({
+        id: inscription.inscriptionId,
+        fullName: `${inscription.firstName} ${inscription.lastName}`,
+        personKind: "individual" as const,
+        hasMoney: false,
+        readOnly: true,
+        status: null,
+      })),
+    ],
     // A person the academy already has actively registered is off the picker;
     // one whose row was withdrawn is offered, and registering them inserts a
     // new row beside the withdrawn one.

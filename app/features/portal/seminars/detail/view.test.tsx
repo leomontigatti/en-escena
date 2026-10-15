@@ -94,6 +94,7 @@ describe("PortalSeminarDetailRouteView", () => {
             fullName: "Ana Paz",
             personKind: "dancer",
             hasMoney: true,
+            readOnly: false,
             status: { kind: "status", status: "depositMet" },
           },
           {
@@ -101,6 +102,7 @@ describe("PortalSeminarDetailRouteView", () => {
             fullName: "Luz Suárez",
             personKind: "professor",
             hasMoney: false,
+            readOnly: false,
             status: { kind: "reserved" },
           },
         ],
@@ -115,6 +117,30 @@ describe("PortalSeminarDetailRouteView", () => {
     expect(document.querySelector('[role="tablist"]')).toBeNull();
     expect(document.body.textContent).not.toContain("$");
     expect(document.body.textContent).not.toContain("Participando");
+  });
+
+  test("shows a linked individual's inscription as `Particular`, with no status and no removal", async () => {
+    await renderDetail(
+      buildLoaderData({
+        inscriptions: [
+          {
+            id: "inscription_1",
+            fullName: "Ana Paz",
+            personKind: "individual",
+            hasMoney: false,
+            readOnly: true,
+            status: null,
+          },
+        ],
+      }),
+    );
+
+    expect(getReactDomTexts("tbody td")).toEqual([
+      "Ana Paz",
+      "Particular",
+      "—",
+    ]);
+    expect(findByText("button", "Ana Paz")).toBeUndefined();
   });
 
   test("says nobody is registered yet in an empty state, not an empty table", async () => {
@@ -147,6 +173,7 @@ describe("PortalSeminarDetailRouteView", () => {
             fullName: "Ana Paz",
             personKind: "dancer",
             hasMoney: false,
+            readOnly: false,
             status: { kind: "reserved" },
           },
         ],
@@ -206,6 +233,7 @@ describe("PortalSeminarDetailRouteView", () => {
             fullName: "Ana Paz",
             personKind: "dancer",
             hasMoney: false,
+            readOnly: false,
             status: { kind: "reserved" },
           },
         ],
@@ -234,6 +262,7 @@ describe("PortalSeminarDetailRouteView", () => {
             fullName: "Ana Paz",
             personKind: "dancer",
             hasMoney: true,
+            readOnly: false,
             status: { kind: "reserved" },
           },
         ],

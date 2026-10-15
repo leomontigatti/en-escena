@@ -1,4 +1,4 @@
-import { and, eq, sql, type SQL, type SQLWrapper } from "drizzle-orm";
+import { and, eq, inArray, sql, type SQL, type SQLWrapper } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, dancers, individuals, professors } from "@/db/schema";
@@ -66,6 +66,81 @@ export async function listIndividualLinkedRosterRows(
   }
 
   return await listRosterRowsCarryingDocument(individual.documentNumber);
+}
+
+/**
+ * The individuals whose `Vinculado` link reaches each of these rows: the
+ * reverse of `listIndividualLinkedRosterRows`, by the same document rule and
+ * the same link state, one pair per row and individual. `ownerAcademyId` is
+ * the individual's owner row of kind `individual` (ADR-0019). A row carrying no
+ * number, or whose academy is not of kind `academy`, reaches no one.
+ */
+export async function listRosterRowsLinkedIndividuals(
+  rows: readonly { id: string; kind: RosterPersonKind }[],
+): Promise<
+  {
+    individualId: string;
+    ownerAcademyId: string;
+    rosterRowId: string;
+    rosterRowKind: RosterPersonKind;
+  }[]
+> {
+  const idsOf = (kind: RosterPersonKind) =>
+    rows.filter((row) => row.kind === kind).map((row) => row.id);
+  const [dancerIds, professorIds] = [idsOf("dancer"), idsOf("professor")];
+
+  const [dancerPairs, professorPairs] = await Promise.all([
+    dancerIds.length === 0
+      ? []
+      : db
+          .select({
+            individualId: individuals.id,
+            ownerAcademyId: individuals.academyId,
+            rosterRowId: dancers.id,
+          })
+          .from(dancers)
+          .innerJoin(academies, eq(academies.id, dancers.academyId))
+          .innerJoin(individuals, sameDocumentNumberAs(dancers.documentNumber))
+          .where(
+            and(
+              inArray(dancers.id, dancerIds),
+              academyOwner(),
+              eq(individualLinkStateSql(), "linked"),
+            ),
+          ),
+    professorIds.length === 0
+      ? []
+      : db
+          .select({
+            individualId: individuals.id,
+            ownerAcademyId: individuals.academyId,
+            rosterRowId: professors.id,
+          })
+          .from(professors)
+          .innerJoin(academies, eq(academies.id, professors.academyId))
+          .innerJoin(
+            individuals,
+            sameDocumentNumberAs(professors.documentNumber),
+          )
+          .where(
+            and(
+              inArray(professors.id, professorIds),
+              academyOwner(),
+              eq(individualLinkStateSql(), "linked"),
+            ),
+          ),
+  ]);
+
+  return [
+    ...dancerPairs.map((pair) => ({
+      ...pair,
+      rosterRowKind: "dancer" as const,
+    })),
+    ...professorPairs.map((pair) => ({
+      ...pair,
+      rosterRowKind: "professor" as const,
+    })),
+  ];
 }
 
 /**
@@ -180,6 +255,16 @@ async function findIndividualLinkFields(
  */
 function sameDocumentNumber(column: SQLWrapper, digits: string) {
   return sql`regexp_replace(${column}, ${documentSeparatorsPattern}, '', 'g') = ${digits}`;
+}
+
+/**
+ * `sameDocumentNumber` against the individual's own number, for a join: the
+ * individual's digits must not be empty, as there.
+ */
+function sameDocumentNumberAs(column: SQLWrapper) {
+  const individualDigits = sql`regexp_replace(${individuals.documentNumber}, ${documentSeparatorsPattern}, '', 'g')`;
+
+  return sql`(${individualDigits} <> '' and regexp_replace(${column}, ${documentSeparatorsPattern}, '', 'g') = ${individualDigits})`;
 }
 
 /** The same separators in SQL and in TypeScript. */
