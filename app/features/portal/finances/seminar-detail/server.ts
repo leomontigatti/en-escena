@@ -2,6 +2,11 @@ import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import { readSeminarInscriptionFinanceRows } from "@/lib/finances/seminar-inscriptions.server";
 import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
+import type { InscriptionFinanceRow } from "@/lib/finances/inscription-finance-columns";
+import {
+  readLinkedIndividualSeminarInscriptions,
+  type LinkedIndividualSeminarInscriptionRow,
+} from "@/lib/seminars/linked-individual-inscriptions.server";
 import { getSeminar } from "@/lib/seminars/repository.server";
 
 const seminarNotFoundMessage = "No encontramos ese seminario.";
@@ -41,21 +46,32 @@ export async function loadPortalSeminarFinanceDetail(input: {
     throw new Response(seminarNotFoundMessage, { status: 404 });
   }
 
-  const [inscriptions, seminarRow] = await Promise.all([
-    readSeminarInscriptionFinanceRows({
-      academyId: academy.id,
-      eventId,
-      seminarId,
-    }),
-    getSeminar(seminarId),
-  ]);
+  const [inscriptions, linkedIndividualInscriptions, seminarRow] =
+    await Promise.all([
+      readSeminarInscriptionFinanceRows({
+        academyId: academy.id,
+        eventId,
+        seminarId,
+      }),
+      readLinkedIndividualSeminarInscriptions({
+        academyId: academy.id,
+        eventId,
+        seminarId,
+      }),
+      getSeminar(seminarId),
+    ]);
 
   return {
     // The academy's and not the seminar's: money paid but not allocated belongs
     // to no seminar. It is the same figure the summary shows, so the five
     // metrics read the same on both screens.
     availableBalanceAmount: financeDetail.summary.availableBalanceAmount,
-    inscriptions,
+    // The linked individuals' rows are added here, after the figures above
+    // were derived without them: they owe the academy nothing.
+    inscriptions: [
+      ...inscriptions,
+      ...linkedIndividualInscriptions.map(toLinkedIndividualFinanceRow),
+    ],
     seminar: {
       allocatedAmount: seminarFinanceRow.allocatedAmount,
       anomalies: seminarFinanceRow.anomalies,
@@ -73,6 +89,35 @@ export async function loadPortalSeminarFinanceDetail(input: {
       scheduledDate: seminarFinanceRow.scheduledDate,
       totalAmount: seminarFinanceRow.totalAmount,
     },
+  };
+}
+
+/**
+ * A linked individual's inscription as the academy's finances read it: `$0`
+ * and badged `Particular`, like a `Bonificada` row, though it is not waived:
+ * its owner pays it, and none of that money is shown here. `paidInFull` is the
+ * harmless status to carry, since nothing is owed; the badge replaces it.
+ */
+function toLinkedIndividualFinanceRow(
+  inscription: LinkedIndividualSeminarInscriptionRow,
+) {
+  return {
+    allocatedAmount: 0,
+    anomalies: [],
+    depositAmount: 0,
+    effectivePrice: null,
+    financialStatus: "paidInFull",
+    firstName: inscription.firstName,
+    inscriptionId: inscription.inscriptionId,
+    lastName: inscription.lastName,
+    linkedIndividual: true,
+    owedBalanceAmount: 0,
+    totalAmount: 0,
+    withdrawn: false,
+  } satisfies InscriptionFinanceRow & {
+    firstName: string;
+    inscriptionId: string;
+    lastName: string;
   };
 }
 

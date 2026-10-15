@@ -14,12 +14,20 @@ import {
   createPortalPostRequest,
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
+import { db } from "@/db";
+import { choreographyDancers } from "@/db/schema";
+import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { activateEvent } from "@/lib/events/management.server";
 import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
+import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { coverSeminarInscriptionDeposit } from "@/lib/seminars/seminars.test-support";
 import { createSavedEvent } from "@/lib/test-support/events";
-import { createIndividualUser } from "@/lib/test-support/individuals";
+import {
+  createIndividualUser,
+  createLinkedIndividualUser,
+} from "@/lib/test-support/individuals";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
@@ -32,6 +40,15 @@ const pageUrl = `http://localhost${individualSeminarsPath}`;
  * everyone else, which is what an individual pays until its link says
  * otherwise. */
 const ordinaryPrice = 30000;
+const participantPrice = 20000;
+const documentNumber = "30123456";
+
+function createLinkedIndividual() {
+  return createLinkedIndividualUser({
+    documentNumber,
+    email: `${crypto.randomUUID()}@example.com`,
+  });
+}
 
 async function createActiveEvent() {
   const event = await createSavedEvent({
@@ -126,6 +143,7 @@ describe("the individual's `Seminarios`", () => {
     await expect(load(individual.cookie)).resolves.toEqual({
       hasActiveEvent: true,
       hasRegistrationPrices: true,
+      isLinked: false,
       seminars: [
         {
           id: earlier.id,
@@ -137,6 +155,7 @@ describe("the individual's `Seminarios`", () => {
           isFull: false,
           startsBeforePaymentDeadline: false,
           inscription: null,
+          academyInscriptions: [],
         },
         expect.objectContaining({ id: later.id, inscription: null }),
       ],
@@ -149,6 +168,7 @@ describe("the individual's `Seminarios`", () => {
     await expect(load(individual.cookie)).resolves.toEqual({
       hasActiveEvent: false,
       hasRegistrationPrices: false,
+      isLinked: false,
       seminars: [],
     });
   });
@@ -275,6 +295,127 @@ describe("the individual's `Seminarios`", () => {
       intent: deleteIndividualSeminarInscriptionIntent,
       message: "No encontramos esa inscripción.",
       status: "error",
+    });
+  });
+
+  test("prices a linked individual whose row dances in another academy as a participant, and says it is linked", async () => {
+    const event = await createActiveEvent();
+    const seminar = await addSeminar(event.id, {
+      instructorName: "Alicia Alonso",
+      scheduledDate: "2099-10-10",
+    });
+    const { academy, choreography } =
+      await createAcademyFinanceChoreographyFixture({
+        academyName: "Academia Norte",
+        choreographyName: "Aire",
+        email: `${crypto.randomUUID()}@example.com`,
+        event,
+      });
+    const dancer = await createDancer(academy.academy.id, {
+      documentType: "dni",
+      documentNumber,
+    });
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+    });
+    const individual = await createLinkedIndividual();
+
+    await expect(load(individual.cookie)).resolves.toMatchObject({
+      isLinked: true,
+      seminars: [{ id: seminar.id, priceAmount: participantPrice }],
+    });
+
+    await register(individual.cookie, seminar.id);
+
+    await expect(load(individual.cookie)).resolves.toMatchObject({
+      seminars: [{ id: seminar.id, priceAmount: participantPrice }],
+    });
+  });
+
+  test("lists, read-only, the inscriptions its academies made for the rows its link reaches", async () => {
+    const event = await createActiveEvent();
+    const seminar = await addSeminar(event.id, {
+      instructorName: "Alicia Alonso",
+      scheduledDate: "2099-10-10",
+    });
+    const academy = await createAcademySession({
+      academyName: "Academia Norte",
+      email: `${crypto.randomUUID()}@example.com`,
+    });
+    const dancer = await createDancer(academy.academyId, {
+      documentType: "dni",
+      documentNumber,
+    });
+    const academyInscription = await registerSeminarInscription({
+      academyId: academy.academyId,
+      eventId: event.id,
+      now: new Date(),
+      personId: dancer.id,
+      personKind: "dancer",
+      seminarId: seminar.id,
+    });
+    const individual = await createLinkedIndividual();
+
+    if (!academyInscription.ok) {
+      throw new Error(academyInscription.error);
+    }
+
+    await expect(load(individual.cookie)).resolves.toMatchObject({
+      seminars: [
+        {
+          id: seminar.id,
+          inscription: null,
+          academyInscriptions: [
+            {
+              academyName: "Academia Norte",
+              id: academyInscription.inscriptionId,
+            },
+          ],
+        },
+      ],
+    });
+    await expect(register(individual.cookie, seminar.id)).resolves.toEqual({
+      intent: registerIndividualSeminarInscriptionIntent,
+      message: "Academia Norte ya te inscribió en este seminario.",
+      status: "error",
+    });
+  });
+
+  test("lists none of them without a confirmed link", async () => {
+    const event = await createActiveEvent();
+    const seminar = await addSeminar(event.id, {
+      instructorName: "Alicia Alonso",
+      scheduledDate: "2099-10-10",
+    });
+    const academy = await createAcademySession({
+      academyName: "Academia Norte",
+      email: `${crypto.randomUUID()}@example.com`,
+    });
+    const dancer = await createDancer(academy.academyId, {
+      documentType: "dni",
+      documentNumber,
+    });
+    await registerSeminarInscription({
+      academyId: academy.academyId,
+      eventId: event.id,
+      now: new Date(),
+      personId: dancer.id,
+      personKind: "dancer",
+      seminarId: seminar.id,
+    });
+    const individual = await createIndividualUser({
+      documentNumber,
+      documentPhotoStorageKey: "individuals/photo.jpg",
+      email: `${crypto.randomUUID()}@example.com`,
+    });
+
+    await expect(load(individual.cookie)).resolves.toMatchObject({
+      isLinked: false,
+      seminars: [
+        { id: seminar.id, priceAmount: ordinaryPrice, academyInscriptions: [] },
+      ],
     });
   });
 

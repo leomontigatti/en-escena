@@ -1,10 +1,22 @@
-import { desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, or } from "drizzle-orm";
 
 import { db } from "@/db";
-import { events, seminarPrices } from "@/db/schema";
+import {
+  academies,
+  events,
+  seminarInscriptions,
+  seminarPrices,
+  seminars,
+} from "@/db/schema";
 import { requireIndividualUser } from "@/lib/auth/internal-access.server";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { selectCurrentSeminarPriceRow } from "@/lib/finances/seminar-inscription-price";
+import { isIndividualParticipating } from "@/lib/finances/seminar-participation.server";
+import { listIndividualsLinkedRosterRows } from "@/lib/individuals/link.server";
+import { deriveIndividualLinkState } from "@/lib/individuals/link-state";
+import { seminarInscriptionPersonColumn } from "@/lib/roster/roster-person-kind.server";
+import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
+import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
 import {
   readSeminarInscriptionFinanceRows,
   type SeminarInscriptionFinanceDetailRow,
@@ -31,6 +43,7 @@ import { readFormData } from "@/lib/shared/read-form-data";
 import {
   deleteIndividualSeminarInscriptionIntent,
   registerIndividualSeminarInscriptionIntent,
+  type IndividualAcademyMadeInscription,
   type IndividualSeminarRow,
   type IndividualSeminarsActionData,
   type IndividualSeminarsLoaderData,
@@ -48,25 +61,37 @@ export async function loadIndividualSeminars(
   const { individual } = await requireIndividualUser(request);
   const activeEvent = await findActiveEvent();
 
+  const isLinked = deriveIndividualLinkState(individual) === "linked";
+
   if (!activeEvent) {
     return {
       hasActiveEvent: false,
       hasRegistrationPrices: false,
+      isLinked,
       seminars: [],
     };
   }
 
   const now = new Date();
-  const [eventSeminars, priceRows, inscriptions] = await Promise.all([
-    listSeminars(activeEvent.id),
-    db.query.seminarPrices.findMany({
-      where: eq(seminarPrices.eventId, activeEvent.id),
-    }),
-    listSeminarInscriptionsForAcademy({
-      academyId: individual.ownerId,
-      eventId: activeEvent.id,
-    }),
-  ]);
+  const [eventSeminars, priceRows, inscriptions, academyMade, forParticipants] =
+    await Promise.all([
+      listSeminars(activeEvent.id),
+      db.query.seminarPrices.findMany({
+        where: eq(seminarPrices.eventId, activeEvent.id),
+      }),
+      listSeminarInscriptionsForAcademy({
+        academyId: individual.ownerId,
+        eventId: activeEvent.id,
+      }),
+      readIndividualAcademyMadeSeminarInscriptions(
+        individual.id,
+        activeEvent.id,
+      ),
+      isIndividualParticipating(db, {
+        eventId: activeEvent.id,
+        individualId: individual.id,
+      }),
+    ]);
   const inscriptionsBySeminarId = new Map(
     inscriptions.map((inscription) => [inscription.seminarId, inscription]),
   );
@@ -80,6 +105,7 @@ export async function loadIndividualSeminars(
   return {
     hasActiveEvent: true,
     hasRegistrationPrices: hasCompleteSeminarPriceCells(priceRows),
+    isLinked,
     seminars: eventSeminars.map((seminar) => {
       const inscription = inscriptionsBySeminarId.get(seminar.id);
 
@@ -89,14 +115,68 @@ export async function loadIndividualSeminars(
           ? toInscribedFacts(inscription, financeRowsById.get(inscription.id))
           : {
               inscription: null,
-              priceAmount: readOrdinaryPriceAmount(seminar, priceRows),
+              priceAmount: readTodayPriceAmount(seminar, {
+                forParticipants,
+                priceRows,
+              }),
             }),
+        academyInscriptions: academyMade
+          .filter((made) => made.seminarId === seminar.id)
+          .map(({ academyName, id }) => ({ academyName, id })),
       };
     }),
   };
 }
 
-type SeminarFacts = Omit<IndividualSeminarRow, "inscription" | "priceAmount">;
+/**
+ * The academies' non-withdrawn inscriptions, in the event's seminars, of the
+ * rows the individual's `Vinculado` link reaches, with the academy that made
+ * each one. Without a confirmed link it reaches no row, so there are none.
+ */
+async function readIndividualAcademyMadeSeminarInscriptions(
+  individualId: string,
+  eventId: string,
+): Promise<(IndividualAcademyMadeInscription & { seminarId: string })[]> {
+  const links = await listIndividualsLinkedRosterRows([individualId]);
+
+  if (links.length === 0) {
+    return [];
+  }
+
+  return await db
+    .select({
+      academyName: academies.name,
+      id: seminarInscriptions.id,
+      seminarId: seminarInscriptions.seminarId,
+    })
+    .from(seminarInscriptions)
+    .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
+    .innerJoin(
+      seminarInscriptionPerson,
+      eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
+    )
+    .innerJoin(academies, eq(academies.id, seminarInscriptionPerson.academyId))
+    .where(
+      and(
+        eq(seminars.eventId, eventId),
+        activeSeminarInscription(),
+        or(
+          ...links.map((link) =>
+            eq(
+              seminarInscriptionPersonColumn(link.rosterRowKind),
+              link.rosterRowId,
+            ),
+          ),
+        ),
+      ),
+    )
+    .orderBy(asc(academies.name), asc(seminarInscriptions.id));
+}
+
+type SeminarFacts = Omit<
+  IndividualSeminarRow,
+  "academyInscriptions" | "inscription" | "priceAmount"
+>;
 
 function toSeminarFacts(seminar: SeminarListItem, now: Date): SeminarFacts {
   return {
@@ -113,16 +193,16 @@ function toSeminarFacts(seminar: SeminarListItem, now: Date): SeminarFacts {
   };
 }
 
-/** The ordinary price that applies today: no participant cell without a
- * link. */
-function readOrdinaryPriceAmount(
+/** The price that applies today in the individual's participant cell
+ * (`isIndividualParticipating`): the ordinary one without a confirmed link. */
+function readTodayPriceAmount(
   seminar: SeminarListItem,
-  priceRows: SeminarPriceRow[],
+  input: { forParticipants: boolean; priceRows: SeminarPriceRow[] },
 ): number | null {
   return (
     selectCurrentSeminarPriceRow({
-      forParticipants: false,
-      priceRows,
+      forParticipants: input.forParticipants,
+      priceRows: input.priceRows,
       seminarKind: seminar.kind,
     })?.amount ?? null
   );

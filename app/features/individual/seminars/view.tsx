@@ -25,6 +25,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { formatAmount } from "@/lib/finances/formatters";
 import {
+  registeredByAcademyMessage,
   seminarPricesMissingMessage,
   seminarStartedMessage,
 } from "@/lib/seminars/registration-refusals";
@@ -73,6 +74,43 @@ function getClosedReason(
   }
 
   return hasRegistrationPrices ? null : seminarPricesMissingMessage;
+}
+
+/**
+ * Why the name opens neither the registration nor the removal: the seminar
+ * closed, or an academy already registered a row the individual's link
+ * reaches, which only that academy can remove. Null when one of the two opens.
+ */
+function getBlockedCopy(
+  seminar: IndividualSeminarRow,
+  hasRegistrationPrices: boolean,
+) {
+  const closedReason = getClosedReason(seminar, hasRegistrationPrices);
+
+  if (seminar.inscription || closedReason) {
+    return {
+      title: seminar.inscription
+        ? "No se puede dar de baja la inscripción"
+        : "No te podés inscribir a este seminario",
+      reasonsTitle: "Inscripciones cerradas",
+      reasons: closedReason ?? seminarStartedMessage,
+      description: seminar.hasStarted
+        ? "Una vez que el seminario comenzó ya no se puede inscribir ni dar de baja."
+        : "Vas a poder inscribirte cuando se abran las inscripciones.",
+    };
+  }
+
+  const [academyMade] = seminar.academyInscriptions;
+
+  return academyMade
+    ? {
+        title: "No te podés inscribir a este seminario",
+        reasonsTitle: "Ya estás inscripto",
+        reasons: registeredByAcademyMessage(academyMade.academyName),
+        description:
+          "Para inscribirte por tu cuenta, tu academia tiene que dar de baja su inscripción.",
+      }
+    : null;
 }
 
 /**
@@ -150,6 +188,7 @@ export function IndividualSeminarsView({
         <SeminarDialog
           fetcher={fetcher}
           hasRegistrationPrices={loaderData.hasRegistrationPrices}
+          isLinked={loaderData.isLinked}
           onClose={() => setOpened(null)}
           seminar={openSeminar}
         />
@@ -198,11 +237,24 @@ function buildColumns(
   ];
 }
 
+/** The individual's own inscription by its money, or an academy's inscription
+ * of a row its link reaches, which is the academy's to pay and read-only
+ * here. */
 function InscriptionState({ seminar }: { seminar: IndividualSeminarRow }) {
-  return seminar.inscription ? (
-    <FinancialStatusBadge status={seminar.inscription.status} />
-  ) : (
-    <span className="text-muted-foreground">Sin inscripción</span>
+  if (seminar.inscription) {
+    return <FinancialStatusBadge status={seminar.inscription.status} />;
+  }
+
+  if (seminar.academyInscriptions.length > 0) {
+    return <span>Inscripto por {formatAcademyNames(seminar)}</span>;
+  }
+
+  return <span className="text-muted-foreground">Sin inscripción</span>;
+}
+
+function formatAcademyNames(seminar: IndividualSeminarRow) {
+  return new Intl.ListFormat("es", { type: "conjunction" }).format(
+    seminar.academyInscriptions.map((made) => made.academyName),
   );
 }
 
@@ -251,16 +303,19 @@ type ActionFetcher = ReturnType<
 function SeminarDialog({
   fetcher,
   hasRegistrationPrices,
+  isLinked,
   onClose,
   seminar,
 }: {
   fetcher: ActionFetcher;
   hasRegistrationPrices: boolean;
+  isLinked: boolean;
   onClose: () => void;
   seminar: IndividualSeminarRow;
 }) {
   const onOpenChange = (nextOpen: boolean) => (nextOpen ? null : onClose());
 
+  // A held inscription opens its removal until the seminar starts.
   if (seminar.inscription && !seminar.hasStarted) {
     return (
       <RemovalDialog
@@ -271,46 +326,39 @@ function SeminarDialog({
     );
   }
 
-  const closedReason = getClosedReason(seminar, hasRegistrationPrices);
+  const blocked = getBlockedCopy(seminar, hasRegistrationPrices);
 
-  if (seminar.inscription || closedReason) {
+  if (blocked) {
     return (
-      <BlockedActionDialog
-        open
-        onOpenChange={onOpenChange}
-        title={
-          seminar.inscription
-            ? "No se puede dar de baja la inscripción"
-            : "No te podés inscribir a este seminario"
-        }
-        reasonsTitle="Inscripciones cerradas"
-        reasons={closedReason ?? seminarStartedMessage}
-        description={
-          seminar.hasStarted
-            ? "Una vez que el seminario comenzó ya no se puede inscribir ni dar de baja."
-            : "Vas a poder inscribirte cuando se abran las inscripciones."
-        }
-      />
+      <BlockedActionDialog open onOpenChange={onOpenChange} {...blocked} />
     );
   }
 
   return (
-    <RegisterDialog fetcher={fetcher} onClose={onClose} seminar={seminar} />
+    <RegisterDialog
+      fetcher={fetcher}
+      isLinked={isLinked}
+      onClose={onClose}
+      seminar={seminar}
+    />
   );
 }
 
 /**
- * The confirmation of a registration: the seminar, what it costs and how long
- * the place is held. The dialog stays open while the request is in flight, so
- * a refusal is read beside the seminar it was about; once the inscription
- * appears on the row, the page closes it.
+ * The confirmation of a registration: the seminar, what it costs, how long
+ * the place is held and, through a `Vinculado` link, that its academy will see
+ * it. The dialog stays open while the request is in flight, so a refusal is
+ * read beside the seminar it was about; once the inscription appears on the
+ * row, the page closes it.
  */
 function RegisterDialog({
   fetcher,
+  isLinked,
   onClose,
   seminar,
 }: {
   fetcher: ActionFetcher;
+  isLinked: boolean;
   onClose: () => void;
   seminar: IndividualSeminarRow;
 }) {
@@ -358,6 +406,16 @@ function RegisterDialog({
                 </AlertDescription>
               </Alert>
             )}
+            {isLinked ? (
+              <Alert variant="info">
+                <Info aria-hidden="true" />
+                <AlertTitle>Tu academia verá esta inscripción</AlertTitle>
+                <AlertDescription>
+                  Tu cuenta está vinculada, así que tu academia ve la
+                  inscripción en sus seminarios, pero no lo que pagás.
+                </AlertDescription>
+              </Alert>
+            ) : null}
           </AlertStack>
 
           <DialogFooter>

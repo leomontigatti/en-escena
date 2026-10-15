@@ -34,16 +34,15 @@ import {
   deriveInscriptionFinancialFigures,
   hasCrossedDepositThreshold,
 } from "@/lib/finances/inscription-financial-status";
-import { readEventParticipation } from "@/lib/participation/participation.server";
 import {
   deriveSeminarInscriptionThresholds,
   selectSeminarPriceCandidates,
 } from "@/lib/finances/seminar-inscription-price";
+import { readSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-thresholds.server";
 import {
-  collectPersonIds,
   isParticipating,
-  readSeminarInscriptionThresholds,
-} from "@/lib/finances/seminar-inscription-thresholds.server";
+  readSeminarParticipation,
+} from "@/lib/finances/seminar-participation.server";
 
 import {
   countReservedByOthers,
@@ -126,16 +125,16 @@ export async function readSeminarInscriptionPriceOptions(input: {
       .select({
         dancerId: seminarInscriptions.dancerId,
         id: seminarInscriptions.id,
+        individualId: seminarInscriptions.individualId,
         professorId: seminarInscriptions.professorId,
         seminarId: seminarInscriptions.seminarId,
       })
       .from(seminarInscriptions)
       .where(inArray(seminarInscriptions.seminarId, [...seminarsById.keys()])),
   ]);
-  const participation = await readEventParticipation(db, {
-    dancerIds: collectPersonIds(inscriptionRows, "dancerId"),
+  const participation = await readSeminarParticipation(db, {
     eventId: input.eventId,
-    professorIds: collectPersonIds(inscriptionRows, "professorId"),
+    rows: inscriptionRows,
   });
 
   for (const inscription of inscriptionRows) {
@@ -559,6 +558,7 @@ async function loadSeminarMoneyContext(
       academyId: seminarInscriptionPerson.academyId,
       dancerId: seminarInscriptions.dancerId,
       id: seminarInscriptions.id,
+      individualId: seminarInscriptions.individualId,
       professorId: seminarInscriptions.professorId,
       selectedPriceId: seminarInscriptions.selectedPriceId,
     })
@@ -583,10 +583,9 @@ async function loadSeminarMoneyContext(
     return { ok: false, message: seminarInscriptionNotFoundMessage };
   }
 
-  const participation = await readEventParticipation(tx, {
-    dancerIds: collectPersonIds([inscription], "dancerId"),
+  const participation = await readSeminarParticipation(tx, {
     eventId: input.eventId,
-    professorIds: collectPersonIds([inscription], "professorId"),
+    rows: [inscription],
   });
 
   return {

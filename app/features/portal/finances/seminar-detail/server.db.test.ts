@@ -2,7 +2,14 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { payments, seminarInscriptions, seminarPrices } from "@/db/schema";
+import {
+  dancers,
+  payments,
+  seminarInscriptions,
+  seminarPrices,
+} from "@/db/schema";
+import { confirmIndividualLink } from "@/lib/individuals/link.server";
+import { createIndividualUser } from "@/lib/test-support/individuals";
 import { loadSeminarFinanceDetail } from "@/features/admin/finances/academy-seminars/seminar-detail/server";
 import { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { loadPortalSeminarFinanceDetail } from "@/features/portal/finances/seminar-detail/server";
@@ -126,6 +133,40 @@ async function loadPanelDetail(fixture: Fixture) {
   });
 }
 
+function loadPortalSummary(fixture: Fixture) {
+  return loadPortalAcademyFinances(
+    new Request("http://localhost/portal/finanzas", {
+      headers: { cookie: fixture.cookie },
+    }),
+  );
+}
+
+const linkedDocumentNumber = "30123456";
+const linkedPhotoKey = "individuals/photo.jpg";
+
+/** A `Particular` whose link administration confirmed for its document. */
+async function createLinkedIndividual() {
+  const individual = await createIndividualUser({
+    documentNumber: linkedDocumentNumber,
+    documentPhotoStorageKey: linkedPhotoKey,
+    email: `particular.${crypto.randomUUID()}@example.com`,
+  });
+  const admin = await createSignedInRequest({
+    email: `admin.${crypto.randomUUID()}@example.com`,
+    role: "admin",
+  });
+  const confirmed = await confirmIndividualLink({
+    confirmedByUserId: admin.userId,
+    documentNumber: linkedDocumentNumber,
+    documentPhotoStorageKey: linkedPhotoKey,
+    individualId: individual.individualId,
+  });
+
+  expect(confirmed).toEqual({ ok: true });
+
+  return individual;
+}
+
 function allocate(fixture: Fixture, inscriptionId: string, amount: number) {
   return allocateToSeminarInscription({
     academyId: fixture.academyId,
@@ -212,6 +253,84 @@ describe("portal seminar financial detail", () => {
     // The quota is one and one deposit is covered, so the notice the academy
     // reads is the same fact the administrator's refusal is made of.
     expect(portal.seminar.availablePlaces).toBe(0);
+  });
+
+  test("lists a linked individual's inscription at $0 with its badge, outside every figure", async () => {
+    const fixture = await seedFixture();
+    await allocate(fixture, fixture.firstInscriptionId, seminarPriceAmount / 2);
+    const before = await loadPortalDetail(fixture);
+    const summaryBefore = await loadPortalSummary(fixture);
+    const dancer = await createDancer(fixture.academyId, {
+      documentNumber: linkedDocumentNumber,
+      documentType: "dni",
+      firstName: "Clara",
+      lastName: "Ríos",
+    });
+    const individual = await createLinkedIndividual();
+    const [inscription] = await db
+      .insert(seminarInscriptions)
+      .values({
+        individualId: individual.individualId,
+        seminarId: fixture.seminarId,
+      })
+      .returning({ id: seminarInscriptions.id });
+    // The individual pays its own deposit: none of it reaches the academy.
+    await db.insert(payments).values({
+      academyId: individual.ownerId,
+      amount: seminarPriceAmount,
+      eventId: fixture.eventId,
+      paymentDate: "2026-04-02",
+      paymentMethod: "transferencia",
+      paymentNumber: 2,
+    });
+    const allocated = await allocateToSeminarInscription({
+      academyId: individual.ownerId,
+      amount: seminarPriceAmount / 2,
+      eventId: fixture.eventId,
+      inscriptionId: inscription!.id,
+      priceId: fixture.priceId,
+      seminarId: fixture.seminarId,
+    });
+
+    expect(allocated.ok).toBe(true);
+
+    const after = await loadPortalDetail(fixture);
+
+    expect(
+      after.inscriptions.find((row) => row.inscriptionId === inscription!.id),
+    ).toEqual({
+      allocatedAmount: 0,
+      anomalies: [],
+      depositAmount: 0,
+      effectivePrice: null,
+      financialStatus: "paidInFull",
+      firstName: "Clara",
+      inscriptionId: inscription!.id,
+      lastName: "Ríos",
+      linkedIndividual: true,
+      owedBalanceAmount: 0,
+      totalAmount: 0,
+      withdrawn: false,
+    });
+    expect(after.inscriptions).toHaveLength(before.inscriptions.length + 1);
+    // The unit's figures, `Saldo disponible` and the summary are the
+    // academy's own money and nothing else. The places are the seminar's, and
+    // the individual's covered deposit takes one like anyone's.
+    expect(after.seminar).toEqual({
+      ...before.seminar,
+      availablePlaces: before.seminar.availablePlaces - 1,
+    });
+    expect(after.availableBalanceAmount).toBe(before.availableBalanceAmount);
+    await expect(loadPortalSummary(fixture)).resolves.toEqual(summaryBefore);
+
+    await db
+      .update(dancers)
+      .set({ active: false })
+      .where(eq(dancers.id, dancer.id));
+
+    await expect(loadPortalDetail(fixture)).resolves.toMatchObject({
+      inscriptions: before.inscriptions,
+    });
   });
 
   test("hides a seminar the academy registered nobody in", async () => {

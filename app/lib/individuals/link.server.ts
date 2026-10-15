@@ -1,4 +1,4 @@
-import { and, eq, sql, type SQL, type SQLWrapper } from "drizzle-orm";
+import { and, eq, inArray, sql, type SQL, type SQLWrapper } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, dancers, individuals, professors } from "@/db/schema";
@@ -7,7 +7,11 @@ import {
   deriveIndividualLinkState,
   type IndividualLinkState,
 } from "@/lib/individuals/link-state";
-import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
+import { rosterPersonTable } from "@/lib/roster/roster-person-kind.server";
+import {
+  rosterPersonKinds,
+  type RosterPersonKind,
+} from "@/lib/roster/roster-person-kind.shared";
 import {
   toRosterPersonStatus,
   type RosterPersonStatus,
@@ -17,8 +21,8 @@ import {
 // document (ADR-0019). Nothing about it is stored but administration's
 // confirmation: which rows it reaches is worked out on every read, so an
 // academy deleting, archiving or renumbering a row is seen on the next one.
-// Everything that reads "the individual's rows" goes through
-// `listIndividualLinkedRosterRows`; that is the privacy boundary.
+// Everything that reads "the individual's rows", or "the individuals reaching
+// a row", goes through the reads of this module; that is the privacy boundary.
 
 /** A `dancer` or `professor` row of an academy that a link reaches. */
 export type LinkedRosterRow = {
@@ -144,6 +148,93 @@ export async function revokeIndividualLink(
   return revoked.length > 0 ? { ok: true } : { ok: false, reason: "not-found" };
 }
 
+/** One reach of a `Vinculado` link: an individual and a row carrying its
+ * document. `ownerAcademyId` is the individual's owner row. */
+export type IndividualRosterRowLink = {
+  individualId: string;
+  ownerAcademyId: string;
+  rosterRowId: string;
+  rosterRowKind: RosterPersonKind;
+};
+
+type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** The rows each of these individuals' links reaches, as
+ * `listIndividualLinkedRosterRows` reaches them, read at once. */
+export async function listIndividualsLinkedRosterRows(
+  individualIds: readonly string[],
+  executor: Executor = db,
+): Promise<IndividualRosterRowLink[]> {
+  if (individualIds.length === 0) {
+    return [];
+  }
+
+  return await listLinks(executor, () =>
+    inArray(individuals.id, [...new Set(individualIds)]),
+  );
+}
+
+/**
+ * The individuals whose `Vinculado` link reaches each of these rows: the
+ * reverse of `listIndividualLinkedRosterRows`, by the same document rule and
+ * the same link state, one pair per row and individual. A row carrying no
+ * number, or whose academy is not of kind `academy`, reaches no one.
+ * `executor` lets a write read it under its own transaction.
+ */
+export async function listRosterRowsLinkedIndividuals(
+  rows: readonly { id: string; kind: RosterPersonKind }[],
+  executor: Executor = db,
+): Promise<IndividualRosterRowLink[]> {
+  if (rows.length === 0) {
+    return [];
+  }
+
+  return await listLinks(executor, (kind) => {
+    const ids = rows.filter((row) => row.kind === kind).map((row) => row.id);
+
+    return ids.length === 0
+      ? undefined
+      : inArray(rosterPersonTable(kind).id, ids);
+  });
+}
+
+/**
+ * The links in SQL, by the same rules as `listRosterRowsCarryingDocument`
+ * (`sameDocumentNumberAs`), rows of academies only, while the link state is
+ * `linked`. `narrow` returns no condition for a kind it does not ask about,
+ * which skips that kind.
+ */
+async function listLinks(
+  executor: Executor,
+  narrow: (kind: RosterPersonKind) => SQL | undefined,
+): Promise<IndividualRosterRowLink[]> {
+  const reads = rosterPersonKinds.map(async (kind) => {
+    const condition = narrow(kind);
+
+    if (!condition) {
+      return [];
+    }
+
+    const table = rosterPersonTable(kind);
+    const rows = await executor
+      .select({
+        individualId: individuals.id,
+        ownerAcademyId: individuals.academyId,
+        rosterRowId: table.id,
+      })
+      .from(individuals)
+      .innerJoin(table, sameDocumentNumberAs(table.documentNumber))
+      .innerJoin(academies, eq(academies.id, table.academyId))
+      .where(
+        and(academyOwner(), eq(individualLinkStateSql(), "linked"), condition),
+      );
+
+    return rows.map((row) => ({ ...row, rosterRowKind: kind }));
+  });
+
+  return (await Promise.all(reads)).flat();
+}
+
 /** `deriveIndividualLinkState` in SQL, for a list to filter on. */
 export function individualLinkStateSql(): SQL<IndividualLinkState> {
   return sql<IndividualLinkState>`case
@@ -180,6 +271,16 @@ async function findIndividualLinkFields(
  */
 function sameDocumentNumber(column: SQLWrapper, digits: string) {
   return sql`regexp_replace(${column}, ${documentSeparatorsPattern}, '', 'g') = ${digits}`;
+}
+
+/**
+ * `sameDocumentNumber` against the individual's own number, for a join: the
+ * individual's digits must not be empty, as there.
+ */
+function sameDocumentNumberAs(column: SQLWrapper) {
+  const individualDigits = sql`regexp_replace(${individuals.documentNumber}, ${documentSeparatorsPattern}, '', 'g')`;
+
+  return sql`(${individualDigits} <> '' and regexp_replace(${column}, ${documentSeparatorsPattern}, '', 'g') = ${individualDigits})`;
 }
 
 /** The same separators in SQL and in TypeScript. */

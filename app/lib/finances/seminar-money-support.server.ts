@@ -13,12 +13,12 @@ import { asc, eq, inArray } from "drizzle-orm";
 
 import { seminarInscriptions, seminarPrices, seminars } from "@/db/schema";
 import { selectCurrentSeminarPriceRow } from "@/lib/finances/seminar-inscription-price";
+import type { SeminarFinancePriceRow } from "@/lib/finances/seminar-inscription-thresholds.server";
 import {
-  collectPersonIds,
   isParticipating,
-  type SeminarFinancePriceRow,
-} from "@/lib/finances/seminar-inscription-thresholds.server";
-import { readEventParticipation } from "@/lib/participation/participation.server";
+  readSeminarParticipation,
+  type SeminarInscriptionPersonIds,
+} from "@/lib/finances/seminar-participation.server";
 import {
   countReservedByOthers,
   readSeminarPlaces,
@@ -139,10 +139,8 @@ export async function assertSeminarPlacesForCrossings(
 }
 
 /** A seminar inscription as the price application reads it. */
-export type SeminarInscriptionToPrice = {
-  dancerId: string | null;
+export type SeminarInscriptionToPrice = SeminarInscriptionPersonIds & {
   id: string;
-  professorId: string | null;
   selectedPriceId: string | null;
   seminarId: string;
 };
@@ -181,11 +179,7 @@ export async function applyCurrentSeminarPrices(
     tx.query.seminarPrices.findMany({
       where: eq(seminarPrices.eventId, input.eventId),
     }),
-    readEventParticipation(tx, {
-      dancerIds: collectPersonIds(unpriced, "dancerId"),
-      eventId: input.eventId,
-      professorIds: collectPersonIds(unpriced, "professorId"),
-    }),
+    readSeminarParticipation(tx, { eventId: input.eventId, rows: unpriced }),
   ]);
 
   for (const inscription of unpriced) {

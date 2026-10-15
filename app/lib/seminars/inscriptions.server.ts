@@ -18,6 +18,10 @@ import {
   readSeminarPlaces,
 } from "@/lib/seminars/covered-inscriptions.server";
 import { removeSeminarInscriptionFromRoster } from "@/lib/seminars/inscription-withdrawal.server";
+import {
+  findLinkedPersonRefusal,
+  type LinkedPersonRefusalCode,
+} from "@/lib/seminars/linked-person-refusals.server";
 import { seminarStartedMessage } from "@/lib/seminars/registration-refusals";
 import { hasSeminarStarted } from "@/lib/seminars/registration-window";
 import { getSeminarReservationEndsAt } from "@/lib/seminars/seminar-reservations";
@@ -65,7 +69,11 @@ export type DeleteSeminarInscriptionResult =
   | { ok: false; code: DeleteSeminarInscriptionFailureCode; error: string };
 
 export type RegisterSeminarInscriptionFailureCode =
-  "already-registered" | "ineligible-person" | "seminar-not-found" | "started";
+  | LinkedPersonRefusalCode
+  | "already-registered"
+  | "ineligible-person"
+  | "seminar-not-found"
+  | "started";
 
 export type RegisterSeminarInscriptionResult =
   | { ok: true; inscriptionId: string }
@@ -142,10 +150,11 @@ function lockSeminar(tx: Transaction, input: RegisterSeminarInscriptionInput) {
 }
 
 /**
- * The two reasons a locked seminar refuses, in the order they are read: a
- * seminar that has begun takes nobody, and a person who is not on the academy's
- * active roster is nobody it may register. How full the seminar is is not among
- * them.
+ * The reasons a locked seminar refuses, in the order they are read: a seminar
+ * that has begun takes nobody, a person who is not on the academy's active
+ * roster is nobody it may register, and a person the other side already
+ * registered through a confirmed link is not registered twice
+ * (`findLinkedPersonRefusal`). How full the seminar is is not among them.
  */
 async function findRegistrationRefusal(
   tx: Transaction,
@@ -160,7 +169,9 @@ async function findRegistrationRefusal(
     return failure("ineligible-person", ineligiblePersonMessage);
   }
 
-  return null;
+  const linkedRefusal = await findLinkedPersonRefusal(tx, input);
+
+  return linkedRefusal ? { ok: false, ...linkedRefusal } : null;
 }
 
 /**

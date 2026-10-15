@@ -1,5 +1,10 @@
 import { describe, expect, test } from "vitest";
 
+import { db } from "@/db";
+import { seminarInscriptions } from "@/db/schema";
+import { confirmIndividualLink } from "@/lib/individuals/link.server";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createIndividualUser } from "@/lib/test-support/individuals";
 import {
   createDancer,
   createProfessor,
@@ -325,3 +330,78 @@ describe("portal seminar detail", () => {
     });
   });
 });
+
+describe("a linked individual's inscription on the portal seminar detail", () => {
+  test("reads it read-only, as `Particular`, with no money and no removal", async () => {
+    const session = await createAcademySession({
+      academyName: "Academia Vinculada",
+      email: "seminario.detalle.vinculada@example.com",
+    });
+    const { seminar } = await createActiveEventWithSeminar();
+    const dancer = await createDancer(session.academyId, {
+      documentNumber: linkedDocumentNumber,
+      documentType: "dni",
+      firstName: "Ana",
+      lastName: "Paz",
+    });
+    const individual = await createLinkedIndividual();
+    const [inscription] = await db
+      .insert(seminarInscriptions)
+      .values({
+        individualId: individual.individualId,
+        seminarId: seminar.id,
+      })
+      .returning({ id: seminarInscriptions.id });
+
+    const detail = await loadDetail(session.cookie, seminar.id);
+
+    expect(detail.inscriptions).toEqual([
+      {
+        fullName: "Ana Paz",
+        hasMoney: false,
+        id: inscription!.id,
+        personKind: "individual",
+        readOnly: true,
+        status: null,
+      },
+    ]);
+    // The person stays on the picker: refusing the second inscription is the
+    // service's call, not the picker's.
+    expect(detail.people).toEqual([expect.objectContaining({ id: dancer.id })]);
+
+    await expect(
+      deleteRequest(session.cookie, {
+        inscriptionId: inscription!.id,
+        seminarId: seminar.id,
+      }),
+    ).resolves.toMatchObject({ status: "error" });
+    await expect(loadDetail(session.cookie, seminar.id)).resolves.toMatchObject(
+      { inscriptions: [{ id: inscription!.id, readOnly: true }] },
+    );
+  });
+});
+
+const linkedDocumentNumber = "30123456";
+const linkedPhotoKey = "individuals/photo.jpg";
+
+async function createLinkedIndividual() {
+  const individual = await createIndividualUser({
+    documentNumber: linkedDocumentNumber,
+    documentPhotoStorageKey: linkedPhotoKey,
+    email: `particular.${crypto.randomUUID()}@example.com`,
+  });
+  const admin = await createSignedInRequest({
+    email: `admin.${crypto.randomUUID()}@example.com`,
+    role: "admin",
+  });
+  const confirmed = await confirmIndividualLink({
+    confirmedByUserId: admin.userId,
+    documentNumber: linkedDocumentNumber,
+    documentPhotoStorageKey: linkedPhotoKey,
+    individualId: individual.individualId,
+  });
+
+  expect(confirmed).toEqual({ ok: true });
+
+  return individual;
+}

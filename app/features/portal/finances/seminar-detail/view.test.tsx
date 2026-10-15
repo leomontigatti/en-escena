@@ -68,6 +68,39 @@ describe("PortalSeminarFinanceDetailRouteView", () => {
     expect(markup).toContain("$ 5.000");
   });
 
+  test("lists a linked individual's inscription at $0, badged `Particular`, with no price", () => {
+    const markup = renderDetail({
+      inscriptions: [
+        {
+          allocatedAmount: 0,
+          anomalies: [],
+          depositAmount: 0,
+          effectivePrice: null,
+          financialStatus: "paidInFull",
+          firstName: "Clara",
+          inscriptionId: "seminar_inscription_3",
+          lastName: "Ríos",
+          linkedIndividual: true,
+          owedBalanceAmount: 0,
+          totalAmount: 0,
+          withdrawn: false,
+        },
+      ],
+    });
+    const cells = [
+      ...(inscriptionsTable(markup)?.querySelectorAll("tbody td") ?? []),
+    ].map((cell) => cell.textContent?.trim());
+
+    expect(cells).toEqual([
+      "Clara Ríos",
+      "—",
+      "$ 0",
+      "$ 0",
+      "$ 0",
+      "Particular",
+    ]);
+  });
+
   test("repeats the full-quota notice without blocking anything", () => {
     const full = renderDetail({
       seminar: { ...loaderDataFixture().seminar, availablePlaces: 0 },

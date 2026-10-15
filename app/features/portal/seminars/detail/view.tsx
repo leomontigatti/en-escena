@@ -199,9 +199,10 @@ function InscriptionsTable({
       header: "Nombre",
       className: "min-w-56 font-medium",
       // The name is the only action on a row, as on the admin table. Once the
-      // seminar has started it is plain text: there is nothing left to do.
+      // seminar has started it is plain text: there is nothing left to do. A
+      // linked individual's row is never the academy's to remove.
       cell: (inscription) =>
-        canRemove ? (
+        canRemove && !inscription.readOnly ? (
           <Button
             variant="link"
             className="h-auto p-0 font-medium"
@@ -227,9 +228,13 @@ function InscriptionsTable({
     {
       id: "status",
       header: "Estado",
-      cell: (inscription) => (
-        <FinancialStatusBadge status={inscription.status} />
-      ),
+      // A linked individual's money is its own: the academy reads no status.
+      cell: (inscription) =>
+        inscription.status === null ? (
+          "—"
+        ) : (
+          <FinancialStatusBadge status={inscription.status} />
+        ),
     },
   ];
 
