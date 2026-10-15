@@ -215,9 +215,10 @@ async function fundOwedThreshold(
 }
 
 /**
- * Funding an inscription with no pick for its own group type would cover the
- * deposit of the row it stores, and freeze it there when that row is of another
- * group type: the state the roster save refuses to leave behind (#660).
+ * Funding an inscription below its deposit with no pick for its own group type
+ * would cover the deposit of the row it stores, and freeze it there when that
+ * row is of another group type: the state the roster save refuses to leave
+ * behind (#660). One already past it is frozen whatever the preset does.
  */
 function storesRowOfAnotherGroupType(input: {
   choreography: PresetChoreography;
@@ -346,6 +347,18 @@ async function applySelectedPrices(
       continue;
     }
 
+    const crossed = await hasCrossedStoredDepositThreshold(tx, {
+      allocatedAmount: await readInscriptionAllocatedAmount(
+        tx,
+        choreographyTarget(inscription.id),
+      ),
+      selectedPriceId: inscription.selectedPriceId,
+    });
+
+    if (crossed) {
+      continue;
+    }
+
     if (!priceId) {
       if (
         storesRowOfAnotherGroupType({
@@ -357,18 +370,6 @@ async function applySelectedPrices(
         return { ok: false, message: groupTypeWithoutPriceMessage };
       }
 
-      continue;
-    }
-
-    const crossed = await hasCrossedStoredDepositThreshold(tx, {
-      allocatedAmount: await readInscriptionAllocatedAmount(
-        tx,
-        choreographyTarget(inscription.id),
-      ),
-      selectedPriceId: inscription.selectedPriceId,
-    });
-
-    if (crossed) {
       continue;
     }
 

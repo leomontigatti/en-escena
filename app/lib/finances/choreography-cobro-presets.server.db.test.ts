@@ -16,6 +16,7 @@ import {
   createDancer,
 } from "@/features/portal/choreographies/test-support/db";
 import { payChoreographiesPreset } from "@/lib/finances/choreography-cobro-presets.server";
+import { allocateToInscription } from "@/lib/finances/inscription-allocation.server";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import {
   createAcademyFinanceChoreographyFixture,
@@ -445,6 +446,61 @@ describe("payChoreographiesPreset on a choreography whose group type moved", () 
     await expect(
       readAllocations([fixture.inscriptionIds[0]!]),
     ).resolves.toEqual([]);
+  });
+
+  test("refuses the same allocation from the dialog when it names no price", async () => {
+    const fixture = await seedPresetFixture([10000]);
+    const [choreographyId] = fixture.choreographyIds;
+    await db
+      .update(choreographyDancers)
+      .set({ selectedPriceId: fixture.priceId })
+      .where(eq(choreographyDancers.id, fixture.inscriptionIds[0]!));
+    await db
+      .update(choreographies)
+      .set({ groupType: "duo" })
+      .where(eq(choreographies.id, choreographyId!));
+
+    const result = await allocateToInscription({
+      academyId: fixture.academyId,
+      amount: 3000,
+      choreographyId: choreographyId!,
+      eventId: fixture.eventId,
+      inscriptionId: fixture.inscriptionIds[0]!,
+      priceId: null,
+    });
+
+    expect(result).toMatchObject({ ok: false });
+    await expect(
+      readAllocations([fixture.inscriptionIds[0]!]),
+    ).resolves.toEqual([]);
+  });
+
+  test("still funds the balance of an inscription already frozen on a row of another group type", async () => {
+    const fixture = await seedPresetFixture([10000]);
+    const [choreographyId] = fixture.choreographyIds;
+    await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds: [choreographyId!],
+      eventId: fixture.eventId,
+      priceIdByGroupType: { solo: fixture.priceId },
+      stage: "deposit",
+    });
+    await db
+      .update(choreographies)
+      .set({ groupType: "duo" })
+      .where(eq(choreographies.id, choreographyId!));
+
+    // A row frozen before #660 guarded the roster: the preset offers no picker
+    // for it, and refusing would leave it with no way to be paid.
+    const result = await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds: [choreographyId!],
+      eventId: fixture.eventId,
+      priceIdByGroupType: {},
+      stage: "balance",
+    });
+
+    expect(result).toEqual({ ok: true });
   });
 });
 

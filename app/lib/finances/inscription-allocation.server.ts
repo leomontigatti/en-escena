@@ -25,7 +25,12 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
-import { choreographyDancers, events, paymentAllocations } from "@/db/schema";
+import {
+  choreographyDancers,
+  events,
+  paymentAllocations,
+  prices,
+} from "@/db/schema";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import {
@@ -259,6 +264,15 @@ export async function allocateToInscription(
   input: InscriptionMoneyInput & { amount: number; priceId: string | null },
 ): Promise<CobroResult> {
   return await runCobro(async (tx) => {
+    // The pool's lock, taken before the group type is read: a draft save
+    // moving the group type holds it until it commits, so the price is picked
+    // against the committed one (#660). Only adding money can cross a deposit.
+    await tx
+      .select({ id: choreographyDancers.id })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.id, input.inscriptionId))
+      .for("update");
+
     const context = await loadInscriptionMoneyContext(tx, input);
     if (!context.ok) {
       return context;
@@ -420,9 +434,17 @@ async function applySelectedPrice(
     // this branch was only ever reached with an empty row; without the added
     // test, an inscription holding money and storing no price — a state the
     // presets can produce — would start failing with "Elegí un precio".
-    return input.inscription.selectedPriceId === null &&
+    if (
+      input.inscription.selectedPriceId === null &&
       input.allocatedAmount === 0
-      ? { ok: false, message: "Elegí un precio para la inscripción." }
+    ) {
+      return { ok: false, message: "Elegí un precio para la inscripción." };
+    }
+
+    // The stored row would be the one the money crosses on, and a row of
+    // another group type would freeze there (#660).
+    return (await storesRowOfAnotherGroupType(tx, input))
+      ? { ok: false, message: storedRowOfAnotherGroupTypeMessage }
       : { ok: true };
   }
 
@@ -445,6 +467,32 @@ async function applySelectedPrice(
   return { ok: true };
 }
 
+const storedRowOfAnotherGroupTypeMessage =
+  "La inscripción guarda el precio de otro tipo de grupo. Elegí un precio para asignarle dinero.";
+
+async function storesRowOfAnotherGroupType(
+  tx: Transaction,
+  input: {
+    choreography: { groupType: string };
+    inscription: { selectedPriceId: string | null };
+  },
+) {
+  const { selectedPriceId } = input.inscription;
+
+  if (selectedPriceId === null) {
+    return false;
+  }
+
+  const [stored] = await tx
+    .select({ groupType: prices.groupType })
+    .from(prices)
+    .where(eq(prices.id, selectedPriceId));
+
+  return (
+    stored !== undefined && stored.groupType !== input.choreography.groupType
+  );
+}
+
 type InscriptionMoneyContext =
   | { ok: false; message: string }
   | {
@@ -462,15 +510,6 @@ async function loadInscriptionMoneyContext(
   tx: Transaction,
   input: InscriptionMoneyInput,
 ): Promise<InscriptionMoneyContext> {
-  // The pool's lock, taken before the group type is read: a draft save moving
-  // the group type holds it until it commits, so the price is picked against
-  // the committed one (#660).
-  await tx
-    .select({ id: choreographyDancers.id })
-    .from(choreographyDancers)
-    .where(eq(choreographyDancers.id, input.inscriptionId))
-    .for("update");
-
   const choreographyRow = await loadChoreographyScheduleRow(
     tx,
     input.choreographyId,

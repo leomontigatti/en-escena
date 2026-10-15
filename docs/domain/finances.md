@@ -410,8 +410,15 @@ in the same module: the draft save of the choreography detail is refused while
 an active inscription whose dancer stays is frozen on a row of another group
 type, whether or not the schedule moves. The preview shows it beside the dancers
 before the save, and the save asks again under the choreography's row lock. The
-remedy is taking the money off first; nothing rewrites the stored row. Below the
-threshold the read-time derivation follows the new key on its own. The schedule
+remedy is taking the money off first; nothing rewrites the stored row. The save
+also locks the choreography's active inscriptions, and the allocation dialog and
+the `Pagar seña` / `Pagar saldo` presets lock theirs before they read the group
+type, so a deposit crossed in a racing transaction is either read by the save or
+priced against the group type it commits. Below the threshold the read-time
+derivation follows the new key on its own, as long as the row stored there is
+replaced before the money crosses: the dialog submits the row in effect, and a
+preset with no pick for the choreography's group type refuses an inscription
+storing a row of another one. The schedule
 axis is closed too: a general row prices every schedule, and the guard refuses a
 move that takes a crossed inscription off the schedules its special row covers.
 Production held no crossed row on a foreign key when this landed (#660, counted
