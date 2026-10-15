@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
@@ -62,16 +62,24 @@ export async function requireAcademyOnboardingUser(request: Request) {
   };
 }
 
+type AcademyOnboardingUser = Awaited<
+  ReturnType<typeof requireAcademyOnboardingUser>
+>;
+
+/**
+ * Takes what the guard read rather than reading it again: a second submit that
+ * raced the first carries a read from before the first committed.
+ */
 export async function completeAcademyOnboarding(input: {
   academyName: string;
   acknowledgedDuplicateIds: readonly string[];
   city: string;
   contactName: string;
+  onboardingUser: AcademyOnboardingUser;
   phone: string;
   province: Province;
-  request: Request;
 }) {
-  const onboardingUser = await requireAcademyOnboardingUser(input.request);
+  const { onboardingUser } = input;
 
   if (!isValidArgentinePhone(input.phone)) {
     return { ok: false as const, error: invalidArgentinePhoneMessage };
@@ -79,7 +87,7 @@ export async function completeAcademyOnboarding(input: {
 
   const name = toTitleCase(input.academyName);
   const matchesToShow = matchesToWarnAbout(
-    await findAcademiesNamed(name),
+    await findAcademiesNamed(name, onboardingUser.user.id),
     input.acknowledgedDuplicateIds,
   );
 
@@ -114,6 +122,15 @@ export async function completeAcademyOnboarding(input: {
       });
     });
   } catch (error) {
+    // A second submit of the same onboarding (two tabs, a click before
+    // hydration) collides with the first; the academy is this user's anyway.
+    if (
+      isUniqueViolation(error) &&
+      (await holdsAcademyAccount(onboardingUser.user.id))
+    ) {
+      return { headers: onboardingUser.headers, ok: true as const };
+    }
+
     if (isAcademyOnboardingConflict(error)) {
       return {
         ok: false as const,
@@ -127,11 +144,32 @@ export async function completeAcademyOnboarding(input: {
   return { headers: onboardingUser.headers, ok: true as const };
 }
 
+/** An academy, not the `Particular` account another tab may have opened. */
+async function holdsAcademyAccount(userId: string) {
+  const [academy] = await db
+    .select({ id: academies.id })
+    .from(academies)
+    .innerJoin(user, eq(user.id, academies.userId))
+    .where(
+      and(
+        eq(academies.userId, userId),
+        academyOwner(),
+        eq(user.role, "academy"),
+      ),
+    )
+    .limit(1);
+
+  return academy !== undefined;
+}
+
 /**
  * Only the name and the registration date of the other academy ever leave this
  * function: the check must not become a way to probe who is registered.
  */
-async function findAcademiesNamed(name: string): Promise<AcademyNameMatch[]> {
+async function findAcademiesNamed(
+  name: string,
+  userId: string,
+): Promise<AcademyNameMatch[]> {
   return await db
     .select({
       createdAt: academies.createdAt,
@@ -139,7 +177,14 @@ async function findAcademiesNamed(name: string): Promise<AcademyNameMatch[]> {
       name: academies.name,
     })
     .from(academies)
-    .where(and(normalizedTextEquals(academies.name, name), academyOwner()))
+    .where(
+      and(
+        normalizedTextEquals(academies.name, name),
+        academyOwner(),
+        // A racing first submit's academy is this user's own, not a duplicate.
+        ne(academies.userId, userId),
+      ),
+    )
     .orderBy(academies.createdAt);
 }
 
