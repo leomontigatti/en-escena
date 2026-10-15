@@ -14,11 +14,6 @@ vi.mock("react-router", async () => {
   return { ...actual, useNavigation: reactRouterMocks.useNavigation };
 });
 
-vi.mock("@/lib/academies/onboarding.server", () => ({
-  completeAcademyOnboarding: vi.fn(),
-  requireAcademyOnboardingUser: vi.fn(),
-}));
-
 import { renderInDataRouter } from "@/lib/test-support/data-router";
 import AcademyOnboardingRoute from "@/routes/registro_.academia";
 
@@ -35,7 +30,7 @@ describe("`/registro/academia` submit", () => {
     const button = renderSubmitButton();
 
     expect(button).not.toContain(' disabled=""');
-    expect(button).not.toContain('data-icon="inline-start"');
+    expect(button).not.toContain('data-slot="spinner"');
   });
 
   test("is disabled with a spinner while the onboarding post is in flight", () => {
@@ -47,7 +42,7 @@ describe("`/registro/academia` submit", () => {
     const button = renderSubmitButton();
 
     expect(button).toContain(' disabled=""');
-    expect(button).toContain('data-icon="inline-start"');
+    expect(button).toContain('data-slot="spinner"');
   });
 });
 
