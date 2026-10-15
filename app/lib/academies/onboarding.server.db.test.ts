@@ -5,6 +5,11 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import {
+  completeAcademyOnboarding,
+  requireAcademyOnboardingUser,
+} from "@/lib/academies/onboarding.server";
+import { completeIndividualOnboarding } from "@/lib/individuals/onboarding.server";
+import {
   action as academyOnboardingAction,
   loader as academyOnboardingLoader,
 } from "@/routes/registro_.academia";
@@ -206,6 +211,61 @@ describe("academy onboarding route", () => {
     await expect(db.query.academies.findMany()).resolves.toEqual([]);
   });
 
+  // Two tabs, or a click before hydration, can post twice at once: both pass
+  // the guard before either commits, and the second insert collides with the
+  // first. The academy is theirs either way, so both land in the portal.
+  test("sends a submit that loses the race to its own first submit to the portal", async () => {
+    getVerifiedAccessIdentity.mockResolvedValue(
+      accessIdentity("doble@example.com", "user-doble"),
+    );
+    const readBeforeCommit = await requireAcademyOnboardingUser(
+      new Request("http://localhost/registro/academia"),
+    );
+
+    const first = await completeAcademyOnboarding(
+      academyInput(readBeforeCommit),
+    );
+    const second = await completeAcademyOnboarding(
+      academyInput(readBeforeCommit),
+    );
+
+    expect(first).toMatchObject({ ok: true });
+    expect(second).toMatchObject({ ok: true });
+    await expect(
+      db.query.academies.findMany({ columns: { userId: true } }),
+    ).resolves.toEqual([{ userId: "user-doble" }]);
+  });
+
+  // The same race against the `Particular` form in another tab: the owner row
+  // that wins is an individual's, so the academy was not created.
+  test("refuses an academy submit that loses the race to the same user's `Particular` account", async () => {
+    getVerifiedAccessIdentity.mockResolvedValue(
+      accessIdentity("ambas@example.com", "user-ambas"),
+    );
+    const readBeforeCommit = await requireAcademyOnboardingUser(
+      new Request("http://localhost/registro/academia"),
+    );
+
+    await expect(
+      completeIndividualOnboarding({
+        request: new Request("http://localhost/registro/particular"),
+        values: {
+          documentNumber: "30123456",
+          documentType: "dni",
+          firstName: "Ana",
+          lastName: "Cruz",
+          phone: "3511234567",
+        },
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    await expect(
+      completeAcademyOnboarding(academyInput(readBeforeCommit)),
+    ).resolves.toMatchObject({ ok: false });
+    await expect(
+      db.query.academies.findMany({ columns: { kind: true } }),
+    ).resolves.toEqual([{ kind: "individual" }]);
+  });
+
   test("warns when another academy already uses the typed name and creates nothing", async () => {
     await seedExistingAcademy();
 
@@ -346,6 +406,20 @@ describe("academy onboarding route", () => {
     ).resolves.toBeUndefined();
   });
 });
+
+function academyInput(
+  onboardingUser: Awaited<ReturnType<typeof requireAcademyOnboardingUser>>,
+) {
+  return {
+    academyName: "Academia Carrera",
+    acknowledgedDuplicateIds: [],
+    city: "Ciudad",
+    contactName: "Contacto",
+    onboardingUser,
+    phone: "1112345678",
+    province: "santa_fe" as const,
+  };
+}
 
 function accessIdentity(email: string, id: string) {
   return {
