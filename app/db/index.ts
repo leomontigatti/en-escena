@@ -8,18 +8,29 @@ type Schema = typeof schema;
 type Client = ReturnType<typeof postgres>;
 type Database = PostgresJsDatabase<Schema>;
 
-let clientInstance: Client | undefined;
+// The client lives on `globalThis`, not in a module variable: the dev server
+// re-evaluates this module on every edit, and a client per evaluation kept each
+// previous pool's connections open until the server stopped. `idle_timeout`
+// (seconds) closes the connections a pool stops using. A changed `DATABASE_URL`
+// needs a restart of `pnpm dev`: Vite never lets `.env.local` override a key
+// already in `process.env`, so a running server keeps the URL it started with.
+const globalForDb = globalThis as typeof globalThis & {
+  enEscenaDbClient?: Client;
+};
+
 let dbInstance: Database | undefined;
 
 function getClient(): Client {
-  if (!clientInstance) {
+  if (!globalForDb.enEscenaDbClient) {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) {
       throw new Error("DATABASE_URL is required");
     }
-    clientInstance = postgres(connectionString);
+    globalForDb.enEscenaDbClient = postgres(connectionString, {
+      idle_timeout: 20,
+    });
   }
-  return clientInstance;
+  return globalForDb.enEscenaDbClient;
 }
 
 function getDb(): Database {
