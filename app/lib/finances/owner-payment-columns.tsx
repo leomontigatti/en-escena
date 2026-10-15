@@ -87,3 +87,36 @@ export const ownerPaymentColumns: DataTableColumn<OwnerPaymentRow>[] = [
     cell: (row) => formatAmount(row.amount),
   },
 ];
+
+/**
+ * A payment on a phone (style guide, "Tables and lists"): its number and
+ * amount first, then when, how and the reference, which is left out when
+ * there is none.
+ */
+export function OwnerPaymentCard({ row }: { row: OwnerPaymentRow }) {
+  return (
+    <>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="font-medium tabular-nums">
+          {formatEventSequenceNumber(row.paymentNumber)}
+        </span>
+        <span className="text-sm font-medium tabular-nums">
+          {formatAmount(row.amount)}
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="text-muted-foreground">
+          {formatDate(row.paymentDate)}
+        </span>
+        <Badge variant={getPaymentMethodBadgeVariant(row.paymentMethod)}>
+          {formatPaymentMethodLabel(row.paymentMethod)}
+        </Badge>
+      </div>
+      {row.reference ? (
+        <p className="text-sm wrap-break-word text-muted-foreground">
+          {row.reference}
+        </p>
+      ) : null}
+    </>
+  );
+}

@@ -254,6 +254,18 @@ describe("resolveInscriptionStatusBadge", () => {
     ).toEqual({ kind: "reserved" });
   });
 
+  // The row carries `paidInFull` only because nothing is owed: read as a
+  // status, it would tell the academy it paid for the individual.
+  test("reads a linked individual's row as `Particular` over its carried status", () => {
+    expect(
+      resolveInscriptionStatusBadge({
+        anomalies: [],
+        financialStatus: "paidInFull",
+        linkedIndividual: true,
+      }),
+    ).toEqual({ kind: "linkedIndividual" });
+  });
+
   test("lets a covered deposit or a withdrawal outrank a reservation", () => {
     expect(
       resolveInscriptionStatusBadge({

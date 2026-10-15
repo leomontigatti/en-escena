@@ -60,9 +60,10 @@ export type IndividualSeminarsLoaderData = {
   hasActiveEvent: boolean;
   /** Whether the event's price list lets anybody register yet. */
   hasRegistrationPrices: boolean;
-  /** The link is `Vinculado`: the academies it reaches see the individual's
-   * inscriptions, which the registration says. */
-  isLinked: boolean;
+  /** The `Vinculado` link reaches an **active** row of an academy: only then
+   * does that academy see the individual's inscriptions
+   * (`readLinkedIndividualSeminarInscriptions`), which the registration says. */
+  isSeenByAcademy: boolean;
   seminars: IndividualSeminarRow[];
 };
 

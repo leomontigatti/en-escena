@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { createDancer } from "@/lib/choreographies/registration.test-support";
+import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
 import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
 import { createSeminar, getSeminar } from "@/lib/seminars/repository.server";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
@@ -293,6 +294,7 @@ describe("the seminar instructor picture", () => {
   test("a refused delete leaves the picture where it was", async () => {
     const event = await createSavedEvent();
     const seminar = await createSavedSeminar(event.id);
+    await createSeminarRegistrationPrices(event.id);
 
     await saveJpgPicture(seminar.id);
 

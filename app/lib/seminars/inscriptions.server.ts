@@ -20,9 +20,16 @@ import {
 import { removeSeminarInscriptionFromRoster } from "@/lib/seminars/inscription-withdrawal.server";
 import {
   findLinkedPersonRefusal,
-  type LinkedPersonRefusalCode,
+  type LinkedPersonRefusal,
+  type LinkedPersonRefusalReason,
 } from "@/lib/seminars/linked-person-refusals.server";
-import { seminarStartedMessage } from "@/lib/seminars/registration-refusals";
+import {
+  registeredAsIndividualMessage,
+  registeredByAcademyMessage,
+  seminarPricesMissingMessage,
+  seminarStartedMessage,
+} from "@/lib/seminars/registration-refusals";
+import { hasSeminarRegistrationPrices } from "@/lib/seminar-prices/repository.server";
 import { hasSeminarStarted } from "@/lib/seminars/registration-window";
 import { getSeminarReservationEndsAt } from "@/lib/seminars/seminar-reservations";
 import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
@@ -69,9 +76,10 @@ export type DeleteSeminarInscriptionResult =
   | { ok: false; code: DeleteSeminarInscriptionFailureCode; error: string };
 
 export type RegisterSeminarInscriptionFailureCode =
-  | LinkedPersonRefusalCode
+  | LinkedPersonRefusalReason
   | "already-registered"
   | "ineligible-person"
+  | "prices-missing"
   | "seminar-not-found"
   | "started";
 
@@ -151,10 +159,15 @@ function lockSeminar(tx: Transaction, input: RegisterSeminarInscriptionInput) {
 
 /**
  * The reasons a locked seminar refuses, in the order they are read: a seminar
- * that has begun takes nobody, a person who is not on the academy's active
- * roster is nobody it may register, and a person the other side already
- * registered through a confirmed link is not registered twice
+ * that has begun takes nobody, an event whose price list leaves a participant
+ * cell unpriced takes nobody either (`hasSeminarRegistrationPrices`: the
+ * inscription would resolve to no price), a person who is not on the
+ * academy's active roster is nobody it may register, and a person the other
+ * side already registered through a confirmed link is not registered twice
  * (`findLinkedPersonRefusal`). How full the seminar is is not among them.
+ *
+ * The screens say the first two before the submission; saying them here too
+ * is what holds a request that skips the screen.
  */
 async function findRegistrationRefusal(
   tx: Transaction,
@@ -165,13 +178,27 @@ async function findRegistrationRefusal(
     return failure("started", seminarStartedMessage);
   }
 
+  if (!(await hasSeminarRegistrationPrices(input.eventId, tx))) {
+    return failure("prices-missing", seminarPricesMissingMessage);
+  }
+
   if (!(await isPersonEligibleForSeminar(tx, input))) {
     return failure("ineligible-person", ineligiblePersonMessage);
   }
 
   const linkedRefusal = await findLinkedPersonRefusal(tx, input);
 
-  return linkedRefusal ? { ok: false, ...linkedRefusal } : null;
+  return linkedRefusal
+    ? failure(linkedRefusal.reason, linkedRefusalMessage(linkedRefusal))
+    : null;
+}
+
+/** The academy is told only that the person registered itself; the individual
+ * is told which academy registered it. */
+function linkedRefusalMessage(refusal: LinkedPersonRefusal) {
+  return refusal.reason === "registered-by-academy"
+    ? registeredByAcademyMessage(refusal.academyName)
+    : registeredAsIndividualMessage;
 }
 
 /**

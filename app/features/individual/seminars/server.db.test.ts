@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import {
@@ -15,7 +16,7 @@ import {
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
 import { db } from "@/db";
-import { choreographyDancers } from "@/db/schema";
+import { choreographyDancers, dancers } from "@/db/schema";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { activateEvent } from "@/lib/events/management.server";
@@ -143,7 +144,7 @@ describe("the individual's `Seminarios`", () => {
     await expect(load(individual.cookie)).resolves.toEqual({
       hasActiveEvent: true,
       hasRegistrationPrices: true,
-      isLinked: false,
+      isSeenByAcademy: false,
       seminars: [
         {
           id: earlier.id,
@@ -168,7 +169,7 @@ describe("the individual's `Seminarios`", () => {
     await expect(load(individual.cookie)).resolves.toEqual({
       hasActiveEvent: false,
       hasRegistrationPrices: false,
-      isLinked: false,
+      isSeenByAcademy: false,
       seminars: [],
     });
   });
@@ -323,7 +324,7 @@ describe("the individual's `Seminarios`", () => {
     const individual = await createLinkedIndividual();
 
     await expect(load(individual.cookie)).resolves.toMatchObject({
-      isLinked: true,
+      isSeenByAcademy: true,
       seminars: [{ id: seminar.id, priceAmount: participantPrice }],
     });
 
@@ -331,6 +332,39 @@ describe("the individual's `Seminarios`", () => {
 
     await expect(load(individual.cookie)).resolves.toMatchObject({
       seminars: [{ id: seminar.id, priceAmount: participantPrice }],
+    });
+  });
+
+  // The notice used to follow the link state alone, while the academy reads
+  // the individual's inscriptions only through an active row.
+  test("says an academy will see the inscription only while the link reaches an active row", async () => {
+    await createActiveEvent();
+    const academy = await createAcademySession({
+      academyName: "Academia Norte",
+      email: `${crypto.randomUUID()}@example.com`,
+    });
+    const individual = await createLinkedIndividual();
+
+    await expect(load(individual.cookie)).resolves.toMatchObject({
+      isSeenByAcademy: false,
+    });
+
+    const dancer = await createDancer(academy.academyId, {
+      documentType: "dni",
+      documentNumber,
+    });
+
+    await expect(load(individual.cookie)).resolves.toMatchObject({
+      isSeenByAcademy: true,
+    });
+
+    await db
+      .update(dancers)
+      .set({ active: false })
+      .where(eq(dancers.id, dancer.id));
+
+    await expect(load(individual.cookie)).resolves.toMatchObject({
+      isSeenByAcademy: false,
     });
   });
 
@@ -412,7 +446,7 @@ describe("the individual's `Seminarios`", () => {
     });
 
     await expect(load(individual.cookie)).resolves.toMatchObject({
-      isLinked: false,
+      isSeenByAcademy: false,
       seminars: [
         { id: seminar.id, priceAmount: ordinaryPrice, academyInscriptions: [] },
       ],

@@ -30,10 +30,12 @@ export const seminarNoPlacesForDepositMessage =
   "No quedan lugares en el seminario, así que esta inscripción no puede cubrir su seña.";
 
 /**
- * Said by the portal footer alone: the event has no seminar price list yet, so
- * an inscription would have nothing to be charged by. It names no price and no
- * cell — that is administration's business, and no seminar surface reads money
- * (docs/domain/seminars.md, "Prices").
+ * Said twice too: the portal footer and the individual's `Seminarios` say it
+ * before the submission, and the registration service refuses with it when a
+ * request skips them. The event's price list leaves a participant cell
+ * unpriced, so an inscription would have nothing to be charged by. It names no
+ * price and no cell — that is administration's business, and no seminar
+ * surface reads money (docs/domain/seminars.md, "Prices").
  */
 export const seminarPricesMissingMessage =
   "Las inscripciones a este seminario todavía no están abiertas.";

@@ -188,7 +188,7 @@ export function IndividualSeminarsView({
         <SeminarDialog
           fetcher={fetcher}
           hasRegistrationPrices={loaderData.hasRegistrationPrices}
-          isLinked={loaderData.isLinked}
+          isSeenByAcademy={loaderData.isSeenByAcademy}
           onClose={() => setOpened(null)}
           seminar={openSeminar}
         />
@@ -303,13 +303,13 @@ type ActionFetcher = ReturnType<
 function SeminarDialog({
   fetcher,
   hasRegistrationPrices,
-  isLinked,
+  isSeenByAcademy,
   onClose,
   seminar,
 }: {
   fetcher: ActionFetcher;
   hasRegistrationPrices: boolean;
-  isLinked: boolean;
+  isSeenByAcademy: boolean;
   onClose: () => void;
   seminar: IndividualSeminarRow;
 }) {
@@ -337,7 +337,7 @@ function SeminarDialog({
   return (
     <RegisterDialog
       fetcher={fetcher}
-      isLinked={isLinked}
+      isSeenByAcademy={isSeenByAcademy}
       onClose={onClose}
       seminar={seminar}
     />
@@ -353,12 +353,12 @@ function SeminarDialog({
  */
 function RegisterDialog({
   fetcher,
-  isLinked,
+  isSeenByAcademy,
   onClose,
   seminar,
 }: {
   fetcher: ActionFetcher;
-  isLinked: boolean;
+  isSeenByAcademy: boolean;
   onClose: () => void;
   seminar: IndividualSeminarRow;
 }) {
@@ -406,7 +406,7 @@ function RegisterDialog({
                 </AlertDescription>
               </Alert>
             )}
-            {isLinked ? (
+            {isSeenByAcademy ? (
               <Alert variant="info">
                 <Info aria-hidden="true" />
                 <AlertTitle>Tu academia verá esta inscripción</AlertTitle>

@@ -8,8 +8,7 @@ import {
   seminarInscriptions,
   seminarPrices,
 } from "@/db/schema";
-import { confirmIndividualLink } from "@/lib/individuals/link.server";
-import { createIndividualUser } from "@/lib/test-support/individuals";
+import { createLinkedIndividualUser } from "@/lib/test-support/individuals";
 import { loadSeminarFinanceDetail } from "@/features/admin/finances/academy-seminars/seminar-detail/server";
 import { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { loadPortalSeminarFinanceDetail } from "@/features/portal/finances/seminar-detail/server";
@@ -142,29 +141,13 @@ function loadPortalSummary(fixture: Fixture) {
 }
 
 const linkedDocumentNumber = "30123456";
-const linkedPhotoKey = "individuals/photo.jpg";
 
 /** A `Particular` whose link administration confirmed for its document. */
-async function createLinkedIndividual() {
-  const individual = await createIndividualUser({
+function createLinkedIndividual() {
+  return createLinkedIndividualUser({
     documentNumber: linkedDocumentNumber,
-    documentPhotoStorageKey: linkedPhotoKey,
     email: `particular.${crypto.randomUUID()}@example.com`,
   });
-  const admin = await createSignedInRequest({
-    email: `admin.${crypto.randomUUID()}@example.com`,
-    role: "admin",
-  });
-  const confirmed = await confirmIndividualLink({
-    confirmedByUserId: admin.userId,
-    documentNumber: linkedDocumentNumber,
-    documentPhotoStorageKey: linkedPhotoKey,
-    individualId: individual.individualId,
-  });
-
-  expect(confirmed).toEqual({ ok: true });
-
-  return individual;
 }
 
 function allocate(fixture: Fixture, inscriptionId: string, amount: number) {
@@ -331,6 +314,79 @@ describe("portal seminar financial detail", () => {
     await expect(loadPortalDetail(fixture)).resolves.toMatchObject({
       inscriptions: before.inscriptions,
     });
+  });
+
+  // The academy's finances used to be read off its own inscriptions alone,
+  // so a seminar only its linked individuals were in had no row and its
+  // detail answered 404.
+  test("lists a seminar only a linked individual is in, at $0 and outside every figure", async () => {
+    const fixture = await seedFixture();
+    await allocate(fixture, fixture.firstInscriptionId, seminarPriceAmount / 2);
+    const other = await createSeminar(fixture.eventId, {
+      instructorName: "Bruno Díaz",
+      scheduledDate: "2099-10-11",
+      startTime: "18:30",
+      quota: 5,
+      ...defaultSeminarFacts,
+    });
+
+    if (!other.ok) {
+      throw new Error(other.error);
+    }
+
+    await createDancer(fixture.academyId, {
+      documentNumber: linkedDocumentNumber,
+      documentType: "dni",
+      firstName: "Clara",
+      lastName: "Ríos",
+    });
+    const individual = await createLinkedIndividual();
+    const summaryBefore = await loadPortalSummary(fixture);
+    const [inscription] = await db
+      .insert(seminarInscriptions)
+      .values({
+        individualId: individual.individualId,
+        seminarId: other.seminar.id,
+      })
+      .returning({ id: seminarInscriptions.id });
+
+    const summary = await loadPortalSummary(fixture);
+
+    expect(summary.summary).toEqual(summaryBefore.summary);
+    expect(summary.seminarFinanceRows).toEqual([
+      ...summaryBefore.seminarFinanceRows,
+      expect.objectContaining({
+        allocatedAmount: 0,
+        depositAmount: { amount: 0, status: "complete" },
+        id: other.seminar.id,
+        instructorName: "Bruno Díaz",
+        linkedIndividualsOnly: true,
+        owedBalanceAmount: { amount: 0, status: "complete" },
+        owedDepositAmount: { amount: 0, status: "complete" },
+        registrationCount: 0,
+        totalAmount: { amount: 0, status: "complete" },
+      }),
+    ]);
+
+    const detail = await loadPortalDetail(fixture, other.seminar.id);
+
+    expect(detail.availableBalanceAmount).toBe(
+      summaryBefore.summary.availableBalanceAmount,
+    );
+    expect(detail.seminar).toMatchObject({
+      allocatedAmount: 0,
+      id: other.seminar.id,
+      owedBalanceAmount: { amount: 0, status: "complete" },
+      registrationCount: 0,
+      totalAmount: { amount: 0, status: "complete" },
+    });
+    expect(detail.inscriptions).toEqual([
+      expect.objectContaining({
+        inscriptionId: inscription!.id,
+        linkedIndividual: true,
+        totalAmount: 0,
+      }),
+    ]);
   });
 
   test("hides a seminar the academy registered nobody in", async () => {

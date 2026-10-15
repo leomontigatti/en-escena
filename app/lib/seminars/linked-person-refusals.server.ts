@@ -1,27 +1,27 @@
-import { and, asc, eq, inArray, or } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import type { db } from "@/db";
-import { academies, seminarInscriptions } from "@/db/schema";
-import {
-  listIndividualsLinkedRosterRows,
-  listRosterRowsLinkedIndividuals,
-} from "@/lib/individuals/link.server";
+import { seminarInscriptions } from "@/db/schema";
+import { listRosterRowsLinkedIndividuals } from "@/lib/individuals/link.server";
 import type { InscriptionPersonKind } from "@/lib/roster/roster-person-kind.shared";
-import { seminarInscriptionPersonColumn } from "@/lib/roster/roster-person-kind.server";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
-import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
-import {
-  registeredAsIndividualMessage,
-  registeredByAcademyMessage,
-} from "@/lib/seminars/registration-refusals";
+import { listLinkedRowsAcademySeminarInscriptions } from "@/lib/seminars/linked-individual-inscriptions.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-export type LinkedPersonRefusalCode =
-  /** The individual's link reaches a row an academy registered. */
-  | "registered-by-academy"
+/**
+ * Why one person may not be registered from the second side. The copy is the
+ * caller's (`registration-refusals.ts`), so a reason carries only what the copy
+ * needs to name.
+ */
+export type LinkedPersonRefusal =
+  /** The individual's link reaches a row an academy registered: the first
+   * such academy by name. */
+  | { reason: "registered-by-academy"; academyName: string }
   /** The row is reached by an individual that registered itself. */
-  | "registered-as-individual";
+  | { reason: "registered-as-individual" };
+
+export type LinkedPersonRefusalReason = LinkedPersonRefusal["reason"];
 
 /**
  * One person, one inscription per seminar, whichever side registered it
@@ -41,19 +41,16 @@ export async function findLinkedPersonRefusal(
     personKind: InscriptionPersonKind;
     seminarId: string;
   },
-): Promise<{ code: LinkedPersonRefusalCode; error: string } | null> {
+): Promise<LinkedPersonRefusal | null> {
   if (input.personKind === "individual") {
-    const academyName = await findAcademyRegistrationOfLinkedRow(tx, {
-      individualId: input.personId,
-      seminarId: input.seminarId,
-    });
+    const [held] = await listLinkedRowsAcademySeminarInscriptions(
+      { individualId: input.personId, seminarId: input.seminarId },
+      tx,
+    );
 
-    return academyName === null
-      ? null
-      : {
-          code: "registered-by-academy",
-          error: registeredByAcademyMessage(academyName),
-        };
+    return held
+      ? { reason: "registered-by-academy", academyName: held.academyName }
+      : null;
   }
 
   const links = await listRosterRowsLinkedIndividuals(
@@ -80,47 +77,5 @@ export async function findLinkedPersonRefusal(
     )
     .limit(1);
 
-  return held
-    ? { code: "registered-as-individual", error: registeredAsIndividualMessage }
-    : null;
-}
-
-/** The academy that holds an inscription in the seminar for a row the
- * individual's link reaches, the first by name when there are several. */
-async function findAcademyRegistrationOfLinkedRow(
-  tx: Transaction,
-  input: { individualId: string; seminarId: string },
-): Promise<string | null> {
-  const links = await listIndividualsLinkedRosterRows([input.individualId], tx);
-
-  if (links.length === 0) {
-    return null;
-  }
-
-  const [held] = await tx
-    .select({ academyName: academies.name })
-    .from(seminarInscriptions)
-    .innerJoin(
-      seminarInscriptionPerson,
-      eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
-    )
-    .innerJoin(academies, eq(academies.id, seminarInscriptionPerson.academyId))
-    .where(
-      and(
-        eq(seminarInscriptions.seminarId, input.seminarId),
-        activeSeminarInscription(),
-        or(
-          ...links.map((link) =>
-            eq(
-              seminarInscriptionPersonColumn(link.rosterRowKind),
-              link.rosterRowId,
-            ),
-          ),
-        ),
-      ),
-    )
-    .orderBy(asc(academies.name))
-    .limit(1);
-
-  return held?.academyName ?? null;
+  return held ? { reason: "registered-as-individual" } : null;
 }

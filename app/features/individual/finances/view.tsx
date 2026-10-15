@@ -19,11 +19,15 @@ import {
   formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
 import { formatDate } from "@/features/admin/schedules/view-shared";
-import { formatAmount } from "@/lib/finances/formatters";
+import {
+  formatAmount,
+  formatOperationalAmount,
+} from "@/lib/finances/formatters";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { operationalFinanceColumns } from "@/lib/finances/operational-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import {
+  OwnerPaymentCard,
   ownerPaymentColumns,
   ownerPaymentFacetedFilterIds,
   ownerPaymentFacetedFilters,
@@ -74,16 +78,95 @@ const seminarColumns: DataTableColumn<SeminarFinanceRow>[] = [
   {
     id: "financialStatus",
     header: "Estado",
-    cell: (row) => (
-      <FinancialStatusBadge
-        status={resolveInscriptionStatusBadge({
-          anomalies: row.anomalies,
-          financialStatus: row.financialStatus,
-        })}
-      />
-    ),
+    cell: (row) => <SeminarStatusBadge row={row} />,
   },
 ];
+
+function SeminarStatusBadge({ row }: { row: SeminarFinanceRow }) {
+  return (
+    <FinancialStatusBadge
+      status={resolveInscriptionStatusBadge({
+        anomalies: row.anomalies,
+        financialStatus: row.financialStatus,
+      })}
+    />
+  );
+}
+
+/** A seminar on a phone: the seminar and its state, then the three figures
+ * the table's columns show. */
+function SeminarFinanceCard({ row }: { row: SeminarFinanceRow }) {
+  return (
+    <>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="min-w-0 font-medium wrap-break-word">
+          {row.instructorName}
+        </span>
+        <SeminarStatusBadge row={row} />
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {formatDate(row.scheduledDate)}
+      </p>
+      <dl className="grid grid-cols-3 gap-3 text-sm">
+        <CardFigure
+          label="Seña"
+          value={formatOperationalAmount(row.depositAmount)}
+        />
+        <CardFigure
+          label="Total"
+          value={formatOperationalAmount(row.totalAmount)}
+        />
+        <CardFigure
+          label="Saldo adeudado"
+          value={formatOperationalAmount(row.owedBalanceAmount)}
+        />
+      </dl>
+    </>
+  );
+}
+
+function CardFigure({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="font-medium tabular-nums">{value}</dd>
+    </div>
+  );
+}
+
+/** A comprobante on a phone: its number and amount, then what it is, what it
+ * invoices, its state and its date. */
+function ComprobanteCard({ row }: { row: ComprobanteRow }) {
+  return (
+    <>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="font-medium tabular-nums">
+          {formatComprobanteNumber(row)}
+        </span>
+        <span className="text-sm font-medium tabular-nums">
+          {formatAmount(row.impTotal)}
+        </span>
+      </div>
+      <p className="text-sm wrap-break-word text-muted-foreground">
+        {formatComprobanteAnchorLabel(row.anchor)}
+      </p>
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="flex items-center gap-2">
+          <Badge
+            variant={comprobanteTipoBadgeVariant(row.cbteTipo)}
+            title={formatComprobanteTipoLabel(row.cbteTipo)}
+          >
+            {formatComprobanteTipoInitials(row.cbteTipo)}
+          </Badge>
+          <ComprobanteStatusBadge status={row.status} />
+        </span>
+        <span className="text-muted-foreground tabular-nums">
+          {formatComprobanteArcaDate(row.cbteFch)}
+        </span>
+      </div>
+    </>
+  );
+}
 
 const comprobanteColumns: DataTableColumn<ComprobanteRow>[] = [
   {
@@ -200,6 +283,7 @@ export function IndividualFinancesView({
               columns={ownerPaymentColumns}
               facetedFilters={ownerPaymentFacetedFilters}
               getRowKey={(row) => row.id}
+              renderCard={(row) => <OwnerPaymentCard row={row} />}
               searchPlaceholder="Buscar por referencia o número"
               initialSort={{ columnId: "paymentDate", direction: "desc" }}
               emptyMessage="Todavía no hay pagos registrados."
@@ -209,6 +293,7 @@ export function IndividualFinancesView({
               rows={loaderData.comprobantes}
               columns={comprobanteColumns}
               getRowKey={(row) => row.id}
+              renderCard={(row) => <ComprobanteCard row={row} />}
               searchPlaceholder="Buscar por número"
               textFilterColumnId="numero"
               initialSort={{ columnId: "fecha", direction: "desc" }}
@@ -219,6 +304,7 @@ export function IndividualFinancesView({
               rows={loaderData.seminarFinanceRows}
               columns={seminarColumns}
               getRowKey={(row) => row.id}
+              renderCard={(row) => <SeminarFinanceCard row={row} />}
               searchPlaceholder="Buscar por instructor"
               textFilterColumnId="instructorName"
               initialSort={{ columnId: "scheduledDate", direction: "asc" }}

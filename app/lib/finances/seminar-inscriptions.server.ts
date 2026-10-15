@@ -6,6 +6,7 @@ import type {
   InscriptionAnomaly,
   InscriptionFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
+import type { InscriptionPersonKind } from "@/lib/roster/roster-person-kind.shared";
 import {
   resolveSeminarInscriptions,
   type SeminarInscriptionFinanceRow,
@@ -56,6 +57,10 @@ export type SeminarInscriptionFinanceDetailRow = {
   overAllocatedAmount: number | null;
   owedBalanceAmount: number | null;
   owedDepositAmount: number | null;
+  /** Who the inscription is of: an academy's `dancer` or `professor`, or an
+   * `individual` registered by itself (ADR-0019), which administration reads
+   * as `Particular`. */
+  personKind: InscriptionPersonKind;
   /** Whether the row holds a **reserved** place: uncovered, active and inside
    * its registration window (`readSeminarPlaces`). Its badge reads `Reservada`
    * instead of `Seña pendiente`. */
@@ -72,6 +77,7 @@ type SeminarPersonRow = SeminarInscriptionFinanceRow & {
   firstName: string;
   instructorName: string;
   lastName: string;
+  personKind: InscriptionPersonKind;
   scheduledDate: string;
 };
 
@@ -143,6 +149,7 @@ export async function readSeminarInscriptionFinanceRows(
               overAllocatedAmount: resolution.overAllocatedAmount,
               owedBalanceAmount: resolution.owedBalanceAmount,
               owedDepositAmount: resolution.owedDepositAmount,
+              personKind: person.personKind,
               reserved: reservedIds.has(person.id),
               scheduledDate: person.scheduledDate,
               seminarId: person.seminarId,
@@ -190,6 +197,7 @@ async function readSeminarPersonRows(
       instructorName: seminars.instructorName,
       lastName: seminarInscriptionPerson.lastName,
       individualId: seminarInscriptions.individualId,
+      personKind: seminarInscriptionPerson.kind,
       professorId: seminarInscriptions.professorId,
       requiredDepositPercentage: seminars.requiredDepositPercentage,
       scheduledDate: seminars.scheduledDate,

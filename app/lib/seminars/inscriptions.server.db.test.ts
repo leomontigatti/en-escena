@@ -18,8 +18,13 @@ import {
   listSeminarInscriptionsForAcademy,
   listSeminarPersonOptionsForAcademy,
 } from "@/lib/seminars/inscription-rosters.server";
+import { createSeminarPrice } from "@/lib/seminar-prices/repository.server";
 import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
-import { countCoveredSeminarInscriptions } from "@/lib/seminars/covered-inscriptions.server";
+import {
+  countCoveredSeminarInscriptions,
+  readSeminarPlaces,
+} from "@/lib/seminars/covered-inscriptions.server";
+import { readSeminarInscriptionFinanceRows } from "@/lib/finances/seminar-inscriptions.server";
 import { createSeminar, listSeminars } from "@/lib/seminars/repository.server";
 import { coverSeminarInscriptionDeposit } from "@/lib/seminars/seminars.test-support";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
@@ -38,7 +43,9 @@ installDatabaseTestHooks();
 const beforeStart = new Date("2026-10-10T21:29:00.000Z");
 const afterStart = new Date("2026-10-10T21:31:00.000Z");
 
-async function createSeminarFixture(quota = 2) {
+/** A seminar of an event whose price list opens registration, unless
+ * `withPrices` is false: "the event has no prices" is a state a test asks for. */
+async function createSeminarFixture(quota = 2, { withPrices = true } = {}) {
   const event = await createSavedEvent({
     name: "Regional 2026",
     active: false,
@@ -54,6 +61,10 @@ async function createSeminarFixture(quota = 2) {
 
   if (!seminar.ok) {
     throw new Error(`Expected the seminar to be saved: ${seminar.error}`);
+  }
+
+  if (withPrices) {
+    await createSeminarRegistrationPrices(event.id);
   }
 
   return { eventId: event.id, seminar: seminar.seminar };
@@ -552,6 +563,51 @@ describe("the administrative reading of a seminar's inscriptions", () => {
     });
     await expect(listSeminarInscriptions(seminar.id)).resolves.toHaveLength(1);
   });
+
+  // A direct POST used to register while the portal footer said
+  // registration was closed: the price check lived in the view alone.
+  test("refuses a registration while a participant cell has no price, whichever side registers", async () => {
+    const { eventId, seminar } = await createSeminarFixture(2, {
+      withPrices: false,
+    });
+    const academy = await createAcademy("Academia Sin Precios");
+    const dancer = await createDancer(academy.id);
+    const individual = await createIndividualUser({
+      email: `${crypto.randomUUID()}@example.com`,
+    });
+    // Only the participant cell: the other one would resolve to no price.
+    await createSeminarPrice(eventId, {
+      name: "Participante",
+      kind: "regular",
+      forParticipants: true,
+      paymentDeadline: null,
+      amount: 20000,
+    });
+
+    await expect(
+      registerDancerBeforeStart({
+        academyId: academy.id,
+        eventId,
+        personId: dancer.id,
+        seminarId: seminar.id,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      code: "prices-missing",
+      error: "Las inscripciones a este seminario todavía no están abiertas.",
+    });
+    await expect(
+      registerSeminarInscription({
+        academyId: individual.ownerId,
+        eventId,
+        now: beforeStart,
+        personId: individual.individualId,
+        personKind: "individual",
+        seminarId: seminar.id,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: "prices-missing" });
+    await expect(listSeminarInscriptions(seminar.id)).resolves.toEqual([]);
+  });
 });
 
 // #1665: an individual (`Particular`) registers itself, owned by its own owner
@@ -580,13 +636,12 @@ describe("an individual's own seminar inscription", () => {
     });
   }
 
-  async function readReservedUntil(inscriptionId: string) {
-    const [row] = await db
-      .select({ reservedUntil: seminarInscriptions.reservedUntil })
-      .from(seminarInscriptions)
-      .where(eq(seminarInscriptions.id, inscriptionId));
+  /** Whether the inscription holds a reserved place, as every quota reading
+   * counts it. */
+  async function holdsReservation(seminarId: string, inscriptionId: string) {
+    const places = await readSeminarPlaces([seminarId], beforeStart);
 
-    return row?.reservedUntil ?? null;
+    return places.get(seminarId)?.reservedIds.includes(inscriptionId) ?? false;
   }
 
   test("registers itself, reserves a free place and is read back as a `Particular`", async () => {
@@ -613,7 +668,9 @@ describe("an individual's own seminar inscription", () => {
       }),
     );
 
-    await expect(readReservedUntil(inscriptionId)).resolves.not.toBeNull();
+    await expect(holdsReservation(seminar.id, inscriptionId)).resolves.toBe(
+      true,
+    );
     await expect(
       listSeminarInscriptionsForAcademy({
         academyId: individual.ownerId,
@@ -641,7 +698,6 @@ describe("an individual's own seminar inscription", () => {
 
   test("registers into a full seminar without a place, and covering the deposit takes one", async () => {
     const { eventId, seminar } = await createSeminarFixture(1);
-    await createSeminarRegistrationPrices(eventId);
     const academy = await createAcademy("Academia Llena");
     const dancer = await createDancer(academy.id);
     const individual = await createIndividual();
@@ -660,7 +716,9 @@ describe("an individual's own seminar inscription", () => {
         seminarId: seminar.id,
       }),
     );
-    await expect(readReservedUntil(inscriptionId)).resolves.toBeNull();
+    await expect(holdsReservation(seminar.id, inscriptionId)).resolves.toBe(
+      false,
+    );
 
     // The academy's row frees the place; the individual's money takes it.
     await removeSeminarInscription({
@@ -744,7 +802,6 @@ describe("an individual's own seminar inscription", () => {
 
   test("deletes its inscription without money and withdraws one with money", async () => {
     const { eventId, seminar } = await createSeminarFixture(5);
-    await createSeminarRegistrationPrices(eventId);
     const individual = await createIndividual();
     const register = () =>
       registerIndividual(individual, { eventId, seminarId: seminar.id });
@@ -761,11 +818,14 @@ describe("an individual's own seminar inscription", () => {
       ok: true,
       withdrawn: false,
     });
+    // Deleted rather than withdrawn: not even the finance read, which keeps
+    // withdrawn rows, still has it.
     await expect(
-      db
-        .select({ id: seminarInscriptions.id })
-        .from(seminarInscriptions)
-        .where(eq(seminarInscriptions.id, unpaid)),
+      readSeminarInscriptionFinanceRows({
+        academyId: individual.ownerId,
+        eventId,
+        seminarId: seminar.id,
+      }),
     ).resolves.toEqual([]);
 
     const paid = expectRegistered(await register());

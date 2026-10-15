@@ -20,6 +20,7 @@ import {
   choreographyStatusFilterOptions,
   formatInscriptionStatusBadge,
   inscriptionFinancialStatusOptions,
+  linkedIndividualStatusFilterOption,
   waivedStatusFilterOption,
   withdrawnStatusFilterOption,
 } from "@/lib/finances/choreography-financial-status";
@@ -57,7 +58,11 @@ const seminarFinanceFacetedFilters: DataTableFacetedFiltersOf<
   {
     id: "estado",
     label: "Estado",
-    options: [...choreographyStatusFilterOptions],
+    // `Particular` is a seminar only the academy's linked individuals are in.
+    options: [
+      ...choreographyStatusFilterOptions,
+      linkedIndividualStatusFilterOption,
+    ],
     renderValue: renderInscriptionStatusFilterValue,
   },
 ];
@@ -182,10 +187,13 @@ const seminarFinanceColumns: DataTableColumn<SeminarFinanceRow>[] = [
   },
 ];
 
+/** A seminar only linked individuals put on the list reads `Particular`, as
+ * their rows do in its detail: it owes nothing, and no status describes it. */
 function resolveSeminarStatus(row: SeminarFinanceRow) {
   return resolveInscriptionStatusBadge({
     anomalies: row.anomalies,
     financialStatus: row.financialStatus,
+    linkedIndividual: row.linkedIndividualsOnly,
   });
 }
 

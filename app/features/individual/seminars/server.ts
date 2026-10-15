@@ -1,22 +1,14 @@
-import { and, asc, desc, eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  academies,
-  events,
-  seminarInscriptions,
-  seminarPrices,
-  seminars,
-} from "@/db/schema";
+import { seminarPrices } from "@/db/schema";
 import { requireIndividualUser } from "@/lib/auth/internal-access.server";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { selectCurrentSeminarPriceRow } from "@/lib/finances/seminar-inscription-price";
 import { isIndividualParticipating } from "@/lib/finances/seminar-participation.server";
-import { listIndividualsLinkedRosterRows } from "@/lib/individuals/link.server";
-import { deriveIndividualLinkState } from "@/lib/individuals/link-state";
-import { seminarInscriptionPersonColumn } from "@/lib/roster/roster-person-kind.server";
-import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
-import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
+import { listIndividualLinkedRosterRows } from "@/lib/individuals/link.server";
+import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
+import { listLinkedRowsAcademySeminarInscriptions } from "@/lib/seminars/linked-individual-inscriptions.server";
 import {
   readSeminarInscriptionFinanceRows,
   type SeminarInscriptionFinanceDetailRow,
@@ -43,7 +35,6 @@ import { readFormData } from "@/lib/shared/read-form-data";
 import {
   deleteIndividualSeminarInscriptionIntent,
   registerIndividualSeminarInscriptionIntent,
-  type IndividualAcademyMadeInscription,
   type IndividualSeminarRow,
   type IndividualSeminarsActionData,
   type IndividualSeminarsLoaderData,
@@ -58,16 +49,22 @@ import {
 export async function loadIndividualSeminars(
   request: Request,
 ): Promise<IndividualSeminarsLoaderData> {
-  const { individual } = await requireIndividualUser(request);
-  const activeEvent = await findActiveEvent();
-
-  const isLinked = deriveIndividualLinkState(individual) === "linked";
+  const [{ individual }, { activeEvent }] = await Promise.all([
+    requireIndividualUser(request),
+    getPortalActiveEventSummaryContext(request),
+  ]);
+  // The academy reads the individual's inscriptions only through an active
+  // row (`readLinkedIndividualSeminarInscriptions`), so a link that reaches
+  // archived rows alone tells the individual nothing.
+  const isSeenByAcademy = (
+    await listIndividualLinkedRosterRows(individual)
+  ).some((row) => row.status === "active");
 
   if (!activeEvent) {
     return {
       hasActiveEvent: false,
       hasRegistrationPrices: false,
-      isLinked,
+      isSeenByAcademy,
       seminars: [],
     };
   }
@@ -83,10 +80,10 @@ export async function loadIndividualSeminars(
         academyId: individual.ownerId,
         eventId: activeEvent.id,
       }),
-      readIndividualAcademyMadeSeminarInscriptions(
-        individual.id,
-        activeEvent.id,
-      ),
+      listLinkedRowsAcademySeminarInscriptions({
+        eventId: activeEvent.id,
+        individualId: individual.id,
+      }),
       isIndividualParticipating(db, {
         eventId: activeEvent.id,
         individualId: individual.id,
@@ -105,7 +102,7 @@ export async function loadIndividualSeminars(
   return {
     hasActiveEvent: true,
     hasRegistrationPrices: hasCompleteSeminarPriceCells(priceRows),
-    isLinked,
+    isSeenByAcademy,
     seminars: eventSeminars.map((seminar) => {
       const inscription = inscriptionsBySeminarId.get(seminar.id);
 
@@ -126,51 +123,6 @@ export async function loadIndividualSeminars(
       };
     }),
   };
-}
-
-/**
- * The academies' non-withdrawn inscriptions, in the event's seminars, of the
- * rows the individual's `Vinculado` link reaches, with the academy that made
- * each one. Without a confirmed link it reaches no row, so there are none.
- */
-async function readIndividualAcademyMadeSeminarInscriptions(
-  individualId: string,
-  eventId: string,
-): Promise<(IndividualAcademyMadeInscription & { seminarId: string })[]> {
-  const links = await listIndividualsLinkedRosterRows([individualId]);
-
-  if (links.length === 0) {
-    return [];
-  }
-
-  return await db
-    .select({
-      academyName: academies.name,
-      id: seminarInscriptions.id,
-      seminarId: seminarInscriptions.seminarId,
-    })
-    .from(seminarInscriptions)
-    .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
-    .innerJoin(
-      seminarInscriptionPerson,
-      eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
-    )
-    .innerJoin(academies, eq(academies.id, seminarInscriptionPerson.academyId))
-    .where(
-      and(
-        eq(seminars.eventId, eventId),
-        activeSeminarInscription(),
-        or(
-          ...links.map((link) =>
-            eq(
-              seminarInscriptionPersonColumn(link.rosterRowKind),
-              link.rosterRowId,
-            ),
-          ),
-        ),
-      ),
-    )
-    .orderBy(asc(academies.name), asc(seminarInscriptions.id));
 }
 
 type SeminarFacts = Omit<
@@ -228,14 +180,6 @@ function toInscribedFacts(
   };
 }
 
-function findActiveEvent() {
-  return db.query.events.findFirst({
-    columns: { id: true },
-    where: eq(events.active, true),
-    orderBy: [desc(events.startsAt)],
-  });
-}
-
 /** The figures of the individual's own inscriptions, through the one seminar
  * finance read every money surface shares, so `Seminarios` and the finances
  * cannot quote two prices for one inscription. */
@@ -271,7 +215,7 @@ export async function handleIndividualSeminarsAction(
     throw new Response("Acción no soportada.", { status: 400 });
   }
 
-  const activeEvent = await findActiveEvent();
+  const { activeEvent } = await getPortalActiveEventSummaryContext(request);
 
   if (intent === deleteIndividualSeminarInscriptionIntent) {
     return await removeInscription(formData, {

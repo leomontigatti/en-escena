@@ -175,10 +175,30 @@ async function readSeminarUnitRows(input: {
     );
 }
 
+/**
+ * A seminar the academy registered nobody in but a linked individual is in
+ * (ADR-0019), as the academy's finances list it: every figure zero, since the
+ * individual's inscription owes the academy nothing, and `registrationCount`
+ * zero, since it counts the academy's own. Built by the portal loaders beside
+ * this read's rows, never inside it, so no total, `Saldo disponible` or preset
+ * can count it.
+ */
+export function linkedIndividualsOnlySeminarFinanceRow(facts: {
+  academyId: string;
+  id: string;
+  instructorName: string;
+  scheduledDate: string;
+}): SeminarOperationalFinanceRow {
+  return { ...rollUpInscriptionFinanceFigures([]), ...facts };
+}
+
 /** The order the tab opens in: the seminar's moment, then its instructor. */
-function bySeminarSlot(
-  first: SeminarOperationalFinanceRow,
-  second: SeminarOperationalFinanceRow,
+export function bySeminarSlot(
+  first: Pick<SeminarOperationalFinanceRow, "instructorName" | "scheduledDate">,
+  second: Pick<
+    SeminarOperationalFinanceRow,
+    "instructorName" | "scheduledDate"
+  >,
 ) {
   return (
     first.scheduledDate.localeCompare(second.scheduledDate) ||

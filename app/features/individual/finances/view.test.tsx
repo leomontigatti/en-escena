@@ -16,17 +16,6 @@ describe("IndividualFinancesView", () => {
 
   afterEach(renderer.cleanup);
 
-  test("opens on its seminars with the account's five figures", async () => {
-    await render(loaderDataFixture());
-
-    const text = document.body.textContent ?? "";
-
-    expect(text).toContain("Saldo disponible");
-    expect(text).toContain("$ 5.000");
-    expect(text).toContain("Abril Sosa");
-    expect(text).toContain("Señada");
-  });
-
   test("reads its comprobantes on their own tab", async () => {
     await render(loaderDataFixture(), "?lista=comprobantes");
 

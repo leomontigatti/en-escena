@@ -9,6 +9,8 @@ import {
 } from "@/lib/seminars/linked-individual-inscriptions.server";
 import { getSeminar } from "@/lib/seminars/repository.server";
 
+import { withLinkedIndividualsOnlySeminars } from "../linked-individual-seminars.server";
+
 const seminarNotFoundMessage = "No encontramos ese seminario.";
 
 /**
@@ -32,34 +34,39 @@ export async function loadPortalSeminarFinanceDetail(input: {
   }
 
   const eventId = eventContext.activeEvent.id;
-  const financeDetail = await readAcademyEventOperationalFinanceDetail({
+  const [financeDetail, linkedIndividualInscriptions] = await Promise.all([
+    readAcademyEventOperationalFinanceDetail({
+      academyId: academy.id,
+      eventId,
+    }),
+    readLinkedIndividualSeminarInscriptions({
+      academyId: academy.id,
+      eventId,
+      seminarId,
+    }),
+  ]);
+  // The read model already comes scoped to the user's academy, so a seminar
+  // neither the academy nor its linked individuals are in is
+  // indistinguishable from a non-existent one. One only its linked
+  // individuals are in reads at zero, as the summary lists it.
+  const seminarFinanceRow = withLinkedIndividualsOnlySeminars({
     academyId: academy.id,
-    eventId,
-  });
-  // The read model already comes scoped to the user's academy, so a seminar the
-  // academy registered nobody in is indistinguishable from a non-existent one.
-  const seminarFinanceRow = financeDetail.seminarFinanceRows.find(
-    (row) => row.id === seminarId,
-  );
+    linkedInscriptions: linkedIndividualInscriptions,
+    seminarFinanceRows: financeDetail.seminarFinanceRows,
+  }).find((row) => row.id === seminarId);
 
   if (!seminarFinanceRow) {
     throw new Response(seminarNotFoundMessage, { status: 404 });
   }
 
-  const [inscriptions, linkedIndividualInscriptions, seminarRow] =
-    await Promise.all([
-      readSeminarInscriptionFinanceRows({
-        academyId: academy.id,
-        eventId,
-        seminarId,
-      }),
-      readLinkedIndividualSeminarInscriptions({
-        academyId: academy.id,
-        eventId,
-        seminarId,
-      }),
-      getSeminar(seminarId),
-    ]);
+  const [inscriptions, seminarRow] = await Promise.all([
+    readSeminarInscriptionFinanceRows({
+      academyId: academy.id,
+      eventId,
+      seminarId,
+    }),
+    getSeminar(seminarId),
+  ]);
 
   return {
     // The academy's and not the seminar's: money paid but not allocated belongs

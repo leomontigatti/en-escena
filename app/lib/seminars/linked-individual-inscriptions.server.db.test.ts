@@ -35,7 +35,9 @@ describe("the linked individuals' seminar inscriptions an academy sees", () => {
       {
         firstName: "Ana",
         inscriptionId,
+        instructorName: "Abril Sosa",
         lastName: "Pérez",
+        scheduledDate: "2099-10-10",
         seminarId: fixture.seminarId,
       },
     ]);
@@ -55,7 +57,9 @@ describe("the linked individuals' seminar inscriptions an academy sees", () => {
       {
         firstName: "Anita",
         inscriptionId,
+        instructorName: "Abril Sosa",
         lastName: "Pérez Gil",
+        scheduledDate: "2099-10-10",
         seminarId: fixture.seminarId,
       },
     ]);

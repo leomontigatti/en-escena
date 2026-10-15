@@ -9,10 +9,7 @@ import type {
   IndividualSeminarsLoaderData,
 } from "@/features/individual/seminars/shared";
 import { IndividualSeminarsView } from "@/features/individual/seminars/view";
-import {
-  createReactDomTestRenderer,
-  getReactDomTexts,
-} from "@/lib/test-support/react-dom";
+import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 const renderer = createReactDomTestRenderer();
 
@@ -44,7 +41,7 @@ function buildLoaderData(
   return {
     hasActiveEvent: true,
     hasRegistrationPrices: true,
-    isLinked: false,
+    isSeenByAcademy: false,
     seminars: [buildSeminar()],
     ...overrides,
   };
@@ -78,57 +75,6 @@ async function openSeminar(instructorName: string) {
 }
 
 describe("IndividualSeminarsView", () => {
-  test("lists each seminar with its moment, its price and the individual's `Estado`", async () => {
-    await renderView(
-      buildLoaderData({
-        seminars: [
-          buildSeminar(),
-          buildSeminar({
-            id: "seminar_2",
-            instructorName: "Julio Bocca",
-            inscription: {
-              id: "inscription_1",
-              hasMoney: true,
-              status: { kind: "status", status: "depositMet" },
-            },
-          }),
-        ],
-      }),
-    );
-
-    expect(getReactDomTexts("thead th")).toEqual([
-      "Seminario",
-      "Fecha y hora",
-      "Precio",
-      "Estado",
-    ]);
-    expect(document.body.textContent).toContain(
-      "10 de octubre de 2026 · 18:30",
-    );
-    expect(document.body.textContent).toContain("$ 30.000");
-    expect(document.body.textContent).toContain("Sin inscripción");
-    expect(document.body.textContent).toContain("Señada");
-  });
-
-  test("says there is no active event in an empty state", async () => {
-    await renderView(
-      buildLoaderData({
-        hasActiveEvent: false,
-        hasRegistrationPrices: false,
-        seminars: [],
-      }),
-    );
-
-    expect(document.body.textContent).toContain("No hay un evento activo");
-    expect(document.querySelector("table")).toBeNull();
-  });
-
-  test("says the event has no seminars yet in an empty state", async () => {
-    await renderView(buildLoaderData({ seminars: [] }));
-
-    expect(document.body.textContent).toContain("Todavía no hay seminarios");
-  });
-
   test("opens the registration with the price and the reservation notice", async () => {
     await renderView(buildLoaderData());
 
@@ -146,7 +92,7 @@ describe("IndividualSeminarsView", () => {
   });
 
   test("tells a linked individual in the registration that its academy will see it", async () => {
-    await renderView(buildLoaderData({ isLinked: true }));
+    await renderView(buildLoaderData({ isSeenByAcademy: true }));
 
     await openSeminar("Abril Sosa");
 

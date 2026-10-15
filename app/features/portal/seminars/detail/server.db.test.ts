@@ -2,9 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { seminarInscriptions } from "@/db/schema";
-import { confirmIndividualLink } from "@/lib/individuals/link.server";
-import { createSignedInRequest } from "@/lib/test-support/auth";
-import { createIndividualUser } from "@/lib/test-support/individuals";
+import { createLinkedIndividualUser } from "@/lib/test-support/individuals";
 import {
   createDancer,
   createProfessor,
@@ -382,26 +380,11 @@ describe("a linked individual's inscription on the portal seminar detail", () =>
 });
 
 const linkedDocumentNumber = "30123456";
-const linkedPhotoKey = "individuals/photo.jpg";
 
-async function createLinkedIndividual() {
-  const individual = await createIndividualUser({
+/** A `Particular` whose link administration confirmed for its document. */
+function createLinkedIndividual() {
+  return createLinkedIndividualUser({
     documentNumber: linkedDocumentNumber,
-    documentPhotoStorageKey: linkedPhotoKey,
     email: `particular.${crypto.randomUUID()}@example.com`,
   });
-  const admin = await createSignedInRequest({
-    email: `admin.${crypto.randomUUID()}@example.com`,
-    role: "admin",
-  });
-  const confirmed = await confirmIndividualLink({
-    confirmedByUserId: admin.userId,
-    documentNumber: linkedDocumentNumber,
-    documentPhotoStorageKey: linkedPhotoKey,
-    individualId: individual.individualId,
-  });
-
-  expect(confirmed).toEqual({ ok: true });
-
-  return individual;
 }

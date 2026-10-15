@@ -1,20 +1,14 @@
-import { eq, inArray } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import {
-  paymentAllocations,
-  payments,
-  seminarInscriptions,
-  seminarPrices,
-  seminars,
-} from "@/db/schema";
+import { seminarInscriptions, seminarPrices, seminars } from "@/db/schema";
 import {
   handlePaymentCreateAction,
   loadPaymentCreate,
 } from "@/features/admin/payments/create/server";
 import { buildGlobalPaymentRequest } from "@/lib/admin/finances/finances.test-support";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
+import { readOwnerEventPayments } from "@/lib/finances/owner-event-payments.server";
 import {
   paySeminarsPreset,
   readSeminarCobroPreviews,
@@ -23,6 +17,7 @@ import {
   allocateToSeminarInscription,
   readSeminarInscriptionPriceOptions,
 } from "@/lib/finances/seminar-inscription-allocation.server";
+import { readSeminarInscriptionFinanceRows } from "@/lib/finances/seminar-inscriptions.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createSavedEvent } from "@/lib/test-support/events";
@@ -101,21 +96,14 @@ async function recordPayment(ownerId: string, amount: number) {
   );
 }
 
-async function readAllocated(inscriptionIds: string[]) {
-  const rows = await db
-    .select({
-      amount: paymentAllocations.amount,
-      inscriptionId: paymentAllocations.seminarInscriptionId,
-    })
-    .from(paymentAllocations)
-    .where(inArray(paymentAllocations.seminarInscriptionId, inscriptionIds));
+/** What each inscription holds, as the seminar finance read reports it. */
+async function readAllocated(eventId: string, inscriptionIds: string[]) {
+  const rows = await readSeminarInscriptionFinanceRows({ eventId });
 
   return new Map(
     inscriptionIds.map((id) => [
       id,
-      rows
-        .filter((row) => row.inscriptionId === id)
-        .reduce((sum, row) => sum + row.amount, 0),
+      rows.find((row) => row.inscriptionId === id)?.allocatedAmount,
     ]),
   );
 }
@@ -154,11 +142,9 @@ describe("an individual's seminar money", () => {
 
     await recordPayment(ownerId, 20000);
 
-    const [payment] = await db
-      .select({ academyId: payments.academyId, eventId: payments.eventId })
-      .from(payments)
-      .where(eq(payments.academyId, ownerId));
-    expect(payment).toEqual({ academyId: ownerId, eventId: fixture.event.id });
+    await expect(
+      readOwnerEventPayments({ academyId: ownerId, eventId: fixture.event.id }),
+    ).resolves.toMatchObject([{ amount: 20000 }]);
 
     const [first] = fixture.inscriptions;
     // The allocation dialog offers the individual its own cell, as it offers
@@ -204,6 +190,23 @@ describe("an individual's seminar money", () => {
     );
   });
 
+  // Administration's seminar finance views used to name an individual like a
+  // dancer, with nothing to tell the two apart.
+  test("the seminar finance read names the individual's inscriptions by their kind", async () => {
+    const fixture = await seedIndividualInTwoSeminars();
+
+    const rows = await readSeminarInscriptionFinanceRows({
+      eventId: fixture.event.id,
+    });
+
+    expect(
+      rows.map(({ lastName, personKind }) => ({ lastName, personKind })),
+    ).toEqual([
+      { lastName: "Pérez", personKind: "individual" },
+      { lastName: "Pérez", personKind: "individual" },
+    ]);
+  });
+
   test("`Pagar seña` over its seminars names the individual and funds each deposit", async () => {
     const fixture = await seedIndividualInTwoSeminars();
     const { ownerId } = fixture.individual;
@@ -235,7 +238,10 @@ describe("an individual's seminar money", () => {
 
     expect(result).toMatchObject({ ok: true });
     expect(
-      await readAllocated(fixture.inscriptions.map((row) => row.id)),
+      await readAllocated(
+        fixture.event.id,
+        fixture.inscriptions.map((row) => row.id),
+      ),
     ).toEqual(
       new Map(fixture.inscriptions.map((row) => [row.id, priceAmount / 2])),
     );

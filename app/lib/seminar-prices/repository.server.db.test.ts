@@ -17,7 +17,6 @@ import {
   type SeminarPriceInput,
   type SeminarPriceRow,
 } from "@/lib/seminar-prices/repository.server";
-import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSavedEvent, eventDates } from "@/lib/test-support/events";
@@ -343,22 +342,16 @@ async function createSeminarInscriptionFixture() {
     firstName: "Abril",
     lastName: "Sosa",
   });
-  const registered = await registerSeminarInscription({
-    academyId: academy.id,
-    eventId: event.id,
-    now: new Date("2026-10-10T21:29:00.000Z"),
-    personId: dancer.id,
-    personKind: "dancer",
-    seminarId: seminar.seminar.id,
-  });
-
-  if (!registered.ok) {
-    throw new Error(`Expected the inscription: ${registered.error}`);
-  }
+  // Written directly: registration refuses an event whose price list is
+  // incomplete, and these tests build the price list after the inscription.
+  const [inscription] = await db
+    .insert(seminarInscriptions)
+    .values({ dancerId: dancer.id, seminarId: seminar.seminar.id })
+    .returning({ id: seminarInscriptions.id });
 
   return {
     event,
     seminar: seminar.seminar,
-    inscriptionId: registered.inscriptionId,
+    inscriptionId: inscription!.id,
   };
 }

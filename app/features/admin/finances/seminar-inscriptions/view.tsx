@@ -12,6 +12,7 @@ import { DataTableTruncatedText } from "@/components/shared/data-table-truncated
 import { MetricCard } from "@/components/shared/metric-card";
 import { Button } from "@/components/ui/button";
 import { InscriptionMoneyDialog } from "@/features/admin/finances/inscription-money/dialog";
+import { IndividualPersonBadge } from "@/features/admin/finances/individual-person-badge";
 import { formatDate } from "@/features/admin/schedules/view-shared";
 import {
   formatDancerName,
@@ -217,16 +218,19 @@ function buildInscriptionColumns(
       header: "Inscripto",
       className: "font-medium",
       cell: (inscription) => (
-        <DataTableTruncatedText value={formatDancerName(inscription)}>
-          <Button
-            type="button"
-            variant="link"
-            className="h-auto p-0 text-left font-medium"
-            onClick={() => onOpenMoneyDialog(inscription.inscriptionId)}
-          >
-            {formatDancerName(inscription)}
-          </Button>
-        </DataTableTruncatedText>
+        <span className="flex min-w-0 items-center gap-2">
+          <DataTableTruncatedText value={formatDancerName(inscription)}>
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 text-left font-medium"
+              onClick={() => onOpenMoneyDialog(inscription.inscriptionId)}
+            >
+              {formatDancerName(inscription)}
+            </Button>
+          </DataTableTruncatedText>
+          <IndividualPersonBadge personKind={inscription.personKind} />
+        </span>
       ),
       sortValue: (inscription) => formatDancerName(inscription),
       width: 18,

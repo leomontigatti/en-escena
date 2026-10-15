@@ -477,6 +477,7 @@ function seminarFinanceRowFixture(
     id: "seminar_1",
     overAllocatedAmount: 0,
     instructorName: "Abril Sosa",
+    linkedIndividualsOnly: false,
     owedBalanceAmount: { amount: 5000, status: "complete" },
     owedDepositAmount: { amount: 2500, status: "complete" },
     registrationCount: 2,

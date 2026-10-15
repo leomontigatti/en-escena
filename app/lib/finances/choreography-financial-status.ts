@@ -160,8 +160,9 @@ export const withdrawnStatusFilterOption = {
 } as const satisfies { label: string; value: string };
 
 /**
- * The `Particular` option, for the academy's seminar financial detail: the one
- * list whose `Estado` column can badge a row with it.
+ * The `Particular` option, for the academy's seminar lists: its seminar
+ * financial detail badges a linked individual's row with it, and its
+ * `Seminarios` tab a seminar only linked individuals are in.
  */
 export const linkedIndividualStatusFilterOption = {
   label: linkedIndividualInscriptionLabel,
