@@ -7,6 +7,7 @@ import {
   getFieldErrors,
   type FieldErrors,
 } from "@/lib/shared/form-validation";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 export type PublicAccessFormResult<
   FieldName extends string,
@@ -53,7 +54,7 @@ export async function parsePublicAccessForm<
   fieldNames: readonly FieldName[];
   preservedValueFields?: readonly FieldName[];
 }): Promise<ParsePublicAccessFormResult<Schema, FieldName>> {
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const values = getPublicAccessFormValues({
     formData,
     fieldNames,

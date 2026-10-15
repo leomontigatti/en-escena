@@ -205,12 +205,18 @@ Retention there is short: `rylai`'s `/etc/docker/daemon.json` caps each
 container's `json-file` log at three 10 MB files, and every deploy replaces the
 container, so its lines go with it. A browser error writes the same line tagged
 `[client:unexpected]`, without user id, method or release, to that browser's
-console, and posts it to `/internal/client-error`. The endpoint takes only a
+console, and posts it to `/internal/client-error`, once per error object: a
+failed navigation hands one error to every boundary it reached. The endpoint takes only a
 same-origin JSON body under 8 KB, at most 60 per address (`CF-Connecting-IP`,
 an IPv6 one counted by its /64) every 10 minutes, and stamps the server's
 release and the session's user. Anyone can forge such a report, so browser
 reports send at most 20 alerts an hour between them; past that they are kept
-without alerting, and server errors still alert. The
+without alerting, and server errors still alert. A report whose first line is
+a browser's lost connection (`Failed to fetch`, `Load failed`,
+`NetworkError when attempting to fetch resource.`) is kept without its own
+alert: the user's network failed, not our code. When five addresses report one
+within an hour, one `[client:lost-connection]` alert goes out instead, since a
+proxy, TLS or CSP failure in front of the app never reaches the server. The
 release is never in the HTML: the repository is public, so the deployed commit
 would tell anyone which fixes are not live yet.
 

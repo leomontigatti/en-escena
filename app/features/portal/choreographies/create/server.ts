@@ -18,6 +18,7 @@ import { getPortalChoreographyCreationAvailability } from "@/lib/portal/choreogr
 import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
 import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 const choreographiesListPath = "/portal/coreografias";
 
@@ -68,7 +69,7 @@ export type CreateChoreographyRouteData = Awaited<
 
 export async function handleCreateChoreographyAction(request: Request) {
   const { academy } = await requireAcademyUser(request);
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const intent = readFormString(formData, "intent");
 
   if (intent === RESOLVE_CHOREOGRAPHY_REGISTRATION_INTENT) {

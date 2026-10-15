@@ -25,6 +25,7 @@ import { readParticipationRows } from "@/lib/presentations/participation.server"
 import { matchesPresentationSearch } from "@/lib/presentations/search";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
+import { readFormData } from "@/lib/shared/read-form-data";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import { namedListDay, selectListDay } from "@/lib/shared/url-tab";
 
@@ -196,7 +197,7 @@ export async function handleResultsListAction(
 ): Promise<ResultsListActionData | ReturnType<typeof data>> {
   await requireAdminPanelWriter(request);
   const eventContext = await loadEventContext(request);
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const intent = formData.get("intent");
 
   if (!eventContext.selectedEventId) {

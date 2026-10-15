@@ -21,6 +21,7 @@ import type {
   ChoreographyProfessorOption,
 } from "@/lib/choreographies/choreography-roster.shared";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 import {
   findChoreographyDetail,
@@ -228,7 +229,7 @@ export async function handleChoreographyDetailAction(input: {
     selectedEventId: eventContext.selectedEventId,
   });
 
-  const formData = await input.request.formData();
+  const formData = await readFormData(input.request);
   const intent = formData.get("intent");
 
   assertChoreographyAcceptsIntent({ choreography });

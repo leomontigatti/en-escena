@@ -36,6 +36,7 @@ import {
   readDancerUpdateValues,
 } from "./shared";
 import { getRosterPersonNotFoundMessage } from "@/lib/roster/roster-person-kind.shared";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 export async function loadDancerDetail(input: {
   request: Request;
@@ -93,7 +94,7 @@ export async function handleDancerDetailAction(input: {
   }
 
   const dancerId = readDancerId(input.params);
-  const formData = await input.request.formData();
+  const formData = await readFormData(input.request);
   const intent = formData.get("intent");
   const dancer = await findDancer({
     dancerId,

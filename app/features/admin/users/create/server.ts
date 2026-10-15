@@ -1,6 +1,7 @@
 import { createInternalUser } from "@/lib/admin/users/internal-user-create.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 import {
   createInternalUserSchema,
@@ -16,7 +17,7 @@ export async function loader({ request }: { request: Request }) {
 
 export async function action({ request }: { request: Request }) {
   const appUser = await requireAdminPanelWriter(request);
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const values = readCreateInternalUserFormValues(formData);
   const parsed = createInternalUserSchema.safeParse(values);
 

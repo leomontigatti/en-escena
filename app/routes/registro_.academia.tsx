@@ -23,6 +23,7 @@ import {
 } from "@/lib/shared/form-validation";
 import { isPublicAccessFormSubmitting } from "@/lib/auth/public-access-route.shared";
 import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
+import { readFormData } from "@/lib/shared/read-form-data";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 import { contentTextField } from "@/lib/shared/text-content";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -65,7 +66,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const values = {
     academyName: readFormValue(formData.get("academyName")),
     contactName: readFormValue(formData.get("contactName")),

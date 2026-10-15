@@ -17,6 +17,7 @@ import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.s
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { buildDetailPath, buildListPath } from "@/lib/shared/navigation";
+import { readFormData } from "@/lib/shared/read-form-data";
 import { formatUploadRejection } from "@/lib/storage/asset-kinds";
 import { createDefaultSeminarPictureStorage } from "@/lib/storage/seminar-pictures.server";
 
@@ -45,7 +46,7 @@ export async function handleSeminarCreateAction(
   request: Request,
 ): Promise<SeminarActionData | never> {
   const { selectedEventId } = await loadSeminarContext(request);
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const values = readSeminarFormValues(formData);
 
   if (!selectedEventId) {
@@ -80,7 +81,7 @@ export async function handleSeminarDetailAction(
   seminarId: string,
 ): Promise<SeminarActionData | never> {
   const { selectedEventId } = await loadSeminarContext(request);
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const intent = String(formData.get("intent") ?? "");
 
   if (intent === deleteSeminarIntent) {
