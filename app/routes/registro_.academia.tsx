@@ -7,6 +7,7 @@ import { AccessTextField, useAccessForm } from "@/components/auth/access-form";
 import { SelectField } from "@/components/shared/select-field";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import {
   completeAcademyOnboarding,
   requireAcademyOnboardingUser,
@@ -90,9 +91,9 @@ export async function action({ request }: Route.ActionArgs) {
     acknowledgedDuplicateIds: readAcknowledgedDuplicateIds(formData),
     city: parsed.data.city,
     contactName: parsed.data.contactName,
+    onboardingUser: await requireAcademyOnboardingUser(request),
     phone: parsed.data.phone,
     province: parsed.data.province,
-    request,
   });
 
   if (!result.ok && "warning" in result) {
@@ -124,6 +125,7 @@ const academyOnboardingFormId = "academy-onboarding-form";
 export default function AcademyOnboardingRoute() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
+  const isSubmitting = isPublicAccessFormSubmitting(navigation);
   const form = useAccessForm({
     schema: academyOnboardingSchema,
     values: actionData?.values ?? emptyAcademyOnboardingValues,
@@ -197,7 +199,10 @@ export default function AcademyOnboardingRoute() {
             name="city"
           />
 
-          <Button className="w-full" type="submit">
+          <Button className="w-full" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <Spinner aria-hidden="true" data-icon="inline-start" />
+            ) : null}
             Crear academia
           </Button>
         </FieldGroup>
@@ -206,7 +211,7 @@ export default function AcademyOnboardingRoute() {
       {warning ? (
         <AcademyNameWarningDialog
           formId={academyOnboardingFormId}
-          isPending={isPublicAccessFormSubmitting(navigation)}
+          isPending={isSubmitting}
           matches={warning.matches}
         />
       ) : null}
