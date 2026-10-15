@@ -1,3 +1,4 @@
+import { choreographyClassificationColumns } from "@/components/shared/choreography-classification-columns";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import { AwardBadge } from "@/components/shared/award-badge";
 import {
@@ -14,9 +15,7 @@ import {
   listProgramDays,
 } from "@/features/program/shared";
 import { ProgramRowCard, ProgramRowName } from "@/features/program/row-card";
-import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { matchesPresentationSearch } from "@/lib/presentations/search";
-import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
 import type { PortalResultRow, PortalResultsLoaderData } from "./server";
 
@@ -38,7 +37,7 @@ const resultsColumns: DataTableColumn<PortalResultRow>[] = [
   {
     id: "name",
     header: "Nombre",
-    width: 20,
+    width: 15,
     className: "font-medium",
     cell: (row) => <ProgramRowName row={row} to={evaluationPath(row)} />,
   },
@@ -57,38 +56,13 @@ const resultsColumns: DataTableColumn<PortalResultRow>[] = [
     className: "tabular-nums",
     cell: formatAverage,
   },
-  {
-    id: "modality",
-    header: "Modalidad / Submodalidad",
-    width: 18,
-    className: "text-muted-foreground",
-    cell: (row) => (
-      <DataTableTruncatedText
-        value={formatPrimaryAndSecondaryValue(
-          row.modalityName,
-          row.submodalityName,
-        )}
-      />
-    ),
-  },
-  {
-    id: "categoryGroup",
-    header: "Categoría / Tipo de grupo",
-    width: 18,
-    className: "text-muted-foreground",
-    cell: (row) => (
-      <DataTableTruncatedText
-        value={formatPrimaryAndSecondaryValue(
-          row.categoryName,
-          formatGroupTypeLabel(row.groupType),
-        )}
-      />
-    ),
-  },
+  ...choreographyClassificationColumns<PortalResultRow>({
+    widths: { modality: 21, categoryGroup: 21 },
+  }),
   {
     id: "experienceLevel",
     header: "Nivel",
-    width: 11,
+    width: 10,
     className: "text-muted-foreground",
     cell: (row) => <DataTableTruncatedText value={row.levelLabel} />,
   },
