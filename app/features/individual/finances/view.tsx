@@ -18,7 +18,8 @@ import {
   formatComprobanteTipoInitials,
   formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
-import { formatAmount, formatDate } from "@/lib/finances/formatters";
+import { formatDate } from "@/features/admin/schedules/view-shared";
+import { formatAmount } from "@/lib/finances/formatters";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { operationalFinanceColumns } from "@/lib/finances/operational-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
