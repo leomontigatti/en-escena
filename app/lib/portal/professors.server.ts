@@ -1,6 +1,7 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import { requireAcademyOwner } from "@/lib/academies/owner-kind.server";
 import { findProfessorNameWarning } from "@/lib/roster/roster-name-duplicates.server";
 import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import { professors } from "@/db/schema";
@@ -110,6 +111,8 @@ export async function createAcademyProfessor(
   input: CreateProfessorInput,
   options: { acknowledgedDuplicateIds?: readonly string[] } = {},
 ): Promise<CreateProfessorResult> {
+  await requireAcademyOwner(academyId);
+
   const values = {
     firstName: input.firstName,
     lastName: input.lastName,

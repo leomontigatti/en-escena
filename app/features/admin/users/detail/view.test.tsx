@@ -300,6 +300,27 @@ describe("InternalUserDetailRouteView", () => {
     expect(action).toHaveBeenCalledTimes(1);
   });
 
+  // An individual's link is `Particulares`' to show and change.
+  test("shows an individual's access read-only, like an academy user's", async () => {
+    await renderDetail({
+      user: {
+        email: "ana@example.com",
+        identifier: "ana@example.com",
+        mainRole: "individual",
+        name: "Ana Acosta",
+        userType: "individual",
+      },
+    });
+
+    const text = document.body.textContent ?? "";
+
+    expect(text).toContain("Particular");
+    expect(text).toContain("Correo de acceso");
+    expect(text).not.toContain("Foto del documento");
+    expect(text).not.toContain("Confirmar vínculo");
+    expect(text).not.toContain("Acciones");
+  });
+
   async function renderDetail({
     action = vi.fn(async () => null),
     navigation = { state: "idle" },

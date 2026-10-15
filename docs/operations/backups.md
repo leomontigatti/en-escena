@@ -243,7 +243,7 @@ AWS_SECRET_ACCESS_KEY="your-b2-application-key"
 AWS_DEFAULT_REGION="us-east-005"
 
 STORAGE_VOLUME_DIR="/var/lib/en-escena/storage"
-STORAGE_BACKUP_BUCKETS="en-escena-dancer-documents,en-escena-choreography-music,en-escena-event-documents,en-escena-feedback-audio,enescena-seminar-pictures,en-escena-grand-final-banners"
+STORAGE_BACKUP_BUCKETS="en-escena-dancer-documents,en-escena-choreography-music,en-escena-event-documents,en-escena-feedback-audio,enescena-seminar-pictures,en-escena-grand-final-banners,en-escena-individual-documents"
 BACKUP_SYNC_MODE="copy"
 B2_FILESTORE_BUCKET="en-escena-filestore-backups"
 B2_FILESTORE_PREFIX="filestore"
@@ -300,6 +300,9 @@ Not done by the repo, and not done yet:
    the same way, before the first banner is uploaded: the `Gran final` banners
    (see [Infrastructure](./infrastructure.md#gran-final-banner-contract)) are
    what the vote page shows on voting night.
+5. Add `en-escena-individual-documents` to `STORAGE_BACKUP_BUCKETS` in Coolify
+   the same way, before the first individual uploads its document photo (see
+   [Infrastructure](./infrastructure.md#individual-document-photo-contract)).
 
 ## Runtime Requirements
 

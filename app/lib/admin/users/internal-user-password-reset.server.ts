@@ -57,7 +57,7 @@ export async function resetInternalUserPassword(
   });
 
   if (!existingUser) {
-    return resetPasswordError("No encontramos ese Usuario.");
+    return resetPasswordError("No encontramos ese usuario.");
   }
 
   if (

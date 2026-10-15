@@ -5,6 +5,7 @@ import {
   ClipboardList,
   GraduationCap,
   HandCoins,
+  IdCard,
   Music2,
   Presentation,
   ShieldUser,
@@ -207,6 +208,13 @@ const auditorHomeCards = [
     description: "Consultá los datos y el contacto de cada academia.",
     icon: BuildingComplex,
     to: "/administracion/academias",
+  },
+  {
+    title: "Particulares",
+    description:
+      "Consultá los particulares y el vínculo de su documento con las academias.",
+    icon: IdCard,
+    to: "/administracion/particulares",
   },
   {
     title: "Bailarines",

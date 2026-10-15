@@ -71,7 +71,7 @@ export async function updateAcademyProfile(
     .returning();
 
   if (!academy) {
-    throw new Response("No encontramos esa Academia.", { status: 404 });
+    throw new Response("No encontramos esa academia.", { status: 404 });
   }
 
   return { ok: true, academy };

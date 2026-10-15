@@ -2,13 +2,14 @@ import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import { academies, accessSession, user } from "@/db/schema";
+import { academies, accessSession, individuals, user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { redirectToLoginForRequest } from "@/lib/auth/access-redirects.server";
-import { PUBLIC_ACADEMY_ONBOARDING_PATH } from "@/lib/auth/access-paths.shared";
+import { PUBLIC_ONBOARDING_PATH } from "@/lib/auth/access-paths.shared";
 import { toUserAccessState } from "@/lib/auth/user-access-state.shared";
 import {
   canDownloadAuditorExports,
+  canEnterIndividualArea,
   canEnterJudgePanel,
   canEnterPortal,
   canReadAdminPanel,
@@ -104,7 +105,7 @@ export async function requireSignedInUser(request: Request) {
   const accessState = await requireSignedInAccessState(request);
 
   if (accessState.kind === "academy-onboarding") {
-    throw redirect(PUBLIC_ACADEMY_ONBOARDING_PATH);
+    throw redirect(PUBLIC_ONBOARDING_PATH);
   }
 
   return accessState.user;
@@ -114,7 +115,7 @@ export async function requireAcademyUser(request: Request) {
   const appUser = await requireSignedInUser(request);
 
   if (!canEnterPortal(appUser.role)) {
-    throwForbidden("Los usuarios internos no pueden acceder al portal.");
+    throwForbidden("El Portal de academias es solo para academias.");
   }
 
   const academy = await db.query.academies.findFirst({
@@ -131,10 +132,47 @@ export async function requireAcademyUser(request: Request) {
   });
 
   if (!academy) {
-    throw redirect(PUBLIC_ACADEMY_ONBOARDING_PATH);
+    throw redirect(PUBLIC_ONBOARDING_PATH);
   }
 
   return { user: appUser, academy };
+}
+
+/**
+ * The guard of the individual's own area (ADR-0019): a `Particular` with its
+ * person, which it returns with the phone its owner row holds. An academy or
+ * an internal user is refused; an individual user without its person (which
+ * onboarding never leaves) goes back to onboarding.
+ */
+export async function requireIndividualUser(request: Request) {
+  const appUser = await requireSignedInUser(request);
+
+  if (!canEnterIndividualArea(appUser.role)) {
+    throwForbidden("Esta sección es solo para cuentas de particular.");
+  }
+
+  const [individual] = await db
+    .select({
+      id: individuals.id,
+      ownerId: academies.id,
+      firstName: individuals.firstName,
+      lastName: individuals.lastName,
+      documentType: individuals.documentType,
+      documentNumber: individuals.documentNumber,
+      documentPhotoStorageKey: individuals.documentPhotoStorageKey,
+      linkConfirmedDocumentNumber: individuals.linkConfirmedDocumentNumber,
+      phone: academies.phone,
+    })
+    .from(academies)
+    .innerJoin(individuals, eq(individuals.academyId, academies.id))
+    .where(eq(academies.userId, appUser.id))
+    .limit(1);
+
+  if (!individual) {
+    throw redirect(PUBLIC_ONBOARDING_PATH);
+  }
+
+  return { user: appUser, individual };
 }
 
 /**

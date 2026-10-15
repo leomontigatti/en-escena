@@ -4,16 +4,20 @@ import { redirect } from "react-router";
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
-import { PUBLIC_ACADEMY_ONBOARDING_PATH } from "@/lib/auth/access-paths.shared";
+import { PUBLIC_ONBOARDING_PATH } from "@/lib/auth/access-paths.shared";
 import { createLegacySessionCookieClearHeaders } from "@/lib/auth/legacy-session-cookies.server";
 import { requireSignedInAccessState } from "@/lib/auth/internal-access.server";
-import { getLandingPath, type UserRole } from "@/lib/auth/user-role.shared";
+import {
+  getLandingPath,
+  isEmailSignUpRole,
+  type UserRole,
+} from "@/lib/auth/user-role.shared";
 
 export async function getLandingPathForSignedInUser(request: Request) {
   const accessState = await requireSignedInAccessState(request);
 
   if (accessState.kind === "academy-onboarding") {
-    return PUBLIC_ACADEMY_ONBOARDING_PATH;
+    return PUBLIC_ONBOARDING_PATH;
   }
 
   const appUser = accessState.user;
@@ -68,7 +72,7 @@ export async function getPostLoginPathForRequest(
   const accessState = await requireSignedInAccessState(request);
 
   if (accessState.kind === "academy-onboarding") {
-    return PUBLIC_ACADEMY_ONBOARDING_PATH;
+    return PUBLIC_ONBOARDING_PATH;
   }
 
   return await getPostLoginPathForAppUser(accessState.user, redirectTo);
@@ -81,14 +85,16 @@ async function getPostLoginPathForAppUser(
   },
   redirectTo?: string | null,
 ) {
-  if (appUser.role === "academy") {
-    const academy = await db.query.academies.findFirst({
+  // A user who signs up by email holds no account until onboarding gives it
+  // its owner row, and resumes onboarding until then.
+  if (isEmailSignUpRole(appUser.role)) {
+    const owner = await db.query.academies.findFirst({
       columns: { id: true },
       where: eq(academies.userId, appUser.id),
     });
 
-    if (!academy) {
-      return PUBLIC_ACADEMY_ONBOARDING_PATH;
+    if (!owner) {
+      return PUBLIC_ONBOARDING_PATH;
     }
   }
 

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
@@ -12,6 +12,7 @@ import {
 } from "@/lib/academies/academy-merge.server";
 import { mergeAcademyIntent } from "@/lib/academies/academy-merge.shared";
 import { updateAcademyProfile } from "@/lib/academies/academy-profile.server";
+import { academyOwner } from "@/lib/academies/owner-kind.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { getAcademyDataStatus } from "@/lib/academies/academy-data-status";
 import {
@@ -210,7 +211,7 @@ async function mergeAcademy({
 
 async function readAcademy(academyId?: string) {
   if (!academyId) {
-    throw new Response("No encontramos esa Academia.", { status: 404 });
+    throw new Response("No encontramos esa academia.", { status: 404 });
   }
 
   const [academy] = await db
@@ -225,11 +226,11 @@ async function readAcademy(academyId?: string) {
     })
     .from(academies)
     .innerJoin(user, eq(academies.userId, user.id))
-    .where(eq(academies.id, academyId))
+    .where(and(eq(academies.id, academyId), academyOwner()))
     .limit(1);
 
   if (!academy) {
-    throw new Response("No encontramos esa Academia.", { status: 404 });
+    throw new Response("No encontramos esa academia.", { status: 404 });
   }
 
   return {

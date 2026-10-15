@@ -1,7 +1,7 @@
-import { eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
-import { judgeAssignments, presentations, scores } from "@/db/schema";
+import { judgeAssignments, presentations, scores, user } from "@/db/schema";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import {
   awardForAverage,
@@ -83,4 +83,55 @@ export async function readPresentationResults(
       ];
     }),
   );
+}
+
+/** One judge's saved score on a presentation. */
+export type PresentationJudgeValue = {
+  judgeId: string;
+  judgeName: string;
+  /** As the numeric column reads it. */
+  value: string | null;
+};
+
+/**
+ * The panel's saved scores for many presentations at once, keyed by
+ * choreography, by the judge's name as `presentation-scores.server.ts` reads
+ * them. A judge with no score row is absent, as on the academy's evaluation;
+ * nothing about feedback audio is read here.
+ */
+export async function readPresentationJudgeValues(
+  choreographyIds: readonly string[],
+  executor: Executor = db,
+): Promise<Map<string, PresentationJudgeValue[]>> {
+  if (choreographyIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await executor
+    .select({
+      choreographyId: presentations.choreographyId,
+      judgeId: user.id,
+      judgeName: user.name,
+      value: scores.value,
+    })
+    .from(presentations)
+    .innerJoin(
+      judgeAssignments,
+      eq(judgeAssignments.presentationId, presentations.id),
+    )
+    .innerJoin(user, eq(user.id, judgeAssignments.userId))
+    .innerJoin(scores, eq(scores.judgeAssignmentId, judgeAssignments.id))
+    .where(inArray(presentations.choreographyId, [...choreographyIds]))
+    .orderBy(asc(user.name), asc(user.id));
+
+  const byChoreography = new Map<string, PresentationJudgeValue[]>();
+
+  for (const { choreographyId, ...judge } of rows) {
+    byChoreography.set(choreographyId, [
+      ...(byChoreography.get(choreographyId) ?? []),
+      judge,
+    ]);
+  }
+
+  return byChoreography;
 }

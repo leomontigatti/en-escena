@@ -2,7 +2,12 @@ import { and, asc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
-import { INTERNAL_USER_ROLES, isUserRole } from "@/lib/auth/user-role.shared";
+import {
+  EMAIL_SIGN_UP_ROLES,
+  getUserKind,
+  INTERNAL_USER_ROLES,
+  isUserRole,
+} from "@/lib/auth/user-role.shared";
 import { userAccessStateCondition } from "@/lib/auth/user-access-state.server";
 import {
   readUserAccessStateFilter,
@@ -71,17 +76,23 @@ export async function listUsers(input: { filters: UserListFilters }): Promise<{
     .limit(limit)
     .offset(offset);
 
-  const items = rows.map((row) => ({
-    id: row.id,
-    academyName: row.role === "academy" ? row.academyName : null,
-    identifier: row.internalUsername ?? row.email,
-    mainRole: row.role,
-    name:
-      row.role === "academy" ? (row.academyContactName ?? row.name) : row.name,
-    state: toUserAccessState(row),
-    userType:
-      row.role === "academy" ? ("academy" as const) : ("internal" as const),
-  }));
+  const items = rows.map((row) => {
+    const userType = getUserKind(row.role);
+
+    return {
+      id: row.id,
+      academyName: userType === "academy" ? row.academyName : null,
+      identifier: row.internalUsername ?? row.email,
+      mainRole: row.role,
+      // An individual's owner row carries its person's full name as contact.
+      name:
+        userType === "internal"
+          ? row.name
+          : (row.academyContactName ?? row.name),
+      state: toUserAccessState(row),
+      userType,
+    };
+  });
 
   return {
     filters: { ...input.filters, page },
@@ -94,11 +105,11 @@ export async function listUsers(input: { filters: UserListFilters }): Promise<{
 function buildUserWhere(filters: UserListFilters): SQL<unknown> | undefined {
   const clauses: SQL<unknown>[] = [];
 
-  // Only an academy is found by email: an internal user's is a made-up
-  // credential nobody knows. See docs/domain/access.md.
+  // Only a user who signed up by email is found by it: an internal user's is
+  // a made-up credential nobody knows. See docs/domain/access.md.
   const searchCondition = listSearchCondition(filters.query, [
     user.name,
-    sql`case when ${user.role} = 'academy' then ${user.email} end`,
+    sql`case when ${inArray(user.role, EMAIL_SIGN_UP_ROLES)} then ${user.email} end`,
     user.internalUsername,
     academies.contactName,
   ]);
@@ -107,8 +118,8 @@ function buildUserWhere(filters: UserListFilters): SQL<unknown> | undefined {
     clauses.push(searchCondition);
   }
 
-  if (filters.type === "academy") {
-    clauses.push(eq(user.role, "academy"));
+  if (filters.type === "academy" || filters.type === "individual") {
+    clauses.push(eq(user.role, filters.type));
   } else if (filters.type === "internal") {
     clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
   }
@@ -140,6 +151,7 @@ function readRoleFilter(value: string | null): UserListFilters["role"] {
 function readTypeFilter(value: string | null): UserListFilters["type"] {
   switch (value) {
     case "academy":
+    case "individual":
     case "internal":
       return value;
     default:

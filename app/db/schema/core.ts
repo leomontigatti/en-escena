@@ -19,6 +19,7 @@ export const userRole = pgEnum("en_escena_user_role", [
   "admin",
   "auditor",
   "judge",
+  "individual",
 ]);
 
 export const groupType = pgEnum("en_escena_group_type", [

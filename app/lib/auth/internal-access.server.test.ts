@@ -54,7 +54,7 @@ describe("internal access authorization", () => {
     );
 
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/registro/academia");
+    expect(response.headers.get("location")).toBe("/registro/cuenta");
   });
 
   test("redirects pending academy onboarding sessions away from internal routes", async () => {
@@ -75,7 +75,7 @@ describe("internal access authorization", () => {
     );
 
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/registro/academia");
+    expect(response.headers.get("location")).toBe("/registro/cuenta");
   });
 });
 

@@ -1,11 +1,11 @@
-import type { UserRole } from "@/lib/auth/user-role.shared";
+import type { UserKind, UserRole } from "@/lib/auth/user-role.shared";
 import type { UserAccessState } from "@/lib/auth/user-access-state.shared";
 import {
   buildCanonicalListSearch,
   type ListQuerySpec,
 } from "@/lib/list-query/list-query";
 
-export type UserListType = "academy" | "internal";
+export type UserListType = UserKind;
 
 export type UserListFilters = {
   page: number;

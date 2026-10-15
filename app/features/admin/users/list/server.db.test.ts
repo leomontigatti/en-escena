@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { user } from "@/db/schema";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { expectThrownResponse } from "@/lib/test-support/http";
+import { createIndividualUser } from "@/lib/test-support/individuals";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -70,6 +71,42 @@ describe("users list loader", () => {
     expect(data.users.map((savedUser) => savedUser.name)).toEqual([
       "Joaquín Núñez",
     ]);
+  });
+});
+
+// An individual's link is `Particulares`' to show; here it is a user like an
+// academy's.
+describe("an individual on the users list", () => {
+  test("shows as a `Particular` user with no link state", async () => {
+    const individual = await createIndividualUser({
+      documentPhotoStorageKey: "individuals/ana.jpg",
+      email: "ana@example.com",
+    });
+
+    const data = await loader({
+      request: await listRequest("?tipo=individual"),
+    });
+
+    expect(data.users).toEqual([
+      {
+        academyName: null,
+        id: individual.userId,
+        identifier: "ana@example.com",
+        mainRole: "individual",
+        name: "Ana Pérez",
+        state: "active",
+        userType: "individual",
+      },
+    ]);
+  });
+
+  test("drops a link filter from the address", async () => {
+    const response = await expectThrownResponse(
+      loader({ request: await listRequest("?vinculo=pending") }),
+      302,
+    );
+
+    expect(response.headers.get("Location")).toBe("/administracion/usuarios");
   });
 });
 
