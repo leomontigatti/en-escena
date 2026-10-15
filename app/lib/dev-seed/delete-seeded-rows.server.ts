@@ -6,13 +6,11 @@ import {
   categories,
   choreographies,
   comprobantes,
-  dancers,
   events,
   judgeAssignments,
   modalities,
   presentations,
   prices,
-  professors,
   schedules,
   scores,
   seminarInscriptions,
@@ -21,6 +19,7 @@ import {
   user,
   votes,
 } from "@/db/schema";
+import { seminarInscriptionOwnedBy } from "@/lib/seminars/inscription-person.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type SeededIds = Awaited<ReturnType<typeof collectSeededIds>>;
@@ -102,16 +101,6 @@ async function collectSeededIds(
         inArray(judgeAssignments.userId, userIds),
       ),
     ),
-    dancerIds: await selectIds(
-      tx,
-      dancers,
-      inArray(dancers.academyId, academyIds),
-    ),
-    professorIds: await selectIds(
-      tx,
-      professors,
-      inArray(professors.academyId, academyIds),
-    ),
     seminarIds: await selectIds(
       tx,
       seminars,
@@ -146,8 +135,7 @@ async function deleteRegistrationsAndJudging(tx: Transaction, ids: SeededIds) {
     .where(
       or(
         inArray(seminarInscriptions.seminarId, ids.seminarIds),
-        inArray(seminarInscriptions.dancerId, ids.dancerIds),
-        inArray(seminarInscriptions.professorId, ids.professorIds),
+        seminarInscriptionOwnedBy(ids.academyIds),
       ),
     );
 }
@@ -172,8 +160,6 @@ async function selectIds(
     | typeof choreographies
     | typeof presentations
     | typeof judgeAssignments
-    | typeof dancers
-    | typeof professors
     | typeof seminars,
   where: ReturnType<typeof inArray> | ReturnType<typeof or>,
 ) {

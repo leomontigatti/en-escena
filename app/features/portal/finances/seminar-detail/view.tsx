@@ -12,7 +12,7 @@ import type { loadPortalSeminarFinanceDetail } from "@/features/portal/finances/
 import { formatDancerName } from "@/lib/finances/formatters";
 import {
   inscriptionFinanceColumns,
-  seminarInscriptionFinanceFacetedFilters,
+  portalSeminarInscriptionFinanceFacetedFilters,
 } from "@/lib/finances/inscription-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 
@@ -33,6 +33,10 @@ type InscriptionRow =
  * **This is the one portal screen that lists withdrawn inscriptions.** The
  * money a withdrawal retained is accounted for here and nowhere else, so
  * leaving those rows out would make the figures above them unexplainable.
+ *
+ * It also lists, at `$0` and badged `Particular`, the inscriptions linked
+ * individuals made for themselves (ADR-0019): the figures above never count
+ * them, and nothing of the individual's money is shown.
  */
 export function PortalSeminarFinanceDetailRouteView({
   loaderData,
@@ -131,7 +135,7 @@ function InscriptionsTable({
       <ClientDataTable
         rows={inscriptions}
         columns={inscriptionColumns}
-        facetedFilters={seminarInscriptionFinanceFacetedFilters}
+        facetedFilters={portalSeminarInscriptionFinanceFacetedFilters}
         getRowKey={(inscription) => inscription.inscriptionId}
         searchPlaceholder="Buscar por nombre"
         textFilterColumnId="person"

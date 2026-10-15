@@ -495,8 +495,10 @@ and is not a `payment`.
 - **Where they show**: the payments page of the `Portal de academias`, as an
   info note between the page subtitle and the payment list or its empty state,
   in the `Evento activo` only, with a copy control on the `CBU/CVU` and the
-  `Alias` and the `Titular` and `CUIT` read together. Nowhere else — not the
-  finances page, not the portal home, not any admin list.
+  `Alias` and the `Titular` and `CUIT` read together; and the same note above
+  the payments of an individual's `Pagos` (see [Surfaces](#surfaces)).
+  Nowhere else — not the academy's finances
+  page, not the portal home, not any admin list.
 
 ## Payment allocations
 
@@ -1217,6 +1219,29 @@ disponible` never moves, each tab keeps its own selection and the owed pair
 The admin `(seminar, academy)` detail carries `Emitir factura` in its header
 menu, over the fiscal anchor above: it bills every inscription that academy
 holds in that seminar, and it is the only entry point to seminar invoicing.
+
+An **individual** (`Particular`) holds money the way an academy does
+(ADR-0019): its payments, allocations, comprobantes and `Saldo disponible` key
+on its owner row of kind `individual`, and nothing in finances tells the two
+apart beyond these surfaces:
+
+- The admin academy list shows individuals beside academies, with a `Tipo`
+  column and facet (`Academia` / `Particular`). Its financial details, the
+  allocation dialog and the `Pagar seña` / `Pagar saldo` presets work over an
+  individual's seminar inscriptions unchanged.
+- The payment form's picker offers academies and individuals in two titled
+  sections. The global comprobantes list and the collection export carry an
+  individual's comprobantes and payments under its name.
+- A comprobante issued for an individual prints its name in the receptor
+  block, never its document. The fiscal receptor sent to ARCA stays the final
+  consumer, as for an academy.
+- `Descuento por bailarín` does not apply: an individual holds no choreography
+  inscriptions.
+- The individual's area has a `Finanzas` group, read-only, shaped like the
+  portal's: `Seminarios`, the five metrics over its own account and its
+  seminars with their status, and `Pagos`, its payments under the event's
+  `Instrucciones de pago`. Comprobantes are not shown to individuals, as they
+  are not to academies.
 
 ## Retired vocabulary
 

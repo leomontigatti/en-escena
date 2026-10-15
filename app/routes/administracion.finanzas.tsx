@@ -1,7 +1,10 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import { loadFinancesList } from "@/features/admin/finances/list/server";
-import { FinancesListRouteView } from "@/features/admin/finances/list/view";
+import {
+  financesListFacetedFilterIds,
+  FinancesListRouteView,
+} from "@/features/admin/finances/list/view";
 
 import type { Route } from "./+types/administracion.finanzas";
 
@@ -23,7 +26,9 @@ export async function loader({ request }: Route.LoaderArgs) {
   return await loadFinancesList(request);
 }
 
-export const shouldRevalidate = createDataTableShouldRevalidate();
+export const shouldRevalidate = createDataTableShouldRevalidate({
+  filterParamNames: [...financesListFacetedFilterIds],
+});
 
 export { FinancesListRouteView };
 

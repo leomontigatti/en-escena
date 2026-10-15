@@ -1,94 +1,20 @@
 import { HandCoins } from "lucide-react";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
-import {
-  ClientDataTable,
-  type DataTableColumn,
-  type DataTableFacetedFiltersOf,
-} from "@/components/shared/data-table";
-import { Badge } from "@/components/ui/badge";
-import { formatAmount, formatDate } from "@/lib/finances/formatters";
+import { ClientDataTable } from "@/components/shared/data-table";
 import type { loadPortalAcademyPayments } from "@/features/portal/payments/list/server";
-import { PortalPaymentInstructionsAlert } from "@/features/portal/payments/list/payment-instructions-alert";
+import { PaymentInstructionsAlert } from "@/components/shared/payment-instructions-alert";
 import {
-  formatPaymentMethodLabel,
-  getPaymentMethodBadgeVariant,
-  paymentMethodOptions,
-  paymentMethodValues,
-} from "@/lib/finances/payment-methods";
-import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
+  ownerPaymentColumns,
+  ownerPaymentFacetedFilterIds,
+  ownerPaymentFacetedFilters,
+} from "@/lib/finances/owner-payment-columns";
 
 type PortalAcademyPaymentsLoaderData = Awaited<
   ReturnType<typeof loadPortalAcademyPayments>
 >;
 
-type PaymentRow = PortalAcademyPaymentsLoaderData["payments"][number];
-
-export const portalPaymentFacetedFilterIds = ["medio"] as const;
-
-const paymentFacetedFilters: DataTableFacetedFiltersOf<
-  typeof portalPaymentFacetedFilterIds
-> = [
-  {
-    id: "medio",
-    label: "Medio de pago",
-    options: [...paymentMethodOptions],
-    renderValue: (option) => {
-      const method = paymentMethodValues.find(
-        (value) => value === option.value,
-      );
-
-      return method ? (
-        <Badge variant={getPaymentMethodBadgeVariant(method)}>
-          {option.label}
-        </Badge>
-      ) : (
-        option.label
-      );
-    },
-  },
-];
-
-const paymentColumns: DataTableColumn<PaymentRow>[] = [
-  {
-    id: "paymentNumber",
-    header: "#",
-    className: "font-medium tabular-nums",
-    cell: (row) => formatEventSequenceNumber(row.paymentNumber),
-  },
-  {
-    id: "paymentDate",
-    header: "Fecha",
-    cell: (row) => formatDate(row.paymentDate),
-    sortValue: (row) => row.paymentDate,
-  },
-  {
-    id: "reference",
-    header: "Referencia",
-    className: "min-w-56 text-muted-foreground",
-    cell: (row) => row.reference ?? "",
-    // The padded form also holds the raw number, so `42` matches as `00042` does.
-    filterValue: (row) =>
-      `${row.reference ?? ""} ${formatEventSequenceNumber(row.paymentNumber)}`,
-  },
-  {
-    id: "paymentMethod",
-    header: "Medio de pago",
-    cell: (row) => (
-      <Badge variant={getPaymentMethodBadgeVariant(row.paymentMethod)}>
-        {formatPaymentMethodLabel(row.paymentMethod)}
-      </Badge>
-    ),
-    filterValue: (row) => row.paymentMethod,
-  },
-  {
-    id: "amount",
-    header: "Monto",
-    className: "text-right tabular-nums",
-    headerClassName: "text-right",
-    cell: (row) => formatAmount(row.amount),
-  },
-];
+export const portalPaymentFacetedFilterIds = ownerPaymentFacetedFilterIds;
 
 export function PortalAcademyPaymentsRouteView({
   loaderData,
@@ -115,9 +41,7 @@ export function PortalAcademyPaymentsRouteView({
   // `PortalListPage` in each: the page's own `flex flex-col gap-6` separates it
   // from the subtitle and from what follows.
   const instructionsAlert = loaderData.paymentInstructions ? (
-    <PortalPaymentInstructionsAlert
-      instructions={loaderData.paymentInstructions}
-    />
+    <PaymentInstructionsAlert instructions={loaderData.paymentInstructions} />
   ) : null;
 
   if (loaderData.payments.length === 0) {
@@ -146,8 +70,8 @@ export function PortalAcademyPaymentsRouteView({
       {instructionsAlert}
       <ClientDataTable
         rows={loaderData.payments}
-        columns={paymentColumns}
-        facetedFilters={paymentFacetedFilters}
+        columns={ownerPaymentColumns}
+        facetedFilters={ownerPaymentFacetedFilters}
         getRowKey={(row) => row.id}
         searchPlaceholder="Buscar por referencia o número"
         initialSort={{

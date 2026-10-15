@@ -105,7 +105,9 @@ rule fits; every difference is named.
   deadline-less `regular` row for **either** participant cell, beside the
   "started" closure — those two are the only ones; a full seminar closes
   nothing. `Exclusivo` rows are optional because of
-  the fallback. Event registration readiness keeps ignoring seminars and their
+  the fallback. The screens say it before the submission, and the
+  registration service refuses with the same sentence, from either side, a
+  request that skips them (`registerSeminarInscription`). Event registration readiness keeps ignoring seminars and their
   prices: a seminar is not part of the `Bases del evento`.
 - **Where the list lives**: a `Seminarios` tab of the `Precios` section,
   beside the choreography prices; `Nuevo precio` opens the active tab's form,
@@ -122,7 +124,12 @@ How a seminar inscription is priced from those rows:
   seminar's event, or a `professor` linked to a choreography of that event,
   **on the roster row the inscription names** and regardless of that
   choreography's money. A person dancing for academy A and registered into a
-  seminar by academy B is a non-participant on B's inscription. The direction is
+  seminar by academy B is a non-participant on B's inscription (#615 is where
+  that could change). An **individual's** inscription is participant when any
+  row its `Vinculado` link reaches meets the same predicate, in any academy and
+  whatever that row's `Estado de alta`; without a confirmed link it is priced as
+  a non-participant (ADR-0019,
+  `app/lib/finances/seminar-participation.server.ts`). The direction is
   choreography → seminar only: a seminar still makes nobody `Participando`.
 - **Resolution.** The candidate rows for an inscription are the event's rows of
   the seminar's kind for the person's participant cell, **falling back to the
@@ -156,12 +163,36 @@ How a seminar inscription is priced from those rows:
 
 ## The inscription
 
-- An `Inscripción a seminario` registers **exactly one roster person**, a
-  `Bailarín` or a `Profesor`, into one seminar. There is no "student": the
-  people an academy can register are the people on its roster.
-- **Only an academy creates one**, from the `Portal de academias`, and only
-  for its own roster. Administration never creates a seminar inscription: unlike
+- An `Inscripción a seminario` registers **exactly one person** into one
+  seminar: a roster person, a `Bailarín` or a `Profesor`, or an `individual`
+  (`Particular`) registering itself (ADR-0019). There is no "student": the
+  people an academy can register are the people on its roster. The individual
+  is an inscription person kind, not a roster kind: no roster table holds it.
+- **An academy creates one** from the `Portal de academias`, only for its own
+  roster; **an individual creates its own** from its area's `Seminarios`, owned
+  by its owner row, under the same quota, reservation, deposit, cut-off and
+  removal rules. Administration never creates a seminar inscription: unlike
   the choreography roster, there is no administrative registration path.
+  Administration lists and exports an individual's inscription beside the
+  academies' ones, as `Particular`, badges it `Particular` on its seminar
+  financial lists, and removes it as any other.
+- **An academy sees a linked individual's inscription, read-only.** When the
+  individual's confirmed link reaches an **active** `Bailarín` or `Profesor` of
+  the academy, its non-withdrawn inscriptions show on the academy's seminar
+  detail with the `Particular` kind, no `Estado` and no removal, and on its
+  seminar financial detail at `$0` badged `Particular`, after the unit's
+  figures, its `Saldo disponible` and the presets were derived without them.
+  Nothing of the individual's money reaches the academy, and the row names the
+  person as the academy's own row does. Archiving or deleting that row, or
+  revoking the link, takes it away
+  (`app/lib/seminars/linked-individual-inscriptions.server.ts`). A seminar the
+  academy itself registered nobody in has no financial unit of its own, so its
+  finances list it anyway at zero, badged `Particular` and outside every
+  total, and its financial detail opens with those rows alone. The unit's
+  `Inscriptos` counts them, as it counts the rows its detail lists; it is the
+  only figure of the unit they reach. Administration's academy finances count
+  them in the same `Inscriptos` without listing their rows, whose money it
+  reads on each individual's own page.
 - Eligibility is `Estado de alta` alone, with the same grandfather rule as the
   choreography roster: a person can be registered when they are active, and an
   archived person already on the seminar stays on it, stays visible and stays
@@ -169,6 +200,18 @@ How a seminar inscription is priced from those rows:
 - One row on the roster per seminar and person, beside any withdrawn ones. The
   same person may hold an inscription in any
   number of seminars; overlapping times are not checked.
+- **One person, one side.** Once an individual's link is `Vinculado`, the
+  individual and the rows its link reaches are one person to a seminar
+  (`app/lib/seminars/linked-person-refusals.server.ts`, under the seminar's
+  lock): the individual is refused when a reached row holds an inscription on
+  the roster, by a message naming that row's academy, and an academy is refused
+  `Ya está inscripto como particular` when the row it registers is reached by an
+  individual holding one. Without a confirmed link neither is refused; a
+  duplicate made before the confirmation is administration's to remove. The
+  individual's `Seminarios` lists the academies' inscriptions of the rows its
+  link reaches read-only, with the academy that made them, and its registration
+  says `Tu academia verá esta inscripción` while the link reaches an active
+  row, the only case in which an academy sees it.
 - Registration is open **until the seminar starts**, independent of whether any
   `Cronograma` of the event has `Inscripciones abiertas`. Once started, the academy can neither add nor delete;
   the rows stay listed as read-only history while the event is active, and leave
@@ -191,7 +234,10 @@ How a seminar inscription is priced from those rows:
   it has. It says
   the money stays allocated and the place is freed, and its button reads
   `Retirar inscripción`. No amount appears on either side of the portal: what a
-  seminar costs is read in `Resumen financiero`.
+  seminar costs is read in `Resumen financiero`. The individual's `Seminarios`
+  is the exception: it shows what each seminar costs the individual (its
+  inscription's effective price, or today's price in its participant cell before
+  it registers), because that page is where it decides to register.
 - **A withdrawal is final** (#1496). Registering the same person again is an
   ordinary registration: it inserts a new row, with its own `createdAt`, no
   money and the ordinary quota rule — a reservation when a place is free, none
@@ -202,7 +248,9 @@ How a seminar inscription is priced from those rows:
   decides once.
 - **The row gains `selectedPriceId` and `withdrawnAt`**, the same two fields a
   choreography inscription carries and nothing else financial. It gains no
-  `academyId`: the academy is read through the person. Every roster surface
+  `academyId`: the academy is read through the person —an individual's through
+  its owner row of kind `individual`— by every reader through
+  `app/lib/seminars/inscription-person.server.ts`. Every roster surface
   lists **active rows only**, through `activeSeminarInscription()`; withdrawn
   rows are read under `Finanzas`, badged `Retirada`.
 - **Registration is unlimited.** The insert counts nothing against the quota and

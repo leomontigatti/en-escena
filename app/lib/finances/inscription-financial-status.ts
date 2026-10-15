@@ -301,8 +301,13 @@ function deriveWaivedInscriptionFigures(input: {
  * `Reservada` is a seminar's `Seña pendiente` that still holds a reserved place
  * (docs/domain/seminars.md, "The place"): it replaces that one status and no
  * other, so a covered deposit, an anomaly or a withdrawal reads as before.
+ *
+ * `Particular` is a linked individual's seminar inscription as an academy reads
+ * it (ADR-0019): not the academy's to pay and carrying none of the individual's
+ * money, so it outranks every money axis, which it has none of to show.
  */
 export type InscriptionStatusBadge =
+  | { kind: "linkedIndividual" }
   | { kind: "withdrawn" }
   | { kind: "anomaly"; anomaly: InscriptionAnomaly }
   | { kind: "reserved" }
@@ -311,9 +316,14 @@ export type InscriptionStatusBadge =
 export function resolveInscriptionStatusBadge(input: {
   anomalies: InscriptionAnomaly[];
   financialStatus: InscriptionFinancialStatus;
+  linkedIndividual?: boolean;
   reserved?: boolean;
   withdrawn?: boolean;
 }): InscriptionStatusBadge {
+  if (input.linkedIndividual) {
+    return { kind: "linkedIndividual" };
+  }
+
   if (input.withdrawn) {
     return { kind: "withdrawn" };
   }

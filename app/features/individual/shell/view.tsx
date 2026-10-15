@@ -1,5 +1,11 @@
 import type { ReactNode } from "react";
-import { AudioLines, User } from "lucide-react";
+import {
+  AudioLines,
+  HandCoins,
+  Presentation,
+  User,
+  WalletCards,
+} from "lucide-react";
 import {
   Link,
   Outlet,
@@ -41,6 +47,9 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import type { loadIndividualShell } from "@/features/individual/shell/server";
+import { individualFinancesPath } from "@/features/individual/finances/shared";
+import { individualPaymentsPath } from "@/features/individual/payments/shared";
+import { individualSeminarsPath } from "@/features/individual/seminars/shared";
 import { INDIVIDUAL_AREA_PATH } from "@/lib/auth/user-role.shared";
 
 export const individualProfilePath = `${INDIVIDUAL_AREA_PATH}/perfil`;
@@ -62,6 +71,22 @@ const navigationGroups = [
         to: individualChoreographiesPath,
         icon: AudioLines,
       },
+      {
+        label: "Seminarios",
+        to: individualSeminarsPath,
+        icon: Presentation,
+      },
+    ],
+  },
+  {
+    label: "Finanzas",
+    items: [
+      {
+        label: "Seminarios",
+        to: individualFinancesPath,
+        icon: WalletCards,
+      },
+      { label: "Pagos", to: individualPaymentsPath, icon: HandCoins },
     ],
   },
   {

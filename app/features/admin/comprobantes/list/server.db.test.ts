@@ -15,6 +15,7 @@ import {
 } from "@/lib/comprobantes/comprobantes.server";
 import { choreographyAnchor, seminarAnchor } from "@/lib/comprobantes/anchor";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createIndividualUser } from "@/lib/test-support/individuals";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -119,6 +120,48 @@ async function signedInAdminRequest(search = "") {
 }
 
 describe("loadComprobantesList", () => {
+  // ADR-0019: an individual's comprobantes are administration's to find like
+  // an academy's, so the global list carries them under the person's name.
+  test("lists an individual's comprobante beside the academies'", async () => {
+    const event = await createEventRecord({ active: true });
+    await seedSeminarComprobante({
+      academyName: "Academia Norte",
+      email: `norte.${crypto.randomUUID()}@example.com`,
+      eventId: event.id,
+      instructorName: "Abril Sosa",
+    });
+    const individual = await createIndividualUser({
+      email: `particular.${crypto.randomUUID()}@example.com`,
+      firstName: "Ana",
+      lastName: "Pérez",
+    });
+    const [seminar] = await db
+      .insert(seminars)
+      .values({
+        eventId: event.id,
+        instructorName: "Bruno Díaz",
+        kind: "regular",
+        quota: 20,
+        requiredDepositPercentage: 50,
+        scheduledDate: "2030-10-11",
+        startTime: "18:30",
+      })
+      .returning();
+    await recordComprobante({
+      ...facturaCInput({ choreographyId: "unused", eventId: event.id }),
+      anchor: seminarAnchor(seminar.id, individual.ownerId),
+      cbteNro: 78,
+    });
+
+    const data = await loadComprobantesList(await signedInAdminRequest());
+
+    expect(data.rows.map((row) => row.academyName).sort()).toEqual([
+      "Academia Norte",
+      "Ana Pérez",
+    ]);
+    expect(data.hasAnyComprobante).toBe(true);
+  });
+
   test("exposes the derived status, CAE and numbering of every comprobante in the active event", async () => {
     const event = await createEventRecord({ active: true });
     const catalog = await createEventCatalog(event.id);

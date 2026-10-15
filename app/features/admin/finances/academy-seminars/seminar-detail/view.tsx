@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { NothingToBillDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
+import { IndividualPersonBadge } from "@/features/admin/finances/individual-person-badge";
 import { InscriptionMoneyDialog } from "@/features/admin/finances/inscription-money/dialog";
 import { formatDate } from "@/features/admin/schedules/view-shared";
 import { formatDancerName } from "@/lib/finances/formatters";
@@ -268,14 +269,17 @@ function buildInscriptionColumns(
       header: "Inscripto",
       className: "font-medium",
       cell: (inscription) => (
-        <Button
-          type="button"
-          variant="link"
-          className="h-auto p-0 text-left font-medium"
-          onClick={() => onOpenMoneyDialog(inscription.inscriptionId)}
-        >
-          {formatDancerName(inscription)}
-        </Button>
+        <span className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="link"
+            className="h-auto p-0 text-left font-medium"
+            onClick={() => onOpenMoneyDialog(inscription.inscriptionId)}
+          >
+            {formatDancerName(inscription)}
+          </Button>
+          <IndividualPersonBadge personKind={inscription.personKind} />
+        </span>
       ),
       filterValue: (inscription) => formatDancerName(inscription),
       sortValue: (inscription) => formatDancerName(inscription),

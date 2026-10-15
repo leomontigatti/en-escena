@@ -1,16 +1,14 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   academies,
   choreographies,
-  dancers,
   payments,
-  professors,
   seminarInscriptions,
   seminars,
 } from "@/db/schema";
-import { academyOwner } from "@/lib/academies/owner-kind.server";
+import type { OwnerKind } from "@/lib/academies/owner-kind";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import {
@@ -18,12 +16,14 @@ import {
   type OperationalFinanceAmount,
 } from "@/lib/finances/operational-summary";
 import { readAcademyEventOperationalFinanceSummaries } from "@/lib/finances/operational-summary.server";
+import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
 
 export type FinanceAccountRow = {
   academyId: string;
   academyName: string;
   availableBalanceAmount: number;
   depositAmount: OperationalFinanceAmount;
+  kind: OwnerKind;
   totalAmount: OperationalFinanceAmount;
   owedBalanceAmount: OperationalFinanceAmount;
 };
@@ -53,9 +53,12 @@ export async function loadFinancesList(request: Request) {
     db.query.academies.findMany({
       columns: {
         id: true,
+        kind: true,
         name: true,
       },
-      where: and(inArray(academies.id, academyIds), academyOwner()),
+      // Both owner kinds (ADR-0019): an individual's money is administration's
+      // to operate as an academy's, and the `Tipo` facet tells them apart.
+      where: inArray(academies.id, academyIds),
       orderBy: [academies.name],
     }),
     readAcademyEventOperationalFinanceSummaries({
@@ -74,6 +77,7 @@ export async function loadFinancesList(request: Request) {
         academyName: academy.name,
         availableBalanceAmount: summary.availableBalanceAmount,
         depositAmount: summary.depositAmount,
+        kind: academy.kind,
         totalAmount: summary.totalAmount,
         owedBalanceAmount: summary.owedBalanceAmount,
       };
@@ -90,7 +94,6 @@ export async function loadFinancesList(request: Request) {
  * has no academy column: it is read through the person, as everywhere else.
  */
 async function listAcademyIdsForEvent(eventId: string) {
-  const seminarAcademyId = sql<string>`coalesce(${dancers.academyId}, ${professors.academyId})`;
   const [
     academyIdsWithChoreographies,
     academyIdsWithPayments,
@@ -109,11 +112,13 @@ async function listAcademyIdsForEvent(eventId: string) {
       .from(payments)
       .where(eq(payments.eventId, eventId)),
     db
-      .selectDistinct({ academyId: seminarAcademyId })
+      .selectDistinct({ academyId: seminarInscriptionPerson.academyId })
       .from(seminarInscriptions)
       .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
-      .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-      .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+      .innerJoin(
+        seminarInscriptionPerson,
+        eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
+      )
       .where(eq(seminars.eventId, eventId)),
   ]);
 

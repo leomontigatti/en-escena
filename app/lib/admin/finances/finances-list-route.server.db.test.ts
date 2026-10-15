@@ -283,6 +283,7 @@ describe("`/administracion/finanzas`", () => {
       {
         academyId: academyNorth.academy.id,
         academyName: "Academia Norte",
+        kind: "academy",
         availableBalanceAmount: 7000,
         depositAmount: { status: "complete", amount: 9000 },
         totalAmount: { status: "complete", amount: 30000 },
@@ -291,6 +292,7 @@ describe("`/administracion/finanzas`", () => {
       {
         academyId: academySouth.academy.id,
         academyName: "Academia Sur",
+        kind: "academy",
         availableBalanceAmount: 3000,
         depositAmount: { status: "complete", amount: 3000 },
         totalAmount: { status: "complete", amount: 10000 },
@@ -360,6 +362,7 @@ describe("`/administracion/finanzas`", () => {
       {
         academyId: academy.academy.id,
         academyName: "Academia Sin Precio",
+        kind: "academy",
         availableBalanceAmount: 0,
         // With no applicable price there is no threshold: neither the deposit nor
         // the total nor the balance owed by the unpaid one can be quantified.

@@ -16,7 +16,11 @@ import {
   deriveSeminarInscriptionThresholds,
   resolveEffectiveSeminarPriceRow,
 } from "@/lib/finances/seminar-inscription-price";
-import { readEventParticipation } from "@/lib/participation/participation.server";
+import {
+  isParticipating,
+  readSeminarParticipation,
+  type SeminarInscriptionPersonIds,
+} from "@/lib/finances/seminar-participation.server";
 
 import type { Executor } from "./choreography-cobro-support.server";
 
@@ -28,10 +32,8 @@ export type SeminarFinancePriceRow = typeof seminarPrices.$inferSelect;
  * academy's money rollup — get here from a query of their own, so the shared
  * derivation takes the rows rather than the query that found them.
  */
-export type SeminarInscriptionFinanceRow = {
-  dancerId: string | null;
+export type SeminarInscriptionFinanceRow = SeminarInscriptionPersonIds & {
   id: string;
-  professorId: string | null;
   requiredDepositPercentage: number;
   seminarId: string;
   seminarKind: SeminarFinancePriceRow["kind"];
@@ -93,7 +95,7 @@ export function isSeminarInscriptionCovered(input: {
 
 /**
  * The figures of a set of seminar inscriptions: their allocations summed, the
- * participant cell read on the roster row each one names, the effective price
+ * participant cell (`readSeminarParticipation`), the effective price
  * row chosen from the event's list and the two thresholds derived from it at the
  * seminar's own rate.
  *
@@ -130,10 +132,9 @@ export async function resolveSeminarInscriptions(
           input.rows.map((row) => row.id),
         ),
       ),
-    readEventParticipation(executor, {
-      dancerIds: collectPersonIds(input.rows, "dancerId"),
+    readSeminarParticipation(executor, {
       eventId: input.eventId,
-      professorIds: collectPersonIds(input.rows, "professorId"),
+      rows: input.rows,
     }),
   ]);
 
@@ -257,6 +258,7 @@ async function readSeminarInscriptionFinanceRows(
     .select({
       dancerId: seminarInscriptions.dancerId,
       id: seminarInscriptions.id,
+      individualId: seminarInscriptions.individualId,
       professorId: seminarInscriptions.professorId,
       requiredDepositPercentage: seminars.requiredDepositPercentage,
       seminarId: seminarInscriptions.seminarId,
@@ -267,31 +269,4 @@ async function readSeminarInscriptionFinanceRows(
     .from(seminarInscriptions)
     .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
     .where(and(eq(seminars.eventId, input.eventId), input.where));
-}
-
-/** The distinct people of one kind the inscriptions name, for the one
- * participation read that prices them all. */
-export function collectPersonIds(
-  rows: readonly { dancerId: string | null; professorId: string | null }[],
-  column: "dancerId" | "professorId",
-): string[] {
-  return [
-    ...new Set(
-      rows
-        .map((row) => row[column])
-        .filter((personId): personId is string => personId !== null),
-    ),
-  ];
-}
-
-/** Whether the person an inscription names is `Participando` in the event,
- * which picks their price cell. */
-export function isParticipating(
-  row: { dancerId: string | null; professorId: string | null },
-  participation: { dancerIds: Set<string>; professorIds: Set<string> },
-): boolean {
-  return row.dancerId !== null
-    ? participation.dancerIds.has(row.dancerId)
-    : row.professorId !== null &&
-        participation.professorIds.has(row.professorId);
 }

@@ -80,6 +80,15 @@ async function seedFixture(quota = 2) {
       paymentDeadline: null,
     })
     .returning();
+  // The participant cell, which registration needs priced too.
+  await db.insert(seminarPrices).values({
+    amount: priceAmount,
+    eventId: event.id,
+    forParticipants: true,
+    kind: "regular",
+    name: "Participantes",
+    paymentDeadline: null,
+  });
 
   await db.insert(payments).values({
     academyId: academy.id,

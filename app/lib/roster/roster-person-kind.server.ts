@@ -2,7 +2,10 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 import { dancers, professors, seminarInscriptions } from "@/db/schema";
 
-import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
+import type {
+  InscriptionPersonKind,
+  RosterPersonKind,
+} from "@/lib/roster/roster-person-kind.shared";
 
 /**
  * The Drizzle half of `rosterPersonKind`: which table a kind lives in, and the
@@ -20,73 +23,95 @@ export function rosterPersonTable(kind: RosterPersonKind): RosterPersonTable {
 /**
  * The person a seminar inscription is for. It names the person and nothing
  * about who registered them: the arc is the person's kind and id, so a reader
- * that needs the registering academy reads it off the person, and a person
- * with no real academy behind them can still be the one an inscription names.
+ * that needs the owner academy reads it off the person, and a person with no
+ * real academy behind them —an `individual`, owned by its own owner row— can
+ * still be the one an inscription names.
  */
 export type SeminarInscriptionPerson = {
-  kind: RosterPersonKind;
+  kind: InscriptionPersonKind;
   personId: string;
 };
 
 type SeminarInscriptionPersonColumns = {
   dancerId: AnyPgColumn;
+  individualId: AnyPgColumn;
   professorId: AnyPgColumn;
 };
 
 type SeminarInscriptionPersonRow = {
   dancerId: string | null;
+  individualId: string | null;
   professorId: string | null;
 };
+
+const personColumnByKind = {
+  dancer: "dancerId",
+  individual: "individualId",
+  professor: "professorId",
+} as const satisfies Record<
+  InscriptionPersonKind,
+  keyof SeminarInscriptionPersonRow
+>;
 
 /**
  * The column of `seminarInscriptions` —or of an alias of it— that carries a
  * person of this kind.
  */
 export function seminarInscriptionPersonColumn(
-  kind: RosterPersonKind,
-): (typeof seminarInscriptions)["dancerId" | "professorId"];
+  kind: InscriptionPersonKind,
+): (typeof seminarInscriptions)["dancerId" | "individualId" | "professorId"];
 export function seminarInscriptionPersonColumn<
   Table extends SeminarInscriptionPersonColumns,
->(kind: RosterPersonKind, table: Table): Table["dancerId" | "professorId"];
+>(
+  kind: InscriptionPersonKind,
+  table: Table,
+): Table["dancerId" | "individualId" | "professorId"];
 export function seminarInscriptionPersonColumn(
-  kind: RosterPersonKind,
+  kind: InscriptionPersonKind,
   table: SeminarInscriptionPersonColumns = seminarInscriptions,
 ) {
-  return kind === "dancer" ? table.dancerId : table.professorId;
+  return table[personColumnByKind[kind]];
 }
 
 /**
  * The code side of the `seminar_inscription_exactly_one_person` CHECK: the
- * pair a write stores, one id set and the other null. Its type cannot hold
- * both or neither.
+ * triple a write stores, one id set and the other two null.
  */
 export function seminarInscriptionPersonValues(
   person: SeminarInscriptionPerson,
-):
-  | { dancerId: string; professorId: null }
-  | { dancerId: null; professorId: string } {
-  return person.kind === "dancer"
-    ? { dancerId: person.personId, professorId: null }
-    : { dancerId: null, professorId: person.personId };
+): SeminarInscriptionPersonRow {
+  return {
+    dancerId: null,
+    individualId: null,
+    professorId: null,
+    [personColumnByKind[person.kind]]: person.personId,
+  };
 }
 
 /**
- * The person a stored row names. Both or neither is a row the CHECK refuses,
- * so meeting one is a programming error —a row built by hand, a select that
+ * The person a stored row names. Two or none is a row the CHECK refuses, so
+ * meeting one is a programming error —a row built by hand, a select that
  * dropped a column— and it throws rather than returning a guess.
  */
 export function seminarInscriptionPersonOf(
   row: SeminarInscriptionPersonRow,
 ): SeminarInscriptionPerson {
-  if (row.dancerId !== null && row.professorId === null) {
-    return { kind: "dancer", personId: row.dancerId };
+  const named = (
+    Object.entries(personColumnByKind) as [
+      InscriptionPersonKind,
+      keyof SeminarInscriptionPersonRow,
+    ][]
+  ).flatMap(([kind, column]) => {
+    const personId = row[column];
+
+    return personId === null ? [] : [{ kind, personId }];
+  });
+
+  if (named.length !== 1) {
+    throw new Error(
+      "A seminar inscription names exactly one person: a dancer, a professor or an individual.",
+    );
   }
 
-  if (row.professorId !== null && row.dancerId === null) {
-    return { kind: "professor", personId: row.professorId };
-  }
-
-  throw new Error(
-    "A seminar inscription names exactly one person: a dancer or a professor.",
-  );
+  return named[0];
 }

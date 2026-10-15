@@ -1,5 +1,5 @@
 import type { InscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
-import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
+import type { InscriptionPersonKind } from "@/lib/roster/roster-person-kind.shared";
 
 import type {
   deletePortalSeminarInscriptionIntent,
@@ -10,15 +10,19 @@ import type {
 export type PortalSeminarDetailInscription = {
   id: string;
   fullName: string;
-  personKind: RosterPersonKind;
+  personKind: InscriptionPersonKind;
   /** Whether taking it off the seminar withdraws the row instead of deleting
    * it, which is the only thing the portal reads of a seminar inscription's
    * money: the amount itself belongs to `Resumen financiero`. */
   hasMoney: boolean;
+  /** A linked individual's own inscription (ADR-0019): the academy sees the
+   * person is registered, under the `Particular` kind, and can neither remove
+   * it nor read anything of its money. */
+  readOnly: boolean;
   /** The `Estado` badge the finance lists give the row: `Reservada` while its
    * reservation holds, `Seña pendiente` once it lapses, then `Señada` and
-   * `Pagada`. */
-  status: InscriptionStatusBadge;
+   * `Pagada`. `null` on a read-only row, whose money is the individual's. */
+  status: InscriptionStatusBadge | null;
 };
 
 export type PortalSeminarDetailSeminar = {
@@ -42,7 +46,8 @@ export type PortalSeminarDetailSeminar = {
 export type PortalSeminarDetailLoaderData = {
   seminar: PortalSeminarDetailSeminar;
   /** The academy's own **active** inscriptions; a withdrawn row is off the
-   * roster and is read on the finance surfaces instead. */
+   * roster and is read on the finance surfaces instead. After them, read-only,
+   * the inscriptions linked individuals made for themselves. */
   inscriptions: PortalSeminarDetailInscription[];
   people: PortalSeminarPersonOption[];
 };

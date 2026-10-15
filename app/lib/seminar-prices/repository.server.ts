@@ -83,11 +83,16 @@ export async function listSeminarPrices(
 /**
  * Whether the event can be registered into at all: every participant cell of
  * the fallback tier has its deadline-less row. A seminar of an event that
- * fails this closes its portal registration, because an inscription of the
- * uncovered cell would resolve to no price.
+ * fails this refuses every registration, from either side
+ * (`registerSeminarInscription`), because an inscription of the uncovered cell
+ * would resolve to no price.
  */
-export async function hasSeminarRegistrationPrices(eventId: string) {
-  const rows = await db
+export async function hasSeminarRegistrationPrices(
+  eventId: string,
+  // A registration reads it under its own transaction.
+  executor: Pick<typeof db, "select"> = db,
+) {
+  const rows = await executor
     .select({
       kind: seminarPrices.kind,
       forParticipants: seminarPrices.forParticipants,

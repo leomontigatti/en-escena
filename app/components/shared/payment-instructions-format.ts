@@ -1,7 +1,7 @@
 import type { PaymentInstructions } from "@/lib/finances/payment-instructions";
 
 /**
- * View formatting for `PortalPaymentInstructionsAlert` alone. The domain rule —
+ * View formatting for `PaymentInstructionsAlert` alone. The domain rule —
  * when an event counts as loaded — stays in `lib/finances`.
  */
 

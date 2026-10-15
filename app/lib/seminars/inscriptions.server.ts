@@ -1,17 +1,12 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  dancers,
-  professors,
-  seminarInscriptions,
-  seminars,
-} from "@/db/schema";
+import { individuals, seminarInscriptions, seminars } from "@/db/schema";
 import {
   isSelectableForRoster,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
-import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
+import type { InscriptionPersonKind } from "@/lib/roster/roster-person-kind.shared";
 import {
   rosterPersonTable,
   seminarInscriptionPersonColumn,
@@ -23,9 +18,21 @@ import {
   readSeminarPlaces,
 } from "@/lib/seminars/covered-inscriptions.server";
 import { removeSeminarInscriptionFromRoster } from "@/lib/seminars/inscription-withdrawal.server";
-import { seminarStartedMessage } from "@/lib/seminars/registration-refusals";
+import {
+  findLinkedPersonRefusal,
+  type LinkedPersonRefusal,
+  type LinkedPersonRefusalReason,
+} from "@/lib/seminars/linked-person-refusals.server";
+import {
+  registeredAsIndividualMessage,
+  registeredByAcademyMessage,
+  seminarPricesMissingMessage,
+  seminarStartedMessage,
+} from "@/lib/seminars/registration-refusals";
+import { hasSeminarRegistrationPrices } from "@/lib/seminar-prices/repository.server";
 import { hasSeminarStarted } from "@/lib/seminars/registration-window";
 import { getSeminarReservationEndsAt } from "@/lib/seminars/seminar-reservations";
+import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -42,7 +49,9 @@ export type RegisterSeminarInscriptionInput = {
   eventId: string;
   now: Date;
   personId: string;
-  personKind: RosterPersonKind;
+  /** A roster person of the academy, or the individual its owner row is
+   * (ADR-0019): `academyId` is then the individual's owner row. */
+  personKind: InscriptionPersonKind;
   seminarId: string;
 };
 
@@ -67,7 +76,12 @@ export type DeleteSeminarInscriptionResult =
   | { ok: false; code: DeleteSeminarInscriptionFailureCode; error: string };
 
 export type RegisterSeminarInscriptionFailureCode =
-  "already-registered" | "ineligible-person" | "seminar-not-found" | "started";
+  | LinkedPersonRefusalReason
+  | "already-registered"
+  | "ineligible-person"
+  | "prices-missing"
+  | "seminar-not-found"
+  | "started";
 
 export type RegisterSeminarInscriptionResult =
   | { ok: true; inscriptionId: string }
@@ -88,6 +102,9 @@ export const seminarInscriptionNotFoundMessage =
 const ineligiblePersonMessage =
   "Elegí una persona activa del plantel de tu academia.";
 const alreadyRegisteredMessage = "Esa persona ya está inscripta.";
+/** The individual registers itself, so the refusal speaks to it. */
+const individualAlreadyRegisteredMessage =
+  "Ya estás inscripto en este seminario.";
 const seminarNotFoundMessage = "No encontramos ese seminario.";
 
 /**
@@ -141,10 +158,16 @@ function lockSeminar(tx: Transaction, input: RegisterSeminarInscriptionInput) {
 }
 
 /**
- * The two reasons a locked seminar refuses, in the order they are read: a
- * seminar that has begun takes nobody, and a person who is not on the academy's
- * active roster is nobody it may register. How full the seminar is is not among
- * them.
+ * The reasons a locked seminar refuses, in the order they are read: a seminar
+ * that has begun takes nobody, an event whose price list leaves a participant
+ * cell unpriced takes nobody either (`hasSeminarRegistrationPrices`: the
+ * inscription would resolve to no price), a person who is not on the
+ * academy's active roster is nobody it may register, and a person the other
+ * side already registered through a confirmed link is not registered twice
+ * (`findLinkedPersonRefusal`). How full the seminar is is not among them.
+ *
+ * The screens say the first two before the submission; saying them here too
+ * is what holds a request that skips the screen.
  */
 async function findRegistrationRefusal(
   tx: Transaction,
@@ -155,11 +178,27 @@ async function findRegistrationRefusal(
     return failure("started", seminarStartedMessage);
   }
 
+  if (!(await hasSeminarRegistrationPrices(input.eventId, tx))) {
+    return failure("prices-missing", seminarPricesMissingMessage);
+  }
+
   if (!(await isPersonEligibleForSeminar(tx, input))) {
     return failure("ineligible-person", ineligiblePersonMessage);
   }
 
-  return null;
+  const linkedRefusal = await findLinkedPersonRefusal(tx, input);
+
+  return linkedRefusal
+    ? failure(linkedRefusal.reason, linkedRefusalMessage(linkedRefusal))
+    : null;
+}
+
+/** The academy is told only that the person registered itself; the individual
+ * is told which academy registered it. */
+function linkedRefusalMessage(refusal: LinkedPersonRefusal) {
+  return refusal.reason === "registered-by-academy"
+    ? registeredByAcademyMessage(refusal.academyName)
+    : registeredAsIndividualMessage;
 }
 
 /**
@@ -191,7 +230,12 @@ async function insertInscription(
     .returning({ id: seminarInscriptions.id });
 
   if (!inserted) {
-    return failure("already-registered", alreadyRegisteredMessage);
+    return failure(
+      "already-registered",
+      input.personKind === "individual"
+        ? individualAlreadyRegisteredMessage
+        : alreadyRegisteredMessage,
+    );
   }
 
   return { ok: true, inscriptionId: inserted.id };
@@ -252,22 +296,22 @@ export async function deleteSeminarInscriptionForAcademy(
 
 /**
  * The owning academy is read through the person, as it is everywhere else: the
- * inscription stores no academy of its own, so both roster tables are joined
- * and whichever half is filled answers.
+ * inscription stores no academy of its own. An individual's owner row owns the
+ * individual's inscriptions, so its removal is this same path.
  */
 async function findAcademyInscription(input: DeleteSeminarInscriptionInput) {
   const [row] = await db
     .select({
-      academyId: sql<
-        string | null
-      >`coalesce(${dancers.academyId}, ${professors.academyId})`,
+      academyId: seminarInscriptionPerson.academyId,
       scheduledDate: seminars.scheduledDate,
       startTime: seminars.startTime,
     })
     .from(seminarInscriptions)
     .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
-    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+    .innerJoin(
+      seminarInscriptionPerson,
+      eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
+    )
     .where(
       and(
         eq(seminarInscriptions.id, input.inscriptionId),
@@ -341,10 +385,29 @@ async function isPersonEligibleForSeminar(
   });
 }
 
+/**
+ * The person, read only within the registering owner: a roster person of the
+ * academy, or the individual whose owner row is registering it. An individual
+ * has no `Estado de alta`, so it is always active.
+ */
 async function findAcademyPerson(
   tx: Transaction,
   input: RegisterSeminarInscriptionInput,
-) {
+): Promise<{ active: boolean } | undefined> {
+  if (input.personKind === "individual") {
+    const [individual] = await tx
+      .select({ id: individuals.id })
+      .from(individuals)
+      .where(
+        and(
+          eq(individuals.id, input.personId),
+          eq(individuals.academyId, input.academyId),
+        ),
+      );
+
+    return individual ? { active: true } : undefined;
+  }
+
   const table = rosterPersonTable(input.personKind);
   const [person] = await tx
     .select({ active: table.active })

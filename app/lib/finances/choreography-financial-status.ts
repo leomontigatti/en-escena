@@ -3,6 +3,7 @@ import type {
   InscriptionFinancialStatus,
   InscriptionStatusBadge,
 } from "@/lib/finances/inscription-financial-status";
+import { rosterPersonNoun } from "@/lib/roster/roster-person-kind.shared";
 
 const inscriptionFinancialStatusLabels = {
   depositPending: "Seña pendiente",
@@ -72,6 +73,18 @@ const reservedInscriptionLabel = "Reservada";
 const reservedInscriptionBadgeVariant = "warning";
 
 /**
+ * `Particular`: a linked individual's seminar inscription in an academy's
+ * finances (ADR-0019). The label is the inscription person kind's own noun, so
+ * this badge and the `Tipo` badge cannot name it two ways. Neutral like
+ * `Retirada`: it asks the academy for nothing.
+ */
+const linkedIndividualInscriptionLabel = rosterPersonNoun(
+  "individual",
+  "singularCapitalized",
+);
+const linkedIndividualInscriptionBadgeVariant = "secondary";
+
+/**
  * The only translator of the `Estado` column badge: the precedence between axes
  * is decided by `resolveInscriptionStatusBadge`, and here it is given a label, a
  * variant and the key it filters by. `value` is the same string for all three
@@ -85,6 +98,7 @@ type FormattedInscriptionStatusBadge = {
   variant:
     | (typeof inscriptionFinancialStatusBadgeVariants)[InscriptionFinancialStatus]
     | (typeof inscriptionAnomalyBadgeVariants)[InscriptionAnomaly]
+    | typeof linkedIndividualInscriptionBadgeVariant
     | typeof reservedInscriptionBadgeVariant
     | typeof withdrawnInscriptionBadgeVariant;
 };
@@ -92,6 +106,15 @@ type FormattedInscriptionStatusBadge = {
 export function formatInscriptionStatusBadge(
   badge: InscriptionStatusBadge,
 ): FormattedInscriptionStatusBadge {
+  if (badge.kind === "linkedIndividual") {
+    return {
+      kind: badge.kind,
+      label: linkedIndividualInscriptionLabel,
+      value: linkedIndividualStatusFilterOption.value,
+      variant: linkedIndividualInscriptionBadgeVariant,
+    };
+  }
+
   if (badge.kind === "withdrawn") {
     return {
       kind: badge.kind,
@@ -134,6 +157,16 @@ export function formatInscriptionStatusBadge(
 export const withdrawnStatusFilterOption = {
   label: withdrawnInscriptionLabel,
   value: "withdrawn",
+} as const satisfies { label: string; value: string };
+
+/**
+ * The `Particular` option, for the academy's seminar lists: its seminar
+ * financial detail badges a linked individual's row with it, and its
+ * `Seminarios` tab a seminar only linked individuals are in.
+ */
+export const linkedIndividualStatusFilterOption = {
+  label: linkedIndividualInscriptionLabel,
+  value: "linkedIndividual",
 } as const satisfies { label: string; value: string };
 
 /**
@@ -181,6 +214,8 @@ const inscriptionStatusFilterBadgeVariants = new Map<
     ...inscriptionFinancialStatusBadgeVariants,
     ...inscriptionAnomalyBadgeVariants,
     reserved: reservedInscriptionBadgeVariant,
+    [linkedIndividualStatusFilterOption.value]:
+      linkedIndividualInscriptionBadgeVariant,
     [withdrawnStatusFilterOption.value]: withdrawnInscriptionBadgeVariant,
   }),
 );

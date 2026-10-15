@@ -112,6 +112,7 @@ async function renderPage({
                 {
                   contactName: "Ana Fork",
                   id: "academy_1",
+                  kind: "academy",
                   name: "Academia Fork",
                 },
               ],

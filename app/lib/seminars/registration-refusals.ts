@@ -7,6 +7,19 @@
 export const seminarStartedMessage = "El seminario ya comenzó.";
 
 /**
+ * The two refusals of one person registered from both sides once an
+ * individual's link is confirmed (ADR-0019). The academy is told only that the
+ * person registered itself; the individual is told which academy registered
+ * it, which its own `Seminarios` also lists before it tries.
+ */
+export const registeredAsIndividualMessage =
+  "Ya está inscripto como particular.";
+
+export function registeredByAcademyMessage(academyName: string) {
+  return `${academyName} ya te inscribió en este seminario.`;
+}
+
+/**
  * The refusal of the one write the quota governs: **covering the deposit is what
  * takes the place**, so the seminar fills up against allocations and never
  * against registrations. Surfaced by the money dialog's error alert, which is
@@ -17,10 +30,12 @@ export const seminarNoPlacesForDepositMessage =
   "No quedan lugares en el seminario, así que esta inscripción no puede cubrir su seña.";
 
 /**
- * Said by the portal footer alone: the event has no seminar price list yet, so
- * an inscription would have nothing to be charged by. It names no price and no
- * cell — that is administration's business, and no seminar surface reads money
- * (docs/domain/seminars.md, "Prices").
+ * Said twice too: the portal footer and the individual's `Seminarios` say it
+ * before the submission, and the registration service refuses with it when a
+ * request skips them. The event's price list leaves a participant cell
+ * unpriced, so an inscription would have nothing to be charged by. It names no
+ * price and no cell — that is administration's business, and no seminar
+ * surface reads money (docs/domain/seminars.md, "Prices").
  */
 export const seminarPricesMissingMessage =
   "Las inscripciones a este seminario todavía no están abiertas.";

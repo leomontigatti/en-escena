@@ -1,12 +1,7 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  dancers,
-  professors,
-  seminarInscriptions,
-  seminars,
-} from "@/db/schema";
+import { seminarInscriptions, seminars } from "@/db/schema";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import {
   type OperationalFinanceRollup,
@@ -17,6 +12,10 @@ import {
   resolveSeminarInscriptions,
   type SeminarInscriptionFinanceRow,
 } from "@/lib/finances/seminar-inscription-thresholds.server";
+import {
+  seminarInscriptionOwnedBy,
+  seminarInscriptionPerson,
+} from "@/lib/seminars/inscription-person.server";
 
 /**
  * One `(seminar, academy)` unit: the money an academy owes and paid for one
@@ -26,7 +25,8 @@ import {
  * while a debt belongs to one.
  *
  * `registrationCount` — the shared rollup's figure — is the academy's **active**
- * inscriptions in the seminar, the `Inscriptos` column of the tab. It is not the
+ * inscriptions in the seminar; the `Inscriptos` column of the tab adds its
+ * linked individuals' (`withLinkedInscriptionsCounted`). It is not the
  * seminar's occupancy: places are taken by covering the deposit, not by
  * registering.
  */
@@ -147,14 +147,13 @@ async function readSeminarUnitRows(input: {
     return [];
   }
 
-  const academyId = sql<string>`coalesce(${dancers.academyId}, ${professors.academyId})`;
-
   return (input.executor ?? db)
     .select({
-      academyId,
+      academyId: seminarInscriptionPerson.academyId,
       dancerId: seminarInscriptions.dancerId,
       id: seminarInscriptions.id,
       instructorName: seminars.instructorName,
+      individualId: seminarInscriptions.individualId,
       professorId: seminarInscriptions.professorId,
       requiredDepositPercentage: seminars.requiredDepositPercentage,
       scheduledDate: seminars.scheduledDate,
@@ -165,20 +164,70 @@ async function readSeminarUnitRows(input: {
     })
     .from(seminarInscriptions)
     .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
-    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+    .innerJoin(
+      seminarInscriptionPerson,
+      eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
+    )
     .where(
       and(
         eq(seminars.eventId, input.eventId),
-        inArray(academyId, input.academyIds),
+        seminarInscriptionOwnedBy(input.academyIds),
       ),
     );
 }
 
+/**
+ * A seminar the academy registered nobody in but a linked individual is in
+ * (ADR-0019), as the academy's finances list it: every figure zero, since the
+ * individual's inscription owes the academy nothing, and `registrationCount`
+ * zero, since it counts the academy's own; the loaders add the linked
+ * inscriptions to it afterwards (`withLinkedInscriptionsCounted`). Built by the portal loaders beside
+ * this read's rows, never inside it, so no total, `Saldo disponible` or preset
+ * can count it.
+ */
+export function linkedIndividualsOnlySeminarFinanceRow(facts: {
+  academyId: string;
+  id: string;
+  instructorName: string;
+  scheduledDate: string;
+}): SeminarOperationalFinanceRow {
+  return { ...rollUpInscriptionFinanceFigures([]), ...facts };
+}
+
+/**
+ * The rows with `registrationCount` raised by the linked individuals'
+ * inscriptions in each seminar (ADR-0019): `Inscriptos` counts the people the
+ * academy's seminar lists, on both sides, though they owe it nothing. Applied
+ * by the loaders after every figure was derived, like the zero row above.
+ */
+export function withLinkedInscriptionsCounted<
+  TRow extends Pick<SeminarOperationalFinanceRow, "id" | "registrationCount">,
+>(
+  rows: readonly TRow[],
+  linkedInscriptions: readonly { seminarId: string }[],
+): TRow[] {
+  const linkedCounts = new Map<string, number>();
+
+  for (const inscription of linkedInscriptions) {
+    linkedCounts.set(
+      inscription.seminarId,
+      (linkedCounts.get(inscription.seminarId) ?? 0) + 1,
+    );
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    registrationCount: row.registrationCount + (linkedCounts.get(row.id) ?? 0),
+  }));
+}
+
 /** The order the tab opens in: the seminar's moment, then its instructor. */
-function bySeminarSlot(
-  first: SeminarOperationalFinanceRow,
-  second: SeminarOperationalFinanceRow,
+export function bySeminarSlot(
+  first: Pick<SeminarOperationalFinanceRow, "instructorName" | "scheduledDate">,
+  second: Pick<
+    SeminarOperationalFinanceRow,
+    "instructorName" | "scheduledDate"
+  >,
 ) {
   return (
     first.scheduledDate.localeCompare(second.scheduledDate) ||

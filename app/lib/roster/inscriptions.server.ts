@@ -78,6 +78,7 @@ export async function findRosterSeminarInscriptions(input: {
       eventName: events.name,
       id: seminarInscriptions.id,
       instructorName: seminars.instructorName,
+      individualId: seminarInscriptions.individualId,
       professorId: seminarInscriptions.professorId,
       requiredDepositPercentage: seminars.requiredDepositPercentage,
       scheduledDate: seminars.scheduledDate,

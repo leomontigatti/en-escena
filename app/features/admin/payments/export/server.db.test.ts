@@ -9,6 +9,7 @@ import {
   type WorkbookCell,
 } from "@/features/admin/period-export/workbook.test-support";
 import { expectThrownResponse } from "@/lib/test-support/http";
+import { createIndividualUser } from "@/lib/test-support/individuals";
 
 import { loadCollectionExport } from "./server";
 import { collectionExportPath } from "./shared";
@@ -82,6 +83,40 @@ describe("the collection export", () => {
     expect(amountOf(movements, "Pagos")).toBe(50000);
     expect(amountOf(movements, "Reembolsos")).toBe(0);
     expect(amountOf(movements, "Neto")).toBe(50000);
+  });
+
+  // ADR-0019: an individual's payments are money collected like an academy's,
+  // so the export's totals add up to every payment of the period.
+  test("lists an individual's payment beside the academies'", async () => {
+    const fixture = await seedPeriodExportFixture();
+    const academy = await fixture.addAcademy({ name: "Estudio Ritmo" });
+    const individual = await createIndividualUser({
+      email: `particular.${crypto.randomUUID()}@example.com`,
+      firstName: "Ana",
+      lastName: "Pérez",
+    });
+    await fixture.addPayment({
+      academyId: academy.id,
+      amount: 30000,
+      paymentDate: "2026-04-10",
+    });
+    await fixture.addPayment({
+      academyId: individual.ownerId,
+      amount: 15000,
+      paymentDate: "2026-04-11",
+    });
+
+    const { sheets } = await exportSheets({
+      from: "2026-04-01",
+      to: "2026-04-30",
+    });
+    const movements = sheets.get("Movimientos");
+
+    expect(movements?.slice(1, 3).map((row) => row[3])).toEqual([
+      "Estudio Ritmo",
+      "Ana Pérez",
+    ]);
+    expect(amountOf(movements, "Pagos")).toBe(45000);
   });
 
   test("includes a payment dated on the `Hasta` day and leaves out the one dated the day after", async () => {

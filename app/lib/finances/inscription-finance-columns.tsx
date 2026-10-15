@@ -9,6 +9,7 @@ import {
   formatInscriptionStatusBadge,
   getInscriptionStatusFilterBadgeVariant,
   inscriptionStatusFilterOptions,
+  linkedIndividualStatusFilterOption,
   seminarInscriptionStatusFilterOptions,
 } from "@/lib/finances/choreography-financial-status";
 import {
@@ -35,6 +36,10 @@ export type InscriptionFinanceRow = {
   depositAmount: number | null;
   effectivePrice: { name: string } | null;
   financialStatus: InscriptionFinancialStatus;
+  /** A linked individual's seminar inscription in an academy's finances
+   * (ADR-0019): `$0`, no price and the `Particular` badge. Only the portal's
+   * seminar financial detail carries it. */
+  linkedIndividual?: boolean;
   owedBalanceAmount: number | null;
   /** A seminar inscription holding a reserved place; choreography rows never
    * carry it. */
@@ -80,6 +85,12 @@ export const seminarInscriptionFinanceFacetedFilters = statusFacet(
   seminarInscriptionStatusFilterOptions,
 );
 
+/** The academy's seminar detail can also read `Particular`. */
+export const portalSeminarInscriptionFinanceFacetedFilters = statusFacet([
+  ...seminarInscriptionStatusFilterOptions,
+  linkedIndividualStatusFilterOption,
+]);
+
 export const inscriptionFinanceColumns: DataTableColumn<InscriptionFinanceRow>[] =
   [
     {
@@ -89,12 +100,7 @@ export const inscriptionFinanceColumns: DataTableColumn<InscriptionFinanceRow>[]
       // the row's figures are calculated with.
       id: "price",
       header: "Precio",
-      cell: (inscription) =>
-        inscription.effectivePrice === null ? (
-          "Sin precio"
-        ) : (
-          <Badge variant="secondary">{inscription.effectivePrice.name}</Badge>
-        ),
+      cell: (inscription) => <InscriptionPriceCell inscription={inscription} />,
       // No `filterValue`: the price's name is not an option of the `Estado`
       // filter, and the facets gather the values of every column.
       sortValue: (inscription) => inscription.effectivePrice?.name ?? "",
@@ -153,9 +159,27 @@ function resolveInscriptionStatus(inscription: InscriptionFinanceRow) {
   return resolveInscriptionStatusBadge({
     anomalies: inscription.anomalies,
     financialStatus: inscription.financialStatus,
+    linkedIndividual: inscription.linkedIndividual,
     reserved: inscription.reserved,
     withdrawn: inscription.withdrawn,
   });
+}
+
+function InscriptionPriceCell({
+  inscription,
+}: {
+  inscription: InscriptionFinanceRow;
+}) {
+  // A linked individual's price is the individual's, not the academy's to read.
+  if (inscription.linkedIndividual) {
+    return "—";
+  }
+
+  if (inscription.effectivePrice === null) {
+    return "Sin precio";
+  }
+
+  return <Badge variant="secondary">{inscription.effectivePrice.name}</Badge>;
 }
 
 function InscriptionStatusCell({

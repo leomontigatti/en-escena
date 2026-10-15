@@ -30,6 +30,7 @@ export function seminarInscriptionFinanceRowFixture(
     overAllocatedAmount: 0,
     owedBalanceAmount: 5000,
     owedDepositAmount: 0,
+    personKind: "dancer",
     reserved: false,
     scheduledDate: "2026-10-10",
     seminarId: "seminar_1",

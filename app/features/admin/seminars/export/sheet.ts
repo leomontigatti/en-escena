@@ -1,5 +1,8 @@
 import { moneyCell, type SheetColumn } from "@/features/admin/day-export/sheet";
-import { rosterPersonNoun } from "@/lib/roster/roster-person-kind.shared";
+import {
+  rosterPersonNoun,
+  type InscriptionPersonKind,
+} from "@/lib/roster/roster-person-kind.shared";
 
 /**
  * A seminar's sheet: one row per inscription, active or withdrawn, then a
@@ -26,7 +29,7 @@ export type SeminarInscriptionSheetRow = SeminarInscriptionFigures &
         fullName: string;
         instructorName: string;
         kind: "inscription";
-        personKind: "dancer" | "professor";
+        personKind: InscriptionPersonKind;
         withdrawn: boolean;
       }
     | { kind: "total" }

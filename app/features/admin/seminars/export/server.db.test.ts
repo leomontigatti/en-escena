@@ -7,6 +7,7 @@ import { seedPeriodExportFixture } from "@/features/admin/period-export/period-e
 import { readWorkbook } from "@/features/admin/period-export/workbook.test-support";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { expectThrownResponse } from "@/lib/test-support/http";
+import { createIndividualUser } from "@/lib/test-support/individuals";
 
 import { listExportableSeminarIds, loadSeminarsExport } from "./server";
 import { buildSeminarExportHref, exportAllSeminars } from "./shared";
@@ -86,7 +87,9 @@ async function seedSeminarsFixture() {
   };
 
   const register = async (
-    input: ({ dancerId: string } | { professorId: string }) & {
+    input: (
+      { dancerId: string } | { individualId: string } | { professorId: string }
+    ) & {
       seminarId: string;
       withdrawn?: boolean;
     },
@@ -95,6 +98,7 @@ async function seedSeminarsFixture() {
       .insert(seminarInscriptions)
       .values({
         dancerId: "dancerId" in input ? input.dancerId : null,
+        individualId: "individualId" in input ? input.individualId : null,
         professorId: "professorId" in input ? input.professorId : null,
         seminarId: input.seminarId,
         withdrawnAt: input.withdrawn ? new Date() : null,
@@ -200,6 +204,43 @@ describe("the auditor's seminar export", () => {
       ["Total", null, null, null, null, 45000, 15000, 90000, 20000, 70000],
     ]);
     expect(sheets.get("Alicia Alonso")).toHaveLength(3);
+  });
+
+  // #1665: an individual registers itself and is listed as a `Particular`,
+  // owned by its own owner row.
+  test("lists an individual's own inscription as a `Particular`", async () => {
+    const fixture = await seedSeminarsFixture();
+    const sol = await fixture.addAcademy({ name: "Academia Sol" });
+    const ana = await fixture.addDancer(sol.id, {
+      firstName: "Ana",
+      lastName: "Paz",
+    });
+    const clara = await createIndividualUser({
+      email: `${crypto.randomUUID()}@example.com`,
+      firstName: "Clara",
+      lastName: "Ríos",
+    });
+    const seminar = await fixture.addSeminar({
+      instructorName: "Julio Bocca",
+      scheduledDate: "2026-05-02",
+    });
+    await fixture.register({ dancerId: ana.id, seminarId: seminar.id });
+    await fixture.register({
+      individualId: clara.individualId,
+      seminarId: seminar.id,
+    });
+
+    const { sheets } = await exportSheets();
+
+    expect(
+      sheets
+        .get("Julio Bocca")
+        ?.slice(1, 3)
+        .map((row) => row.slice(1, 5)),
+    ).toEqual([
+      ["Ana Paz", "Bailarín", "Activa", "Academia Sol"],
+      ["Clara Ríos", "Particular", "Activa", "Clara Ríos"],
+    ]);
   });
 
   test("exports one seminar alone, named after it", async () => {

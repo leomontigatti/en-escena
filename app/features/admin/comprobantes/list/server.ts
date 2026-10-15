@@ -3,7 +3,6 @@ import { alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
 import { academies, choreographies, comprobantes, seminars } from "@/db/schema";
-import { academyOwner } from "@/lib/academies/owner-kind.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { readAnchorFromJoins } from "@/lib/comprobantes/anchor-context.server";
 import type { ComprobanteAnchorReading } from "@/lib/comprobantes/anchor-reading";
@@ -81,12 +80,13 @@ const comprobantesListSpec: ListQuerySpec<ComprobantesListOrder["columnId"]> = {
 };
 
 /**
- * The global list of comprobantes emitted in the active event, paginated, sorted
- * and filtered on the server (it grows over time, #483). The `valid`/`annulled`
- * state is NOT persisted: it is derived in SQL from the existence of a credit
- * note of the same event referencing the invoice via
- * `associatedComprobanteId`, so that the state filter and the pagination operate
- * on the real state and not on the loaded page. It mutates nothing.
+ * The global list of comprobantes emitted in the active event, an academy's and
+ * an individual's alike (ADR-0019: both own them through the same owner row),
+ * paginated, sorted and filtered on the server (it grows over time, #483). The
+ * `valid`/`annulled` state is NOT persisted: it is derived in SQL from the
+ * existence of a credit note of the same event referencing the invoice via
+ * `associatedComprobanteId`, so that the state filter and the pagination
+ * operate on the real state and not on the loaded page. It mutates nothing.
  */
 export async function loadComprobantesList(
   request: Request,
@@ -113,18 +113,12 @@ export async function loadComprobantesList(
   const [{ count: totalUnfilteredCount }] = await db
     .select({ count: sql<number>`count(*)` })
     .from(comprobantes)
-    .innerJoin(
-      academies,
-      and(eq(comprobantes.academyId, academies.id), academyOwner()),
-    )
+    .innerJoin(academies, eq(comprobantes.academyId, academies.id))
     .where(eq(comprobantes.eventId, selectedEventId));
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)` })
     .from(comprobantes)
-    .innerJoin(
-      academies,
-      and(eq(comprobantes.academyId, academies.id), academyOwner()),
-    )
+    .innerJoin(academies, eq(comprobantes.academyId, academies.id))
     .leftJoin(
       choreographies,
       eq(comprobantes.choreographyId, choreographies.id),
@@ -162,10 +156,7 @@ export async function loadComprobantesList(
       academyName: academies.name,
     })
     .from(comprobantes)
-    .innerJoin(
-      academies,
-      and(eq(comprobantes.academyId, academies.id), academyOwner()),
-    )
+    .innerJoin(academies, eq(comprobantes.academyId, academies.id))
     .leftJoin(
       choreographies,
       eq(comprobantes.choreographyId, choreographies.id),

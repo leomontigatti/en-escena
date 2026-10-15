@@ -1,12 +1,10 @@
-import { and, asc, eq, exists, or, sql } from "drizzle-orm";
+import { and, asc, eq, exists, or } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   academies,
   choreographies,
   choreographyDancers,
-  dancers,
-  professors,
   seminarInscriptions,
   seminars,
   user,
@@ -19,6 +17,7 @@ import {
 } from "@/features/admin/period-export/server";
 import { buildPeriodExportFileName } from "@/features/admin/period-export/shared";
 import { academyOwner } from "@/lib/academies/owner-kind.server";
+import { seminarInscriptionOwnedBy } from "@/lib/seminars/inscription-person.server";
 
 import { academiesExportColumns } from "./sheet";
 
@@ -59,7 +58,7 @@ export async function loadAcademiesExport(request: Request): Promise<Response> {
               ),
           ),
           // A seminar inscription belongs to the academy of the person it
-          // registers, dancer or professor.
+          // registers.
           exists(
             db
               .select({ id: seminarInscriptions.id })
@@ -68,17 +67,9 @@ export async function loadAcademiesExport(request: Request): Promise<Response> {
                 seminars,
                 eq(seminars.id, seminarInscriptions.seminarId),
               )
-              .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-              .leftJoin(
-                professors,
-                eq(professors.id, seminarInscriptions.professorId),
-              )
               .where(
                 and(
-                  eq(
-                    sql`coalesce(${dancers.academyId}, ${professors.academyId})`,
-                    academies.id,
-                  ),
+                  seminarInscriptionOwnedBy(academies.id),
                   seminarInscriptionRegisteredInPeriod(eventId, period),
                 ),
               ),

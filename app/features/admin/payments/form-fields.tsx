@@ -8,6 +8,8 @@ import { SelectField } from "@/components/shared/select-field";
 import { TextareaField } from "@/components/shared/textarea-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { paymentMethodOptions } from "@/features/admin/finances/academy-choreographies/shared";
+import { ownerKinds, type OwnerKind } from "@/lib/academies/owner-kind";
+import { rosterPersonNoun } from "@/lib/roster/roster-person-kind.shared";
 
 type PaymentFormFieldValues = FieldValues & {
   amount: string;
@@ -23,8 +25,31 @@ type PaymentAcademyFieldValues = FieldValues & {
 
 type PaymentAcademyOption = {
   id: string;
+  kind: OwnerKind;
   name: string;
 };
+
+const ownerKindGroupLabels: Record<OwnerKind, string> = {
+  academy: "Academias",
+  individual: rosterPersonNoun("individual", "pluralCapitalized"),
+};
+
+/**
+ * Academies and individuals in two titled sections (ADR-0019), so a
+ * `Particular` is chosen like an academy without being mistaken for one. A
+ * section with nobody in it is left out.
+ */
+function groupPaymentAcademyOptions(academies: PaymentAcademyOption[]) {
+  return ownerKinds.flatMap((kind) => {
+    const options = academies
+      .filter((academy) => academy.kind === kind)
+      .map((academy) => ({ value: academy.id, label: academy.name }));
+
+    return options.length > 0
+      ? [{ label: ownerKindGroupLabels[kind], options }]
+      : [];
+  });
+}
 
 export function PaymentAcademyField<TValues extends PaymentAcademyFieldValues>({
   academies,
@@ -58,10 +83,7 @@ export function PaymentAcademyField<TValues extends PaymentAcademyFieldValues>({
       id="academy-id"
       label="Academia"
       name={"academyId" as FieldPath<TValues>}
-      options={academies.map((academy) => ({
-        value: academy.id,
-        label: academy.name,
-      }))}
+      groups={groupPaymentAcademyOptions(academies)}
     />
   );
 }

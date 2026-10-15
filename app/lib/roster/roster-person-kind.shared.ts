@@ -11,6 +11,14 @@
  */
 export type RosterPersonKind = "dancer" | "professor";
 
+/**
+ * Who a seminar inscription can name: a roster person, or an `individual`
+ * (`Particular`) registering itself (ADR-0019). It is not a roster kind —no
+ * roster table holds individuals, and every roster surface keeps
+ * `RosterPersonKind`— only the seminar inscription and its readers widen to it.
+ */
+export type InscriptionPersonKind = RosterPersonKind | "individual";
+
 /** The kinds in the order every grouped surface shows them, dancers first. */
 export const rosterPersonKinds = [
   "dancer",
@@ -45,13 +53,19 @@ const nouns = {
     plural: "profesores",
     pluralCapitalized: "Profesores",
   },
+  individual: {
+    singular: "particular",
+    singularCapitalized: "Particular",
+    plural: "particulares",
+    pluralCapitalized: "Particulares",
+  },
 } as const satisfies Record<
-  RosterPersonKind,
+  InscriptionPersonKind,
   Record<RosterPersonNounForm, string>
 >;
 
 export function rosterPersonNoun(
-  kind: RosterPersonKind,
+  kind: InscriptionPersonKind,
   form: RosterPersonNounForm,
 ): string {
   return nouns[kind][form];

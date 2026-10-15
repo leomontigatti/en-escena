@@ -1,13 +1,7 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  academies,
-  dancers,
-  professors,
-  seminarInscriptions,
-  seminars,
-} from "@/db/schema";
+import { academies, seminarInscriptions, seminars } from "@/db/schema";
 import {
   workbookResponse,
   workbookSheet,
@@ -17,6 +11,7 @@ import { readPeriodExport } from "@/features/admin/period-export/server";
 import { resolveSeminarInscriptions } from "@/lib/finances/seminar-inscription-thresholds.server";
 import { listSeminars } from "@/lib/seminars/repository.server";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
+import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
 
 import {
   buildSeminarsExportFileName,
@@ -119,10 +114,12 @@ async function readSeminarSheetRows(
     .select({
       academyName: academies.name,
       dancerId: seminarInscriptions.dancerId,
-      firstName: sql<string>`coalesce(${dancers.firstName}, ${professors.firstName})`,
+      firstName: seminarInscriptionPerson.firstName,
+      personKind: seminarInscriptionPerson.kind,
       id: seminarInscriptions.id,
       instructorName: seminars.instructorName,
-      lastName: sql<string>`coalesce(${dancers.lastName}, ${professors.lastName})`,
+      lastName: seminarInscriptionPerson.lastName,
+      individualId: seminarInscriptions.individualId,
       professorId: seminarInscriptions.professorId,
       requiredDepositPercentage: seminars.requiredDepositPercentage,
       seminarId: seminarInscriptions.seminarId,
@@ -132,15 +129,11 @@ async function readSeminarSheetRows(
     })
     .from(seminarInscriptions)
     .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
-    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
     .innerJoin(
-      academies,
-      eq(
-        academies.id,
-        sql`coalesce(${dancers.academyId}, ${professors.academyId})`,
-      ),
+      seminarInscriptionPerson,
+      eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
     )
+    .innerJoin(academies, eq(academies.id, seminarInscriptionPerson.academyId))
     .where(eq(seminars.eventId, eventId));
   const resolutions = await resolveSeminarInscriptions(db, {
     eventId,
@@ -169,7 +162,7 @@ async function readSeminarSheetRows(
         instructorName: person.instructorName,
         kind: "inscription",
         owedBalanceAmount: figures.owedBalanceAmount,
-        personKind: person.professorId === null ? "dancer" : "professor",
+        personKind: person.personKind,
         seminarId: person.seminarId,
         totalAmount: figures.totalAmount,
         withdrawn: figures.withdrawn,

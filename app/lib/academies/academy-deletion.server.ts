@@ -1,4 +1,4 @@
-import { count, eq, inArray, or } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import { requireAcademyOwner } from "@/lib/academies/owner-kind.server";
 import { formatSpanishList, pluralize } from "@/lib/shared/text-normalization";
+import { seminarInscriptionOwnedBy } from "@/lib/seminars/inscription-person.server";
 
 export type DeleteAcademyResult =
   | { ok: true; academy: { id: string; name: string } }
@@ -57,15 +58,6 @@ export async function readAcademyHoldings(
   academyId: string,
   executor: AcademyDeletionExecutor = db,
 ) {
-  const dancerIds = executor
-    .select({ id: dancers.id })
-    .from(dancers)
-    .where(eq(dancers.academyId, academyId));
-  const professorIds = executor
-    .select({ id: professors.id })
-    .from(professors)
-    .where(eq(professors.academyId, academyId));
-
   const [
     dancerCount,
     professorCount,
@@ -95,12 +87,7 @@ export async function readAcademyHoldings(
       executor
         .select({ total: count() })
         .from(seminarInscriptions)
-        .where(
-          or(
-            inArray(seminarInscriptions.dancerId, dancerIds),
-            inArray(seminarInscriptions.professorId, professorIds),
-          ),
-        ),
+        .where(seminarInscriptionOwnedBy(academyId)),
     ),
     readTotal(
       executor
