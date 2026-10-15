@@ -1,3 +1,4 @@
+import { choreographyClassificationColumns } from "@/components/shared/choreography-classification-columns";
 import { CircleCheck } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -13,9 +14,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { matchesPresentationSearch } from "@/lib/presentations/search";
-import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
 import { ScheduleDayTabs } from "./day-tabs";
 import type { ProgramLive } from "./live-day";
@@ -176,34 +175,7 @@ function buildProgramColumns({
           cell: (row) => <DataTableTruncatedText value={row.academyName} />,
         }
       : null,
-    {
-      id: "modality",
-      header: "Modalidad / Submodalidad",
-      width: 21,
-      className: "text-muted-foreground",
-      cell: (row) => (
-        <DataTableTruncatedText
-          value={formatPrimaryAndSecondaryValue(
-            row.modalityName,
-            row.submodalityName,
-          )}
-        />
-      ),
-    },
-    {
-      id: "categoryGroup",
-      header: "Categoría / Tipo de grupo",
-      width: 20,
-      className: "text-muted-foreground",
-      cell: (row) => (
-        <DataTableTruncatedText
-          value={formatPrimaryAndSecondaryValue(
-            row.categoryName,
-            formatGroupTypeLabel(row.groupType),
-          )}
-        />
-      ),
-    },
+    ...choreographyClassificationColumns<ProgramListRow>(),
     {
       id: "dancers",
       header: "Bailarines",
