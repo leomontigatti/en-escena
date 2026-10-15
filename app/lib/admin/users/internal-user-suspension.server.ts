@@ -51,7 +51,7 @@ export async function setInternalUserSuspendedState(
   });
 
   if (!existingUser) {
-    return { ok: false, error: "No encontramos ese Usuario." };
+    return { ok: false, error: "No encontramos ese usuario." };
   }
 
   if (

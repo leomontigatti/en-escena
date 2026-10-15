@@ -51,7 +51,7 @@ async function renderAdminRoute(shellLoader: () => unknown) {
         {
           path: "academias/:academyId",
           loader: () => {
-            throw new Response("No encontramos esa Academia.", {
+            throw new Response("No encontramos esa academia.", {
               status: 404,
             });
           },
@@ -82,7 +82,7 @@ describe("`/administracion` error boundary", () => {
   test("renders a screen's thrown Response inside the admin shell", async () => {
     const markup = await renderAdminRoute(() => shellData);
 
-    expect(markup).toContain("No encontramos esa Academia.");
+    expect(markup).toContain("No encontramos esa academia.");
     expect(markup).toContain("Página no encontrada");
     expect(markup).toContain("Ada Admin");
     expect(markup).toContain("Saltar al contenido principal");

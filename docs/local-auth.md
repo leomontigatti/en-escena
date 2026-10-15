@@ -217,11 +217,14 @@ repository ([pull-requests.md](agents/pull-requests.md#ui-evidence)).
 
 The main local auth routes are:
 
-- `/registro`: start a public academy registration with email and password.
-- `/registro/confirmar?token_hash=...&type=signup`: verify the academy email
-  confirmation link and start the academy onboarding session.
-- `/registro/academia`: complete academy onboarding after the email was
-  confirmed.
+- `/registro`: start a public registration with email and password.
+- `/registro/confirmar?token_hash=...&type=signup`: verify the email
+  confirmation link and start the onboarding session.
+- `/registro/cuenta`: choose the kind of account, `Academia` or `Particular`,
+  after the email was confirmed.
+- `/registro/academia`: complete academy onboarding.
+- `/registro/particular`: complete individual onboarding; the individual then
+  lands in its own area, `/particular`.
 - `/ingresar`: sign in with email and password.
 - `/recuperar-acceso`: request an access recovery email.
 - `/cambiar-contrasena?code=...`: complete the academy recovery flow after

@@ -2,7 +2,7 @@ import { RouterContextProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
-  PUBLIC_ACADEMY_ONBOARDING_PATH,
+  PUBLIC_ONBOARDING_PATH,
   PUBLIC_REGISTRATION_CONFIRMATION_ERROR_PATH,
   PUBLIC_REGISTRATION_CONFIRMATION_PATH,
 } from "@/lib/auth/access-paths.shared";
@@ -47,9 +47,7 @@ describe("registration confirm loader", () => {
       tokenHash: "hash-confirmacion",
       type: "signup",
     });
-    expect(response.headers.get("location")).toBe(
-      PUBLIC_ACADEMY_ONBOARDING_PATH,
-    );
+    expect(response.headers.get("location")).toBe(PUBLIC_ONBOARDING_PATH);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("set-cookie")).toContain(
       "better-auth.session_token",

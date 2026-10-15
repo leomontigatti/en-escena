@@ -1,7 +1,8 @@
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { categories, choreographies } from "@/db/schema";
+import { academies, categories, choreographies } from "@/db/schema";
+import { academyOwner } from "@/lib/academies/owner-kind.server";
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import { grandFinalGroup, type GrandFinalGroup } from "@/lib/grand-final/group";
 
@@ -15,7 +16,8 @@ export type GrandFinalEligiblePair = {
  * The academy and modality pairs of the event that meet the `Gran final`
  * requirements: at least one non-withdrawn `grupal` choreography in a
  * `children` category and one in an `adults` category, both in that modality.
- * Submodality and money are ignored. Derived on every read and never stored,
+ * Submodality and money are ignored, and only academies take part, never an
+ * individual. Derived on every read and never stored,
  * so registering or withdrawing a choreography changes it at once.
  */
 export async function grandFinalEligibility(
@@ -30,6 +32,10 @@ export async function grandFinalEligibility(
     })
     .from(choreographies)
     .innerJoin(categories, eq(categories.id, choreographies.categoryId))
+    .innerJoin(
+      academies,
+      and(eq(academies.id, choreographies.academyId), academyOwner()),
+    )
     .where(
       and(
         eq(choreographies.eventId, eventId),

@@ -8,6 +8,7 @@ import {
   votingRoundFinalists,
   votingRounds,
 } from "@/db/schema";
+import { academyOwner } from "@/lib/academies/owner-kind.server";
 import {
   rankGrandFinal,
   type FinalistTally,
@@ -133,7 +134,10 @@ export async function readRoundTally(
         ),
     })
     .from(votingRoundFinalists)
-    .innerJoin(academies, eq(academies.id, votingRoundFinalists.academyId))
+    .innerJoin(
+      academies,
+      and(eq(academies.id, votingRoundFinalists.academyId), academyOwner()),
+    )
     .leftJoin(
       votes,
       and(

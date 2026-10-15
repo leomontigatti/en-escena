@@ -17,7 +17,7 @@ describe("the roster person kind vocabulary preserves the copy it replaced (#147
     {
       kind: "dancer",
       sentences: {
-        notFound: "No encontramos ese Bailarín.",
+        notFound: "No encontramos ese bailarín.",
         participating:
           "Este bailarín no puede archivarse porque está participando del evento activo.",
         rejectedArchived:
@@ -34,7 +34,7 @@ describe("the roster person kind vocabulary preserves the copy it replaced (#147
     {
       kind: "professor",
       sentences: {
-        notFound: "No encontramos ese Profesor.",
+        notFound: "No encontramos ese profesor.",
         participating:
           "Este profesor no puede archivarse porque está participando del evento activo.",
         rejectedArchived:

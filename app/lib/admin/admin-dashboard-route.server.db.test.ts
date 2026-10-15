@@ -143,6 +143,7 @@ describe("`/administracion` index route", () => {
     expect(markup).not.toContain("bases sin configurar");
     expect(cardLinks(markup)).toEqual([
       "/administracion/academias",
+      "/administracion/particulares",
       "/administracion/bailarines",
       "/administracion/profesores",
       "/administracion/coreografias",

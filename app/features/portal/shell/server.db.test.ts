@@ -164,7 +164,7 @@ describe("portal roster list loaders", () => {
 
     expect(response.status).toBe(403);
     await expect(response.text()).resolves.toBe(
-      "Los usuarios internos no pueden acceder al portal.",
+      "El Portal de academias es solo para academias.",
     );
   });
 });

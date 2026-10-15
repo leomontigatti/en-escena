@@ -47,7 +47,7 @@ export function InternalUsersListRouteView({
     <AdminResourceLayout
       requireSelectedEvent={false}
       title="Usuarios"
-      description="Consultá accesos internos y de academia con filtros por tipo y estado."
+      description="Consultá accesos internos, de academias y de particulares, con filtros por tipo y estado."
       action={
         loaderData.canWrite
           ? { label: "Nuevo usuario", to: "/administracion/usuarios/nuevo" }
@@ -198,5 +198,7 @@ function getTypeLabel(type: UserListType) {
       return "Interno";
     case "academy":
       return "Usuario de academia";
+    case "individual":
+      return "Particular";
   }
 }

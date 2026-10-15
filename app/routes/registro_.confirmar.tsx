@@ -3,7 +3,7 @@ import { redirect } from "react-router";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { SignUpConfirmationRefusedError } from "@/lib/auth/access-auth-provider.shared.server";
 import {
-  PUBLIC_ACADEMY_ONBOARDING_PATH,
+  PUBLIC_ONBOARDING_PATH,
   PUBLIC_REGISTRATION_CONFIRMATION_ERROR_PATH,
 } from "@/lib/auth/access-paths.shared";
 import { createLegacySessionCookieClearHeaders } from "@/lib/auth/legacy-session-cookies.server";
@@ -44,5 +44,5 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
   }
 
-  throw redirect(PUBLIC_ACADEMY_ONBOARDING_PATH, { headers: result.headers });
+  throw redirect(PUBLIC_ONBOARDING_PATH, { headers: result.headers });
 }

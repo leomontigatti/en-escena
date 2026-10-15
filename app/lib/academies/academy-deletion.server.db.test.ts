@@ -12,7 +12,9 @@ import {
 } from "@/db/schema";
 import { deleteEmptyAcademy } from "@/lib/academies/academy-deletion.server";
 import { createEventChoreographyFixture } from "@/lib/events/bases.test-support";
+import { requireIndividualUser } from "@/lib/auth/internal-access.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createIndividualUser } from "@/lib/test-support/individuals";
 import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -135,6 +137,27 @@ describe("deleteEmptyAcademy", () => {
     expect(result).toEqual({
       ok: false,
       message: "No se puede eliminar la academia: tiene 1 coreografía.",
+    });
+  });
+
+  test("never deletes an owner row of kind individual, empty or not", async () => {
+    const individual = await createIndividualUser({
+      email: "ana.particular@example.com",
+    });
+
+    await expect(deleteEmptyAcademy(individual.ownerId)).rejects.toMatchObject({
+      status: 404,
+    });
+    // The account still opens its own area: user, owner row and person.
+    await expect(
+      requireIndividualUser(
+        new Request("http://localhost/particular", {
+          headers: { cookie: individual.cookie },
+        }),
+      ),
+    ).resolves.toMatchObject({
+      individual: { ownerId: individual.ownerId },
+      user: { id: individual.userId },
     });
   });
 });

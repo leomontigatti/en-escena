@@ -2,6 +2,7 @@ import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, choreographies } from "@/db/schema";
+import { academyOwner } from "@/lib/academies/owner-kind.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { getAcademyDataStatus } from "@/lib/academies/academy-data-status";
 import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
@@ -19,6 +20,7 @@ export async function loadAcademiesList(request: Request) {
       contactName: true,
       province: true,
     },
+    where: academyOwner(),
     orderBy: [asc(academies.name)],
   });
   const participatingAcademyIds = eventContext.selectedEventId

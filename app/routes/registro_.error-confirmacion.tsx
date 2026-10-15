@@ -14,7 +14,7 @@ export default function RegistrationConfirmationErrorRoute() {
         eyebrow="Enlace inválido"
         title="No pudimos confirmar tu correo"
         tone="danger"
-        description="El enlace ya fue usado o expiró. Pedí uno nuevo para registrar la academia."
+        description="El enlace ya fue usado o expiró. Pedí uno nuevo para seguir con el registro."
       />
 
       <AccessSecondaryLink to="/registro" className="mt-8 w-full">

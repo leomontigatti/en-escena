@@ -1,4 +1,4 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -10,6 +10,7 @@ import {
   seminarInscriptions,
   seminars,
 } from "@/db/schema";
+import { academyOwner } from "@/lib/academies/owner-kind.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import {
@@ -54,7 +55,7 @@ export async function loadFinancesList(request: Request) {
         id: true,
         name: true,
       },
-      where: inArray(academies.id, academyIds),
+      where: and(inArray(academies.id, academyIds), academyOwner()),
       orderBy: [academies.name],
     }),
     readAcademyEventOperationalFinanceSummaries({

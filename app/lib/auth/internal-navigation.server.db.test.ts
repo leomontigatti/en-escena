@@ -344,7 +344,7 @@ describe("internal navigation", () => {
       302,
     );
 
-    expect(response.headers.get("location")).toBe("/registro/academia");
+    expect(response.headers.get("location")).toBe("/registro/cuenta");
   });
 
   test("admits administration readers to the panel and nobody else", async () => {

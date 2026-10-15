@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-import { isInternalUserRole, type UserRole } from "@/lib/auth/user-role.shared";
+import {
+  getUserKind,
+  isInternalUserRole,
+  type UserKind,
+  type UserRole,
+} from "@/lib/auth/user-role.shared";
 import {
   toUserAccessState,
   type UserAccessState,
@@ -34,7 +39,7 @@ export type ResetPasswordFormValues = {
   password: string;
 };
 
-export type DetailUserType = "academy" | "internal";
+export type DetailUserType = UserKind;
 
 export type DetailUserRow = {
   id: string;
@@ -131,18 +136,21 @@ export type UserRouteNotification = Extract<
 >;
 
 export function buildDetailUser(row: DetailUserRow): DetailUser {
-  const isAcademyUser = row.role === "academy";
+  const userType = getUserKind(row.role);
+  const isAcademyUser = userType === "academy";
+  const signsInByEmail = userType !== "internal";
 
   return {
     academyId: isAcademyUser ? row.academyId : null,
     academyName: isAcademyUser ? row.academyName : null,
-    email: isAcademyUser ? row.email : null,
+    email: signsInByEmail ? row.email : null,
     identifier: row.internalUsername ?? row.email,
     id: row.id,
     mainRole: row.role,
-    name: getDetailName(row, isAcademyUser),
+    // An individual's owner row carries its person's full name as contact.
+    name: getDetailName(row, signsInByEmail),
     state: toUserAccessState(row),
-    userType: isAcademyUser ? "academy" : "internal",
+    userType,
   };
 }
 
@@ -181,6 +189,10 @@ export function getDetailDescription(
 ) {
   if (userType === "academy") {
     return "Consultá la identidad de acceso de la academia en modo solo lectura.";
+  }
+
+  if (userType === "individual") {
+    return "Consultá la identidad de acceso del Particular en modo solo lectura.";
   }
 
   if (canWrite) {
@@ -247,8 +259,8 @@ export function getUpdateInternalUserFieldErrors(error: z.ZodError) {
   return getFieldErrors(error, updateInternalUserFieldNames);
 }
 
-function getDetailName(row: DetailUserRow, isAcademyUser: boolean) {
-  if (isAcademyUser) {
+function getDetailName(row: DetailUserRow, ownsAnAccount: boolean) {
+  if (ownsAnAccount) {
     return row.academyContactName ?? row.name;
   }
 

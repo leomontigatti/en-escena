@@ -19,6 +19,7 @@ const assetKinds: AssetKind[] = [
   "eventDocument",
   "feedbackAudio",
   "grandFinalBanner",
+  "individualDocumentPhoto",
   "seminarInstructorPicture",
 ];
 

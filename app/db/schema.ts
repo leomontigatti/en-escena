@@ -1,6 +1,7 @@
 export * from "./schema/core";
 export * from "./schema/access";
 export * from "./schema/academies";
+export * from "./schema/individuals";
 export * from "./schema/roster";
 export * from "./schema/events";
 export * from "./schema/prices";

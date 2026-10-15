@@ -18,6 +18,7 @@ import {
   seminarInscriptionRegisteredInPeriod,
 } from "@/features/admin/period-export/server";
 import { buildPeriodExportFileName } from "@/features/admin/period-export/shared";
+import { academyOwner } from "@/lib/academies/owner-kind.server";
 
 import { academiesExportColumns } from "./sheet";
 
@@ -39,43 +40,49 @@ export async function loadAcademiesExport(request: Request): Promise<Response> {
     .from(academies)
     .innerJoin(user, eq(user.id, academies.userId))
     .where(
-      or(
-        exists(
-          db
-            .select({ id: choreographyDancers.id })
-            .from(choreographies)
-            .innerJoin(
-              choreographyDancers,
-              eq(choreographyDancers.choreographyId, choreographies.id),
-            )
-            .where(
-              and(
-                eq(choreographies.academyId, academies.id),
-                inscriptionRegisteredInPeriod(eventId, period),
-              ),
-            ),
-        ),
-        // A seminar inscription belongs to the academy of the person it
-        // registers, dancer or professor.
-        exists(
-          db
-            .select({ id: seminarInscriptions.id })
-            .from(seminarInscriptions)
-            .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
-            .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-            .leftJoin(
-              professors,
-              eq(professors.id, seminarInscriptions.professorId),
-            )
-            .where(
-              and(
-                eq(
-                  sql`coalesce(${dancers.academyId}, ${professors.academyId})`,
-                  academies.id,
+      and(
+        academyOwner(),
+        or(
+          exists(
+            db
+              .select({ id: choreographyDancers.id })
+              .from(choreographies)
+              .innerJoin(
+                choreographyDancers,
+                eq(choreographyDancers.choreographyId, choreographies.id),
+              )
+              .where(
+                and(
+                  eq(choreographies.academyId, academies.id),
+                  inscriptionRegisteredInPeriod(eventId, period),
                 ),
-                seminarInscriptionRegisteredInPeriod(eventId, period),
               ),
-            ),
+          ),
+          // A seminar inscription belongs to the academy of the person it
+          // registers, dancer or professor.
+          exists(
+            db
+              .select({ id: seminarInscriptions.id })
+              .from(seminarInscriptions)
+              .innerJoin(
+                seminars,
+                eq(seminars.id, seminarInscriptions.seminarId),
+              )
+              .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
+              .leftJoin(
+                professors,
+                eq(professors.id, seminarInscriptions.professorId),
+              )
+              .where(
+                and(
+                  eq(
+                    sql`coalesce(${dancers.academyId}, ${professors.academyId})`,
+                    academies.id,
+                  ),
+                  seminarInscriptionRegisteredInPeriod(eventId, period),
+                ),
+              ),
+          ),
         ),
       ),
     )

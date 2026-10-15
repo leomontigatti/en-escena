@@ -41,6 +41,15 @@ export const province = pgEnum("en_escena_province", [
   "otro_pais",
 ]);
 
+// What an owner row is (ADR-0019): an `academy`, or an `individual`
+// (`Particular`) that owns its inscriptions and money through the same row.
+// Everything that enumerates academies reads only `academy` rows, through
+// `app/lib/academies/owner-kind.server.ts`.
+export const academyKind = pgEnum("en_escena_academy_kind", [
+  "academy",
+  "individual",
+]);
+
 export const academies = createTable(
   "academy",
   {
@@ -51,6 +60,7 @@ export const academies = createTable(
     userId: varchar("user_id", { length: 255 })
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    kind: academyKind("kind").notNull().default("academy"),
     name: text("name").notNull(),
     contactName: text("contact_name").notNull(),
     phone: text("phone").notNull(),
