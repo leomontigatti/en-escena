@@ -1,7 +1,8 @@
 # Pull requests
 
 How a PR is written here. The title rule is
-enforced (`pnpm check:pr-title`, see [ci.md](../operations/ci.md#required-contexts));
+enforced (`pnpm check:pr-title`, see [ci.md](../operations/ci.md#required-contexts)),
+and so is the body's `## Review` record (`pnpm check:review-record`);
 everything below is convention. Branches and linking the PR to its T3 thread are
 in [workflows.md](./workflows.md#branches-worktrees-and-t3-code-threads).
 
@@ -60,9 +61,9 @@ is babysitting is updated the same way by hand. After a stack's bottom layer
 merges, the next layer is behind: babysit it again.
 
 CodeRabbit is optional. The in-session review carries its job: the correctness
-axis of `implement` step 5 runs on every diff that changes behaviour, on Opus
-beside the Sol axes, and its brief names the areas where CodeRabbit caught bugs
-that review used to miss. CodeRabbit is asked once, by the babysit, and only on
+axis of `implement` step 5 runs on every diff that changes behaviour, on the model
+family that did not write it and on both in the `full` tier, and its brief names
+the areas where CodeRabbit caught bugs that review used to miss. CodeRabbit is asked once, by the babysit, and only on
 a PR in the full-review tier, once the PR is final (and once more if a push of
 the babysit's own cancels that review); no other PR waits on it. While the repo has under 10 GitHub stars,
 CodeRabbit gives it no automatic reviews and each request spends a small hourly

@@ -1,0 +1,57 @@
+# Review-record gate. A PR body carries a `## Review` section naming the review
+# tier, the commit the in-session review covered, and one line per reviewer
+# (the `pr` skill). `pnpm check:review-record` derives the tier from the diff,
+# fails a record missing a reviewer that tier requires, and fails a code commit
+# pushed after the reviewed one. The rules are in `scripts/review-record.ts`;
+# why they exist is step 5 of the `implement` skill.
+#
+# Its own workflow, like `pr-title.yml`, because it needs `edited`: updating
+# the record re-runs the gate without re-running the full suite.
+#
+# Branch protection: `review-record` becomes a required context on `master`
+# once the repo setting names it; this file only produces the check.
+name: Review record
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+# Reads the repository and nothing else (zizmor `excessive-permissions`).
+permissions:
+  contents: read
+
+concurrency:
+  group: review-record-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review-record:
+    name: review-record
+    # A draft is not reviewed yet: a PRD PR records its review when it is marked ready.
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+          # The check walks the branch's commits since the reviewed one and
+          # diffs against the base, so it needs the whole history.
+          fetch-depth: 0
+      # The pnpm version comes from the `packageManager` field.
+      # The install is needed: the script is TypeScript and runs under `tsx`.
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: check:review-record (tier, reviewers, reviewed commit)
+        env:
+          # Through the environment, never interpolated into `run:`: the body is
+          # attacker-controlled text (zizmor `template-injection`).
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: pnpm check:review-record

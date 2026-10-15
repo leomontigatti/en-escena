@@ -84,16 +84,17 @@ End with a one-line summary: total findings per axis, and the worst issue _withi
 
 Every review role runs on a fixed model, at an effort picked for what the role does:
 
-| Role            | Model                         | Effort | Why that effort                                                                                                                        |
-| --------------- | ----------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Standards, Spec | Codex `gpt-6.1-sol`           | medium | breadth: every hunk matched against a list (the documented rules, the spec's lines); tracing a path in depth is the correctness axis's |
-| Readback        | Codex `gpt-6-luna`            | low    | restating a diff and flagging what jars needs little reasoning, and Luna spares the Sol quota                                          |
-| Correctness     | Opus, through `reviewer-opus` | -      | a second model family hunting bugs; it keeps the Claude agent's own effort                                                             |
+| Role            | Model                                                | Effort        | Why that effort                                                                                                                              |
+| --------------- | ---------------------------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Standards, Spec | Codex `gpt-6.1-sol`                                  | medium        | breadth: every hunk matched against a list (the documented rules, the spec's lines); tracing a path in depth is the correctness axis's       |
+| Readback        | Codex `gpt-6-luna`                                   | low           | restating a diff and flagging what jars needs little reasoning, and Luna spares the Sol quota                                                |
+| Correctness     | Codex `gpt-6.1-sol`, or Opus through `reviewer-opus` | medium on Sol | the family that did not write the code, both in the `full` tier ([CORRECTNESS.md](CORRECTNESS.md)); Opus keeps the Claude agent's own effort |
 
 How the session reaches each model depends on where it runs:
 
-- **Claude Code in a T3 thread**: the main session calls `delegate_task` once per Codex role, all in
-  the message that spawns `reviewer-opus` with the Agent tool. Each call takes
+- **Claude Code in a T3 thread**: the main session calls `delegate_task` once per Codex role, Sol
+  correctness included, all in one message, which also spawns `reviewer-opus` with the Agent tool
+  when the tier runs Opus correctness. Each call takes
   `target: {providerInstanceId: "codex", model, options: {reasoningEffort}}` from the table,
   `mode: "async"`, `role: "review"`, a `title` naming the axis and round, and a `clientRequestId`
   of `<issue>-<axis>-r<round>`, the same on a retry of that round. The task opens with "Before
@@ -104,14 +105,18 @@ How the session reaches each model depends on where it runs:
   the child thread. When a call refuses a model id, `orchestrator_capabilities` lists the live
   ones. A Claude subagent can reach `delegate_task` too (measured on #1568), but spawning from
   the main session keeps one hop and leaves each report with the session that judges it.
-- **Codex**: spawn the native agents, `reviewer` for Standards, Spec and correctness and
+- **Codex**: spawn the native agents, `reviewer` for Standards, Spec and Sol correctness and
   `reviewer-luna` for the readback; their `.codex/agents/*.toml` repeat the models above,
-  so a model change touches both.
-- **Claude Code outside T3** (no `delegate_task` tool): every axis goes to `reviewer-opus`.
+  so a model change touches both. Opus correctness goes through T3's `delegate_task` with
+  `target: {providerInstanceId: "claudeAgent", model: "claude-opus-5-5"}`, `role: "review"` and
+  the task opening "Before anything else, read `.agents/agents/reviewer.md` and follow it.";
+  outside T3 there is no Opus, and the record names that axis skipped.
+- **Claude Code outside T3** (no `delegate_task` tool): every axis goes to `reviewer-opus`, and
+  the record names Sol correctness skipped.
 
 ## The other review briefs
 
-`implement` step 5 picks the tier and uses two briefs kept beside this skill: [READBACK.md](READBACK.md), the one-agent tier for a diff outside the risky areas, and [CORRECTNESS.md](CORRECTNESS.md), the bug-hunting axis that runs beside either tier when the diff changes behaviour.
+`implement` step 5 picks the tier (`pnpm review:tier`) and uses two briefs kept beside this skill: [READBACK.md](READBACK.md), the one-agent tier for a diff outside the risky areas, and [CORRECTNESS.md](CORRECTNESS.md), the bug-hunting axis that runs beside either tier when the diff changes behaviour.
 
 ## Why two axes
 

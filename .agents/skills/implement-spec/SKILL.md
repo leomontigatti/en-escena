@@ -95,10 +95,11 @@ When every ticket has merged:
    ticket as a finding.
 3. Send every **fix** to one `implementer`, spawned as in step 2 with the findings in place of
    the ticket number. Land it with step 3's fast-forward, push and worktree removal; there is no
-   sub-issue to comment on or tick. Then re-run only the checks the findings named: no second
-   broad review.
+   sub-issue to comment on or tick. Then re-run only the checks the findings named and step 5's
+   fix round over the fixes: no second broad review.
 4. Run `implement` step 4 now that the code is final: the **after** screenshots, attached with
    `pnpm pr:evidence`.
-5. `gh pr ready <n>`, then call the Skill tool with "babysit-pr".
+5. Add the `## Review` record to the PR body (the `pr` skill), then `gh pr ready <n>`, then call
+   the Skill tool with "babysit-pr".
 6. Remove any implementer worktree still listed in `git worktree list`, and
    `/tmp/implement-spec-<PRD>/`.

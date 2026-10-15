@@ -6,18 +6,19 @@
 # Correctness
 
 The bug-hunting axis of step 5 of the `implement` skill. It runs on every diff that changes
-behaviour: beside the readback, or as the third axis of the full review. Standards asks whether
-the code follows the repo's conventions and Spec whether it does what the issue asked; this one
-asks whether it is **wrong**. It took over the job CodeRabbit did on every PR: the bugs it caught
-that the in-session review missed fell in the areas the brief now names.
+behaviour: beside the readback, or beside Standards and Spec in the full review. Standards asks
+whether the code follows the repo's conventions and Spec whether it does what the issue asked;
+this one asks whether it is **wrong**. It took over the job CodeRabbit did on every PR: the bugs it
+caught that the in-session review missed fell in the areas the brief now names.
 
 1. Use the fixed point, diff command and commit list pinned for `code-review`, or for the
    readback.
-2. Spawn **one** `reviewer-opus` sub-agent, in the same message as the other review spawns, with
-   the diff command, the commit list, one paragraph stating what the change is meant to do, and
-   the brief below. It runs on Opus while the other axes run on Codex models, so the axis that
-   hunts for bugs brings a second model family. Codex has no Opus agent: under Codex, spawn
-   `reviewer`.
+2. Spawn the reviewer on the model family that did not write the code: Sol when Claude
+   implements, Opus when Codex does, so the hunt never shares the author's blind spots. In the
+   `full` tier spawn both, with the same prompt: that is a trial comparing the two (below).
+   "Spawning a reviewer" in [SKILL.md](SKILL.md) says how each harness reaches each model. Spawn
+   in the same message as the other review spawns, with the diff command, the commit list, one
+   paragraph stating what the change is meant to do, and the brief below.
 
    > Assume this diff has a bug its author's tests miss, and hunt for it. The stated intent is
    > correct; challenge the execution. Read the callers and callees of every changed function,
@@ -46,3 +47,15 @@ that the in-session review missed fell in the areas the brief now names.
 
 3. Report it under `## Correctness`, after `## Standards` and `## Spec` or after `## Readback`,
    verbatim or lightly cleaned, and add its count and worst finding to the closing summary line.
+   With two reviewers, report each under its model's name, and mark each finding the other one
+   also raised.
+
+## The two-family trial
+
+From 2026-10-15 the `full` tier runs correctness on Sol and on Opus, to learn whether one is
+enough and which. The PR body's `## Review` record carries each reviewer's line: its findings,
+how many were fixed and declined, and how many the other also found (the `pr` skill). Around
+2026-11-15, or after 15 `full` PRs, read the records back
+(`gh pr list --state merged --search '"Tier: full" in:body' --json number,body`) and compare: fixed
+findings only one family raised, declines, and overlap. Then keep both, or keep one and change
+the `full` tier's requirement in `scripts/review-record.ts` and this file.

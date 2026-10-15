@@ -19,6 +19,14 @@
 
 **Blast Radius:** <!-- what breaks, and for whom, if this is wrong -->
 
+## Review
+
+<!-- Tier and reviewers from `pnpm review:tier`; CI checks this section. Shape: "Review" in the skill above. -->
+
+Tier: , reviewed
+
+-
+
 Closes #
 
 <!-- PRD PR? Each sub-issue needs its own `Closes #N`; see "PRD PRs" in the skill above. -->
