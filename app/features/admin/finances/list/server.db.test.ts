@@ -12,7 +12,9 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("loadFinancesList", () => {
-  test("leaves out an owner row of kind individual with money in the event", async () => {
+  // #1667 revisits #1656: an individual's money is administration's to
+  // operate, so the list shows it beside the academies, told apart by `Tipo`.
+  test("lists an individual with money in the event beside the academies, with its kind", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       academyName: "Academia Uno",
@@ -41,6 +43,11 @@ describe("loadFinancesList", () => {
 
     const list = await loadFinancesList(request);
 
-    expect(list.rows.map((row) => row.academyName)).toEqual(["Academia Uno"]);
+    expect(
+      list.rows.map((row) => ({ kind: row.kind, name: row.academyName })),
+    ).toEqual([
+      { kind: "academy", name: "Academia Uno" },
+      { kind: "individual", name: "Ana Particular" },
+    ]);
   });
 });

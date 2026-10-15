@@ -62,6 +62,7 @@ function printRecord(
     },
     academyName: "Academia Alfa",
     eventName: "Certamen 2026",
+    recipientDocument: null,
     ...overrides,
   };
 }

@@ -28,7 +28,7 @@ import {
 } from "@/lib/comprobantes/format";
 import { lowercaseFirst } from "@/lib/shared/utils";
 
-import { ComprobanteStatusBadge } from "../status-badge";
+import { ComprobanteStatusBadge } from "@/components/shared/comprobante-status-badge";
 import type { ComprobanteDetail, ComprobanteDetailLoaderData } from "./server";
 import {
   annulComprobanteConfirmValue,

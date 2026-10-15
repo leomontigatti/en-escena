@@ -133,6 +133,9 @@ export function ComprobantePrintDocument({
             <p>
               {model.academyName} — {model.anchorLabel}
             </p>
+            {model.recipientDocument ? (
+              <p>Documento: {model.recipientDocument}</p>
+            ) : null}
           </div>
 
           <div className="block">

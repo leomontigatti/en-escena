@@ -33,6 +33,8 @@ import { annulComprobante } from "@/lib/comprobantes/emit-nota-credito.server";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { deleteSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createIndividualUser } from "@/lib/test-support/individuals";
+import { readComprobanteAnchorContext } from "@/lib/comprobantes/anchor-context.server";
 import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import {
@@ -470,6 +472,78 @@ describe("seminar deletion with fiscal history", () => {
       code: "has-comprobantes",
       error:
         "No se puede eliminar el seminario porque tiene comprobantes emitidos.",
+    });
+  });
+});
+
+// ADR-0019: an individual's money is its own, so its `(seminar, owner)` unit
+// is billed like an academy's, and the comprobante carries the person.
+describe("emitFacturaC on an individual's seminar unit", () => {
+  test("bills what the individual collected and carries its name and document", async () => {
+    const { event, seminar, first } = await seedSeminarUnit();
+    const individual = await createIndividualUser({
+      documentNumber: "30123456",
+      documentType: "dni",
+      email: `particular.${crypto.randomUUID()}@example.com`,
+      firstName: "Ana",
+      lastName: "Pérez",
+    });
+    const [inscription] = await db
+      .insert(seminarInscriptions)
+      .values({ individualId: individual.individualId, seminarId: seminar.id })
+      .returning();
+    paymentNumber += 1;
+    const [payment] = await db
+      .insert(payments)
+      .values({
+        academyId: individual.ownerId,
+        amount: 20000,
+        eventId: event.id,
+        paymentDate: "2030-04-01",
+        paymentMethod: "transferencia",
+        paymentNumber,
+      })
+      .returning();
+    await allocate(
+      { academyId: individual.ownerId, inscription, payment },
+      event.id,
+      7000,
+    );
+    // An academy's money in the same seminar is another unit's.
+    await allocate(first, event.id, 9000);
+
+    const deps = emissionDeps(fakeBilling());
+    const outcome = await emitFacturaC(
+      {
+        anchor: seminarAnchor(seminar.id, individual.ownerId),
+        eventId: event.id,
+      },
+      deps,
+    );
+
+    expect(outcome).toMatchObject({ ok: true });
+    const sent = vi.mocked(deps.billing.createVoucher).mock
+      .calls[0][0] as ArcaVoucher;
+    expect(sent.ImpTotal).toBe(7000);
+
+    if (!outcome.ok) {
+      throw new Error("Expected the emission to succeed.");
+    }
+
+    const [persisted] = await listAnchorComprobantes(
+      seminarAnchor(seminar.id, individual.ownerId),
+    );
+    expect(persisted?.lines).toEqual([
+      expect.objectContaining({
+        amount: 7000,
+        seminarInscriptionId: inscription.id,
+      }),
+    ]);
+    expect(
+      await readComprobanteAnchorContext(outcome.comprobante.id),
+    ).toMatchObject({
+      academyName: "Ana Pérez",
+      recipientDocument: "DNI 30123456",
     });
   });
 });

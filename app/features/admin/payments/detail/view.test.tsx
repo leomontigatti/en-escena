@@ -186,9 +186,15 @@ function buildLoaderData(overrides: Partial<LoaderData> = {}): LoaderData {
       {
         contactName: "Academia Norte",
         id: "academy_1",
+        kind: "academy",
         name: "Academia Norte",
       },
-      { contactName: "Academia Sur", id: "academy_2", name: "Academia Sur" },
+      {
+        contactName: "Academia Sur",
+        id: "academy_2",
+        kind: "academy",
+        name: "Academia Sur",
+      },
     ],
     affectedUnits: [],
     allocatedAmount: 0,

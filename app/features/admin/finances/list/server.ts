@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -8,7 +8,7 @@ import {
   seminarInscriptions,
   seminars,
 } from "@/db/schema";
-import { academyOwner } from "@/lib/academies/owner-kind.server";
+import type { OwnerKind } from "@/lib/academies/owner-kind";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import {
@@ -23,6 +23,7 @@ export type FinanceAccountRow = {
   academyName: string;
   availableBalanceAmount: number;
   depositAmount: OperationalFinanceAmount;
+  kind: OwnerKind;
   totalAmount: OperationalFinanceAmount;
   owedBalanceAmount: OperationalFinanceAmount;
 };
@@ -52,9 +53,12 @@ export async function loadFinancesList(request: Request) {
     db.query.academies.findMany({
       columns: {
         id: true,
+        kind: true,
         name: true,
       },
-      where: and(inArray(academies.id, academyIds), academyOwner()),
+      // Both owner kinds (ADR-0019): an individual's money is administration's
+      // to operate as an academy's, and the `Tipo` facet tells them apart.
+      where: inArray(academies.id, academyIds),
       orderBy: [academies.name],
     }),
     readAcademyEventOperationalFinanceSummaries({
@@ -73,6 +77,7 @@ export async function loadFinancesList(request: Request) {
         academyName: academy.name,
         availableBalanceAmount: summary.availableBalanceAmount,
         depositAmount: summary.depositAmount,
+        kind: academy.kind,
         totalAmount: summary.totalAmount,
         owedBalanceAmount: summary.owedBalanceAmount,
       };

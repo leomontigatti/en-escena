@@ -6,11 +6,14 @@ import { academies } from "@/db/schema";
 /**
  * An owner row is an academy or an `individual` (`Particular`): both own
  * inscriptions and money through the `academy` table (ADR-0019). Everything
- * that enumerates academies —lists, exports, finances, pickers, `Gran final`,
- * the delete-an-empty-academy rule, academy merge, onboarding— reads academies
- * only, through this predicate. It is the only place that filter lives: nobody
- * writes `eq(academies.kind, "academy")` by hand, as with
- * `notWithdrawnChoreography()`.
+ * that enumerates academies —lists, exports, `Gran final`, the
+ * delete-an-empty-academy rule, academy merge, onboarding— reads academies
+ * only, through this predicate. Money is the exception: an individual's is
+ * administration's to operate like an academy's, so the finance list, the
+ * payment picker, the comprobantes list and the collection export read both
+ * kinds, and the first two say which a row is (`owner-kind.ts`). It is the
+ * only place that filter lives: nobody writes `eq(academies.kind, "academy")`
+ * by hand, as with `notWithdrawnChoreography()`.
  */
 export function academyOwner(): SQL {
   return eq(academies.kind, "academy");

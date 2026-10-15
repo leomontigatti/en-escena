@@ -7,8 +7,15 @@ import {
 import {
   ClientDataTable,
   type DataTableColumn,
+  type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
+import { Badge } from "@/components/ui/badge";
+import {
+  ownerKindFilterValue,
+  ownerKindLabel,
+  ownerKinds,
+} from "@/lib/academies/owner-kind";
 import { formatAmount } from "@/lib/finances/formatters";
 import { operationalFinanceColumns } from "@/lib/finances/operational-finance-columns";
 import { describeEmptyList } from "@/lib/list-query/list-query";
@@ -16,6 +23,22 @@ import { describeEmptyList } from "@/lib/list-query/list-query";
 import type { FinanceAccountRow, loadFinancesList } from "./server";
 
 const emptyAcademyList = describeEmptyList("academias", "search");
+
+export const financesListFacetedFilterIds = ["tipo"] as const;
+
+/** Academies and individuals share the list (ADR-0019); `Tipo` splits them. */
+const financesListFacetedFilters: DataTableFacetedFiltersOf<
+  typeof financesListFacetedFilterIds
+> = [
+  {
+    id: "tipo",
+    label: "Tipo",
+    options: ownerKinds.map((kind) => ({
+      label: ownerKindLabel(kind),
+      value: ownerKindFilterValue(kind),
+    })),
+  },
+];
 
 type FinancesListLoaderData = Awaited<ReturnType<typeof loadFinancesList>>;
 
@@ -39,6 +62,14 @@ const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
     filterValue: (row) => row.academyName,
     sortValue: (row) => row.academyName,
   },
+  {
+    id: "kind",
+    header: "Tipo",
+    cell: (row) => (
+      <Badge variant="secondary">{ownerKindLabel(row.kind)}</Badge>
+    ),
+    filterValue: (row) => ownerKindFilterValue(row.kind),
+  },
   ...operationalFinanceColumns,
   {
     id: "availableBalanceAmount",
@@ -56,7 +87,7 @@ export function FinancesListRouteView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Finanzas"
-      description="Saldo de cada academia en el evento activo: seña, total, saldo adeudado y saldo disponible."
+      description="Saldo de cada academia y particular en el evento activo: seña, total, saldo adeudado y saldo disponible."
       eventRequiredEmptyState={{
         title: "No hay un evento activo para operar finanzas",
         description:
@@ -67,6 +98,7 @@ export function FinancesListRouteView({
         <ClientDataTable
           rows={loaderData.rows}
           columns={accountColumns}
+          facetedFilters={financesListFacetedFilters}
           getRowKey={(row) => row.academyId}
           searchPlaceholder="Buscar por nombre"
           textFilterColumnId="academyName"

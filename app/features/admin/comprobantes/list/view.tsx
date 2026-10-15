@@ -31,7 +31,7 @@ import {
 } from "@/lib/comprobantes/format";
 import { describeEmptyList } from "@/lib/list-query/list-query";
 
-import { ComprobanteStatusBadge } from "../status-badge";
+import { ComprobanteStatusBadge } from "@/components/shared/comprobante-status-badge";
 import type { ComprobantesListRow, ComprobantesListLoaderData } from "./server";
 import { comprobanteStatusSearchValues } from "./shared";
 

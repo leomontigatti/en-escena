@@ -1218,6 +1218,28 @@ The admin `(seminar, academy)` detail carries `Emitir factura` in its header
 menu, over the fiscal anchor above: it bills every inscription that academy
 holds in that seminar, and it is the only entry point to seminar invoicing.
 
+An **individual** (`Particular`) holds money the way an academy does
+(ADR-0019): its payments, allocations, comprobantes and `Saldo disponible` key
+on its owner row of kind `individual`, and nothing in finances tells the two
+apart beyond these surfaces:
+
+- The admin academy list shows individuals beside academies, with a `Tipo`
+  column and facet (`Academia` / `Particular`). Its financial details, the
+  allocation dialog and the `Pagar seña` / `Pagar saldo` presets work over an
+  individual's seminar inscriptions unchanged.
+- The payment form's picker offers academies and individuals in two titled
+  sections. The global comprobantes list and the collection export carry an
+  individual's comprobantes and payments under its name.
+- A comprobante issued for an individual prints its name and its document in
+  the receptor block. The fiscal receptor sent to ARCA stays the final
+  consumer, as for an academy.
+- `Descuento por bailarín` does not apply: an individual holds no choreography
+  inscriptions.
+- The individual's area has `Finanzas`, read-only: the five metrics over its
+  own account and three tabs — its seminars with their status, its payments,
+  its comprobantes. There are no payment instructions and no printable
+  comprobante there.
+
 ## Retired vocabulary
 
 These name nothing and must not come back. The glossary tombstones the ones that

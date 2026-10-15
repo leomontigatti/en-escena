@@ -14,6 +14,7 @@ import {
   type RecordComprobanteInput,
 } from "@/lib/comprobantes/comprobantes.server";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createIndividualUser } from "@/lib/test-support/individuals";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -93,6 +94,72 @@ describe("loadComprobantePrint", () => {
     expect(html).toContain("<td>Inscripción</td>");
     expect(html).toContain("10/10/2030 — 10/10/2030");
     expect(html).toContain("22/07/2026");
+  });
+
+  // ADR-0019: an individual's comprobante is its own, so the receptor block
+  // names the person and its document where an academy's names the academy.
+  test("prints an individual's seminar unit with its name and document", async () => {
+    const event = await createEventRecord({ active: true });
+    const individual = await createIndividualUser({
+      documentNumber: "30123456",
+      documentType: "dni",
+      email: `particular.${crypto.randomUUID()}@example.com`,
+      firstName: "Ana",
+      lastName: "Pérez",
+    });
+    const [seminar] = await db
+      .insert(seminars)
+      .values({
+        eventId: event.id,
+        instructorName: "Abril Sosa",
+        kind: "regular",
+        quota: 20,
+        requiredDepositPercentage: 50,
+        scheduledDate: "2030-10-10",
+        startTime: "18:30",
+      })
+      .returning();
+    const comprobante = await recordComprobante(
+      facturaCInput({
+        anchor: seminarAnchor(seminar.id, individual.ownerId),
+        eventId: event.id,
+      }),
+    );
+
+    const html = await printHtml(comprobante.id);
+
+    expect(html).toContain(
+      "<p>Ana Pérez — Seminario Abril Sosa, 10/10/2030</p>",
+    );
+    expect(html).toContain("<p>Documento: DNI 30123456</p>");
+  });
+
+  test("prints no document line for an academy", async () => {
+    const event = await createEventRecord({ active: true });
+    const academy = await createAcademyRecord({
+      academyName: "Academia Sin Documento",
+      email: `academia.${crypto.randomUUID()}@example.com`,
+    });
+    const [seminar] = await db
+      .insert(seminars)
+      .values({
+        eventId: event.id,
+        instructorName: "Abril Sosa",
+        kind: "regular",
+        quota: 20,
+        requiredDepositPercentage: 50,
+        scheduledDate: "2030-10-10",
+        startTime: "18:30",
+      })
+      .returning();
+    const comprobante = await recordComprobante(
+      facturaCInput({
+        anchor: seminarAnchor(seminar.id, academy.id),
+        eventId: event.id,
+      }),
+    );
+
+    expect(await printHtml(comprobante.id)).not.toContain("Documento:");
   });
 
   test("prints a choreography unit naming the academy and the choreography", async () => {
