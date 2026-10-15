@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { db } from "@/db";
 import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-target.server";
 import {
+  choreographies,
   choreographyDancers,
   paymentAllocations,
   payments,
@@ -22,7 +23,11 @@ import {
 } from "@/lib/admin/finances/finances.test-support";
 import { createSavedEvent } from "@/lib/test-support/events";
 
-import { installDatabaseTestHooks } from "../../../tests/db/harness";
+import {
+  installDatabaseTestHooks,
+  isPgliteTestBackend,
+} from "../../../tests/db/harness";
+import { runBehindAHolder } from "../../../tests/db/lock-contention";
 
 installDatabaseTestHooks();
 
@@ -412,3 +417,48 @@ describe("payChoreographiesPreset", () => {
     }
   });
 });
+
+describe.skipIf(isPgliteTestBackend())(
+  "payChoreographiesPreset racing a draft save",
+  () => {
+    // #660: the draft save moves the group type under the choreography's row
+    // lock, so a preset that read it unlocked would freeze the old one's price.
+    test("prices the group type the draft save commits while the preset waits", async () => {
+      const fixture = await seedPresetFixture([10000]);
+      const [duoPrice] = await insertTestPrices([
+        {
+          amount: 15000,
+          eventId: fixture.eventId,
+          groupType: "duo",
+          name: "Precio Dúo",
+          paymentDeadline: null,
+        },
+      ]);
+      const [choreographyId] = fixture.choreographyIds;
+
+      const result = await runBehindAHolder({
+        waitingOn: "choreography lock",
+        hold: async (tx) =>
+          await tx
+            .update(choreographies)
+            .set({ groupType: "duo" })
+            .where(eq(choreographies.id, choreographyId!)),
+        contender: () =>
+          payChoreographiesPreset({
+            academyId: fixture.academyId,
+            choreographyIds: [choreographyId!],
+            eventId: fixture.eventId,
+            priceIdByGroupType: { duo: duoPrice!.id, solo: fixture.priceId },
+            stage: "deposit",
+          }),
+      });
+
+      expect(result).toEqual({ ok: true });
+      const [inscription] = await db
+        .select({ selectedPriceId: choreographyDancers.selectedPriceId })
+        .from(choreographyDancers)
+        .where(eq(choreographyDancers.id, fixture.inscriptionIds[0]!));
+      expect(inscription?.selectedPriceId).toBe(duoPrice!.id);
+    });
+  },
+);

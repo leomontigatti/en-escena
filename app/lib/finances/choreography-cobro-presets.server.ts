@@ -232,7 +232,10 @@ async function readSelectedChoreographies(
         eq(choreographies.eventId, input.eventId),
         inArray(choreographies.id, input.choreographyIds),
       ),
-    );
+    )
+    // The group type is what picks each price: a draft save moving it holds
+    // the row `FOR UPDATE`, so the preset waits and prices the committed one.
+    .for("share", { of: choreographies });
 
   return rows.map((row) => ({
     groupType: row.groupType,

@@ -118,6 +118,7 @@ export async function resolveChoreographyDraft(input: {
     groupType !== choreography.groupType &&
     (await hasGroupTypePinnedInscription({
       choreographyId: choreography.id,
+      eventId: input.eventId,
       executor: db,
       groupType,
       keptDancerIds: new Set(draft.dancerIds),

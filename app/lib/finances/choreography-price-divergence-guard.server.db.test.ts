@@ -107,6 +107,7 @@ async function createGuardScenario(slug: string) {
     }) {
       return await hasGroupTypePinnedInscription({
         choreographyId: choreography.id,
+        eventId: event.id,
         executor: db,
         groupType: input.groupType,
         keptDancerIds: new Set(input.keptDancerIds),

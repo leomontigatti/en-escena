@@ -1,7 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { choreographies } from "@/db/schema";
+import { choreographies, choreographyDancers } from "@/db/schema";
+import { activeInscription } from "@/lib/choreographies/active-inscription";
 import {
   evaluatedChoreographyMessage,
   groupTypePinnedPriceMessage,
@@ -97,7 +98,13 @@ export async function saveChoreographyDraft(input: {
   }
 
   const result = await db.transaction((tx) =>
-    writeDraft({ choreography: input.choreography, draft, tx, write: plan }),
+    writeDraft({
+      choreography: input.choreography,
+      draft,
+      eventId: input.eventId,
+      tx,
+      write: plan,
+    }),
   );
 
   if (!result.ok) {
@@ -357,6 +364,7 @@ function isStale(
 async function writeDraft(input: {
   choreography: ChoreographyDetail;
   draft: ChoreographyDraft;
+  eventId: string;
   tx: Transaction;
   write: DraftWrite;
 }): Promise<{ ok: true } | Refusal> {
@@ -417,11 +425,14 @@ async function writeDraft(input: {
 /**
  * The preview's group-type pin asked again under the row lock, against the
  * group type the save writes: it holds whether or not the capacity moves, and
- * a choreography on its schedule's total moves none.
+ * a choreography on its schedule's total moves none. The money writers read the
+ * group type under a share lock on the same row, so none can price against the
+ * old one once this save has passed.
  */
 async function isGroupTypePinned(input: {
   choreography: ChoreographyDetail;
   draft: ChoreographyDraft;
+  eventId: string;
   tx: Transaction;
   write: DraftWrite;
 }) {
@@ -434,8 +445,24 @@ async function isGroupTypePinned(input: {
     return false;
   }
 
+  // The lock the waiver, the pool and the presets take, in the same id order:
+  // money crossing a deposit in a racing transaction is either committed and
+  // read here, or waits until this save has committed its group type.
+  await input.tx
+    .select({ id: choreographyDancers.id })
+    .from(choreographyDancers)
+    .where(
+      and(
+        eq(choreographyDancers.choreographyId, input.choreography.id),
+        activeInscription(),
+      ),
+    )
+    .orderBy(asc(choreographyDancers.id))
+    .for("update");
+
   return await hasGroupTypePinnedInscription({
     choreographyId: input.choreography.id,
+    eventId: input.eventId,
     executor: input.tx,
     groupType: classification.groupType,
     keptDancerIds: new Set(input.draft.dancerIds),

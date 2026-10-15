@@ -119,17 +119,13 @@ export async function loadPriceDivergenceCheck(input: {
     return () => false;
   }
 
-  const [event, priceRows] = await Promise.all([
-    executor.query.events.findFirst({
-      columns: { requiredDepositPercentage: true },
-      where: eq(events.id, choreography.eventId),
-    }),
-    loadEventPriceRows(executor, choreography.eventId),
-  ]);
+  const pricing = await loadEventPricing(executor, choreography.eventId);
 
-  if (!event) {
+  if (!pricing) {
     return () => false;
   }
+
+  const { priceRows, requiredDepositPercentage } = pricing;
 
   const currentKey = {
     choreographyScheduleId: choreography.choreographyScheduleId,
@@ -155,7 +151,7 @@ export async function loadPriceDivergenceCheck(input: {
           allocatedAmount,
           choreography: choreographyKey,
           priceRows,
-          requiredDepositPercentage: event.requiredDepositPercentage,
+          requiredDepositPercentage,
           selectedPriceId,
         });
 
@@ -164,7 +160,7 @@ export async function loadPriceDivergenceCheck(input: {
           allocatedAmount,
           destinationScheduleId,
           priceRows,
-          requiredDepositPercentage: event.requiredDepositPercentage,
+          requiredDepositPercentage,
           selectedPriceId,
         })
       ) {
@@ -211,20 +207,12 @@ function isSchedulePinnedFrozenRow(
  */
 export async function hasGroupTypePinnedInscription(input: {
   choreographyId: string;
+  eventId: string;
   executor: Executor;
   groupType: ChoreographyGroupType;
   keptDancerIds: ReadonlySet<string>;
 }): Promise<boolean> {
   const { executor } = input;
-  const choreography = await loadChoreographyScheduleRow(
-    executor,
-    input.choreographyId,
-  );
-
-  if (!choreography) {
-    return false;
-  }
-
   const moneyRows = await executor
     .select({
       allocatedAmount: sql<number>`sum(${paymentAllocations.amount})`,
@@ -258,27 +246,38 @@ export async function hasGroupTypePinnedInscription(input: {
     return false;
   }
 
-  const [event, priceRows] = await Promise.all([
-    executor.query.events.findFirst({
-      columns: { requiredDepositPercentage: true },
-      where: eq(events.id, choreography.eventId),
-    }),
-    loadEventPriceRows(executor, choreography.eventId),
-  ]);
+  const pricing = await loadEventPricing(executor, input.eventId);
 
-  if (!event) {
+  if (!pricing) {
     return false;
   }
 
   return inscriptions.some((inscription) => {
-    const frozen = readFrozenStoredRow({
-      ...inscription,
-      priceRows,
-      requiredDepositPercentage: event.requiredDepositPercentage,
-    });
+    const frozen = readFrozenStoredRow({ ...inscription, ...pricing });
 
     return frozen !== null && frozen.groupType !== input.groupType;
   });
+}
+
+/** The event's price rows and deposit rate, what every freeze is measured on. */
+async function loadEventPricing(
+  executor: Executor,
+  eventId: string,
+): Promise<Pick<
+  FrozenRowInput,
+  "priceRows" | "requiredDepositPercentage"
+> | null> {
+  const [event, priceRows] = await Promise.all([
+    executor.query.events.findFirst({
+      columns: { requiredDepositPercentage: true },
+      where: eq(events.id, eventId),
+    }),
+    loadEventPriceRows(executor, eventId),
+  ]);
+
+  return event
+    ? { priceRows, requiredDepositPercentage: event.requiredDepositPercentage }
+    : null;
 }
 
 type FrozenRowInput = {

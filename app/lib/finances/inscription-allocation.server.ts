@@ -465,6 +465,7 @@ async function loadInscriptionMoneyContext(
   const choreographyRow = await loadChoreographyScheduleRow(
     tx,
     input.choreographyId,
+    { lock: "share" },
   );
 
   if (
