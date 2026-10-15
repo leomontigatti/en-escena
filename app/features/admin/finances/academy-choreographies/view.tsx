@@ -248,8 +248,9 @@ export function AcademyFinancesRouteView({
 /**
  * The `Seminarios` tab's rows: one `(seminar, academy)` unit each. The
  * instructor is the link — a seminar is named by who teaches it — and
- * `Inscriptos` is the academy's own active count and not the seminar's
- * occupancy: a place is taken by covering the deposit, not by registering.
+ * `Inscriptos` is the academy's own active count plus its linked individuals'
+ * inscriptions, as on the academy's portal, and not the seminar's occupancy: a
+ * place is taken by covering the deposit, not by registering.
  */
 function buildSeminarFinanceColumns(
   academyId: string,

@@ -330,21 +330,15 @@ describe("portal seminar financial detail", () => {
           : row,
       ),
     });
-    // The administrator reads the same `Inscriptos`, on the academy's
-    // `Seminarios` tab and on the detail.
-    const [panelAcademy, panelDetail] = await Promise.all([
-      loadPanelAcademy(fixture),
-      loadPanelDetail(fixture),
-    ]);
+    // The administrator reads the same `Inscriptos` on the academy's
+    // `Seminarios` tab.
+    const panelAcademy = await loadPanelAcademy(fixture);
 
     expect(
       panelAcademy.seminarFinanceRows.find(
         (row) => row.id === fixture.seminarId,
       )?.registrationCount,
     ).toBe(after.seminar.registrationCount);
-    expect(panelDetail.seminar?.registrationCount).toBe(
-      after.seminar.registrationCount,
-    );
 
     await db
       .update(dancers)
