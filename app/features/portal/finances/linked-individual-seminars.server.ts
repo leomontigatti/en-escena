@@ -2,6 +2,7 @@ import {
   bySeminarSlot,
   linkedIndividualsOnlySeminarFinanceRow,
   type SeminarOperationalFinanceRow,
+  withLinkedInscriptionsCounted,
 } from "@/lib/finances/seminar-operational-summary.server";
 import type { LinkedIndividualSeminarInscriptionRow } from "@/lib/seminars/linked-individual-inscriptions.server";
 
@@ -26,14 +27,8 @@ export function withLinkedIndividualsOnlySeminars(input: {
 }): PortalSeminarFinanceRow[] {
   const ownSeminarIds = new Set(input.seminarFinanceRows.map((row) => row.id));
   const linkedOnly = new Map<string, PortalSeminarFinanceRow>();
-  const linkedCounts = new Map<string, number>();
 
   for (const inscription of input.linkedInscriptions) {
-    linkedCounts.set(
-      inscription.seminarId,
-      (linkedCounts.get(inscription.seminarId) ?? 0) + 1,
-    );
-
     if (
       ownSeminarIds.has(inscription.seminarId) ||
       linkedOnly.has(inscription.seminarId)
@@ -52,17 +47,14 @@ export function withLinkedIndividualsOnlySeminars(input: {
     });
   }
 
-  return [
-    ...input.seminarFinanceRows.map((row) => ({
-      ...row,
-      linkedIndividualsOnly: false,
-    })),
-    ...linkedOnly.values(),
-  ]
-    .map((row) => ({
-      ...row,
-      registrationCount:
-        row.registrationCount + (linkedCounts.get(row.id) ?? 0),
-    }))
-    .sort(bySeminarSlot);
+  return withLinkedInscriptionsCounted(
+    [
+      ...input.seminarFinanceRows.map((row) => ({
+        ...row,
+        linkedIndividualsOnly: false,
+      })),
+      ...linkedOnly.values(),
+    ],
+    input.linkedInscriptions,
+  ).sort(bySeminarSlot);
 }

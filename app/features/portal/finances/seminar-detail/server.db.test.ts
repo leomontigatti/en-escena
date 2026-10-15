@@ -9,6 +9,7 @@ import {
   seminarPrices,
 } from "@/db/schema";
 import { createLinkedIndividualUser } from "@/lib/test-support/individuals";
+import { loadAcademyFinances } from "@/features/admin/finances/academy-choreographies/server";
 import { loadSeminarFinanceDetail } from "@/features/admin/finances/academy-seminars/seminar-detail/server";
 import { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { loadPortalSeminarFinanceDetail } from "@/features/portal/finances/seminar-detail/server";
@@ -116,18 +117,32 @@ function loadPortalDetail(fixture: Fixture, seminarId?: string) {
   });
 }
 
-async function loadPanelDetail(fixture: Fixture) {
+async function adminCookie(fixture: Fixture) {
   const signedIn = await createSignedInRequest({
     email: `admin.${crypto.randomUUID()}@example.com`,
     role: "admin",
     requestUrl: academyFinancesUrl(fixture.academyId, fixture.eventId),
   });
 
+  return signedIn.request.headers.get("cookie") ?? "";
+}
+
+async function loadPanelAcademy(fixture: Fixture) {
+  return await loadAcademyFinances({
+    params: { academyId: fixture.academyId },
+    request: new Request(
+      academyFinancesUrl(fixture.academyId, fixture.eventId),
+      { headers: { cookie: await adminCookie(fixture) } },
+    ),
+  });
+}
+
+async function loadPanelDetail(fixture: Fixture) {
   return await loadSeminarFinanceDetail({
     params: { academyId: fixture.academyId, seminarId: fixture.seminarId },
     request: new Request(
       `http://localhost/administracion/finanzas/${fixture.academyId}/seminarios/${fixture.seminarId}?evento=${fixture.eventId}`,
-      { headers: { cookie: signedIn.request.headers.get("cookie") ?? "" } },
+      { headers: { cookie: await adminCookie(fixture) } },
     ),
   });
 }
@@ -315,6 +330,21 @@ describe("portal seminar financial detail", () => {
           : row,
       ),
     });
+    // The administrator reads the same `Inscriptos`, on the academy's
+    // `Seminarios` tab and on the detail.
+    const [panelAcademy, panelDetail] = await Promise.all([
+      loadPanelAcademy(fixture),
+      loadPanelDetail(fixture),
+    ]);
+
+    expect(
+      panelAcademy.seminarFinanceRows.find(
+        (row) => row.id === fixture.seminarId,
+      )?.registrationCount,
+    ).toBe(after.seminar.registrationCount);
+    expect(panelDetail.seminar?.registrationCount).toBe(
+      after.seminar.registrationCount,
+    );
 
     await db
       .update(dancers)

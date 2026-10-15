@@ -25,7 +25,8 @@ import {
  * while a debt belongs to one.
  *
  * `registrationCount` — the shared rollup's figure — is the academy's **active**
- * inscriptions in the seminar, the `Inscriptos` column of the tab. It is not the
+ * inscriptions in the seminar; the `Inscriptos` column of the tab adds its
+ * linked individuals' (`withLinkedInscriptionsCounted`). It is not the
  * seminar's occupancy: places are taken by covering the deposit, not by
  * registering.
  */
@@ -179,8 +180,8 @@ async function readSeminarUnitRows(input: {
  * A seminar the academy registered nobody in but a linked individual is in
  * (ADR-0019), as the academy's finances list it: every figure zero, since the
  * individual's inscription owes the academy nothing, and `registrationCount`
- * zero, since it counts the academy's own; the portal loaders add the linked
- * inscriptions to it afterwards. Built by the portal loaders beside
+ * zero, since it counts the academy's own; the loaders add the linked
+ * inscriptions to it afterwards (`withLinkedInscriptionsCounted`). Built by the portal loaders beside
  * this read's rows, never inside it, so no total, `Saldo disponible` or preset
  * can count it.
  */
@@ -191,6 +192,33 @@ export function linkedIndividualsOnlySeminarFinanceRow(facts: {
   scheduledDate: string;
 }): SeminarOperationalFinanceRow {
   return { ...rollUpInscriptionFinanceFigures([]), ...facts };
+}
+
+/**
+ * The rows with `registrationCount` raised by the linked individuals'
+ * inscriptions in each seminar (ADR-0019): `Inscriptos` counts the people the
+ * academy's seminar lists, on both sides, though they owe it nothing. Applied
+ * by the loaders after every figure was derived, like the zero row above.
+ */
+export function withLinkedInscriptionsCounted<
+  TRow extends Pick<SeminarOperationalFinanceRow, "id" | "registrationCount">,
+>(
+  rows: readonly TRow[],
+  linkedInscriptions: readonly { seminarId: string }[],
+): TRow[] {
+  const linkedCounts = new Map<string, number>();
+
+  for (const inscription of linkedInscriptions) {
+    linkedCounts.set(
+      inscription.seminarId,
+      (linkedCounts.get(inscription.seminarId) ?? 0) + 1,
+    );
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    registrationCount: row.registrationCount + (linkedCounts.get(row.id) ?? 0),
+  }));
 }
 
 /** The order the tab opens in: the seminar's moment, then its instructor. */

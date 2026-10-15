@@ -18,9 +18,9 @@ const seminarNotFoundMessage = "No encontramos ese seminario.";
  * detail minus everything that writes. It reads the **same** rollup and the
  * same inscription reader the panel does, which is what makes it impossible for
  * the two sides to quote different money figures for the same seminar.
- * `Inscriptos` is the one figure that differs: here it also counts the linked
- * individuals' rows this detail lists, which administration reads as
- * `Particular` inscriptions of their own.
+ * Both count the linked individuals' inscriptions in `Inscriptos`; only this
+ * detail lists their rows, since administration reads them on each
+ * individual's own page.
  */
 export async function loadPortalSeminarFinanceDetail(input: {
   params: { seminarId?: string };

@@ -12,6 +12,8 @@ import { loadEventPriceRows } from "@/lib/prices/rows.server";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summary";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
+import { withLinkedInscriptionsCounted } from "@/lib/finances/seminar-operational-summary.server";
+import { readLinkedIndividualSeminarInscriptions } from "@/lib/seminars/linked-individual-inscriptions.server";
 import type { ResolvedInscription } from "@/lib/finances/operational-summary-calculations.server";
 import { payChoreographiesPreset } from "@/lib/finances/choreography-cobro-presets.server";
 import {
@@ -45,6 +47,7 @@ export async function loadAcademyFinances(input: {
 
   const [
     financeDetail,
+    linkedInscriptions,
     priceOptionsByGroupType,
     pricingScheduleIdByChoreography,
     seminarPresetPreviews,
@@ -57,12 +60,17 @@ export async function loadAcademyFinances(input: {
             seminarFinanceRows: [],
             summary: emptyOperationalFinanceSummary(),
           },
+          [],
           {} as Record<string, PresetPriceOption[]>,
           {} as Record<string, string | null>,
           {} as Record<string, SeminarCobroPreview>,
         ]
       : await Promise.all([
           readAcademyEventOperationalFinanceDetail({
+            academyId: academy.id,
+            eventId: eventContext.selectedEventId,
+          }),
+          readLinkedIndividualSeminarInscriptions({
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
           }),
@@ -87,7 +95,13 @@ export async function loadAcademyFinances(input: {
     // The academy's `(seminar, academy)` units, the `Seminarios` tab's rows.
     // They are a second list and not a second summary: the tabs split the
     // tables, and the figures the summary carries are one debt against one pool.
-    seminarFinanceRows: financeDetail.seminarFinanceRows,
+    // `Inscriptos` also counts the linked individuals' inscriptions, as the
+    // academy's portal does; administration reads their money on each
+    // individual's own page.
+    seminarFinanceRows: withLinkedInscriptionsCounted(
+      financeDetail.seminarFinanceRows,
+      linkedInscriptions,
+    ),
     // What either seminar preset would charge, per seminar: the dialog reads the
     // selection's seminars out of it, from the plan the write itself runs.
     seminarPresetPreviews,

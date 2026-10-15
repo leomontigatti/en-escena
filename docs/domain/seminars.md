@@ -190,7 +190,9 @@ How a seminar inscription is priced from those rows:
   finances list it anyway at zero, badged `Particular` and outside every
   total, and its financial detail opens with those rows alone. The unit's
   `Inscriptos` counts them, as it counts the rows its detail lists; it is the
-  only figure of the unit they reach.
+  only figure of the unit they reach. Administration's academy finances count
+  them in the same `Inscriptos` without listing their rows, whose money it
+  reads on each individual's own page.
 - Eligibility is `Estado de alta` alone, with the same grandfather rule as the
   choreography roster: a person can be registered when they are active, and an
   archived person already on the seminar stays on it, stays visible and stays

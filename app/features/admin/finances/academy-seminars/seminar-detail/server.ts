@@ -27,6 +27,8 @@ import {
   type SeminarInscriptionPriceOption,
 } from "@/lib/finances/seminar-inscription-allocation.server";
 import { readSeminarInscriptionFinanceRows } from "@/lib/finances/seminar-inscriptions.server";
+import { withLinkedInscriptionsCounted } from "@/lib/finances/seminar-operational-summary.server";
+import { readLinkedIndividualSeminarInscriptions } from "@/lib/seminars/linked-individual-inscriptions.server";
 import { getSeminar } from "@/lib/seminars/repository.server";
 import { readFormData } from "@/lib/shared/read-form-data";
 
@@ -75,13 +77,17 @@ export async function loadSeminarFinanceDetail(input: {
   }
 
   const eventId = eventContext.selectedEventId;
-  const financeDetail = await readAcademyEventOperationalFinanceDetail({
-    academyId,
-    eventId,
-  });
-  const seminarFinanceRow = financeDetail.seminarFinanceRows.find(
-    (row) => row.id === seminarId,
-  );
+  const [financeDetail, linkedInscriptions] = await Promise.all([
+    readAcademyEventOperationalFinanceDetail({ academyId, eventId }),
+    readLinkedIndividualSeminarInscriptions({ academyId, eventId, seminarId }),
+  ]);
+  // `Inscriptos` counts the linked individuals' inscriptions too, as the
+  // academy's portal does. Their rows are not listed here: their money is the
+  // individual's, read on its own page.
+  const seminarFinanceRow = withLinkedInscriptionsCounted(
+    financeDetail.seminarFinanceRows,
+    linkedInscriptions,
+  ).find((row) => row.id === seminarId);
 
   if (!seminarFinanceRow) {
     throw new Response(seminarNotFoundMessage, { status: 404 });
