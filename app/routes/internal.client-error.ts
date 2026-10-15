@@ -14,6 +14,9 @@ const receiveClientError = createClientErrorIntake({
   // Past this, browser reports are kept without alerting until the hour
   // turns; the server's own errors keep alerting.
   alertsPerHour: 20,
+  // A lost connection alone never alerts; from this many addresses in an
+  // hour it is an outage between the browsers and the server.
+  lostConnectionAddressesPerHour: 5,
 });
 
 /** Where `onError` in `entry.client.tsx` sends a browser's unexpected error. */

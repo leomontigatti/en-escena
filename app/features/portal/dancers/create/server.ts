@@ -17,6 +17,7 @@ import {
   readPortalDancerFormValues,
   type PortalDancerFormValues,
 } from "@/features/portal/dancers/detail/shared";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 import type { CreateDancerActionData } from "./shared";
 
@@ -33,7 +34,7 @@ export async function handlePortalDancerCreateAction(request: Request) {
 
   return await handleCreateDancerAction({
     academyId: academy.id,
-    formData: await request.formData(),
+    formData: await readFormData(request),
   });
 }
 

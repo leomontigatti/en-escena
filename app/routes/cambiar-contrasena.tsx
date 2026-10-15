@@ -27,6 +27,7 @@ import {
   getEmptyFieldErrors,
   getFieldErrors,
 } from "@/lib/shared/form-validation";
+import { readFormData } from "@/lib/shared/read-form-data";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -110,7 +111,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const values = emptyRecoveryChangeValues;
   const parsed = passwordConfirmationSchema.safeParse({
     newPassword: formData.get("newPassword"),

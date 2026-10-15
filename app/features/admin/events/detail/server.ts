@@ -33,6 +33,7 @@ import {
   notificationToasts,
   type NotificationKey,
 } from "@/lib/shared/notification-toasts";
+import { readFormData } from "@/lib/shared/read-form-data";
 import {
   eventDocumentFileField,
   eventDocumentKeptField,
@@ -86,7 +87,7 @@ export async function updateAdministrativeEvent(
     throw new Response("No encontramos ese evento.", { status: 404 });
   }
 
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const intent = String(formData.get("intent") ?? "");
 
   switch (intent) {

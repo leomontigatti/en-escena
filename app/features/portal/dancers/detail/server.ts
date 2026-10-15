@@ -37,6 +37,7 @@ import {
   type PortalDancerFormValues,
 } from "./shared";
 import { getRosterPersonNotFoundMessage } from "@/lib/roster/roster-person-kind.shared";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 export async function loadPortalDancerDetail(input: {
   request: Request;
@@ -79,7 +80,7 @@ export async function handlePortalDancerDetailAction(input: {
 }) {
   const { academy } = await requireAcademyUser(input.request);
   const dancerId = readPortalDancerId(input.params);
-  const formData = await input.request.formData();
+  const formData = await readFormData(input.request);
   const intent = readFormString(formData, "intent");
 
   if (intent === "archive-dancer") {

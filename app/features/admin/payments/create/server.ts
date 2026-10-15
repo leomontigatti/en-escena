@@ -7,6 +7,7 @@ import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
+import { readFormData } from "@/lib/shared/read-form-data";
 
 import { listPaymentAcademyOptions } from "../academy-options.server";
 import {
@@ -33,7 +34,7 @@ export async function handlePaymentCreateAction(
 ): Promise<CreatePaymentActionData | never> {
   await requireAdminPanelWriter(request);
   const eventContext = await loadEventContext(request);
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const values = readCreatePaymentValues(formData);
 
   if (eventContext.selectedEventId === null) {

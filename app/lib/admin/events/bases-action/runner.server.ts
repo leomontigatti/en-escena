@@ -10,6 +10,7 @@ import {
 } from "@/lib/admin/events/bases-action/shared.server";
 import { markEventRegistrationReadinessDirty } from "@/lib/events/registration-readiness.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
+import { readFormData } from "@/lib/shared/read-form-data";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 type EventBasesActionHandler<
@@ -62,7 +63,7 @@ async function runEventBasesActionWithHandler<
   recordId?: string;
   request: Request;
 }) {
-  const formData = await request.formData();
+  const formData = await readFormData(request);
   const input = readSubmittedEventBasesActionInput({
     eventId,
     formData,

@@ -20,6 +20,7 @@ import {
   type SeminarCobroPreview,
 } from "@/lib/finances/seminar-cobro-presets.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
+import { readFormData } from "@/lib/shared/read-form-data";
 import type { PresetInscription } from "./preset-figures";
 import {
   choreographyIdFieldName,
@@ -115,7 +116,7 @@ export async function handleAcademyFinancesAction(input: {
     };
   }
 
-  const formData = await input.request.formData();
+  const formData = await readFormData(input.request);
   const preset = financePresetAction(String(formData.get("intent") ?? ""));
 
   if (preset === null) {

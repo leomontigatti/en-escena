@@ -27,13 +27,18 @@ const report = {
     "TypeError: x is undefined\n    at Dancer (https://sistema.enescena.com.ar/assets/route-DkS2F3a_.js:1:2345)",
 };
 
-function intake({ limit = 5, alertsPerHour = 5 } = {}) {
+function intake({
+  limit = 5,
+  alertsPerHour = 5,
+  lostConnectionAddressesPerHour = 3,
+} = {}) {
   const sendAlert = vi.fn(async (_text: string) => true);
   const receive = createClientErrorIntake({
     resolveUserId: async () => "user-123",
     sendAlert,
     limit: { requests: limit, windowMs: 60_000 },
     alertsPerHour,
+    lostConnectionAddressesPerHour,
   });
 
   return { receive, sendAlert };
@@ -166,6 +171,85 @@ describe("createClientErrorIntake", () => {
     );
 
     expect([first.status, sameNetwork.status]).toEqual([204, 429]);
+  });
+
+  test.each([
+    [
+      "Chrome",
+      "TypeError: Failed to fetch\n    at ye (https://sistema.enescena.com.ar/assets/errorBoundaries-Dudvcpwz.js:2:7095)",
+    ],
+    ["Safari", "TypeError: Load failed"],
+    [
+      "Safari naming the host",
+      "TypeError: Load failed (sistema.enescena.com.ar)",
+    ],
+    ["Firefox", "TypeError: NetworkError when attempting to fetch resource."],
+  ])(
+    "keeps a lost connection in %s without alerting, since no code of ours failed",
+    async (_browser, stack) => {
+      const { receive, sendAlert } = intake();
+
+      const response = await receive(
+        post({ body: JSON.stringify({ ...report, stack }) }),
+      );
+
+      expect(response.status).toBe(204);
+      expect(await db.$count(unexpectedErrors)).toBe(1);
+      expect(sendAlert).not.toHaveBeenCalled();
+    },
+  );
+
+  test("alerts once when lost connections come from enough addresses in an hour to be an outage, not one user's signal", async () => {
+    const { receive, sendAlert } = intake({
+      lostConnectionAddressesPerHour: 3,
+    });
+    const lostConnection = (address: string) =>
+      receive(
+        post({
+          body: JSON.stringify({
+            ...report,
+            stack: "TypeError: Failed to fetch",
+          }),
+          headers: { "cf-connecting-ip": address },
+        }),
+      );
+
+    // One user's flaky signal, however often, is not an outage.
+    for (let index = 0; index < 4; index += 1) {
+      await lostConnection("203.0.113.7");
+    }
+    await lostConnection("198.51.100.4");
+    expect(sendAlert).not.toHaveBeenCalled();
+
+    await lostConnection("192.0.2.9");
+    await lostConnection("192.0.2.10");
+
+    expect(sendAlert).toHaveBeenCalledTimes(1);
+    expect(sendAlert.mock.calls[0][0]).toContain("3 addresses");
+    expect(await db.$count(unexpectedErrors)).toBe(7);
+  });
+
+  test("keeps trying the outage alert while it is not delivered, even with the hour's budget spent", async () => {
+    const { receive, sendAlert } = intake({
+      limit: 100,
+      alertsPerHour: 1,
+      lostConnectionAddressesPerHour: 1,
+    });
+    // Spends the hour's budget for browser reports.
+    await receive(post());
+    sendAlert.mockClear();
+    sendAlert.mockResolvedValueOnce(false);
+
+    for (const address of ["192.0.2.9", "192.0.2.10"]) {
+      await receive(
+        post({
+          body: JSON.stringify({ ...report, stack: "TypeError: Load failed" }),
+          headers: { "cf-connecting-ip": address },
+        }),
+      );
+    }
+
+    expect(sendAlert).toHaveBeenCalledTimes(2);
   });
 
   test("caps the alerts browser reports can send in an hour, so forged ones cannot bury the chat", async () => {
