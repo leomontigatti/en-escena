@@ -1,7 +1,7 @@
-import { and, asc, eq, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, individuals, user } from "@/db/schema";
+import { academies, user } from "@/db/schema";
 import {
   EMAIL_SIGN_UP_ROLES,
   getUserKind,
@@ -14,18 +14,12 @@ import {
   toUserAccessState,
 } from "@/lib/auth/user-access-state.shared";
 import { adminListPageSize } from "@/lib/admin/admin-list";
-import { isIndividualLinkState } from "@/lib/individuals/link-state";
-import { individualLinkStateSql } from "@/lib/individuals/link.server";
 import {
   userListSpec,
   type UserListFilters,
   type UserListItem,
 } from "@/lib/admin/users/users-list.shared";
-import {
-  paginateList,
-  readListFacet,
-  readListQuery,
-} from "@/lib/list-query/list-query";
+import { paginateList, readListQuery } from "@/lib/list-query/list-query";
 import { listSearchCondition } from "@/lib/list-query/list-query.server";
 
 export function readUserFilters(
@@ -33,11 +27,7 @@ export function readUserFilters(
 ): UserListFilters {
   const listQuery = readListQuery(searchParams, userListSpec);
 
-  const linkState = readListFacet(searchParams, "vinculo");
-
   return {
-    linkState:
-      linkState !== null && isIndividualLinkState(linkState) ? linkState : null,
     page: listQuery.page,
     query: listQuery.search,
     role: readRoleFilter(searchParams.get("rol")),
@@ -57,7 +47,6 @@ export async function listUsers(input: { filters: UserListFilters }): Promise<{
     .select({ count: sql<number>`count(*)` })
     .from(user)
     .leftJoin(academies, eq(academies.userId, user.id))
-    .leftJoin(individuals, eq(individuals.academyId, academies.id))
     .where(where);
   const totalCount = Number(count);
   const { limit, offset, page, totalPages } = paginateList({
@@ -75,12 +64,9 @@ export async function listUsers(input: { filters: UserListFilters }): Promise<{
       suspended: user.suspended,
       academyName: academies.name,
       academyContactName: academies.contactName,
-      individualId: individuals.id,
-      linkState: individualLinkStateSql(),
     })
     .from(user)
     .leftJoin(academies, eq(academies.userId, user.id))
-    .leftJoin(individuals, eq(individuals.academyId, academies.id))
     .where(where)
     .orderBy(
       asc(sql`lower(coalesce(${academies.contactName}, ${user.name}))`),
@@ -97,8 +83,6 @@ export async function listUsers(input: { filters: UserListFilters }): Promise<{
       id: row.id,
       academyName: userType === "academy" ? row.academyName : null,
       identifier: row.internalUsername ?? row.email,
-      // Only a user with an individual behind it has a link.
-      linkState: row.individualId === null ? null : row.linkState,
       mainRole: row.role,
       // An individual's owner row carries its person's full name as contact.
       name:
@@ -142,13 +126,6 @@ function buildUserWhere(filters: UserListFilters): SQL<unknown> | undefined {
 
   if (filters.role !== "all") {
     clauses.push(eq(user.role, filters.role));
-  }
-
-  if (filters.linkState !== null) {
-    clauses.push(
-      isNotNull(individuals.id),
-      eq(individualLinkStateSql(), filters.linkState),
-    );
   }
 
   clauses.push(userAccessStateCondition(filters.state ?? "active"));

@@ -113,15 +113,15 @@ onboarding.
 
 Use for the `individual` (`Particular`) account: its onboarding, its own area,
 its personal data and its link to academy rosters, which administration confirms
-from the individual's user detail in `Usuarios` (ADR-0019).
+from its `Particulares` admin section (ADR-0019).
 
 - Domain: `docs/domain/access.md`
 - ADRs: `docs/adr/0019-individual-owns-its-own-pool.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
-- Routes: `app/routes/registro_.cuenta.tsx` (the kind choice), `app/routes/registro_.particular.tsx`, `app/routes/particular.tsx` (layout), `app/routes/particular._index.tsx`, `app/routes/particular.perfil.tsx`, `app/routes/particular.coreografias.tsx`
-- Feature modules: `app/features/individual/onboarding/` (the kind choice and the individual's onboarding form), `app/features/individual/shell/`, `app/features/individual/personal-data/`, `app/features/individual/choreographies/` (`Coreografías`: the active event's choreographies the link reaches, results behind the academies' publication gate), `app/features/admin/users/detail/individual/` (the individual's data, photo and `Confirmar vínculo` / `Revocar vínculo` on its user detail), `app/features/admin/users/individual-link-badge.tsx` (administration's `Incompleto` / `Sin verificar` / `Vinculado`)
+- Routes: `app/routes/registro_.cuenta.tsx` (the kind choice), `app/routes/registro_.particular.tsx`, `app/routes/particular.tsx` (layout), `app/routes/particular._index.tsx`, `app/routes/particular.perfil.tsx`, `app/routes/particular.coreografias.tsx`, `app/routes/administracion.particulares.tsx`, `app/routes/administracion.particulares_.$individualId.tsx`
+- Feature modules: `app/features/individual/onboarding/` (the kind choice and the individual's onboarding form), `app/features/individual/shell/`, `app/features/individual/personal-data/`, `app/features/individual/choreographies/` (`Coreografías`: the active event's choreographies the link reaches, results behind the academies' publication gate), `app/features/admin/individuals/list/`, `app/features/admin/individuals/detail/` (the individual's data, photo and `Confirmar vínculo` / `Revocar vínculo`), `app/features/admin/individuals/link-review-badge.tsx` (administration's `Incompleto` / `Sin verificar` / `Vinculado`)
 - Server modules: `app/lib/individuals/onboarding.server.ts`, `app/lib/individuals/personal-data.ts` (the personal data schema and normalization, shared by onboarding and `Perfil`), `app/lib/individuals/personal-data.server.ts`, `app/lib/individuals/link-state.ts` (the derived `Sin vincular` / `Pendiente` / `Vinculado`), `app/lib/individuals/link.server.ts` (the link module: the roster rows an individual reaches, only while `Vinculado`, and the confirmation and revocation), `app/lib/auth/pending-onboarding.server.ts`, `requireIndividualUser` in `app/lib/auth/internal-access.server.ts`
 - Schema: `app/db/schema/individuals.ts`; the owner row is `academy` of kind `individual` (`app/lib/academies/owner-kind.server.ts`)
-- Tests: `app/lib/individuals/onboarding.server.db.test.ts`, `app/features/individual/shell/server.db.test.ts`, `app/features/individual/personal-data/server.db.test.ts`, `app/features/individual/choreographies/server.db.test.ts`, `app/lib/individuals/link.server.db.test.ts`, `app/features/admin/users/list/server.db.test.ts`, `app/features/admin/users/detail/server.db.test.ts`
+- Tests: `app/lib/individuals/onboarding.server.db.test.ts`, `app/features/individual/shell/server.db.test.ts`, `app/features/individual/personal-data/server.db.test.ts`, `app/features/individual/choreographies/server.db.test.ts`, `app/lib/individuals/link.server.db.test.ts`, `app/features/admin/individuals/list/server.db.test.ts`, `app/features/admin/individuals/detail/server.db.test.ts`
 
 ## Access And Internal Users
 
@@ -217,7 +217,7 @@ password reset flows.
 - Feature modules: `app/features/admin/users/list/`, `app/features/admin/users/create/`, `app/features/admin/users/detail/`
 - Shared modules kept in `app/lib` because they stay neutral to several admin flows: `app/lib/admin/users/users-list.server.ts`, `app/lib/admin/users/internal-user-create.server.ts`, `app/lib/admin/users/internal-user-update.server.ts`, `app/lib/admin/users/internal-user-suspension.server.ts`, `app/lib/admin/users/internal-user-password-reset.server.ts`, `app/lib/admin/users/internal-user-credentials.server.ts`, `app/lib/admin/users/internal-user-credentials.shared.ts`, `app/lib/auth/internal-navigation.server.ts`
 - Shared UI still reused by the feature views: `app/lib/admin/users/user-detail-cards.tsx`, `app/lib/admin/users/user-detail-edit-form.tsx`, `app/lib/admin/users/user-detail-password-reset-form.tsx`, `app/lib/admin/users/user-detail-role-field.tsx`
-- Tests: `app/lib/admin/users/users-route.server.db.test.ts`, `app/lib/admin/users/internal-user-create-route.server.db.test.ts`, `app/lib/admin/users/internal-user-create.server.db.test.ts`, `app/lib/admin/users/user-detail-route.server.db.test.ts`, `app/features/admin/users/list/view.test.tsx`, `app/features/admin/users/list/server.db.test.ts`, `app/features/admin/users/detail/server.db.test.ts`
+- Tests: `app/lib/admin/users/users-route.server.db.test.ts`, `app/lib/admin/users/internal-user-create-route.server.db.test.ts`, `app/lib/admin/users/internal-user-create.server.db.test.ts`, `app/lib/admin/users/user-detail-route.server.db.test.ts`, `app/features/admin/users/list/view.test.tsx`, `app/features/admin/users/list/server.db.test.ts`
 
 ## Admin Choreographies
 

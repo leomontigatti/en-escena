@@ -23,16 +23,11 @@ import {
   userAccessStateOptions,
 } from "@/lib/auth/user-access-state.shared";
 import { getUserRoleLabel, userRoleOptions } from "@/lib/auth/user-role.shared";
-import { isIndividualLinkState } from "@/lib/individuals/link-state";
 import {
   activeListFacets,
   describeEmptyList,
 } from "@/lib/list-query/list-query";
 
-import {
-  IndividualLinkReviewBadge,
-  individualLinkReviewOptions,
-} from "../individual-link-badge";
 import { UserAccessStateBadge } from "../user-access-state-badge";
 
 import type { loader } from "./server";
@@ -52,7 +47,7 @@ export function InternalUsersListRouteView({
     <AdminResourceLayout
       requireSelectedEvent={false}
       title="Usuarios"
-      description="Consultá accesos internos, de academias y de particulares, con filtros por tipo, estado y vínculo."
+      description="Consultá accesos internos, de academias y de particulares, con filtros por tipo y estado."
       action={
         loaderData.canWrite
           ? { label: "Nuevo usuario", to: "/administracion/usuarios/nuevo" }
@@ -127,16 +122,12 @@ function UsersTable({
             {getUserRoleLabel(savedUser.mainRole)}
           </Badge>
           <UserAccessStateBadge state={savedUser.state} />
-          {savedUser.linkState ? (
-            <IndividualLinkReviewBadge state={savedUser.linkState} />
-          ) : null}
         </div>
       ),
       filterValues: (savedUser) => [
         savedUser.mainRole,
         savedUser.userType,
         savedUser.state,
-        ...(savedUser.linkState ? [savedUser.linkState] : []),
       ],
       filterValue: (savedUser) =>
         [
@@ -176,17 +167,6 @@ function UsersTable({
               {option.label}
             </Badge>
           ),
-        },
-        {
-          id: "vinculo",
-          label: "Vínculo",
-          options: individualLinkReviewOptions,
-          renderValue: (option) =>
-            isIndividualLinkState(option.value) ? (
-              <IndividualLinkReviewBadge state={option.value} />
-            ) : (
-              option.label
-            ),
         },
       ]}
       initialFacetedFilterValues={buildInitialUserFilterValues(filters)}

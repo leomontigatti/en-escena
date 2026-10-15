@@ -72,7 +72,7 @@ export type UserDetailLoaderData = {
 };
 
 export type DetailActionData = {
-  form: "edit" | "link" | "reset-password" | "status";
+  form: "edit" | "reset-password" | "status";
   status: "error";
   message: string;
   fieldErrors: UpdateInternalUserFieldErrors;
@@ -129,8 +129,6 @@ export const resetPasswordSchema = z.object({
 
 export type UserRouteNotification = Extract<
   NotificationKey,
-  | "individual-link-confirmed"
-  | "individual-link-revoked"
   | "internal-user-updated"
   | "internal-user-reactivated"
   | "internal-user-reset"
@@ -194,9 +192,7 @@ export function getDetailDescription(
   }
 
   if (userType === "individual") {
-    return canWrite
-      ? "Compará la foto del documento con los datos de la cuenta antes de confirmar el vínculo con las academias."
-      : "Consultá los datos del particular y el vínculo de su documento en modo solo lectura.";
+    return "Consultá la identidad de acceso del Particular en modo solo lectura.";
   }
 
   if (canWrite) {

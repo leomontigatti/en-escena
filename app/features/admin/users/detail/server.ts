@@ -21,17 +21,12 @@ import {
   type DetailActionData,
   type DetailSuccessData,
   type DetailUserRow,
+  type UserDetailLoaderData,
 } from "@/lib/admin/users/user-detail.shared";
 import { updateInternalUser } from "@/lib/admin/users/internal-user-update.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
-
-import {
-  handleIndividualLinkAction,
-  loadIndividualLinkDetail,
-} from "./individual/server";
-import type { UserDetailRouteLoaderData } from "./shared";
 
 type LoaderArgs = {
   request: Request;
@@ -47,7 +42,7 @@ const userNotFoundMessage = "Usuario no encontrado.";
 export async function loader({
   request,
   params,
-}: LoaderArgs): Promise<UserDetailRouteLoaderData> {
+}: LoaderArgs): Promise<UserDetailLoaderData> {
   const appUser = await requireAdminPanelWriter(request);
   const userId = requireUserId(params.userId);
   const savedUser = await findDetailUserRow(userId);
@@ -56,16 +51,10 @@ export async function loader({
     throw new Response(userNotFoundMessage, { status: 404 });
   }
 
-  const detailUser = buildDetailUser(savedUser);
-
   return {
     backToList: buildBackToListHref(readRequestedUrl(request).href),
     canWrite: canWriteInAdminPanel(appUser.role),
-    individual:
-      detailUser.userType === "individual"
-        ? await loadIndividualLinkDetail(userId)
-        : null,
-    user: detailUser,
+    user: buildDetailUser(savedUser),
   };
 }
 
@@ -77,15 +66,6 @@ export async function action({
   const userId = requireUserId(params.userId);
   const formData = await request.formData();
   const intent = formData.get("intent");
-  const linkResult = await handleIndividualLinkAction({
-    formData,
-    userId,
-    writerId: appUser.id,
-  });
-
-  if (linkResult) {
-    return linkResult;
-  }
   const parsedIntent = userStatusIntentSchema.safeParse(intent);
 
   if (parsedIntent.success) {

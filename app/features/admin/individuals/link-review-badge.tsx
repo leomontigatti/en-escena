@@ -17,7 +17,11 @@ const individualLinkReviewLabels = {
   unlinked: "Incompleto",
 } as const satisfies Record<IndividualLinkState, string>;
 
-/** The users list's `Vínculo` facet, in the order an individual goes through it. */
+export function formatIndividualLinkReviewLabel(state: IndividualLinkState) {
+  return individualLinkReviewLabels[state];
+}
+
+/** The list's `Vínculo` facet, in the order an individual goes through it. */
 export const individualLinkReviewOptions = individualLinkStates.map(
   (state) => ({
     label: individualLinkReviewLabels[state],
@@ -25,7 +29,7 @@ export const individualLinkReviewOptions = individualLinkStates.map(
   }),
 );
 
-/** An individual's link state on the users list and an individual's detail. */
+/** An individual's link state on the `Particulares` list and detail. */
 export function IndividualLinkReviewBadge({
   state,
 }: {

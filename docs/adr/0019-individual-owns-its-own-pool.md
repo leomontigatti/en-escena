@@ -66,8 +66,8 @@ keeps meaning "a person an academy loaded".
 - Sign-up is the public registration with a choice of kind first, one email per
   user. The individual lands in an area of its own, not the `Portal de
 academias`, and reads the active event only, results under the same
-  publication rule as the academy. Administration confirms links from the
-  individual's user in `Usuarios`; the auditor does not reach individuals.
+  publication rule as the academy. Administration confirms links from a
+  `Particulares` section that audit reads.
 - Certificates are a separate concept and a separate issue.
 - Prerequisites, in order: one owner for the permission vocabulary (#740), for
   the access state (#715) and for the identity document (#735), then the roster

@@ -3,13 +3,13 @@ import { useActionData } from "react-router";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { action, loader } from "@/features/admin/users/detail/server";
 import { InternalUserDetailRouteView } from "@/features/admin/users/detail/view";
-import type { UserDetailRouteLoaderData } from "@/features/admin/users/detail/shared";
+import type { UserDetailLoaderData } from "@/lib/admin/users/user-detail.shared";
 
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.usuarios_.$userId";
 
-type LoaderData = UserDetailRouteLoaderData;
+type LoaderData = UserDetailLoaderData;
 type ActionData = Awaited<ReturnType<typeof action>>;
 
 type InternalUserDetailRouteProps = {

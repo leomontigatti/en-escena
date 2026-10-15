@@ -1,7 +1,10 @@
 import { Info } from "lucide-react";
 import { useState } from "react";
 
-import { AdminResourceFormCard } from "@/components/admin/resource-layout";
+import {
+  AdminResourceFormCard,
+  AdminResourceLayout,
+} from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { FormActions } from "@/components/shared/form-actions";
 import { ReadOnlyDocumentImageField } from "@/components/shared/read-only-document-image-field";
@@ -20,17 +23,60 @@ import {
   formatIdentityDocument,
 } from "@/lib/roster/identity-document";
 import { formatBusinessDate } from "@/lib/shared/business-time-zone";
+import { useServerActionToast } from "@/lib/shared/toasts";
+
+import { IndividualLinkReviewBadge } from "../link-review-badge";
 
 import { LinkDialogs, type LinkDialog } from "./link-dialogs";
-import type { IndividualLinkDetail } from "./shared";
+import type {
+  IndividualDetailActionData,
+  IndividualDetailLoaderData,
+  IndividualLinkDetail,
+} from "./shared";
+
+export function IndividualDetailRouteView({
+  actionData,
+  loaderData,
+}: {
+  actionData?: IndividualDetailActionData;
+  loaderData: IndividualDetailLoaderData;
+}) {
+  const { canWrite, individual } = loaderData;
+
+  useServerActionToast(actionData, {
+    toastId: "administracion-particular:feedback",
+  });
+
+  return (
+    <AdminResourceLayout
+      requireSelectedEvent={false}
+      title={toIndividualFullName(individual)}
+      titleBadge={<IndividualLinkReviewBadge state={individual.linkState} />}
+      description={
+        canWrite
+          ? "Compará la foto del documento con los datos de la cuenta antes de confirmar el vínculo con las academias."
+          : "Consultá los datos del particular y el vínculo de su documento en modo solo lectura."
+      }
+      headerAction={
+        canWrite ? <IndividualLinkActions individual={individual} /> : undefined
+      }
+    >
+      <IndividualLinkAlert individual={individual} />
+      <IndividualDataCard
+        backToList={loaderData.backToList}
+        individual={individual}
+      />
+    </AdminResourceLayout>
+  );
+}
 
 /**
- * The `Acciones` menu of an individual's user, with the one item its link
+ * The `Acciones` menu of an individual, with the one item its link
  * state calls for: `Revocar vínculo` once linked, `Confirmar vínculo`
  * otherwise, which opens the blocked dialog without a photo rather than being
- * disabled. Administration's alone: the caller renders it only to a writer.
+ * disabled. Administration's alone: the detail renders it only to a writer.
  */
-export function IndividualLinkActions({
+function IndividualLinkActions({
   individual,
 }: {
   individual: IndividualLinkDetail;
@@ -71,7 +117,7 @@ export function IndividualLinkActions({
 }
 
 /** Who confirmed the link and when, or why it cannot be confirmed yet. */
-export function IndividualLinkAlert({
+function IndividualLinkAlert({
   individual: { confirmation, linkState },
 }: {
   individual: IndividualLinkDetail;
@@ -118,7 +164,7 @@ function describeConfirmation(
 }
 
 /** The individual's data and document photo, read-only. */
-export function IndividualDataCard({
+function IndividualDataCard({
   backToList,
   individual,
 }: {

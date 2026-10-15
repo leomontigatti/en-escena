@@ -1,6 +1,5 @@
 import type { UserKind, UserRole } from "@/lib/auth/user-role.shared";
 import type { UserAccessState } from "@/lib/auth/user-access-state.shared";
-import type { IndividualLinkState } from "@/lib/individuals/link-state";
 import {
   buildCanonicalListSearch,
   type ListQuerySpec,
@@ -9,11 +8,6 @@ import {
 export type UserListType = UserKind;
 
 export type UserListFilters = {
-  /**
-   * An individual's link state; `null` is every user. Choosing one narrows the
-   * list to individuals, the only users with a link.
-   */
-  linkState: IndividualLinkState | null;
   page: number;
   query: string;
   role: UserRole | "all";
@@ -26,8 +20,6 @@ export type UserListItem = {
   id: string;
   academyName: string | null;
   identifier: string;
-  /** An individual's link state; `null` for every other user. */
-  linkState: IndividualLinkState | null;
   mainRole: UserRole;
   name: string;
   state: UserAccessState;
@@ -49,7 +41,6 @@ export function toUserListFacets(filters: UserListFilters) {
     estado: filters.state,
     rol: filters.role === "all" ? null : filters.role,
     tipo: filters.type === "all" ? null : filters.type,
-    vinculo: filters.linkState,
   };
 }
 

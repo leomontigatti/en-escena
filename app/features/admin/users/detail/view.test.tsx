@@ -8,12 +8,12 @@ import {
 } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import type { UserDetailRouteLoaderData } from "@/features/admin/users/detail/shared";
 import { InternalUserDetailRouteView } from "@/features/admin/users/detail/view";
 import {
   buildDetailActionSuccess,
   type DetailUser,
   type DetailViewActionData,
+  type UserDetailLoaderData,
 } from "@/lib/admin/users/user-detail.shared";
 import {
   createReactDomTestRenderer,
@@ -300,6 +300,27 @@ describe("InternalUserDetailRouteView", () => {
     expect(action).toHaveBeenCalledTimes(1);
   });
 
+  // An individual's link is `Particulares`' to show and change.
+  test("shows an individual's access read-only, like an academy user's", async () => {
+    await renderDetail({
+      user: {
+        email: "ana@example.com",
+        identifier: "ana@example.com",
+        mainRole: "individual",
+        name: "Ana Acosta",
+        userType: "individual",
+      },
+    });
+
+    const text = document.body.textContent ?? "";
+
+    expect(text).toContain("Particular");
+    expect(text).toContain("Correo de acceso");
+    expect(text).not.toContain("Foto del documento");
+    expect(text).not.toContain("Confirmar vínculo");
+    expect(text).not.toContain("Acciones");
+  });
+
   async function renderDetail({
     action = vi.fn(async () => null),
     navigation = { state: "idle" },
@@ -419,13 +440,10 @@ async function chooseMenuItem(label: string) {
   });
 }
 
-function buildLoaderData(
-  user: Partial<DetailUser> = {},
-): UserDetailRouteLoaderData {
+function buildLoaderData(user: Partial<DetailUser> = {}): UserDetailLoaderData {
   return {
     backToList: "/administracion/usuarios",
     canWrite: true,
-    individual: null,
     user: {
       academyId: null,
       academyName: null,

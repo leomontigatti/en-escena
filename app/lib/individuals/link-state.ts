@@ -2,7 +2,7 @@
 // (ADR-0019). It is derived from the `individual` row, never stored, so no
 // write can leave it stale. Client-safe: `Perfil` reads these labels, and
 // administration names the same states in words of its own
-// (`app/features/admin/users/individual-link-badge.tsx`).
+// (`app/features/admin/individuals/link-review-badge.tsx`).
 
 export type IndividualLinkState = "linked" | "pending" | "unlinked";
 
