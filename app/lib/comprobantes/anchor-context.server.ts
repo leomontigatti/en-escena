@@ -6,10 +6,8 @@ import {
   choreographies,
   comprobantes,
   events,
-  individuals,
   seminars,
 } from "@/db/schema";
-import { formatIdentityDocument } from "@/lib/roster/identity-document";
 
 import { readComprobanteAnchor, type ComprobanteAnchor } from "./anchor";
 import type { ComprobanteAnchorReading } from "./anchor-reading";
@@ -30,12 +28,6 @@ export type ComprobanteAnchorContext = {
   anchor: ComprobanteAnchor;
   eventName: string;
   reading: ComprobanteAnchorReading;
-  /**
-   * The receptor's document, `DNI 12345678`, when the owner is an individual
-   * (ADR-0019): its comprobante is the person's own. Null for an academy, whose
-   * comprobante names the academy alone.
-   */
-  recipientDocument: string | null;
 };
 
 /**
@@ -52,8 +44,6 @@ export async function readComprobanteAnchorContext(
       academyName: academies.name,
       choreographyId: comprobantes.choreographyId,
       choreographyName: choreographies.name,
-      documentNumber: individuals.documentNumber,
-      documentType: individuals.documentType,
       eventName: events.name,
       seminarId: comprobantes.seminarId,
       instructorName: seminars.instructorName,
@@ -67,8 +57,6 @@ export async function readComprobanteAnchorContext(
       eq(comprobantes.choreographyId, choreographies.id),
     )
     .leftJoin(seminars, eq(comprobantes.seminarId, seminars.id))
-    // Only an owner row of kind `individual` has a person behind it.
-    .leftJoin(individuals, eq(individuals.academyId, academies.id))
     .where(eq(comprobantes.id, comprobanteId));
 
   if (!row) {
@@ -85,7 +73,6 @@ export async function readComprobanteAnchorContext(
     }),
     eventName: row.eventName,
     reading: readAnchorFromJoins(row),
-    recipientDocument: formatIdentityDocument(row),
   };
 }
 

@@ -33,7 +33,6 @@ async function getComprobantePrintRecord(
     anchor: context.reading,
     academyName: context.academyName,
     eventName: context.eventName,
-    recipientDocument: context.recipientDocument,
   };
 }
 

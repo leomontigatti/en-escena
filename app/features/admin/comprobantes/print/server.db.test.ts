@@ -97,8 +97,9 @@ describe("loadComprobantePrint", () => {
   });
 
   // ADR-0019: an individual's comprobante is its own, so the receptor block
-  // names the person and its document where an academy's names the academy.
-  test("prints an individual's seminar unit with its name and document", async () => {
+  // names the person where an academy's names the academy. Its document stays
+  // off the printout: the ARCA receptor is the final consumer, with no document.
+  test("prints an individual's seminar unit with its name and no document", async () => {
     const event = await createEventRecord({ active: true });
     const individual = await createIndividualUser({
       documentNumber: "30123456",
@@ -131,35 +132,7 @@ describe("loadComprobantePrint", () => {
     expect(html).toContain(
       "<p>Ana Pérez — Seminario Abril Sosa, 10/10/2030</p>",
     );
-    expect(html).toContain("<p>Documento: DNI 30123456</p>");
-  });
-
-  test("prints no document line for an academy", async () => {
-    const event = await createEventRecord({ active: true });
-    const academy = await createAcademyRecord({
-      academyName: "Academia Sin Documento",
-      email: `academia.${crypto.randomUUID()}@example.com`,
-    });
-    const [seminar] = await db
-      .insert(seminars)
-      .values({
-        eventId: event.id,
-        instructorName: "Abril Sosa",
-        kind: "regular",
-        quota: 20,
-        requiredDepositPercentage: 50,
-        scheduledDate: "2030-10-10",
-        startTime: "18:30",
-      })
-      .returning();
-    const comprobante = await recordComprobante(
-      facturaCInput({
-        anchor: seminarAnchor(seminar.id, academy.id),
-        eventId: event.id,
-      }),
-    );
-
-    expect(await printHtml(comprobante.id)).not.toContain("Documento:");
+    expect(html).not.toContain("30123456");
   });
 
   test("prints a choreography unit naming the academy and the choreography", async () => {

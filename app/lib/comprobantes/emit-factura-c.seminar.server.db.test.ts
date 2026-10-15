@@ -477,9 +477,9 @@ describe("seminar deletion with fiscal history", () => {
 });
 
 // ADR-0019: an individual's money is its own, so its `(seminar, owner)` unit
-// is billed like an academy's, and the comprobante carries the person.
+// is billed like an academy's, and the comprobante carries the person's name.
 describe("emitFacturaC on an individual's seminar unit", () => {
-  test("bills what the individual collected and carries its name and document", async () => {
+  test("bills what the individual collected and carries its name", async () => {
     const { event, seminar, first } = await seedSeminarUnit();
     const individual = await createIndividualUser({
       documentNumber: "30123456",
@@ -541,9 +541,6 @@ describe("emitFacturaC on an individual's seminar unit", () => {
     ]);
     expect(
       await readComprobanteAnchorContext(outcome.comprobante.id),
-    ).toMatchObject({
-      academyName: "Ana Pérez",
-      recipientDocument: "DNI 30123456",
-    });
+    ).toMatchObject({ academyName: "Ana Pérez" });
   });
 });

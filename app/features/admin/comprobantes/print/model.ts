@@ -26,8 +26,6 @@ export type ComprobantePrintContext = {
   anchor: ComprobanteAnchorReading;
   academyName: string;
   eventName: string;
-  // An individual's document (ADR-0019), null for an academy.
-  recipientDocument: string | null;
 };
 
 // The comprobante's already loaded snapshot with its derived state, its lines
@@ -55,11 +53,7 @@ export type ComprobantePrintViewModel = {
   issuerCuit: string;
   issuerVatCondition: string;
   recipientVatCondition: string;
-  // The owner's name: the academy's, or the individual's own.
   academyName: string;
-  // `DNI 12345678` when the owner is an individual, whose comprobante is the
-  // person's: the receptor block prints it under the name. Null for an academy.
-  recipientDocument: string | null;
   // The unit the receptor block names beside the academy: the choreography's
   // name, or `Seminario {instructor}, {fecha}`.
   anchorLabel: string;
@@ -118,7 +112,6 @@ export function buildComprobantePrintViewModel(
     issuerVatCondition: ISSUER_VAT_CONDITION_LABEL,
     recipientVatCondition: RECIPIENT_VAT_CONDITION_LABEL,
     academyName: record.academyName,
-    recipientDocument: record.recipientDocument,
     anchorLabel: formatComprobanteAnchorLabel(record.anchor),
     eventName: record.eventName,
     lines: [
