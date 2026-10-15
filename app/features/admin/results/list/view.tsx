@@ -64,7 +64,7 @@ const resultsColumns: DataTableColumn<ResultsListItem>[] = [
   {
     id: "name",
     header: "Nombre",
-    width: 13,
+    width: 11,
     className: "font-medium",
     // As on the presentations list, the choreography number travels in the
     // truncation title: it is not a column, but it stays searchable.
@@ -89,12 +89,12 @@ const resultsColumns: DataTableColumn<ResultsListItem>[] = [
   {
     id: "academy",
     header: "Academia",
-    width: 12,
+    width: 10,
     className: "text-muted-foreground",
     cell: (row) => <DataTableTruncatedText value={row.academyName} />,
   },
   ...choreographyClassificationColumns<ResultsListItem>({
-    widths: { modality: 20, categoryGroup: 19 },
+    widths: { modality: 22, categoryGroup: 23 },
   }),
   {
     id: "experienceLevel",
