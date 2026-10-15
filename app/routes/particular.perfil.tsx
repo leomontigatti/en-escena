@@ -3,13 +3,18 @@ import {
   loadIndividualPersonalData,
 } from "@/features/individual/personal-data/server";
 import { IndividualPersonalDataRouteView } from "@/features/individual/personal-data/view";
+import type { IndividualRouteHandle } from "@/features/individual/shell/view";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
-import type { Route } from "./+types/particular.mis-datos";
+import type { Route } from "./+types/particular.perfil";
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Mis datos | Particular | En Escena" },
+  { title: "Perfil | Particular | En Escena" },
 ];
+
+export const handle = {
+  individualBreadcrumb: "Perfil",
+} satisfies IndividualRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
   return await loadIndividualPersonalData(request);

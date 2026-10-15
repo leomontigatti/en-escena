@@ -261,7 +261,7 @@ async function load(cookie: string) {
 }
 
 function signedInRequest(cookie: string) {
-  return new Request("http://localhost/particular/mis-coreografias", {
+  return new Request("http://localhost/particular/coreografias", {
     headers: { cookie },
   });
 }

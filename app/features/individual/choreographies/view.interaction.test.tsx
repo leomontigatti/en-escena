@@ -57,7 +57,7 @@ describe("IndividualChoreographiesView", () => {
   async function renderView(choreographies: IndividualChoreographyRow[]) {
     await renderer.renderAsync(
       renderInDataRouter(
-        "/particular/mis-coreografias",
+        "/particular/coreografias",
         <IndividualChoreographiesView
           loaderData={{
             choreographies,

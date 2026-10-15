@@ -97,7 +97,7 @@ export function IndividualLinkAlert({
             <AlertTitle>Sin foto del documento</AlertTitle>
             <AlertDescription>
               El vínculo se puede confirmar cuando el particular suba la foto de
-              su documento desde Mis datos.
+              su documento desde su perfil.
             </AlertDescription>
           </>
         )}

@@ -42,9 +42,9 @@ afterEach(async () => {
   await rm(storageVolumeDir, { force: true, recursive: true });
 });
 
-const misDatosUrl = "http://localhost/particular/mis-datos";
+const profileUrl = "http://localhost/particular/perfil";
 
-describe("the individual's `Mis datos`", () => {
+describe("the individual's `Perfil`", () => {
   test("loads the individual's personal data, its phone and its access email", async () => {
     const individual = await createIndividualUser({
       documentNumber: "30123456",
@@ -56,7 +56,7 @@ describe("the individual's `Mis datos`", () => {
 
     await expect(
       loadIndividualPersonalData(
-        new Request(misDatosUrl, { headers: { cookie: individual.cookie } }),
+        new Request(profileUrl, { headers: { cookie: individual.cookie } }),
       ),
     ).resolves.toEqual({
       documentPhotoUrl: null,
@@ -80,7 +80,7 @@ describe("the individual's `Mis datos`", () => {
 
     const result = await handleIndividualPersonalDataAction(
       createPortalPostRequest(
-        misDatosUrl,
+        profileUrl,
         individual.cookie,
         personalDataForm({
           documentNumber: " 40 111.222 ",
@@ -93,7 +93,7 @@ describe("the individual's `Mis datos`", () => {
     );
 
     expect(result).toEqual({ status: "success", message: "Datos guardados." });
-    await expect(loadMisDatos(individual.cookie)).resolves.toMatchObject({
+    await expect(loadProfile(individual.cookie)).resolves.toMatchObject({
       values: {
         documentNumber: "40111222",
         documentType: "dni",
@@ -129,7 +129,7 @@ describe("the individual's `Mis datos`", () => {
 
     const result = await handleIndividualPersonalDataAction(
       createPortalPostRequest(
-        misDatosUrl,
+        profileUrl,
         individual.cookie,
         personalDataForm(typed),
       ),
@@ -145,7 +145,7 @@ describe("the individual's `Mis datos`", () => {
       },
       values: { ...typed, documentPhotoStorageKey: "" },
     });
-    await expect(loadMisDatos(individual.cookie)).resolves.toMatchObject({
+    await expect(loadProfile(individual.cookie)).resolves.toMatchObject({
       values: { documentNumber: "30123456", firstName: "Ana" },
     });
   });
@@ -159,7 +159,7 @@ describe("the individual's `Mis datos`", () => {
     await expectThrownResponse(
       handleIndividualPersonalDataAction(
         createPortalPostRequest(
-          misDatosUrl,
+          profileUrl,
           academy.cookie,
           personalDataForm({
             documentNumber: "30123456",
@@ -181,19 +181,19 @@ describe("the individual's document photo", () => {
       email: "particular@example.com",
     });
 
-    const before = await loadMisDatos(individual.cookie);
+    const before = await loadProfile(individual.cookie);
 
     expect(before.linkState).toBe("unlinked");
     expect(before.documentPhotoUrl).toBeNull();
 
-    const result = await saveMisDatos(individual.cookie, {
+    const result = await saveProfile(individual.cookie, {
       documentPhoto: new File(["front"], "dni.jpg", { type: "image/jpeg" }),
     });
 
     expect(result).toEqual({ status: "success", message: "Datos guardados." });
 
     const [storedPhoto] = await storedPhotos(individual.individualId);
-    const after = await loadMisDatos(individual.cookie);
+    const after = await loadProfile(individual.cookie);
 
     expect(storedPhoto).toMatch(/^document-.+\.jpg$/);
     expect(after.linkState).toBe("pending");
@@ -210,17 +210,17 @@ describe("the individual's document photo", () => {
       email: "particular@example.com",
     });
 
-    await saveMisDatos(individual.cookie, {
+    await saveProfile(individual.cookie, {
       documentPhoto: new File(["first"], "dni.jpg", { type: "image/jpeg" }),
     });
-    const first = await loadMisDatos(individual.cookie);
-    const result = await saveMisDatos(individual.cookie, {
+    const first = await loadProfile(individual.cookie);
+    const result = await saveProfile(individual.cookie, {
       documentPhoto: new File(["second"], "dni.png", { type: "image/png" }),
       documentPhotoStorageKey: first.values.documentPhotoStorageKey,
     });
 
     const photos = await storedPhotos(individual.individualId);
-    const second = await loadMisDatos(individual.cookie);
+    const second = await loadProfile(individual.cookie);
 
     expect(result.status).toBe("success");
     expect(photos).toHaveLength(1);
@@ -236,20 +236,20 @@ describe("the individual's document photo", () => {
       email: "particular@example.com",
     });
 
-    await saveMisDatos(individual.cookie, {
+    await saveProfile(individual.cookie, {
       documentPhoto: new File(["first"], "dni.jpg", { type: "image/jpeg" }),
     });
-    const stored = await loadMisDatos(individual.cookie);
+    const stored = await loadProfile(individual.cookie);
 
-    await saveMisDatos(individual.cookie, {
+    await saveProfile(individual.cookie, {
       documentPhotoStorageKey: stored.values.documentPhotoStorageKey,
     });
-    await saveMisDatos(individual.cookie, {});
+    await saveProfile(individual.cookie, {});
 
     await expect(storedPhotos(individual.individualId)).resolves.toHaveLength(
       1,
     );
-    await expect(loadMisDatos(individual.cookie)).resolves.toMatchObject({
+    await expect(loadProfile(individual.cookie)).resolves.toMatchObject({
       linkState: "pending",
       values: {
         documentPhotoStorageKey: stored.values.documentPhotoStorageKey,
@@ -262,13 +262,13 @@ describe("the individual's document photo", () => {
       email: "particular@example.com",
     });
 
-    await saveMisDatos(individual.cookie, {
+    await saveProfile(individual.cookie, {
       documentPhoto: new File(["first"], "dni.jpg", { type: "image/jpeg" }),
     });
-    await saveMisDatos(individual.cookie, { documentPhotoStorageKey: "" });
+    await saveProfile(individual.cookie, { documentPhotoStorageKey: "" });
 
     await expect(storedPhotos(individual.individualId)).resolves.toEqual([]);
-    await expect(loadMisDatos(individual.cookie)).resolves.toMatchObject({
+    await expect(loadProfile(individual.cookie)).resolves.toMatchObject({
       documentPhotoUrl: null,
       linkState: "unlinked",
     });
@@ -280,7 +280,7 @@ describe("the individual's document photo", () => {
       firstName: "Ana",
     });
 
-    const result = await saveMisDatos(individual.cookie, {
+    const result = await saveProfile(individual.cookie, {
       documentPhoto: new File(["%PDF"], "dni.pdf", {
         type: "application/pdf",
       }),
@@ -293,48 +293,48 @@ describe("the individual's document photo", () => {
       values: { documentPhotoStorageKey: "", firstName: "Lucía" },
     });
     await expect(storedPhotos(individual.individualId)).resolves.toEqual([]);
-    await expect(loadMisDatos(individual.cookie)).resolves.toMatchObject({
+    await expect(loadProfile(individual.cookie)).resolves.toMatchObject({
       linkState: "unlinked",
       values: { firstName: "Ana" },
     });
   });
 });
 
-describe("the individual's link in `Mis datos`", () => {
+describe("the individual's link in `Perfil`", () => {
   test("reads `Vinculado` once administration confirms the document", async () => {
     const individual = await createLinkedIndividual();
 
-    await expect(loadMisDatos(individual.cookie)).resolves.toMatchObject({
+    await expect(loadProfile(individual.cookie)).resolves.toMatchObject({
       linkState: "linked",
     });
   });
 
   test("a document change takes the link back to `Pendiente`", async () => {
     const individual = await createLinkedIndividual();
-    const stored = await loadMisDatos(individual.cookie);
+    const stored = await loadProfile(individual.cookie);
 
-    const result = await saveMisDatos(individual.cookie, {
+    const result = await saveProfile(individual.cookie, {
       documentNumber: "30.123.457",
       documentPhotoStorageKey: stored.values.documentPhotoStorageKey,
     });
 
     expect(result.status).toBe("success");
-    await expect(loadMisDatos(individual.cookie)).resolves.toMatchObject({
+    await expect(loadProfile(individual.cookie)).resolves.toMatchObject({
       linkState: "pending",
     });
   });
 
   test("a save that keeps the document, however typed, keeps the link", async () => {
     const individual = await createLinkedIndividual();
-    const stored = await loadMisDatos(individual.cookie);
+    const stored = await loadProfile(individual.cookie);
 
-    await saveMisDatos(individual.cookie, {
+    await saveProfile(individual.cookie, {
       documentNumber: "30.123.456",
       documentPhotoStorageKey: stored.values.documentPhotoStorageKey,
       phone: "1198765432",
     });
 
-    await expect(loadMisDatos(individual.cookie)).resolves.toMatchObject({
+    await expect(loadProfile(individual.cookie)).resolves.toMatchObject({
       linkState: "linked",
     });
   });
@@ -346,7 +346,7 @@ describe("the individual's link in `Mis datos`", () => {
       revokeIndividualLink(individual.individualId),
     ).resolves.toEqual({ ok: true });
 
-    await expect(loadMisDatos(individual.cookie)).resolves.toMatchObject({
+    await expect(loadProfile(individual.cookie)).resolves.toMatchObject({
       linkState: "pending",
     });
   });
@@ -359,7 +359,7 @@ async function createLinkedIndividual() {
     email: "particular@example.com",
   });
 
-  await saveMisDatos(individual.cookie, {
+  await saveProfile(individual.cookie, {
     documentPhoto: new File(["front"], "dni.jpg", { type: "image/jpeg" }),
   });
 
@@ -367,7 +367,7 @@ async function createLinkedIndividual() {
     email: "admin@example.com",
     role: "admin",
   });
-  const stored = await loadMisDatos(individual.cookie);
+  const stored = await loadProfile(individual.cookie);
   const confirmed = await confirmIndividualLink({
     confirmedByUserId: admin.userId,
     documentNumber: "30123456",
@@ -380,14 +380,14 @@ async function createLinkedIndividual() {
   return individual;
 }
 
-async function loadMisDatos(cookie: string) {
+async function loadProfile(cookie: string) {
   return loadIndividualPersonalData(
-    new Request(misDatosUrl, { headers: { cookie } }),
+    new Request(profileUrl, { headers: { cookie } }),
   );
 }
 
-/** The `Mis datos` form as the individual submits it, with valid data. */
-async function saveMisDatos(
+/** The `Perfil` form as the individual submits it, with valid data. */
+async function saveProfile(
   cookie: string,
   overrides: Record<string, File | string>,
 ) {
@@ -404,7 +404,7 @@ async function saveMisDatos(
   }
 
   return handleIndividualPersonalDataAction(
-    createPortalPostRequest(misDatosUrl, cookie, formData),
+    createPortalPostRequest(profileUrl, cookie, formData),
   );
 }
 

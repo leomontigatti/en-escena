@@ -452,7 +452,7 @@ Bucket, formats, size limit and expiry are declared in
 `app/lib/storage/asset-kinds.ts` and enforced by
 `app/lib/storage/individual-document-photos.server.ts`; the row that points at
 the object is written by `app/lib/individuals/personal-data.server.ts`, from
-the individual's `Mis datos` form.
+the individual's `Perfil` form.
 
 - Bucket directory: `en-escena-individual-documents`, private.
 - Accepted formats: JPG, PNG and WEBP, up to **10 MB**. Downloads go through a

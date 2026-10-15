@@ -1,6 +1,6 @@
 // The state of an individual's link to the roster rows that carry its document
 // (ADR-0019). It is derived from the `individual` row, never stored, so no
-// write can leave it stale. Client-safe: `Mis datos` reads these labels, and
+// write can leave it stale. Client-safe: `Perfil` reads these labels, and
 // administration names the same states in words of its own
 // (`app/features/admin/users/individual-link-badge.tsx`).
 

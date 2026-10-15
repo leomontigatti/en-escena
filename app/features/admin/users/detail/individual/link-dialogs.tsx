@@ -44,7 +44,7 @@ export function LinkDialogs({
         title="No se puede confirmar el vínculo"
         description="Se confirma comparando la foto del documento con los datos de la cuenta."
         reasonsTitle="Falta la foto del documento"
-        reasons="El particular todavía no la subió desde Mis datos."
+        reasons="El particular todavía no la subió desde su perfil."
       />
     );
   }

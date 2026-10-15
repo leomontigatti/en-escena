@@ -17,7 +17,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import type { loadIndividualPersonalData } from "@/features/individual/personal-data/server";
 import { INDIVIDUAL_AREA_PATH } from "@/lib/auth/user-role.shared";
-import type { IndividualLinkState } from "@/lib/individuals/link-state";
 import { documentTypeOptions } from "@/lib/roster/identity-document";
 import { argentinePhonePlaceholder } from "@/lib/shared/argentine-phone";
 import {
@@ -30,12 +29,12 @@ import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
 import {
   documentPhotoFileField,
   documentPhotoStorageKeyField,
-  misDatosFormSchema,
+  profileFormSchema,
   type IndividualPersonalDataActionData,
-  type MisDatosFormValues,
+  type ProfileFormValues,
 } from "./shared";
 
-const personalDataFormId = "particular-mis-datos-form";
+const personalDataFormId = "particular-perfil-form";
 
 type LoaderData = Awaited<ReturnType<typeof loadIndividualPersonalData>>;
 
@@ -53,14 +52,14 @@ type PersonalDataActionData =
  * of what it held and a stale photo does not ride along on the next save.
  */
 function usePersonalDataForm(
-  savedValues: MisDatosFormValues,
+  savedValues: ProfileFormValues,
   actionData: PersonalDataActionData | undefined,
 ) {
   const refusedValues = readRefusedValues(actionData);
-  const form = useForm<MisDatosFormValues, unknown, MisDatosFormValues>({
+  const form = useForm<ProfileFormValues, unknown, ProfileFormValues>({
     defaultValues: refusedValues ?? savedValues,
     mode: "onSubmit",
-    resolver: zodResolver(misDatosFormSchema),
+    resolver: zodResolver(profileFormSchema),
   });
   useSavedFormValues(form, savedValues, refusedValues);
   const submit = useSubmit();
@@ -104,7 +103,7 @@ export function IndividualPersonalDataRouteView({
   const { discard, form, handleSubmit, hasChanges, isSaving, photoField } =
     usePersonalDataForm(loaderData.values, actionData);
 
-  useServerActionToast(actionData, { toastId: "particular-mis-datos" });
+  useServerActionToast(actionData, { toastId: "particular-perfil" });
 
   return (
     <section
@@ -113,7 +112,8 @@ export function IndividualPersonalDataRouteView({
     >
       <PortalPageHeader
         titleId="personal-data-title"
-        title="Mis datos"
+        title="Perfil"
+        titleBadge={<IndividualLinkStateBadge state={loaderData.linkState} />}
         description="Tus datos personales, tu documento y su foto, para que te identifiquen, te contacten y vinculen tus coreografías."
       />
 
@@ -189,7 +189,6 @@ export function IndividualPersonalDataRouteView({
                 value={loaderData.email}
               />
               <div className="flex flex-col gap-3 md:col-span-2">
-                <DocumentLinkState state={loaderData.linkState} />
                 <FileUploadField
                   key={photoField.key}
                   control={form.control}
@@ -219,28 +218,5 @@ export function IndividualPersonalDataRouteView({
         />
       </Card>
     </section>
-  );
-}
-
-const linkStateDescriptions = {
-  linked:
-    "Administración confirmó tu documento. Si cambiás su número, el vínculo vuelve a quedar pendiente hasta que lo confirme de nuevo.",
-  pending:
-    "Administración va a comparar la foto con tu nombre y tu documento para confirmar el vínculo.",
-  unlinked:
-    "Subí una foto de tu documento para que administración pueda confirmar el vínculo con tus coreografías.",
-} as const satisfies Record<IndividualLinkState, string>;
-
-function DocumentLinkState({ state }: { state: IndividualLinkState }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <p className="flex items-center gap-2 text-sm font-medium">
-        Estado del vínculo
-        <IndividualLinkStateBadge state={state} />
-      </p>
-      <p className="text-sm text-muted-foreground">
-        {linkStateDescriptions[state]}
-      </p>
-    </div>
   );
 }

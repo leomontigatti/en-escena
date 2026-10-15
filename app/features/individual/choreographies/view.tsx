@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { individualPersonalDataPath } from "@/features/individual/shell/view";
+import { individualProfilePath } from "@/features/individual/shell/view";
 import type { IndividualLinkState } from "@/lib/individuals/link-state";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { rosterPersonNoun } from "@/lib/roster/roster-person-kind.shared";
@@ -28,7 +28,7 @@ import type {
 } from "./server";
 
 /**
- * `Mis coreografías`: the active event's choreographies the individual takes
+ * `Coreografías`: the active event's choreographies the individual takes
  * part in, with the owning academy and, once published, the result as that
  * academy reads it. The table keeps the portal `Resultados` columns, which is
  * all a row has room for at 1280 px; the name opens the rest, how the
@@ -118,7 +118,7 @@ export function IndividualChoreographiesView({
   return (
     <PortalListPage
       titleId="individual-choreographies-title"
-      title="Mis coreografías"
+      title="Coreografías"
       description="Consultá las coreografías del evento activo en las que participás, en cualquier academia, y su resultado cuando se publique."
     >
       {emptyState ? (
@@ -307,7 +307,7 @@ const unlinkedDescriptions = {
   pending:
     "Administración todavía no confirmó tu documento. Cuando lo confirme, vas a ver acá las coreografías en las que participás.",
   unlinked:
-    "Para ver tus coreografías, subí una foto de tu documento en Mis datos y esperá a que administración confirme el vínculo.",
+    "Para ver tus coreografías, subí una foto de tu documento en tu perfil y esperá a que administración confirme el vínculo.",
 } as const satisfies Record<Exclude<IndividualLinkState, "linked">, string>;
 
 function selectEmptyState(loaderData: IndividualChoreographiesLoaderData) {
@@ -319,9 +319,9 @@ function selectEmptyState(loaderData: IndividualChoreographiesLoaderData) {
           {unlinkedDescriptions[loaderData.linkState]}{" "}
           <Link
             className="underline underline-offset-4"
-            to={individualPersonalDataPath}
+            to={individualProfilePath}
           >
-            Ir a Mis datos
+            Ir a mi perfil
           </Link>
         </>
       ),

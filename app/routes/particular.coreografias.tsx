@@ -1,11 +1,16 @@
 import { loadIndividualChoreographies } from "@/features/individual/choreographies/server";
 import { IndividualChoreographiesView } from "@/features/individual/choreographies/view";
+import type { IndividualRouteHandle } from "@/features/individual/shell/view";
 
-import type { Route } from "./+types/particular.mis-coreografias";
+import type { Route } from "./+types/particular.coreografias";
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Mis coreografías | Particular | En Escena" },
+  { title: "Coreografías | Particular | En Escena" },
 ];
+
+export const handle = {
+  individualBreadcrumb: "Coreografías",
+} satisfies IndividualRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
   return await loadIndividualChoreographies(request);

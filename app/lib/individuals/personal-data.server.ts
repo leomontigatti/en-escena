@@ -13,7 +13,7 @@ import {
 } from "@/lib/storage/individual-document-photos.server";
 
 /**
- * What a `Mis datos` save does to the individual's one document photo: leave
+ * What a `Perfil` save does to the individual's one document photo: leave
  * it, store a new one in its place, or remove it.
  */
 export type IndividualDocumentPhotoChange =

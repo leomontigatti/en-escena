@@ -19,7 +19,7 @@ import {
   documentPhotoFileField,
   documentPhotoStorageKeyField,
   type IndividualPersonalDataActionData,
-  type MisDatosFormValues,
+  type ProfileFormValues,
 } from "./shared";
 
 export async function loadIndividualPersonalData(request: Request) {
@@ -39,7 +39,7 @@ export async function loadIndividualPersonalData(request: Request) {
       documentNumber: individual.documentNumber,
       phone: individual.phone,
       documentPhotoStorageKey: individual.documentPhotoStorageKey ?? "",
-    } satisfies MisDatosFormValues,
+    } satisfies ProfileFormValues,
   };
 }
 
@@ -49,7 +49,7 @@ export async function handleIndividualPersonalDataAction(
   const { individual } = await requireIndividualUser(request);
   const formData = await request.formData();
   const documentPhoto = readDocumentPhotoChange(formData);
-  const values: MisDatosFormValues = {
+  const values: ProfileFormValues = {
     ...readIndividualPersonalDataValues(formData),
     documentPhotoStorageKey:
       documentPhoto.kind === "remove"

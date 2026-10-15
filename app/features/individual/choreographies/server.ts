@@ -30,7 +30,7 @@ import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
 
 /**
- * `Mis coreografías` (ADR-0019): the active event's choreographies the
+ * `Coreografías` (ADR-0019): the active event's choreographies the
  * individual takes part in, in any academy, read through the rows its link
  * reaches and nothing else. A row reaches a choreography as a dancer with an
  * inscription that is not withdrawn, or as a professor linked to it.

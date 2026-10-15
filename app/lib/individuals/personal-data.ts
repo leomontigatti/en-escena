@@ -12,7 +12,7 @@ import { contentTextField } from "@/lib/shared/text-content";
 
 /**
  * The personal data of an `individual` (`Particular`): who the person is and
- * how to reach them. Onboarding asks for it and `Mis datos` edits it, through
+ * how to reach them. Onboarding asks for it and `Perfil` edits it, through
  * this one schema, so both refuse and store the same. Unlike a roster person,
  * the document is required: it is what the link to academy rosters matches on
  * (ADR-0019).

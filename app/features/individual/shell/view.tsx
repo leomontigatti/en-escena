@@ -1,6 +1,12 @@
 import type { ReactNode } from "react";
-import { AudioLines, IdCard } from "lucide-react";
-import { Link, Outlet, useRouteLoaderData } from "react-router";
+import { AudioLines, User } from "lucide-react";
+import {
+  Link,
+  Outlet,
+  useLocation,
+  useMatches,
+  useRouteLoaderData,
+} from "react-router";
 
 import { AccountMenu } from "@/components/shared/account-menu";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
@@ -10,6 +16,14 @@ import {
   type SidebarNavigationGroup,
 } from "@/components/shared/sidebar-navigation";
 import { TopBarTools } from "@/components/shared/top-bar-tools";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -29,8 +43,11 @@ import {
 import type { loadIndividualShell } from "@/features/individual/shell/server";
 import { INDIVIDUAL_AREA_PATH } from "@/lib/auth/user-role.shared";
 
-export const individualPersonalDataPath = `${INDIVIDUAL_AREA_PATH}/mis-datos`;
-const individualChoreographiesPath = `${INDIVIDUAL_AREA_PATH}/mis-coreografias`;
+export const individualProfilePath = `${INDIVIDUAL_AREA_PATH}/perfil`;
+const individualChoreographiesPath = `${INDIVIDUAL_AREA_PATH}/coreografias`;
+
+/** A screen of the area names its breadcrumb after `Inicio`. */
+export type IndividualRouteHandle = { individualBreadcrumb: string };
 
 type IndividualShellLoaderData = Awaited<
   ReturnType<typeof loadIndividualShell>
@@ -41,7 +58,7 @@ const navigationGroups = [
     label: "Evento",
     items: [
       {
-        label: "Mis coreografías",
+        label: "Coreografías",
         to: individualChoreographiesPath,
         icon: AudioLines,
       },
@@ -49,9 +66,7 @@ const navigationGroups = [
   },
   {
     label: "Cuenta",
-    items: [
-      { label: "Mis datos", to: individualPersonalDataPath, icon: IdCard },
-    ],
+    items: [{ label: "Perfil", to: individualProfilePath, icon: User }],
   },
 ] satisfies SidebarNavigationGroup[];
 
@@ -110,6 +125,7 @@ function IndividualShell({
                   className="data-[orientation=vertical]:h-full"
                 />
               </span>
+              <IndividualBreadcrumbs />
               <div className="ml-auto flex items-center gap-2">
                 <TopBarTools />
                 <AccountMenu
@@ -119,9 +135,9 @@ function IndividualShell({
                 >
                   <DropdownMenuGroup>
                     <DropdownMenuItem asChild>
-                      <Link to={individualPersonalDataPath}>
-                        <IdCard aria-hidden="true" />
-                        Mis datos
+                      <Link to={individualProfilePath}>
+                        <User aria-hidden="true" />
+                        Perfil
                       </Link>
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
@@ -141,6 +157,43 @@ function IndividualShell({
         </SidebarInset>
       </SidebarProvider>
     </>
+  );
+}
+
+function IndividualBreadcrumbs() {
+  const { pathname } = useLocation();
+  const current = useMatches()
+    .map(
+      (match) =>
+        (match.handle as IndividualRouteHandle | undefined)
+          ?.individualBreadcrumb,
+    )
+    .filter((label) => label !== undefined)
+    .at(-1);
+  const isHome = pathname === INDIVIDUAL_AREA_PATH || current === undefined;
+
+  return (
+    <Breadcrumb className="flex items-center">
+      <BreadcrumbList>
+        <BreadcrumbItem>
+          {isHome ? (
+            <BreadcrumbPage>Inicio</BreadcrumbPage>
+          ) : (
+            <BreadcrumbLink asChild>
+              <Link to={INDIVIDUAL_AREA_PATH}>Inicio</Link>
+            </BreadcrumbLink>
+          )}
+        </BreadcrumbItem>
+        {isHome ? null : (
+          <>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{current}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </>
+        )}
+      </BreadcrumbList>
+    </Breadcrumb>
   );
 }
 

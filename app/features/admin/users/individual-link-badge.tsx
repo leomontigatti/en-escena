@@ -9,7 +9,7 @@ import {
  * An individual's link state in administration's words, which say what is left
  * to do: `Incompleto` without a document photo, `Sin verificar` until the link
  * is confirmed for the current number. The individual reads its own words in
- * `Mis datos`; the state underneath is the same.
+ * `Perfil`; the state underneath is the same.
  */
 const individualLinkReviewLabels = {
   linked: "Vinculado",
