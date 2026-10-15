@@ -24,4 +24,5 @@ export const ADMIN_PLUGIN_ROLES = {
   academy: defaultAc.newRole({ user: [], session: [] }),
   auditor: defaultAc.newRole({ user: [], session: [] }),
   judge: defaultAc.newRole({ user: [], session: [] }),
+  individual: defaultAc.newRole({ user: [], session: [] }),
 } satisfies Record<(typeof userRole.enumValues)[number], unknown>;

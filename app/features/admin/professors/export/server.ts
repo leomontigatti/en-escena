@@ -15,6 +15,7 @@ import {
   holdsSeminarInscriptionInPeriod,
 } from "@/features/admin/period-export/server";
 import { buildPeriodExportFileName } from "@/features/admin/period-export/shared";
+import { academyOwner } from "@/lib/academies/owner-kind.server";
 
 import { professorsExportColumns } from "./sheet";
 
@@ -39,7 +40,10 @@ export async function loadProfessorsExport(
       lastName: professors.lastName,
     })
     .from(professors)
-    .innerJoin(academies, eq(academies.id, professors.academyId))
+    .innerJoin(
+      academies,
+      and(eq(academies.id, professors.academyId), academyOwner()),
+    )
     .where(
       or(
         exists(

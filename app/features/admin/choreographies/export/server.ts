@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -18,6 +18,7 @@ import {
   readPeriodExport,
 } from "@/features/admin/period-export/server";
 import { buildPeriodExportFileName } from "@/features/admin/period-export/shared";
+import { academyOwner } from "@/lib/academies/owner-kind.server";
 import {
   formatProvinceLabel,
   noProvinceLabel,
@@ -101,7 +102,10 @@ export async function loadParticipationCountsExport(
       choreographies,
       eq(choreographies.id, choreographyDancers.choreographyId),
     )
-    .innerJoin(academies, eq(academies.id, choreographies.academyId))
+    .innerJoin(
+      academies,
+      and(eq(academies.id, choreographies.academyId), academyOwner()),
+    )
     .innerJoin(dancers, eq(dancers.id, choreographyDancers.dancerId))
     .innerJoin(modalities, eq(modalities.id, choreographies.modalityId))
     .where(inscriptionOfAnyStateRegisteredInPeriod(eventId, period))

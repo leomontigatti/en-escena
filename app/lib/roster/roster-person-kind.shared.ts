@@ -67,5 +67,5 @@ export function rosterPersonListPath(kind: RosterPersonKind) {
  * route decides the status code, this the wording.
  */
 export function getRosterPersonNotFoundMessage(kind: RosterPersonKind) {
-  return `No encontramos ese ${rosterPersonNoun(kind, "singularCapitalized")}.`;
+  return `No encontramos ese ${rosterPersonNoun(kind, "singular")}.`;
 }

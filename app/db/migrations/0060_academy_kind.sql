@@ -1,0 +1,2 @@
+CREATE TYPE "public"."en_escena_academy_kind" AS ENUM('academy', 'individual');--> statement-breakpoint
+ALTER TABLE "en_escena_academy" ADD COLUMN "kind" "en_escena_academy_kind" DEFAULT 'academy' NOT NULL;

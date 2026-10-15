@@ -18,6 +18,7 @@ import {
   readPeriodExport,
 } from "@/features/admin/period-export/server";
 import { buildPeriodExportFileName } from "@/features/admin/period-export/shared";
+import { academyOwner } from "@/lib/academies/owner-kind.server";
 import {
   formatProvinceLabel,
   noProvinceLabel,
@@ -68,7 +69,10 @@ export async function loadCollectionExport(
       province: academies.province,
     })
     .from(payments)
-    .innerJoin(academies, eq(academies.id, payments.academyId))
+    .innerJoin(
+      academies,
+      and(eq(academies.id, payments.academyId), academyOwner()),
+    )
     .leftJoin(paymentAllocations, eq(paymentAllocations.paymentId, payments.id))
     .leftJoin(
       choreographyDancers,

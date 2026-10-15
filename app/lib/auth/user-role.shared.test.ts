@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import { userRole } from "@/db/schema";
 import {
   canDownloadAuditorExports,
+  canEnterIndividualArea,
   canEnterJudgePanel,
   canEnterPortal,
   canReadAdminPanel,
@@ -23,6 +24,7 @@ describe("user role", () => {
         adminPanelRead: boolean;
         adminPanelWrite: boolean;
         auditorExports: boolean;
+        individualArea: boolean;
         internal: boolean;
         judgePanel: boolean;
         landingPath: string;
@@ -36,6 +38,7 @@ describe("user role", () => {
         adminPanelRead: true,
         adminPanelWrite: true,
         auditorExports: false,
+        individualArea: false,
         internal: true,
         judgePanel: false,
         landingPath: "/administracion",
@@ -48,6 +51,7 @@ describe("user role", () => {
         adminPanelRead: true,
         adminPanelWrite: false,
         auditorExports: true,
+        individualArea: false,
         internal: true,
         judgePanel: false,
         landingPath: "/administracion",
@@ -60,6 +64,7 @@ describe("user role", () => {
         adminPanelRead: false,
         adminPanelWrite: false,
         auditorExports: false,
+        individualArea: false,
         internal: true,
         judgePanel: true,
         landingPath: "/juzgamiento",
@@ -72,10 +77,24 @@ describe("user role", () => {
         adminPanelRead: false,
         adminPanelWrite: false,
         auditorExports: false,
+        individualArea: false,
         internal: false,
         judgePanel: false,
         landingPath: "/portal",
         portal: true,
+      },
+    ],
+    [
+      "individual",
+      {
+        adminPanelRead: false,
+        adminPanelWrite: false,
+        auditorExports: false,
+        individualArea: true,
+        internal: false,
+        judgePanel: false,
+        landingPath: "/particular",
+        portal: false,
       },
     ],
   ])("decides what %s may do", (role, expected) => {
@@ -83,6 +102,7 @@ describe("user role", () => {
       adminPanelRead: canReadAdminPanel(role),
       adminPanelWrite: canWriteInAdminPanel(role),
       auditorExports: canDownloadAuditorExports(role),
+      individualArea: canEnterIndividualArea(role),
       internal: isInternalUserRole(role),
       judgePanel: canEnterJudgePanel(role),
       landingPath: getLandingPath(role),

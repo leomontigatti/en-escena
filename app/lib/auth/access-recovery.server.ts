@@ -1,10 +1,11 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { RecoveryLinkRefusedError } from "@/lib/auth/access-auth-provider.shared.server";
 import { userAccessStateCondition } from "@/lib/auth/user-access-state.server";
+import { EMAIL_SIGN_UP_ROLES } from "@/lib/auth/user-role.shared";
 import { normalizeEmail } from "@/lib/shared/email-normalization";
 import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 
@@ -25,7 +26,7 @@ export async function requestAccessRecoveryEmail(input: {
 }) {
   const normalizedEmail = normalizeEmail(input.email);
   const isRecoveryEligible = await (
-    input.isRecoveryEligible ?? isEligibleAcademyRecoveryEmail
+    input.isRecoveryEligible ?? isEligibleRecoveryEmail
   )(normalizedEmail);
 
   if (!isRecoveryEligible) {
@@ -133,7 +134,12 @@ function refuseRecoveryLink(
   };
 }
 
-async function isEligibleAcademyRecoveryEmail(email: string) {
+/**
+ * An active, verified user that signed up by email and holds its account: an
+ * academy or an individual, each with its owner row. Internal users recover
+ * through an administrator instead.
+ */
+async function isEligibleRecoveryEmail(email: string) {
   const eligibleUser = await db
     .select({ id: user.id })
     .from(user)
@@ -141,7 +147,7 @@ async function isEligibleAcademyRecoveryEmail(email: string) {
     .where(
       and(
         eq(user.email, email),
-        eq(user.role, "academy"),
+        inArray(user.role, EMAIL_SIGN_UP_ROLES),
         eq(user.emailVerified, true),
         userAccessStateCondition("active"),
       ),

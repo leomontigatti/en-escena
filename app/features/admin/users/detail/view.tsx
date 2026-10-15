@@ -91,7 +91,7 @@ function UserDetailBody({
   canManageInternalUser: boolean;
   user: DetailUser;
 }) {
-  if (user.userType === "academy") {
+  if (user.userType !== "internal") {
     return <AcademyUserFormCard backToList={backToList} user={user} />;
   }
 

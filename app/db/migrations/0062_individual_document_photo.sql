@@ -1,0 +1,1 @@
+ALTER TABLE "en_escena_individual" ADD COLUMN "document_photo_storage_key" text;

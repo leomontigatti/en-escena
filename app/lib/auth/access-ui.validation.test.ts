@@ -109,7 +109,7 @@ describe("access UI validation", () => {
           "better-auth.session_token=signed.token; Path=/; HttpOnly",
       }),
     });
-    getPostLoginPathForUserId.mockResolvedValue("/registro/academia");
+    getPostLoginPathForUserId.mockResolvedValue("/registro/cuenta");
 
     const formData = new FormData();
     formData.set("identifier", "pendiente@example.com");
@@ -134,7 +134,7 @@ describe("access UI validation", () => {
       password: "password-segura",
       request: expect.any(Request),
     });
-    expect(response.headers.get("location")).toBe("/registro/academia");
+    expect(response.headers.get("location")).toBe("/registro/cuenta");
   });
 
   describe("failed logins", () => {

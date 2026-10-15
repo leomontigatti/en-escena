@@ -17,6 +17,7 @@ const userRoleLabels = {
   academy: "Academia",
   auditor: "Auditor",
   judge: "Juez",
+  individual: "Particular",
 } satisfies Record<UserRole, string>;
 
 /** The permissions in the order every select and filter lists them. */
@@ -41,6 +42,33 @@ const internalUserRoleSet = new Set<string>(INTERNAL_USER_ROLES);
 
 export function isInternalUserRole(role: string): role is InternalUserRole {
   return internalUserRoleSet.has(role);
+}
+
+/**
+ * The permissions of the users who register themselves by email, confirm it
+ * and complete an onboarding that gives them their owner row: an academy and
+ * an individual. They recover access by email; internal users do not.
+ */
+export const EMAIL_SIGN_UP_ROLES = [
+  "academy",
+  "individual",
+] as const satisfies readonly UserRole[];
+
+const emailSignUpRoleSet = new Set<string>(EMAIL_SIGN_UP_ROLES);
+
+export function isEmailSignUpRole(role: UserRole) {
+  return emailSignUpRoleSet.has(role);
+}
+
+/** Which kind of user a permission makes: its own account or an internal one. */
+export type UserKind = "academy" | "individual" | "internal";
+
+export function getUserKind(role: UserRole): UserKind {
+  if (role === "academy" || role === "individual") {
+    return role;
+  }
+
+  return "internal";
 }
 
 export function getUserRoleLabel(role: UserRole) {
@@ -85,7 +113,19 @@ export function canEnterPortal(role: UserRole) {
   return role === "academy";
 }
 
-type LandingPath = "/portal" | "/administracion" | "/juzgamiento";
+/**
+ * Who enters the individual's own area (ADR-0019): the `Particular` alone. An
+ * individual is refused by the portal and the panel, and an academy here.
+ */
+export function canEnterIndividualArea(role: UserRole) {
+  return role === "individual";
+}
+
+/** The root of the individual's own area. */
+export const INDIVIDUAL_AREA_PATH = "/particular";
+
+type LandingPath =
+  "/portal" | "/administracion" | "/juzgamiento" | typeof INDIVIDUAL_AREA_PATH;
 
 const landingPaths = {
   academy: "/portal",
@@ -93,6 +133,7 @@ const landingPaths = {
   // The auditor reads the same panel the administrator works in.
   auditor: "/administracion",
   judge: "/juzgamiento",
+  individual: INDIVIDUAL_AREA_PATH,
 } satisfies Record<UserRole, LandingPath>;
 
 /** Where a signed-in user of this permission lands. */
