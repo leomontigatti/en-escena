@@ -496,7 +496,7 @@ and is not a `payment`.
   info note between the page subtitle and the payment list or its empty state,
   in the `Evento activo` only, with a copy control on the `CBU/CVU` and the
   `Alias` and the `Titular` and `CUIT` read together; and the same note above
-  the figures of an individual's `Finanzas` (see [Surfaces](#surfaces)).
+  the payments of an individual's `Pagos` (see [Surfaces](#surfaces)).
   Nowhere else — not the academy's finances
   page, not the portal home, not any admin list.
 
@@ -1237,10 +1237,11 @@ apart beyond these surfaces:
   consumer, as for an academy.
 - `Descuento por bailarín` does not apply: an individual holds no choreography
   inscriptions.
-- The individual's area has `Finanzas`, read-only: the five metrics over its
-  own account and three tabs — its seminars with their status, its payments,
-  its comprobantes. Above them it shows the event's `Instrucciones de pago`,
-  as the portal's `Pagos` does. There is no printable comprobante there.
+- The individual's area has a `Finanzas` group, read-only, shaped like the
+  portal's: `Seminarios`, the five metrics over its own account and its
+  seminars with their status, and `Pagos`, its payments under the event's
+  `Instrucciones de pago`. Comprobantes are not shown to individuals, as they
+  are not to academies.
 
 ## Retired vocabulary
 

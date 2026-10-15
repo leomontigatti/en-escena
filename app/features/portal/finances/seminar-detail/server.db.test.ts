@@ -299,12 +299,22 @@ describe("portal seminar financial detail", () => {
     // The unit's figures, `Saldo disponible` and the summary are the
     // academy's own money and nothing else. The places are the seminar's, and
     // the individual's covered deposit takes one like anyone's.
+    // `Inscriptos` counts the linked individual too: it is the rows the
+    // academy reads below, not what it pays for.
     expect(after.seminar).toEqual({
       ...before.seminar,
       availablePlaces: before.seminar.availablePlaces - 1,
+      registrationCount: before.seminar.registrationCount + 1,
     });
     expect(after.availableBalanceAmount).toBe(before.availableBalanceAmount);
-    await expect(loadPortalSummary(fixture)).resolves.toEqual(summaryBefore);
+    await expect(loadPortalSummary(fixture)).resolves.toEqual({
+      ...summaryBefore,
+      seminarFinanceRows: summaryBefore.seminarFinanceRows.map((row) =>
+        row.id === fixture.seminarId
+          ? { ...row, registrationCount: row.registrationCount + 1 }
+          : row,
+      ),
+    });
 
     await db
       .update(dancers)
@@ -363,7 +373,7 @@ describe("portal seminar financial detail", () => {
         linkedIndividualsOnly: true,
         owedBalanceAmount: { amount: 0, status: "complete" },
         owedDepositAmount: { amount: 0, status: "complete" },
-        registrationCount: 0,
+        registrationCount: 1,
         totalAmount: { amount: 0, status: "complete" },
       }),
     ]);
@@ -377,7 +387,7 @@ describe("portal seminar financial detail", () => {
       allocatedAmount: 0,
       id: other.seminar.id,
       owedBalanceAmount: { amount: 0, status: "complete" },
-      registrationCount: 0,
+      registrationCount: 1,
       totalAmount: { amount: 0, status: "complete" },
     });
     expect(detail.inscriptions).toEqual([

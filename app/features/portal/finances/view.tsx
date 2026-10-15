@@ -145,8 +145,9 @@ const choreographyFinanceColumns: DataTableColumn<ChoreographyFinanceRow>[] = [
  * The `Seminarios` tab's rows: one `(seminar, academy)` unit each, the same
  * shape the administrator reads. The instructor is the **only** link — a
  * seminar is named by who teaches it — and `Inscriptos` is the academy's own
- * active count rather than the seminar's occupancy: a place is taken by
- * covering the deposit, not by registering.
+ * active count plus its linked individuals' inscriptions, the rows the
+ * seminar's detail lists, rather than the seminar's occupancy: a place is
+ * taken by covering the deposit, not by registering.
  */
 const seminarFinanceColumns: DataTableColumn<SeminarFinanceRow>[] = [
   {

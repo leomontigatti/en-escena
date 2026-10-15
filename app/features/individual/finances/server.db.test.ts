@@ -8,9 +8,8 @@ import {
   createAcademySession,
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
-import { seminarAnchor } from "@/lib/comprobantes/anchor";
-import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
-import { activateEvent, updateEvent } from "@/lib/events/management.server";
+import { activateEvent } from "@/lib/events/management.server";
+import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summary";
 import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { coverSeminarInscriptionDeposit } from "@/lib/seminars/seminars.test-support";
@@ -23,10 +22,6 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 const pageUrl = `http://localhost${individualFinancesPath}`;
-
-/** `createSeminarRegistrationPrices`'s ordinary row, which is what an
- * individual without a confirmed link pays. */
-const ordinaryPrice = 30000;
 
 async function createActiveEvent() {
   const event = await createSavedEvent({
@@ -68,7 +63,7 @@ function load(cookie: string) {
 }
 
 describe("the individual's Finanzas", () => {
-  test("reads its inscriptions with status, its payments, its `Saldo disponible` and its comprobantes", async () => {
+  test("reads its inscriptions with status and its `Saldo disponible`", async () => {
     const event = await createActiveEvent();
     const covered = await addSeminar(event.id, "Abril Sosa");
     const pending = await addSeminar(event.id, "Bruno Díaz");
@@ -97,23 +92,6 @@ describe("the individual's Finanzas", () => {
       paymentMethod: "efectivo",
       paymentNumber: 900,
     });
-    await recordComprobante({
-      anchor: seminarAnchor(covered.id, individual.ownerId),
-      cae: "75123456789012",
-      caeVto: "20260801",
-      cbteFch: "20260722",
-      cbteNro: 12,
-      cbteTipo: 11,
-      eventId: event.id,
-      impTotal: ordinaryPrice / 2,
-      issuerCuit: "30717611590",
-      issuerIvaCondition: "exento",
-      lines: [],
-      ptoVta: 1,
-      receptorDocNro: "0",
-      receptorDocTipo: 99,
-      receptorIvaConditionId: 5,
-    });
 
     const loaderData = await load(individual.cookie);
 
@@ -129,20 +107,6 @@ describe("the individual's Finanzas", () => {
     ).toEqual([
       { financialStatus: "depositMet", instructorName: "Abril Sosa" },
       { financialStatus: "depositPending", instructorName: "Bruno Díaz" },
-    ]);
-    expect(loaderData.payments.map((payment) => payment.amount).sort()).toEqual(
-      [ordinaryPrice / 2, 5000].sort(),
-    );
-    expect(loaderData.comprobantes).toEqual([
-      expect.objectContaining({
-        anchor: expect.objectContaining({
-          instructorName: "Abril Sosa",
-          kind: "seminar",
-        }),
-        cbteNro: 12,
-        impTotal: ordinaryPrice / 2,
-        status: "valid",
-      }),
     ]);
   });
 
@@ -164,49 +128,16 @@ describe("the individual's Finanzas", () => {
 
     const loaderData = await load(individual.cookie);
 
-    expect(loaderData.payments).toEqual([]);
-    expect(loaderData.comprobantes).toEqual([]);
     expect(loaderData.summary.availableBalanceAmount).toBe(0);
-  });
-
-  // The individual pays like an academy, so it reads the same `Instrucciones
-  // de pago` the portal's `Pagos` shows.
-  test("reads the active event's payment instructions", async () => {
-    const event = await createActiveEvent();
-    const result = await updateEvent(event.id, {
-      endsAt: event.endsAt,
-      name: event.name,
-      paymentInstructionsAlias: "mi.alias-01",
-      paymentInstructionsCbu: "0070099330004512345678",
-      paymentInstructionsText: "Poné tu nombre en la referencia.",
-      requiredDepositPercentage: event.requiredDepositPercentage,
-      startsAt: event.startsAt,
-    });
-    if (!result.ok) {
-      throw new Error(result.error);
-    }
-    const individual = await createIndividual();
-
-    const loaderData = await load(individual.cookie);
-
-    expect(loaderData.paymentInstructions).toMatchObject({
-      alias: "mi.alias-01",
-      cbu: "0070099330004512345678",
-      text: "Poné tu nombre en la referencia.",
-    });
   });
 
   test("reads nothing without an active event", async () => {
     const individual = await createIndividual();
 
-    const loaderData = await load(individual.cookie);
-
-    expect(loaderData).toMatchObject({
+    await expect(load(individual.cookie)).resolves.toEqual({
       activeEvent: null,
-      comprobantes: [],
-      paymentInstructions: null,
-      payments: [],
       seminarFinanceRows: [],
+      summary: emptyOperationalFinanceSummary(),
     });
   });
 

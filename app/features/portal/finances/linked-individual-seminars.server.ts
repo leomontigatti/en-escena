@@ -15,7 +15,9 @@ export type PortalSeminarFinanceRow = SeminarOperationalFinanceRow & {
  * The academy's seminar units plus one zero row for each seminar that only
  * its linked individuals are in (ADR-0019), so the academy reaches their rows
  * there too. The academy's own rows and the summary above them are read
- * without these, so the added rows change no figure.
+ * without these, so the added rows change no figure. `Inscriptos` is the one
+ * exception: it counts the linked individuals' inscriptions too, because it
+ * counts the rows the seminar's detail lists, not what the academy pays for.
  */
 export function withLinkedIndividualsOnlySeminars(input: {
   academyId: string;
@@ -24,8 +26,14 @@ export function withLinkedIndividualsOnlySeminars(input: {
 }): PortalSeminarFinanceRow[] {
   const ownSeminarIds = new Set(input.seminarFinanceRows.map((row) => row.id));
   const linkedOnly = new Map<string, PortalSeminarFinanceRow>();
+  const linkedCounts = new Map<string, number>();
 
   for (const inscription of input.linkedInscriptions) {
+    linkedCounts.set(
+      inscription.seminarId,
+      (linkedCounts.get(inscription.seminarId) ?? 0) + 1,
+    );
+
     if (
       ownSeminarIds.has(inscription.seminarId) ||
       linkedOnly.has(inscription.seminarId)
@@ -50,5 +58,11 @@ export function withLinkedIndividualsOnlySeminars(input: {
       linkedIndividualsOnly: false,
     })),
     ...linkedOnly.values(),
-  ].sort(bySeminarSlot);
+  ]
+    .map((row) => ({
+      ...row,
+      registrationCount:
+        row.registrationCount + (linkedCounts.get(row.id) ?? 0),
+    }))
+    .sort(bySeminarSlot);
 }

@@ -454,7 +454,7 @@ Money received and recorded for an academy in an event, which may stay available
 _Avoid_: invoice, `paymentAllocation`, `refund`, `choreographyFinancialStatus`
 
 **`paymentInstructions`** — ui: "Instrucciones de pago"
-What an academy needs in order to pay an event: the bank identifiers of the account that receives the money, plus free text that says how to pay and what to write in the transfer. It belongs to one event, is loaded by administration on the event detail and is read by the academy on the portal's payments page and by an individual on its `Finanzas`. It is not a `payment` and records nothing about money received; an event without it simply shows no instructions.
+What an academy needs in order to pay an event: the bank identifiers of the account that receives the money, plus free text that says how to pay and what to write in the transfer. It belongs to one event, is loaded by administration on the event detail and is read by the academy on the portal's payments page and by an individual on its `Pagos`. It is not a `payment` and records nothing about money received; an event without it simply shows no instructions.
 _Avoid_: `payment`, bank settings, global account, `eventBases`
 
 **`refund`** — ui: "Reembolso"
