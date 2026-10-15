@@ -416,9 +416,10 @@ the `Pagar seña` / `Pagar saldo` presets lock theirs before they read the group
 type, so a deposit crossed in a racing transaction is either read by the save or
 priced against the group type it commits. Below the threshold the read-time
 derivation follows the new key on its own, as long as the row stored there is
-replaced before the money crosses: the dialog submits the row in effect, and a
-preset with no pick for the choreography's group type refuses an inscription
-storing a row of another one. The schedule
+replaced before the money crosses: the dialog submits the row in effect, and
+when it submits none over a stored row of another group type the server stores
+the row in effect itself; a preset with no pick for the choreography's group
+type refuses an inscription storing a row of another one. The schedule
 axis is closed too: a general row prices every schedule, and the guard refuses a
 move that takes a crossed inscription off the schedules its special row covers.
 Production held no crossed row on a foreign key when this landed (#660, counted

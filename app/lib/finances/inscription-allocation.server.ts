@@ -39,8 +39,12 @@ import {
 } from "@/lib/finances/inscription-financial-status";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
 import { type ChoreographyGroupType } from "@/lib/finances/operational-summary-calculations.server";
-import { resolveEffectiveBasePriceRow } from "@/lib/finances/inscription-price";
+import {
+  resolveEffectiveBasePriceRow,
+  selectApplicableInscriptionPrice,
+} from "@/lib/finances/inscription-price";
 import { loadEventPriceRows } from "@/lib/prices/rows.server";
+import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 import {
   choreographyTarget,
@@ -424,34 +428,20 @@ async function applySelectedPrice(
     return { ok: true };
   }
 
-  if (input.priceId === null) {
-    // Naming no price changes none. The one row that has to be told to pick one
-    // is the row that holds nothing and stores nothing: there, neither the
-    // administrator nor a previous charge has said anything yet.
-    //
-    // `allocatedAmount === 0` **preserves the previous behaviour** rather than
-    // adding a rule. Until now `allocatedAmount > 0` short-circuited above, so
-    // this branch was only ever reached with an empty row; without the added
-    // test, an inscription holding money and storing no price — a state the
-    // presets can produce — would start failing with "Elegí un precio".
-    if (
-      input.inscription.selectedPriceId === null &&
-      input.allocatedAmount === 0
-    ) {
-      return { ok: false, message: "Elegí un precio para la inscripción." };
-    }
+  const picked = await resolvePickedPriceId(tx, input);
 
-    // The stored row would be the one the money crosses on, and a row of
-    // another group type would freeze there (#660).
-    return (await storesRowOfAnotherGroupType(tx, input))
-      ? { ok: false, message: storedRowOfAnotherGroupTypeMessage }
-      : { ok: true };
+  if (!picked.ok) {
+    return picked;
+  }
+
+  if (picked.priceId === null) {
+    return { ok: true };
   }
 
   const price = await loadCandidatePriceRow(tx, {
     eventId: input.eventId,
     groupType: input.choreography.groupType,
-    priceId: input.priceId,
+    priceId: picked.priceId,
     scheduleId: input.choreography.scheduleId,
   });
 
@@ -468,7 +458,78 @@ async function applySelectedPrice(
 }
 
 const storedRowOfAnotherGroupTypeMessage =
-  "La inscripción guarda el precio de otro tipo de grupo. Elegí un precio para asignarle dinero.";
+  "La inscripción guarda el precio de otro tipo de grupo y ninguno del suyo aplica hoy. Revisá los precios del evento.";
+
+/**
+ * The row to store, or `null` for none. Naming no price changes none. The one
+ * row that has to be told to pick one is the row that holds nothing and stores
+ * nothing: there, neither the administrator nor a previous charge has said
+ * anything yet.
+ *
+ * `allocatedAmount === 0` **preserves the previous behaviour** rather than
+ * adding a rule. Until now `allocatedAmount > 0` short-circuited the crossing
+ * check, so this was only ever reached with an empty row; without the added
+ * test, an inscription holding money and storing no price — a state the
+ * presets can produce — would start failing with "Elegí un precio".
+ *
+ * With no pick, a stored row of another group type would be the one the money
+ * crosses on, and freeze there (#660): the row in effect, the one the dialog
+ * shows, is stored instead, as a pick of it would.
+ */
+async function resolvePickedPriceId(
+  tx: Transaction,
+  input: {
+    allocatedAmount: number;
+    choreography: { groupType: string; scheduleId: string };
+    eventId: string;
+    inscription: { selectedPriceId: string | null };
+    priceId: string | null;
+  },
+): Promise<
+  { ok: false; message: string } | { ok: true; priceId: string | null }
+> {
+  if (input.priceId !== null) {
+    return { ok: true, priceId: input.priceId };
+  }
+
+  if (
+    input.inscription.selectedPriceId === null &&
+    input.allocatedAmount === 0
+  ) {
+    return { ok: false, message: "Elegí un precio para la inscripción." };
+  }
+
+  if (!(await storesRowOfAnotherGroupType(tx, input))) {
+    return { ok: true, priceId: null };
+  }
+
+  const inEffect = await readPriceInEffectId(tx, input);
+
+  return inEffect === null
+    ? { ok: false, message: storedRowOfAnotherGroupTypeMessage }
+    : { ok: true, priceId: inEffect };
+}
+
+/** The row that applies today to the choreography's own price key. */
+async function readPriceInEffectId(
+  tx: Transaction,
+  input: {
+    choreography: { groupType: string; scheduleId: string };
+    eventId: string;
+  },
+): Promise<string | null> {
+  const price = selectApplicableInscriptionPrice({
+    businessDate: getBusinessDateOnly(),
+    key: {
+      choreographyScheduleId: input.choreography.scheduleId,
+      groupType: input.choreography.groupType,
+      scheduleCapacityScheduleId: null,
+    },
+    priceRows: await loadEventPriceRows(tx, input.eventId),
+  });
+
+  return price?.id ?? null;
+}
 
 async function storesRowOfAnotherGroupType(
   tx: Transaction,

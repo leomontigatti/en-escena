@@ -448,31 +448,47 @@ describe("payChoreographiesPreset on a choreography whose group type moved", () 
     ).resolves.toEqual([]);
   });
 
-  test("refuses the same allocation from the dialog when it names no price", async () => {
+  test("stores the row in effect when the dialog names no price, and refuses when none applies", async () => {
     const fixture = await seedPresetFixture([10000]);
     const [choreographyId] = fixture.choreographyIds;
+    const inscriptionId = fixture.inscriptionIds[0]!;
     await db
       .update(choreographyDancers)
       .set({ selectedPriceId: fixture.priceId })
-      .where(eq(choreographyDancers.id, fixture.inscriptionIds[0]!));
+      .where(eq(choreographyDancers.id, inscriptionId));
     await db
       .update(choreographies)
       .set({ groupType: "duo" })
       .where(eq(choreographies.id, choreographyId!));
+    const allocate = () =>
+      allocateToInscription({
+        academyId: fixture.academyId,
+        amount: 3000,
+        choreographyId: choreographyId!,
+        eventId: fixture.eventId,
+        inscriptionId,
+        priceId: null,
+      });
 
-    const result = await allocateToInscription({
-      academyId: fixture.academyId,
-      amount: 3000,
-      choreographyId: choreographyId!,
-      eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionIds[0]!,
-      priceId: null,
-    });
+    const withoutDuoPrice = await allocate();
+    const [duoPrice] = await insertTestPrices([
+      {
+        amount: 15000,
+        eventId: fixture.eventId,
+        groupType: "duo",
+        name: "Precio Dúo",
+        paymentDeadline: null,
+      },
+    ]);
+    const withDuoPrice = await allocate();
 
-    expect(result).toMatchObject({ ok: false });
-    await expect(
-      readAllocations([fixture.inscriptionIds[0]!]),
-    ).resolves.toEqual([]);
+    expect(withoutDuoPrice).toMatchObject({ ok: false });
+    expect(withDuoPrice).toEqual({ ok: true });
+    const [inscription] = await db
+      .select({ selectedPriceId: choreographyDancers.selectedPriceId })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.id, inscriptionId));
+    expect(inscription?.selectedPriceId).toBe(duoPrice!.id);
   });
 
   test("still funds the balance of an inscription already frozen on a row of another group type", async () => {
