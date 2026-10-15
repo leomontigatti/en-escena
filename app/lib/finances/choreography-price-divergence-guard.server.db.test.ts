@@ -2,7 +2,12 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { priceSchedules, prices, scheduleCapacities } from "@/db/schema";
+import {
+  choreographyDancers,
+  priceSchedules,
+  prices,
+  scheduleCapacities,
+} from "@/db/schema";
 import {
   createAcademySession,
   createChoreographyRecord,
@@ -11,7 +16,10 @@ import {
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
-import { hasPriceDivergentInscription } from "@/lib/finances/choreography-price-divergence-guard.server";
+import {
+  hasGroupTypePinnedInscription,
+  hasPriceDivergentInscription,
+} from "@/lib/finances/choreography-price-divergence-guard.server";
 import { insertTestPrice } from "@/lib/prices/price-rows.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -91,6 +99,18 @@ async function createGuardScenario(slug: string) {
         name: `Precio ${input.amount} ${input.scheduleIds?.join(" ") ?? "general"}`,
         paymentDeadline: null,
         scheduleIds: input.scheduleIds,
+      });
+    },
+    async pinsGroupType(input: {
+      groupType: "solo" | "duo";
+      keptDancerIds: string[];
+    }) {
+      return await hasGroupTypePinnedInscription({
+        choreographyId: choreography.id,
+        eventId: event.id,
+        executor: db,
+        groupType: input.groupType,
+        keptDancerIds: new Set(input.keptDancerIds),
       });
     },
     async diverges(
@@ -268,6 +288,84 @@ describe("price divergence guard on a schedule capacity move", () => {
       scenario.diverges({
         groupType: "duo",
         scheduleId: scenario.catalog.schedule.id,
+      }),
+    ).resolves.toBe(false);
+  });
+});
+
+describe("group-type pin on a roster change", () => {
+  test("refuses a duo for a staying inscription frozen on a solo row", async () => {
+    const scenario = await createGuardScenario("pin-solo-duo");
+    const solo = await scenario.addPrice({ amount: 10000 });
+    await scenario.addPrice({ amount: 15000, groupType: "duo" });
+    const inscription = await scenario.addMoney({
+      allocatedAmount: 3000,
+      selectedPriceId: solo.id,
+    });
+
+    await expect(
+      scenario.pinsGroupType({
+        groupType: "duo",
+        keptDancerIds: [inscription!.dancerId],
+      }),
+    ).resolves.toBe(true);
+  });
+
+  test("passes the group type the frozen row already prices", async () => {
+    const scenario = await createGuardScenario("pin-mismo-tipo");
+    const solo = await scenario.addPrice({ amount: 10000 });
+    const inscription = await scenario.addMoney({
+      allocatedAmount: 3000,
+      selectedPriceId: solo.id,
+    });
+
+    await expect(
+      scenario.pinsGroupType({
+        groupType: "solo",
+        keptDancerIds: [inscription!.dancerId],
+      }),
+    ).resolves.toBe(false);
+  });
+
+  test("passes an inscription below its threshold, whose price follows the group type", async () => {
+    const scenario = await createGuardScenario("pin-bajo-umbral");
+    const solo = await scenario.addPrice({ amount: 10000 });
+    await scenario.addPrice({ amount: 15000, groupType: "duo" });
+    const inscription = await scenario.addMoney({
+      allocatedAmount: 1000,
+      selectedPriceId: solo.id,
+    });
+
+    await expect(
+      scenario.pinsGroupType({
+        groupType: "duo",
+        keptDancerIds: [inscription!.dancerId],
+      }),
+    ).resolves.toBe(false);
+  });
+
+  test("passes a frozen inscription whose dancer leaves, or already left, the roster", async () => {
+    const scenario = await createGuardScenario("pin-sale");
+    const solo = await scenario.addPrice({ amount: 10000 });
+    await scenario.addMoney({
+      allocatedAmount: 3000,
+      selectedPriceId: solo.id,
+    });
+    const withdrawn = await scenario.addMoney({
+      allocatedAmount: 3000,
+      selectedPriceId: solo.id,
+    });
+    await db
+      .update(choreographyDancers)
+      .set({ withdrawnAt: new Date() })
+      .where(eq(choreographyDancers.id, withdrawn!.id));
+
+    // Each was charged as the solo it danced in; only the roster that remains
+    // is priced by the new group type, the withdrawn dancer's new row included.
+    await expect(
+      scenario.pinsGroupType({
+        groupType: "duo",
+        keptDancerIds: [withdrawn!.dancerId],
       }),
     ).resolves.toBe(false);
   });

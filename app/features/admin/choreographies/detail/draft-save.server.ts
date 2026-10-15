@@ -1,8 +1,12 @@
-import { eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { choreographies } from "@/db/schema";
-import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
+import { choreographies, choreographyDancers } from "@/db/schema";
+import { activeInscription } from "@/lib/choreographies/active-inscription";
+import {
+  evaluatedChoreographyMessage,
+  groupTypePinnedPriceMessage,
+} from "@/lib/choreographies/choreography-messages";
 import { validateChoreographyName } from "@/lib/choreographies/choreography-name";
 import { syncRosterInscriptions } from "@/lib/choreographies/choreography-roster-admin.server";
 import {
@@ -23,6 +27,7 @@ import {
   lockScheduleAcceptance,
   priceDivergenceScheduleCapacityMessage,
 } from "@/lib/choreographies/schedule-capacity-lock.server";
+import { hasGroupTypePinnedInscription } from "@/lib/finances/choreography-price-divergence-guard.server";
 import {
   isExperienceLevel,
   type ExperienceLevel,
@@ -93,7 +98,13 @@ export async function saveChoreographyDraft(input: {
   }
 
   const result = await db.transaction((tx) =>
-    writeDraft({ choreography: input.choreography, draft, tx, write: plan }),
+    writeDraft({
+      choreography: input.choreography,
+      draft,
+      eventId: input.eventId,
+      tx,
+      write: plan,
+    }),
   );
 
   if (!result.ok) {
@@ -326,6 +337,7 @@ function isStale(
   choreography: ChoreographyDetail,
   locked: {
     categoryId: string;
+    groupType: string;
     modalityId: string;
     professionalEvaluation: boolean;
     scheduleCapacityId: string | null;
@@ -334,6 +346,8 @@ function isStale(
 ) {
   return (
     locked.categoryId !== choreography.categoryId ||
+    // The group-type pin is decided against the group type it reads here.
+    locked.groupType !== choreography.groupType ||
     locked.modalityId !== choreography.modalityId ||
     // The academy writes it too, from the portal: a save decided on the old
     // answer must not put it back, nor slip a change past the evaluation check.
@@ -353,6 +367,7 @@ function isStale(
 async function writeDraft(input: {
   choreography: ChoreographyDetail;
   draft: ChoreographyDraft;
+  eventId: string;
   tx: Transaction;
   write: DraftWrite;
 }): Promise<{ ok: true } | Refusal> {
@@ -361,6 +376,7 @@ async function writeDraft(input: {
   const [locked] = await tx
     .select({
       categoryId: choreographies.categoryId,
+      groupType: choreographies.groupType,
       modalityId: choreographies.modalityId,
       professionalEvaluation: choreographies.professionalEvaluation,
       scheduleCapacityId: choreographies.scheduleCapacityId,
@@ -381,6 +397,10 @@ async function writeDraft(input: {
     (await hasEvaluatedPresentation(choreography.id, tx))
   ) {
     return refuse(evaluatedChoreographyMessage);
+  }
+
+  if (await isGroupTypePinned(input)) {
+    return refuse(groupTypePinnedPriceMessage);
   }
 
   const placement = await lockDraftPlacement(input);
@@ -404,6 +424,53 @@ async function writeDraft(input: {
     .where(eq(choreographies.id, choreography.id));
 
   return { ok: true };
+}
+
+/**
+ * The preview's group-type pin asked again under the row lock, against the
+ * group type the save writes: it holds whether or not the capacity moves, and
+ * a choreography on its schedule's total moves none. The money writers read the
+ * group type after locking their inscriptions, so none can price against the
+ * old one once this save has passed.
+ */
+async function isGroupTypePinned(input: {
+  choreography: ChoreographyDetail;
+  draft: ChoreographyDraft;
+  eventId: string;
+  tx: Transaction;
+  write: DraftWrite;
+}) {
+  const { classification } = input.write.resolution;
+
+  if (
+    !classification ||
+    classification.groupType === input.choreography.groupType
+  ) {
+    return false;
+  }
+
+  // The lock the waiver, the pool and the presets take, in the same id order:
+  // money crossing a deposit in a racing transaction is either committed and
+  // read here, or waits until this save has committed its group type.
+  await input.tx
+    .select({ id: choreographyDancers.id })
+    .from(choreographyDancers)
+    .where(
+      and(
+        eq(choreographyDancers.choreographyId, input.choreography.id),
+        activeInscription(),
+      ),
+    )
+    .orderBy(asc(choreographyDancers.id))
+    .for("update");
+
+  return await hasGroupTypePinnedInscription({
+    choreographyId: input.choreography.id,
+    eventId: input.eventId,
+    executor: input.tx,
+    groupType: classification.groupType,
+    keptDancerIds: new Set(input.draft.dancerIds),
+  });
 }
 
 /**
@@ -464,7 +531,8 @@ function toPlacementColumns(write: DraftWrite, draft: ChoreographyDraft) {
  * capacity, whatever field moved it: the money question is asked against the
  * destination price key, group type included. Staying on the same slot counts
  * no place, but a new modality or category still has to be one the schedule
- * accepts when this commits. A group type change alone asks neither.
+ * accepts when this commits. A group type change alone asks neither: the
+ * group-type pin before it is what guards that.
  */
 async function lockDraftPlacement(input: {
   choreography: ChoreographyDetail;

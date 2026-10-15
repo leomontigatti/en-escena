@@ -10,6 +10,8 @@ import {
   choreographyDancers,
   choreographyProfessors,
   modalities,
+  paymentAllocations,
+  prices,
   scheduleCapacities,
   scheduleCategories,
   scheduleModalities,
@@ -17,6 +19,7 @@ import {
   submodalities,
 } from "@/db/schema";
 import { handleChoreographyDetailAction } from "@/features/admin/choreographies/detail/server";
+import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
 import {
   resolveChoreographyDraftIntent,
   saveChoreographyDraftIntent,
@@ -30,6 +33,7 @@ import {
 import { choreographyNameWriteCases } from "@/lib/choreographies/choreography-name.test-support";
 import {
   evaluatedChoreographyMessage,
+  groupTypePinnedPriceMessage,
   invalidExperienceLevelMessage,
   noCompatibleCategoryModalityMessage,
 } from "@/lib/choreographies/choreography-messages";
@@ -58,7 +62,11 @@ import {
   readDraftPreview,
 } from "@/features/admin/choreographies/detail/server.test-support";
 
-import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
+import {
+  installDatabaseTestHooks,
+  isPgliteTestBackend,
+} from "../../../../../tests/db/harness";
+import { runBehindAHolder } from "../../../../../tests/db/lock-contention";
 
 // Reaching a real evaluation means a score on an assigned judge, which is not
 // this file's subject, so a test that needs a closed choreography declares it
@@ -525,6 +533,97 @@ describe("saving a draft of the choreography detail", () => {
     });
   });
 
+  // #660: a frozen inscription keeps its stored row whatever the roster says,
+  // so a solo paid past its deposit that became a duo would keep the solo price.
+  test.each([
+    { onScheduleTotal: true, where: "on the schedule total" },
+    { onScheduleTotal: false, where: "on a capacity" },
+  ])(
+    "refuses a roster change that leaves a frozen inscription on a row of another group type, $where",
+    async ({ onScheduleTotal }) => {
+      const scenario = await createDraftScenario({
+        allocatedAmount: 3000,
+        frozenOnSoloPrice: true,
+        onScheduleTotal,
+        slug: `congelada-${onScheduleTotal ? "total" : "cupo"}`,
+      });
+      const draft = scenario.draft({
+        dancerIds: [scenario.ana.id, scenario.bea.id],
+        ...(onScheduleTotal
+          ? {}
+          : { scheduleCapacityId: scenario.catalog.duoScheduleCapacity.id }),
+      });
+
+      const preview = await scenario.resolveDraft(draft);
+      const response = await scenario.saveDraft(draft);
+
+      expect(preview.blockers).toContainEqual({
+        code: "dancers",
+        message: groupTypePinnedPriceMessage,
+      });
+      expect(response).toEqual({
+        message: groupTypePinnedPriceMessage,
+        status: "error",
+      });
+      await expect(scenario.readSaved()).resolves.toEqual({
+        activeDancerIds: [scenario.ana.id],
+        groupType: "solo",
+      });
+    },
+  );
+
+  describe.skipIf(isPgliteTestBackend())("racing a deposit", () => {
+    test("refuses the group type when money crossing the deposit commits while the save waits", async () => {
+      const scenario = await createDraftScenario({
+        allocatedAmount: 1000,
+        frozenOnSoloPrice: true,
+        onScheduleTotal: true,
+        slug: "carrera-sena",
+      });
+      const [inscription] = await scenario.readInscriptions();
+      const { paymentId } = await registerAcademyEventPayment({
+        academyId: scenario.owner.academyId,
+        amount: 2000,
+        eventId: scenario.event.id,
+        internalNote: null,
+        paymentDate: "2026-03-21",
+        paymentMethod: "transferencia",
+        reference: null,
+      });
+
+      const response = await runBehindAHolder({
+        waitingOn: "inscription lock",
+        hold: async (tx) =>
+          await tx
+            .select({ id: choreographyDancers.id })
+            .from(choreographyDancers)
+            .where(eq(choreographyDancers.id, inscription!.id))
+            .for("update"),
+        contender: () =>
+          scenario.saveDraft(
+            scenario.draft({ dancerIds: [scenario.ana.id, scenario.bea.id] }),
+          ),
+        beforeCommit: async (tx) =>
+          await tx.insert(paymentAllocations).values({
+            academyId: scenario.owner.academyId,
+            amount: 2000,
+            choreographyInscriptionId: inscription!.id,
+            eventId: scenario.event.id,
+            paymentId,
+          }),
+      });
+
+      expect(response).toEqual({
+        message: groupTypePinnedPriceMessage,
+        status: "error",
+      });
+      await expect(scenario.readSaved()).resolves.toEqual({
+        activeDancerIds: [scenario.ana.id],
+        groupType: "solo",
+      });
+    });
+  });
+
   test("withdraws a removed dancer holding money, deletes one without, and inserts one re-added beside the withdrawn row (#1496)", async () => {
     const scenario = await createDraftScenario({
       allocatedAmount: 3000,
@@ -730,6 +829,8 @@ describe("saving a draft of the choreography detail", () => {
 
 async function createDraftScenario(input: {
   allocatedAmount?: number;
+  /** Stores the catalogue's solo row on Ana's inscription. */
+  frozenOnSoloPrice?: boolean;
   /** On the schedule's total instead of a capacity for its group type. */
   onScheduleTotal?: boolean;
   slug: string;
@@ -769,12 +870,18 @@ async function createDraftScenario(input: {
   const heldCapacityId = totalSchedule
     ? getGlobalScheduleCapacityOptionId(totalSchedule.id)
     : catalog.soloScheduleCapacity.id;
+  const soloPrice = input.frozenOnSoloPrice
+    ? await db.query.prices.findFirst({
+        where: and(eq(prices.eventId, event.id), eq(prices.groupType, "solo")),
+      })
+    : undefined;
   await createSelectedPriceInscriptionForTest({
     academyId: owner.academyId,
     allocatedAmount: input.allocatedAmount,
     choreographyId: choreography.id,
     dancerId: ana.id,
     eventId: event.id,
+    selectedPriceId: soloPrice?.id,
   });
 
   async function submit(body: FormData) {
@@ -843,6 +950,20 @@ async function createDraftScenario(input: {
         .where(eq(choreographyProfessors.choreographyId, choreography.id));
 
       return rows.map((row) => row.professorId);
+    },
+    /** What the detail shows of the roster once the save is done. */
+    async readSaved() {
+      const { choreography: saved } = await loadDetail({
+        choreographyId: choreography.id,
+        email: nextEmail(),
+      });
+
+      return {
+        activeDancerIds: saved.dancers
+          .filter((dancer) => dancer.active)
+          .map((dancer) => dancer.id),
+        groupType: saved.groupType,
+      };
     },
     async readChoreography() {
       return await db.query.choreographies.findFirst({

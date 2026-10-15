@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { db } from "@/db";
 import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-target.server";
 import {
+  choreographies,
   choreographyDancers,
   paymentAllocations,
   payments,
@@ -15,6 +16,7 @@ import {
   createDancer,
 } from "@/features/portal/choreographies/test-support/db";
 import { payChoreographiesPreset } from "@/lib/finances/choreography-cobro-presets.server";
+import { allocateToInscription } from "@/lib/finances/inscription-allocation.server";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import {
   createAcademyFinanceChoreographyFixture,
@@ -22,7 +24,11 @@ import {
 } from "@/lib/admin/finances/finances.test-support";
 import { createSavedEvent } from "@/lib/test-support/events";
 
-import { installDatabaseTestHooks } from "../../../tests/db/harness";
+import {
+  installDatabaseTestHooks,
+  isPgliteTestBackend,
+} from "../../../tests/db/harness";
+import { runBehindAHolder } from "../../../tests/db/lock-contention";
 
 installDatabaseTestHooks();
 
@@ -412,3 +418,157 @@ describe("payChoreographiesPreset", () => {
     }
   });
 });
+
+describe("payChoreographiesPreset on a choreography whose group type moved", () => {
+  // #660: a roster save below the deposit leaves the stored solo row behind;
+  // funding without a pick for the new group type would freeze it there.
+  test("refuses to fund an inscription storing a row of another group type when no price is picked for its own", async () => {
+    const fixture = await seedPresetFixture([10000]);
+    const [choreographyId] = fixture.choreographyIds;
+    await db
+      .update(choreographyDancers)
+      .set({ selectedPriceId: fixture.priceId })
+      .where(eq(choreographyDancers.id, fixture.inscriptionIds[0]!));
+    await db
+      .update(choreographies)
+      .set({ groupType: "duo" })
+      .where(eq(choreographies.id, choreographyId!));
+
+    const result = await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds: [choreographyId!],
+      eventId: fixture.eventId,
+      priceIdByGroupType: { solo: fixture.priceId },
+      stage: "deposit",
+    });
+
+    expect(result).toMatchObject({ ok: false });
+    await expect(
+      readAllocations([fixture.inscriptionIds[0]!]),
+    ).resolves.toEqual([]);
+  });
+
+  // The band the dialog reads as locked: past the new group type's deposit,
+  // below the stored row's. The dialog posts no price there.
+  test("stores the row in effect when the dialog names no price over a stored row of another group type", async () => {
+    const fixture = await seedPresetFixture([10000]);
+    const [choreographyId] = fixture.choreographyIds;
+    const inscriptionId = fixture.inscriptionIds[0]!;
+    const allocate = (amount: number, priceId: string | null) =>
+      allocateToInscription({
+        academyId: fixture.academyId,
+        amount,
+        choreographyId: choreographyId!,
+        eventId: fixture.eventId,
+        inscriptionId,
+        priceId,
+      });
+    // 2000 against the solo row's 3000 deposit.
+    await allocate(2000, fixture.priceId);
+    await db
+      .update(choreographies)
+      .set({ groupType: "duo" })
+      .where(eq(choreographies.id, choreographyId!));
+
+    const withoutDuoPrice = await allocate(500, null);
+    // A deposit of 1500, already covered by the 2000 held.
+    const [duoPrice] = await insertTestPrices([
+      {
+        amount: 5000,
+        eventId: fixture.eventId,
+        groupType: "duo",
+        name: "Precio Dúo",
+        paymentDeadline: null,
+      },
+    ]);
+    const withDuoPrice = await allocate(500, null);
+
+    expect(withoutDuoPrice).toMatchObject({ ok: false });
+    expect(withDuoPrice).toEqual({ ok: true });
+    const [inscription] = await db
+      .select({ selectedPriceId: choreographyDancers.selectedPriceId })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.id, inscriptionId));
+    expect(inscription?.selectedPriceId).toBe(duoPrice!.id);
+  });
+
+  test("still funds the balance of an inscription already frozen on a row of another group type", async () => {
+    const fixture = await seedPresetFixture([10000]);
+    const [choreographyId] = fixture.choreographyIds;
+    await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds: [choreographyId!],
+      eventId: fixture.eventId,
+      priceIdByGroupType: { solo: fixture.priceId },
+      stage: "deposit",
+    });
+    await db
+      .update(choreographies)
+      .set({ groupType: "duo" })
+      .where(eq(choreographies.id, choreographyId!));
+
+    // A row frozen before #660 guarded the roster: the preset offers no picker
+    // for it, and refusing would leave it with no way to be paid.
+    const result = await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds: [choreographyId!],
+      eventId: fixture.eventId,
+      priceIdByGroupType: {},
+      stage: "balance",
+    });
+
+    expect(result).toEqual({ ok: true });
+  });
+});
+
+describe.skipIf(isPgliteTestBackend())(
+  "payChoreographiesPreset racing a draft save",
+  () => {
+    // #660: the draft save moves the group type under the choreography's row
+    // lock, so a preset that read it unlocked would freeze the old one's price.
+    test("prices the group type the draft save commits while the preset waits", async () => {
+      const fixture = await seedPresetFixture([10000]);
+      const [duoPrice] = await insertTestPrices([
+        {
+          amount: 15000,
+          eventId: fixture.eventId,
+          groupType: "duo",
+          name: "Precio Dúo",
+          paymentDeadline: null,
+        },
+      ]);
+      const [choreographyId] = fixture.choreographyIds;
+
+      const result = await runBehindAHolder({
+        waitingOn: "inscription lock",
+        // What the draft save holds while it moves the group type.
+        hold: async (tx) => {
+          await tx
+            .select({ id: choreographyDancers.id })
+            .from(choreographyDancers)
+            .where(eq(choreographyDancers.choreographyId, choreographyId!))
+            .for("update");
+          await tx
+            .update(choreographies)
+            .set({ groupType: "duo" })
+            .where(eq(choreographies.id, choreographyId!));
+        },
+        contender: () =>
+          payChoreographiesPreset({
+            academyId: fixture.academyId,
+            choreographyIds: [choreographyId!],
+            eventId: fixture.eventId,
+            priceIdByGroupType: { duo: duoPrice!.id, solo: fixture.priceId },
+            stage: "deposit",
+          }),
+      });
+
+      expect(result).toEqual({ ok: true });
+      const [inscription] = await db
+        .select({ selectedPriceId: choreographyDancers.selectedPriceId })
+        .from(choreographyDancers)
+        .where(eq(choreographyDancers.id, fixture.inscriptionIds[0]!));
+      expect(inscription?.selectedPriceId).toBe(duoPrice!.id);
+    });
+  },
+);

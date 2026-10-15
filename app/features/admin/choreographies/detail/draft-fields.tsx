@@ -12,11 +12,12 @@ import {
 } from "@/components/shared/read-only-field";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { FieldError, FieldLegend, FieldSet } from "@/components/ui/field";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { emptyExperienceLevelLabel } from "@/lib/choreographies/experience-level-requirement";
 import { toScheduleCapacitySelectOptions } from "@/lib/choreographies/schedule-capacity-options";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
+import { cn } from "@/lib/shared/utils";
 
 import { getModalitySelectOptions } from "./draft-form";
 import {
@@ -64,10 +65,11 @@ export function ChoreographyClassificationFields({
         <ReadOnlyField label="Nombre" value={choreography.name} />
       )}
 
-      <DerivedField reason={findReason(draft, "modality")}>
+      <DerivedField>
         {isEditable ? (
           <SelectField
             control={draft.form.control}
+            error={findReason(draft, "modality")}
             label="Modalidad"
             name="modalityId"
             options={getModalitySelectOptions(
@@ -77,7 +79,11 @@ export function ChoreographyClassificationFields({
             placeholder="Elegí la modalidad"
           />
         ) : (
-          <ReadOnlyField label="Modalidad" value={choreography.modalityName} />
+          <ReadOnlyField
+            error={findReason(draft, "modality")}
+            label="Modalidad"
+            value={choreography.modalityName}
+          />
         )}
       </DerivedField>
 
@@ -104,10 +110,11 @@ export function ChoreographyClassificationFields({
         )}
       </DerivedField>
 
-      <DerivedField pending={isDeriving} reason={findReason(draft, "category")}>
+      <DerivedField pending={isDeriving}>
         {/* `Evaluar como profesional` rides on the category it is set beside
             in the wizard. It is structural: the judges read it as it was. */}
         <ReadOnlyField
+          error={findReason(draft, "category")}
           label={<PendingLabel pending={isDeriving} text="Categoría" />}
           inputClassName={professionalEvaluationFieldInputClassName}
           trailing={
@@ -144,10 +151,7 @@ export function ChoreographyClassificationFields({
         />
       </DerivedField>
 
-      <DerivedField
-        pending={isDeriving}
-        reason={findReason(draft, "schedule-capacity")}
-      >
+      <DerivedField pending={isDeriving}>
         <ScheduleCapacityField draft={draft} isDeriving={isDeriving} />
       </DerivedField>
     </>
@@ -225,12 +229,14 @@ function ScheduleCapacityField({
 }) {
   const { options, selectedId } = draft.preview.shown.scheduleCapacity;
   const label = <PendingLabel pending={isDeriving} text="Cronograma" />;
+  const reason = findReason(draft, "schedule-capacity");
 
   if (!draft.isStructureLocked && options.length > 1) {
     return (
       <SelectField
         control={draft.form.control}
         disabled={isDeriving}
+        error={reason}
         label={label}
         name="scheduleCapacityId"
         options={toScheduleCapacitySelectOptions(options)}
@@ -242,7 +248,13 @@ function ScheduleCapacityField({
   const shownOption =
     options.find((option) => option.id === selectedId) ?? options[0];
 
-  return <ReadOnlyField label={label} value={shownOption?.label ?? ""} />;
+  return (
+    <ReadOnlyField
+      error={reason}
+      label={label}
+      value={shownOption?.label ?? ""}
+    />
+  );
 }
 
 /**
@@ -254,21 +266,30 @@ export function ChoreographyPeopleFields({
   loaderData,
 }: DraftFieldsProps) {
   const disabled = draft.isStructureLocked;
+  const dancersReason = findReason(draft, "dancers");
 
   return (
     <>
-      <FieldSet className="gap-2">
-        <FieldLegend variant="label">Bailarines</FieldLegend>
+      <FieldSet
+        className="gap-2"
+        data-invalid={dancersReason ? true : undefined}
+      >
+        <FieldLegend
+          className={cn(dancersReason && "text-destructive")}
+          variant="label"
+        >
+          Bailarines
+        </FieldLegend>
         <ChecklistField
           control={draft.form.control}
           disabled={disabled}
           emptySelectionMessage="Todavía no seleccionaste bailarines."
+          error={dancersReason}
           label="Bailarines"
           name="dancerIds"
           options={loaderData.availableDancers.map(toPersonOption)}
           searchLabel="Buscar bailarines"
         />
-        <FieldError>{findReason(draft, "dancers")}</FieldError>
       </FieldSet>
       <FieldSet className="gap-2">
         <FieldLegend variant="label">Profesores</FieldLegend>
@@ -287,23 +308,20 @@ export function ChoreographyPeopleFields({
 }
 
 /**
- * A field the preview can rewrite, with the reason the preview gave for it
- * right below. `aria-busy` tells assistive technology the value is about to
- * change.
+ * A field the preview can rewrite. `aria-busy` tells assistive technology the
+ * value is about to change. The reason the preview gives for a field is that
+ * field's own error, so its label and border read it too.
  */
 function DerivedField({
   children,
   pending = false,
-  reason,
 }: {
   children: ReactNode;
   pending?: boolean;
-  reason?: string;
 }) {
   return (
     <div aria-busy={pending} className="flex flex-col gap-2">
       {children}
-      <FieldError>{reason}</FieldError>
     </div>
   );
 }

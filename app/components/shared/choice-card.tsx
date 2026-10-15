@@ -28,7 +28,7 @@ export function ChoiceCard({
       // positions absolutely, inside the card: anchored further out, the
       // inputs of rows scrolled out of a long list stretch the page.
       className={cn(
-        "relative flex h-8 items-center justify-between gap-2 rounded-lg border border-input px-2.5 text-sm transition-colors has-data-checked:border-primary/30 has-data-checked:bg-primary/5",
+        "relative flex h-8 items-center justify-between gap-2 rounded-lg border border-input px-2.5 text-sm transition-colors has-data-checked:border-primary/30 has-data-checked:bg-primary/5 has-aria-invalid:border-destructive",
         disabled
           ? "cursor-not-allowed opacity-50"
           : "cursor-pointer hover:bg-muted/50",

@@ -8,7 +8,13 @@ type TestFormValues = {
   status: string;
 };
 
-function TestSelectField({ value }: { value: TestFormValues["status"] }) {
+function TestSelectField({
+  error,
+  value,
+}: {
+  error?: string;
+  value: TestFormValues["status"];
+}) {
   const form = useForm<TestFormValues>({
     defaultValues: {
       status: value,
@@ -20,6 +26,7 @@ function TestSelectField({ value }: { value: TestFormValues["status"] }) {
       allowEmpty
       control={form.control}
       emptyLabel="Sin estado"
+      error={error}
       id="status"
       label="Estado"
       name="status"
@@ -40,5 +47,18 @@ describe("SelectField", () => {
     const markup = renderToStaticMarkup(<TestSelectField value="active" />);
 
     expect(markup).toContain('name="status" value="active"');
+  });
+
+  test("shows an error the form does not own as its own", () => {
+    const markup = renderToStaticMarkup(
+      <TestSelectField
+        error="Ningún cronograma acepta esa modalidad."
+        value="active"
+      />,
+    );
+
+    expect(markup).toContain('data-invalid="true"');
+    expect(markup).toContain('aria-invalid="true"');
+    expect(markup).toContain("Ningún cronograma acepta esa modalidad.");
   });
 });

@@ -45,6 +45,8 @@ type SelectFieldProps<
   contentClassName?: string;
   control: Control<TFieldValues>;
   description?: ReactNode;
+  /** An error the form does not own, such as a server preview's reason. */
+  error?: ReactNode;
   errorClassName?: string;
   id?: string;
   inputClassName?: string;
@@ -71,6 +73,7 @@ function SelectField<
   contentProps,
   control,
   description,
+  error,
   errorClassName,
   id: providedId,
   inputClassName = "w-full",
@@ -104,7 +107,7 @@ function SelectField<
         const fieldValue = typeof field.value === "string" ? field.value : "";
         const selectValue =
           allowEmpty && fieldValue === "" ? emptySelectValue : fieldValue;
-        const errorMessage = fieldState.error?.message;
+        const errorMessage = fieldState.error?.message ?? error;
 
         return (
           <SharedFieldLayout

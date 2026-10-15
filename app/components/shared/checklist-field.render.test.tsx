@@ -33,9 +33,11 @@ const dancers = [
 ];
 
 function DancersChecklist({
+  error,
   inputName,
   options = dancers,
 }: {
+  error?: string;
   inputName?: string;
   options?: typeof dancers;
 }) {
@@ -46,6 +48,7 @@ function DancersChecklist({
     <ChecklistField
       control={form.control}
       emptySelectionMessage="Todavía no seleccionaste bailarines."
+      error={error}
       inputName={inputName}
       label="Bailarines"
       name="dancerIds"
@@ -89,6 +92,21 @@ async function pickTab(name: string) {
 }
 
 describe("ChecklistField", () => {
+  test("marks every row invalid under an error the form does not own", async () => {
+    await renderer.renderAsync(
+      <DancersChecklist error="Con este elenco cambia el tipo de grupo." />,
+    );
+
+    const checkboxes = document.querySelectorAll('[role="checkbox"]');
+    expect(checkboxes).toHaveLength(dancers.length);
+    for (const checkbox of checkboxes) {
+      expect(checkbox.getAttribute("aria-invalid")).toBe("true");
+    }
+    expect(document.body.textContent).toContain(
+      "Con este elenco cambia el tipo de grupo.",
+    );
+  });
+
   test("checks and unchecks a person by tapping anywhere on the row", async () => {
     await renderer.renderAsync(<DancersChecklist />);
 

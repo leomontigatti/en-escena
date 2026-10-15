@@ -25,7 +25,12 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
-import { choreographyDancers, events, paymentAllocations } from "@/db/schema";
+import {
+  choreographyDancers,
+  events,
+  paymentAllocations,
+  prices,
+} from "@/db/schema";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import {
@@ -34,8 +39,12 @@ import {
 } from "@/lib/finances/inscription-financial-status";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
 import { type ChoreographyGroupType } from "@/lib/finances/operational-summary-calculations.server";
-import { resolveEffectiveBasePriceRow } from "@/lib/finances/inscription-price";
+import {
+  resolveEffectiveBasePriceRow,
+  selectApplicableInscriptionPrice,
+} from "@/lib/finances/inscription-price";
 import { loadEventPriceRows } from "@/lib/prices/rows.server";
+import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 import {
   choreographyTarget,
@@ -259,6 +268,15 @@ export async function allocateToInscription(
   input: InscriptionMoneyInput & { amount: number; priceId: string | null },
 ): Promise<CobroResult> {
   return await runCobro(async (tx) => {
+    // The pool's lock, taken before the group type is read: a draft save
+    // moving the group type holds it until it commits, so the price is picked
+    // against the committed one (#660). Only adding money can cross a deposit.
+    await tx
+      .select({ id: choreographyDancers.id })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.id, input.inscriptionId))
+      .for("update");
+
     const context = await loadInscriptionMoneyContext(tx, input);
     if (!context.ok) {
       return context;
@@ -410,26 +428,20 @@ async function applySelectedPrice(
     return { ok: true };
   }
 
-  if (input.priceId === null) {
-    // Naming no price changes none. The one row that has to be told to pick one
-    // is the row that holds nothing and stores nothing: there, neither the
-    // administrator nor a previous charge has said anything yet.
-    //
-    // `allocatedAmount === 0` **preserves the previous behaviour** rather than
-    // adding a rule. Until now `allocatedAmount > 0` short-circuited above, so
-    // this branch was only ever reached with an empty row; without the added
-    // test, an inscription holding money and storing no price — a state the
-    // presets can produce — would start failing with "Elegí un precio".
-    return input.inscription.selectedPriceId === null &&
-      input.allocatedAmount === 0
-      ? { ok: false, message: "Elegí un precio para la inscripción." }
-      : { ok: true };
+  const picked = await resolvePickedPriceId(tx, input);
+
+  if (!picked.ok) {
+    return picked;
+  }
+
+  if (picked.priceId === null) {
+    return { ok: true };
   }
 
   const price = await loadCandidatePriceRow(tx, {
     eventId: input.eventId,
     groupType: input.choreography.groupType,
-    priceId: input.priceId,
+    priceId: picked.priceId,
     scheduleId: input.choreography.scheduleId,
   });
 
@@ -443,6 +455,103 @@ async function applySelectedPrice(
     .where(eq(choreographyDancers.id, input.inscription.id));
 
   return { ok: true };
+}
+
+const storedRowOfAnotherGroupTypeMessage =
+  "La inscripción guarda el precio de otro tipo de grupo y ninguno del suyo aplica hoy. Revisá los precios del evento.";
+
+/**
+ * The row to store, or `null` for none. Naming no price changes none. The one
+ * row that has to be told to pick one is the row that holds nothing and stores
+ * nothing: there, neither the administrator nor a previous charge has said
+ * anything yet.
+ *
+ * `allocatedAmount === 0` **preserves the previous behaviour** rather than
+ * adding a rule. Until now `allocatedAmount > 0` short-circuited the crossing
+ * check, so this was only ever reached with an empty row; without the added
+ * test, an inscription holding money and storing no price — a state the
+ * presets can produce — would start failing with "Elegí un precio".
+ *
+ * With no pick, a stored row of another group type would be the one the money
+ * crosses on, and freeze there (#660): the row in effect, the one the dialog
+ * shows, is stored instead, as a pick of it would.
+ */
+async function resolvePickedPriceId(
+  tx: Transaction,
+  input: {
+    allocatedAmount: number;
+    choreography: { groupType: string; scheduleId: string };
+    eventId: string;
+    inscription: { selectedPriceId: string | null };
+    priceId: string | null;
+  },
+): Promise<
+  { ok: false; message: string } | { ok: true; priceId: string | null }
+> {
+  if (input.priceId !== null) {
+    return { ok: true, priceId: input.priceId };
+  }
+
+  if (
+    input.inscription.selectedPriceId === null &&
+    input.allocatedAmount === 0
+  ) {
+    return { ok: false, message: "Elegí un precio para la inscripción." };
+  }
+
+  if (!(await storesRowOfAnotherGroupType(tx, input))) {
+    return { ok: true, priceId: null };
+  }
+
+  const inEffect = await readPriceInEffectId(tx, input);
+
+  return inEffect === null
+    ? { ok: false, message: storedRowOfAnotherGroupTypeMessage }
+    : { ok: true, priceId: inEffect };
+}
+
+/** The row that applies today to the choreography's own price key. */
+async function readPriceInEffectId(
+  tx: Transaction,
+  input: {
+    choreography: { groupType: string; scheduleId: string };
+    eventId: string;
+  },
+): Promise<string | null> {
+  const price = selectApplicableInscriptionPrice({
+    businessDate: getBusinessDateOnly(),
+    key: {
+      choreographyScheduleId: input.choreography.scheduleId,
+      groupType: input.choreography.groupType,
+      scheduleCapacityScheduleId: null,
+    },
+    priceRows: await loadEventPriceRows(tx, input.eventId),
+  });
+
+  return price?.id ?? null;
+}
+
+async function storesRowOfAnotherGroupType(
+  tx: Transaction,
+  input: {
+    choreography: { groupType: string };
+    inscription: { selectedPriceId: string | null };
+  },
+) {
+  const { selectedPriceId } = input.inscription;
+
+  if (selectedPriceId === null) {
+    return false;
+  }
+
+  const [stored] = await tx
+    .select({ groupType: prices.groupType })
+    .from(prices)
+    .where(eq(prices.id, selectedPriceId));
+
+  return (
+    stored !== undefined && stored.groupType !== input.choreography.groupType
+  );
 }
 
 type InscriptionMoneyContext =
