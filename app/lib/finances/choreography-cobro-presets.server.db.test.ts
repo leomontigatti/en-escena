@@ -448,39 +448,40 @@ describe("payChoreographiesPreset on a choreography whose group type moved", () 
     ).resolves.toEqual([]);
   });
 
-  test("stores the row in effect when the dialog names no price, and refuses when none applies", async () => {
+  // The band the dialog reads as locked: past the new group type's deposit,
+  // below the stored row's. The dialog posts no price there.
+  test("stores the row in effect when the dialog names no price over a stored row of another group type", async () => {
     const fixture = await seedPresetFixture([10000]);
     const [choreographyId] = fixture.choreographyIds;
     const inscriptionId = fixture.inscriptionIds[0]!;
-    await db
-      .update(choreographyDancers)
-      .set({ selectedPriceId: fixture.priceId })
-      .where(eq(choreographyDancers.id, inscriptionId));
+    const allocate = (amount: number, priceId: string | null) =>
+      allocateToInscription({
+        academyId: fixture.academyId,
+        amount,
+        choreographyId: choreographyId!,
+        eventId: fixture.eventId,
+        inscriptionId,
+        priceId,
+      });
+    // 2000 against the solo row's 3000 deposit.
+    await allocate(2000, fixture.priceId);
     await db
       .update(choreographies)
       .set({ groupType: "duo" })
       .where(eq(choreographies.id, choreographyId!));
-    const allocate = () =>
-      allocateToInscription({
-        academyId: fixture.academyId,
-        amount: 3000,
-        choreographyId: choreographyId!,
-        eventId: fixture.eventId,
-        inscriptionId,
-        priceId: null,
-      });
 
-    const withoutDuoPrice = await allocate();
+    const withoutDuoPrice = await allocate(500, null);
+    // A deposit of 1500, already covered by the 2000 held.
     const [duoPrice] = await insertTestPrices([
       {
-        amount: 15000,
+        amount: 5000,
         eventId: fixture.eventId,
         groupType: "duo",
         name: "Precio Dúo",
         paymentDeadline: null,
       },
     ]);
-    const withDuoPrice = await allocate();
+    const withDuoPrice = await allocate(500, null);
 
     expect(withoutDuoPrice).toMatchObject({ ok: false });
     expect(withDuoPrice).toEqual({ ok: true });
