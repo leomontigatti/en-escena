@@ -46,7 +46,7 @@ export async function updateInternalUser(
   });
 
   if (!existingUser) {
-    return updateError("No encontramos ese Usuario.");
+    return updateError("No encontramos ese usuario.");
   }
 
   if (

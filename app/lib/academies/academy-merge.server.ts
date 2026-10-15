@@ -88,7 +88,7 @@ export async function mergeAcademies(input: {
     const survivor = locked.find((academy) => academy.id === input.survivorId);
 
     if (!removed) {
-      throw new Response("No encontramos esa Academia.", { status: 404 });
+      throw new Response("No encontramos esa academia.", { status: 404 });
     }
 
     if (!survivor) {

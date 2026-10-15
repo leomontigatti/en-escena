@@ -35,7 +35,7 @@ describe("`/portal` error boundary", () => {
           {
             path: "profesores/:professorId",
             loader: () => {
-              throw new Response("No encontramos ese Profesor.", {
+              throw new Response("No encontramos ese profesor.", {
                 status: 404,
               });
             },
@@ -51,7 +51,7 @@ describe("`/portal` error boundary", () => {
 
     const page = () => renderer.getContainer().textContent ?? "";
 
-    await waitFor(() => page().includes("No encontramos ese Profesor."));
+    await waitFor(() => page().includes("No encontramos ese profesor."));
     expect(page()).toContain("Página no encontrada");
     expect(page()).toContain("Portal de academias");
     expect(page()).toContain("Saltar al contenido principal");

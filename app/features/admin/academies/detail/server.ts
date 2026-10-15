@@ -210,7 +210,7 @@ async function mergeAcademy({
 
 async function readAcademy(academyId?: string) {
   if (!academyId) {
-    throw new Response("No encontramos esa Academia.", { status: 404 });
+    throw new Response("No encontramos esa academia.", { status: 404 });
   }
 
   const [academy] = await db
@@ -229,7 +229,7 @@ async function readAcademy(academyId?: string) {
     .limit(1);
 
   if (!academy) {
-    throw new Response("No encontramos esa Academia.", { status: 404 });
+    throw new Response("No encontramos esa academia.", { status: 404 });
   }
 
   return {
