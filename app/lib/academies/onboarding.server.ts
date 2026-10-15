@@ -46,12 +46,7 @@ export async function requireAcademyOnboardingUser(request: Request) {
     throw redirect("/ingresar");
   }
 
-  const academy = await db.query.academies.findFirst({
-    columns: { id: true },
-    where: eq(academies.userId, identity.user.id),
-  });
-
-  if (academy) {
+  if (await hasAcademy(identity.user.id)) {
     throw redirect("/portal");
   }
 
@@ -114,6 +109,15 @@ export async function completeAcademyOnboarding(input: {
       });
     });
   } catch (error) {
+    // A second submit of the same onboarding (two tabs, a click before
+    // hydration) collides with the first; the academy is this user's anyway.
+    if (
+      isUniqueViolation(error) &&
+      (await hasAcademy(onboardingUser.user.id))
+    ) {
+      return { headers: onboardingUser.headers, ok: true as const };
+    }
+
     if (isAcademyOnboardingConflict(error)) {
       return {
         ok: false as const,
@@ -125,6 +129,15 @@ export async function completeAcademyOnboarding(input: {
   }
 
   return { headers: onboardingUser.headers, ok: true as const };
+}
+
+async function hasAcademy(userId: string) {
+  const academy = await db.query.academies.findFirst({
+    columns: { id: true },
+    where: eq(academies.userId, userId),
+  });
+
+  return academy !== undefined;
 }
 
 /**

@@ -206,6 +206,39 @@ describe("academy onboarding route", () => {
     await expect(db.query.academies.findMany()).resolves.toEqual([]);
   });
 
+  // Two tabs, or a click before hydration, can post twice at once: both pass
+  // the "no academy yet" check, and the second insert collides with the
+  // first. The academy is theirs either way, so both land in the portal.
+  test("sends a submit that loses the race to its own first submit to the portal", async () => {
+    getVerifiedAccessIdentity.mockResolvedValue(
+      accessIdentity("doble@example.com", "user-doble"),
+    );
+    const submit = () =>
+      academyOnboardingAction(
+        routeActionArgs(
+          createOnboardingRequest({
+            academyName: "Academia Doble",
+            contactName: "Contacto",
+            phone: "1112345678",
+          }),
+        ),
+      );
+
+    const [first, second] = await Promise.allSettled([submit(), submit()]);
+
+    for (const outcome of [first, second]) {
+      expect(outcome.status).toBe("rejected");
+      const response = (outcome as PromiseRejectedResult).reason as Response;
+      expect(response.headers.get("location")).toBe("/portal");
+      expect(response.headers.get("set-cookie")).toContain(
+        "better-auth.session_token",
+      );
+    }
+    await expect(
+      db.query.academies.findMany({ columns: { userId: true } }),
+    ).resolves.toEqual([{ userId: "user-doble" }]);
+  });
+
   test("warns when another academy already uses the typed name and creates nothing", async () => {
     await seedExistingAcademy();
 
