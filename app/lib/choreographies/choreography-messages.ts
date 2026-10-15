@@ -90,6 +90,14 @@ export const noCompatibleCategoryRosterMessage =
   "Con este elenco no existe una categoría válida. Ajustá los bailarines para poder guardar.";
 
 /**
+ * The roster rejection when the edited roster changes the group type under an
+ * inscription frozen on a row of the old one (#660). The money has to come off
+ * first: the stored price is never rewritten under the administrator's feet.
+ */
+export const groupTypePinnedPriceMessage =
+  "Con este elenco cambia el tipo de grupo, pero hay inscripciones con la seña cubierta a un precio del tipo de grupo actual. Para cambiarlo, quitá primero su dinero.";
+
+/**
  * The modality correction's rejection when the destination modality resolves no
  * category. The only lever the administrator has here is the select they just
  * used — the roster is not part of this correction — so the sentence points

@@ -10,6 +10,7 @@ import {
   choreographyDancers,
   choreographyProfessors,
   modalities,
+  prices,
   scheduleCapacities,
   scheduleCategories,
   scheduleModalities,
@@ -30,6 +31,7 @@ import {
 import { choreographyNameWriteCases } from "@/lib/choreographies/choreography-name.test-support";
 import {
   evaluatedChoreographyMessage,
+  groupTypePinnedPriceMessage,
   invalidExperienceLevelMessage,
   noCompatibleCategoryModalityMessage,
 } from "@/lib/choreographies/choreography-messages";
@@ -525,6 +527,47 @@ describe("saving a draft of the choreography detail", () => {
     });
   });
 
+  // #660: a frozen inscription keeps its stored row whatever the roster says,
+  // so a solo paid past its deposit that became a duo would keep the solo price.
+  test.each([
+    { onScheduleTotal: true, where: "on the schedule total" },
+    { onScheduleTotal: false, where: "on a capacity" },
+  ])(
+    "refuses a roster change that leaves a frozen inscription on a row of another group type, $where",
+    async ({ onScheduleTotal }) => {
+      const scenario = await createDraftScenario({
+        allocatedAmount: 3000,
+        frozenOnSoloPrice: true,
+        onScheduleTotal,
+        slug: `congelada-${onScheduleTotal ? "total" : "cupo"}`,
+      });
+      const draft = scenario.draft({
+        dancerIds: [scenario.ana.id, scenario.bea.id],
+        ...(onScheduleTotal
+          ? {}
+          : { scheduleCapacityId: scenario.catalog.duoScheduleCapacity.id }),
+      });
+
+      const preview = await scenario.resolveDraft(draft);
+      const response = await scenario.saveDraft(draft);
+
+      expect(preview.blockers).toContainEqual({
+        code: "dancers",
+        message: groupTypePinnedPriceMessage,
+      });
+      expect(response).toEqual({
+        message: groupTypePinnedPriceMessage,
+        status: "error",
+      });
+      await expect(scenario.readChoreography()).resolves.toMatchObject({
+        groupType: "solo",
+      });
+      await expect(scenario.readActiveDancerIds()).resolves.toEqual([
+        scenario.ana.id,
+      ]);
+    },
+  );
+
   test("withdraws a removed dancer holding money, deletes one without, and inserts one re-added beside the withdrawn row (#1496)", async () => {
     const scenario = await createDraftScenario({
       allocatedAmount: 3000,
@@ -730,6 +773,8 @@ describe("saving a draft of the choreography detail", () => {
 
 async function createDraftScenario(input: {
   allocatedAmount?: number;
+  /** Stores the catalogue's solo row on Ana's inscription. */
+  frozenOnSoloPrice?: boolean;
   /** On the schedule's total instead of a capacity for its group type. */
   onScheduleTotal?: boolean;
   slug: string;
@@ -769,12 +814,18 @@ async function createDraftScenario(input: {
   const heldCapacityId = totalSchedule
     ? getGlobalScheduleCapacityOptionId(totalSchedule.id)
     : catalog.soloScheduleCapacity.id;
+  const soloPrice = input.frozenOnSoloPrice
+    ? await db.query.prices.findFirst({
+        where: and(eq(prices.eventId, event.id), eq(prices.groupType, "solo")),
+      })
+    : undefined;
   await createSelectedPriceInscriptionForTest({
     academyId: owner.academyId,
     allocatedAmount: input.allocatedAmount,
     choreographyId: choreography.id,
     dancerId: ana.id,
     eventId: event.id,
+    selectedPriceId: soloPrice?.id,
   });
 
   async function submit(body: FormData) {

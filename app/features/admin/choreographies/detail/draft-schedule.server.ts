@@ -77,8 +77,8 @@ export async function resolveDraftScheduleOptions(input: {
     };
   });
   // Priced against the draft's group type, as the guard at save prices it. The
-  // assigned capacity is exempt: staying put moves no schedule, so a change of
-  // group type alone is left unguarded, the domain's known gap.
+  // assigned capacity is exempt: staying put moves no schedule, and a change of
+  // group type alone is the group-type pin's, a blocker of the draft.
   const { divergentIds, selectable } = partitionPriceDivergentOptions({
     assignedOptionId: input.choreography.scheduleCapacityId,
     diverges,

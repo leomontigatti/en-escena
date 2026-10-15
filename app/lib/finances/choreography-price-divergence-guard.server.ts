@@ -1,6 +1,7 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { choreographyDancers, events, paymentAllocations } from "@/db/schema";
+import { activeInscription } from "@/lib/choreographies/active-inscription";
 import {
   calculateDepositAmount,
   hasCrossedDepositThreshold,
@@ -180,24 +181,127 @@ export async function loadPriceDivergenceCheck(input: {
 
 /**
  * Whether the inscription is frozen against a special row that does not cover
- * the destination's schedule. A row shared by both schedules pins nothing. Read off the **stored** row and its own
- * threshold, the same pair `resolveEffectiveBasePriceRow` freezes on.
+ * the destination's schedule. A row shared by both schedules pins nothing.
  */
-function isSchedulePinnedFrozenRow(input: {
+function isSchedulePinnedFrozenRow(
+  input: FrozenRowInput & { destinationScheduleId: string },
+): boolean {
+  const frozen = readFrozenStoredRow(input);
+
+  return (
+    frozen !== null &&
+    frozen.scheduleIds.length > 0 &&
+    !frozen.scheduleIds.includes(input.destinationScheduleId)
+  );
+}
+
+/**
+ * Would the roster change leave a money-holding inscription frozen on a row of
+ * another group type?
+ *
+ * `hasPriceDivergentInscription` cannot see it: a frozen inscription is charged
+ * its stored row on both sides, so the amount never changes, and a `Solo` paid
+ * in full that becomes a `Dúo` would keep the `Solo` row and keep reading
+ * `Pagada`. The remedy is taking the money off first, so nothing here writes
+ * `selectedPriceId`.
+ *
+ * Only the inscriptions that stay count: an active one whose dancer is in
+ * `keptDancerIds`. A dancer who leaves, or left before, was charged as the
+ * group they danced in.
+ */
+export async function hasGroupTypePinnedInscription(input: {
+  choreographyId: string;
+  executor: Executor;
+  groupType: ChoreographyGroupType;
+  keptDancerIds: ReadonlySet<string>;
+}): Promise<boolean> {
+  const { executor } = input;
+  const choreography = await loadChoreographyScheduleRow(
+    executor,
+    input.choreographyId,
+  );
+
+  if (!choreography) {
+    return false;
+  }
+
+  const moneyRows = await executor
+    .select({
+      allocatedAmount: sql<number>`sum(${paymentAllocations.amount})`,
+      dancerId: choreographyDancers.dancerId,
+      selectedPriceId: choreographyDancers.selectedPriceId,
+    })
+    .from(choreographyDancers)
+    .innerJoin(
+      paymentAllocations,
+      eq(paymentAllocations.choreographyInscriptionId, choreographyDancers.id),
+    )
+    .where(
+      and(
+        eq(choreographyDancers.choreographyId, input.choreographyId),
+        activeInscription(),
+      ),
+    )
+    .groupBy(choreographyDancers.id);
+
+  const inscriptions = moneyRows
+    .filter(
+      (row) =>
+        row.selectedPriceId !== null && input.keptDancerIds.has(row.dancerId),
+    )
+    .map((row) => ({
+      allocatedAmount: Number(row.allocatedAmount ?? 0),
+      selectedPriceId: row.selectedPriceId,
+    }));
+
+  if (inscriptions.length === 0) {
+    return false;
+  }
+
+  const [event, priceRows] = await Promise.all([
+    executor.query.events.findFirst({
+      columns: { requiredDepositPercentage: true },
+      where: eq(events.id, choreography.eventId),
+    }),
+    loadEventPriceRows(executor, choreography.eventId),
+  ]);
+
+  if (!event) {
+    return false;
+  }
+
+  return inscriptions.some((inscription) => {
+    const frozen = readFrozenStoredRow({
+      ...inscription,
+      priceRows,
+      requiredDepositPercentage: event.requiredDepositPercentage,
+    });
+
+    return frozen !== null && frozen.groupType !== input.groupType;
+  });
+}
+
+type FrozenRowInput = {
   allocatedAmount: number;
-  destinationScheduleId: string;
   priceRows: readonly PriceRow[];
   requiredDepositPercentage: number;
   selectedPriceId: string | null;
-}): boolean {
+};
+
+/**
+ * The stored row when the inscription is frozen on it, `null` otherwise. Read
+ * off the **stored** row and its own threshold, the same pair
+ * `resolveEffectiveBasePriceRow` freezes on.
+ */
+function readFrozenStoredRow(input: FrozenRowInput): PriceRow | null {
   const stored =
     input.selectedPriceId === null
       ? null
       : (input.priceRows.find((price) => price.id === input.selectedPriceId) ??
         null);
 
-  if (stored === null || stored.scheduleIds.length === 0) {
-    return false;
+  if (stored === null) {
+    return null;
   }
 
   const frozen = hasCrossedDepositThreshold({
@@ -208,7 +312,7 @@ function isSchedulePinnedFrozenRow(input: {
     }),
   });
 
-  return frozen && !stored.scheduleIds.includes(input.destinationScheduleId);
+  return frozen ? stored : null;
 }
 
 /**

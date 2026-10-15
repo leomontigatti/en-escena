@@ -2,7 +2,10 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographies } from "@/db/schema";
-import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
+import {
+  evaluatedChoreographyMessage,
+  groupTypePinnedPriceMessage,
+} from "@/lib/choreographies/choreography-messages";
 import { validateChoreographyName } from "@/lib/choreographies/choreography-name";
 import { syncRosterInscriptions } from "@/lib/choreographies/choreography-roster-admin.server";
 import {
@@ -23,6 +26,7 @@ import {
   lockScheduleAcceptance,
   priceDivergenceScheduleCapacityMessage,
 } from "@/lib/choreographies/schedule-capacity-lock.server";
+import { hasGroupTypePinnedInscription } from "@/lib/finances/choreography-price-divergence-guard.server";
 import {
   isExperienceLevel,
   type ExperienceLevel,
@@ -383,6 +387,10 @@ async function writeDraft(input: {
     return refuse(evaluatedChoreographyMessage);
   }
 
+  if (await isGroupTypePinned(input)) {
+    return refuse(groupTypePinnedPriceMessage);
+  }
+
   const placement = await lockDraftPlacement(input);
 
   if (!placement.ok) {
@@ -404,6 +412,34 @@ async function writeDraft(input: {
     .where(eq(choreographies.id, choreography.id));
 
   return { ok: true };
+}
+
+/**
+ * The preview's group-type pin asked again under the row lock, against the
+ * group type the save writes: it holds whether or not the capacity moves, and
+ * a choreography on its schedule's total moves none.
+ */
+async function isGroupTypePinned(input: {
+  choreography: ChoreographyDetail;
+  draft: ChoreographyDraft;
+  tx: Transaction;
+  write: DraftWrite;
+}) {
+  const { classification } = input.write.resolution;
+
+  if (
+    !classification ||
+    classification.groupType === input.choreography.groupType
+  ) {
+    return false;
+  }
+
+  return await hasGroupTypePinnedInscription({
+    choreographyId: input.choreography.id,
+    executor: input.tx,
+    groupType: classification.groupType,
+    keptDancerIds: new Set(input.draft.dancerIds),
+  });
 }
 
 /**
@@ -464,7 +500,8 @@ function toPlacementColumns(write: DraftWrite, draft: ChoreographyDraft) {
  * capacity, whatever field moved it: the money question is asked against the
  * destination price key, group type included. Staying on the same slot counts
  * no place, but a new modality or category still has to be one the schedule
- * accepts when this commits. A group type change alone asks neither.
+ * accepts when this commits. A group type change alone asks neither: the
+ * group-type pin before it is what guards that.
  */
 async function lockDraftPlacement(input: {
   choreography: ChoreographyDetail;

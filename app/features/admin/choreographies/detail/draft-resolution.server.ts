@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { loadEventPriceRows } from "@/lib/prices/rows.server";
 import {
   evaluatedChoreographyMessage,
+  groupTypePinnedPriceMessage,
   noCompatibleCategoryModalityMessage,
   noCompatibleCategoryRosterMessage,
 } from "@/lib/choreographies/choreography-messages";
@@ -18,6 +19,7 @@ import {
   getEventBases,
   resolveEventBasesScheduleModalityIds,
 } from "@/lib/events/bases.server";
+import { hasGroupTypePinnedInscription } from "@/lib/finances/choreography-price-divergence-guard.server";
 import { selectApplicableInscriptionPrice } from "@/lib/finances/inscription-price";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
@@ -111,6 +113,18 @@ export async function resolveChoreographyDraft(input: {
     : toSavedPlacement(choreography);
   const { category, groupType } = placement;
   const blockers = [...placement.blockers];
+
+  if (
+    groupType !== choreography.groupType &&
+    (await hasGroupTypePinnedInscription({
+      choreographyId: choreography.id,
+      executor: db,
+      groupType,
+      keptDancerIds: new Set(draft.dancerIds),
+    }))
+  ) {
+    blockers.push(toDancersBlocker(groupTypePinnedPriceMessage));
+  }
 
   const schedule =
     category === null

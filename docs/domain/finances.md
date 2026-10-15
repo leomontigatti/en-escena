@@ -399,22 +399,23 @@ is covered — which closes, for seminars, the known divergence below. The
 `Señada`-without-a-place band this creates for the seminar quota is named in
 `docs/domain/seminars.md`, "The place".
 
-**Known divergence — a roster change can leave a crossed price on the wrong
-group type.** Because nothing refreshes `selectedPriceId`, a roster change that
-moves the group type leaves a **crossed** inscription holding a row of the old
-one: a `Solo` paid in full that becomes a `Dúo` keeps the `Solo` row and keeps
-reading `Pagada`. Below the threshold the read-time derivation follows the new
-key on its own. ADR-0014's 2026-09-09 correction withdrew §3's `groupType`
-refresh without replacing it, so this is open. Tracked in
-[#660](https://github.com/leomontigatti/en-escena/issues/660). The
-price-divergence guard does not catch it. It refuses a save of the choreography
-detail that moves the schedule or its capacity, whichever field moved it, when
-an inscription holding money would be charged a different price there, and a
-crossed inscription is charged its stored row on both sides of the move. A
-roster change on a choreography that uses its schedule's total capacity moves
-neither, so the save does not ask the guard at all. The schedule axis is
-closed: a general row prices every schedule, and the guard refuses a move that
-takes a crossed inscription off the schedules its special row covers.
+**A roster change cannot leave a crossed price on the wrong group type.**
+Nothing refreshes `selectedPriceId`, so a roster change that moved the group
+type under a **crossed** inscription would leave it holding a row of the old
+one: a `Solo` paid in full that becomes a `Dúo` would keep the `Solo` row and
+keep reading `Pagada`. The amount comparison of the price-divergence guard
+cannot see it, since a crossed inscription is charged its stored row on both
+sides. So the group-type axis has its own check, `hasGroupTypePinnedInscription`
+in the same module: the draft save of the choreography detail is refused while
+an active inscription whose dancer stays is frozen on a row of another group
+type, whether or not the schedule moves. The preview shows it beside the dancers
+before the save, and the save asks again under the choreography's row lock. The
+remedy is taking the money off first; nothing rewrites the stored row. Below the
+threshold the read-time derivation follows the new key on its own. The schedule
+axis is closed too: a general row prices every schedule, and the guard refuses a
+move that takes a crossed inscription off the schedules its special row covers.
+Production held no crossed row on a foreign key when this landed (#660, counted
+2026-10-06).
 
 - **The dancer detail prices with the finance rules.** `findDancerInscriptions`
   reads each inscription through `readInscriptionThresholds`, so the tab shows
