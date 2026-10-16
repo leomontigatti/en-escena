@@ -7,6 +7,7 @@ import {
   realpathSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import os from "node:os";
@@ -14,7 +15,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { git, prune, run } from "./worktree-db";
+import { git, prune, run, worktreePaths } from "./worktree-db";
 
 // `pnpm worktree:sweep` cleans up after finished threads what T3 Code's
 // storage cleanup does not (docs/agents/t3-dependencies.md). T3 removes the
@@ -26,11 +27,16 @@ import { git, prune, run } from "./worktree-db";
 // (`pnpm db:worktree`). It lists by default and acts only with `--apply`.
 // A worktree or branch goes only when nothing in it can be lost: its PR merged
 // or closed, or it never committed; no uncommitted change, no commit that is on
-// neither a remote nor the PR, and no process running inside. Every other one
-// is kept and reported with the reason, as is each one named with `--keep
-// <folder, path or branch>` (repeatable). `--apply` removes only what the last
-// dry run listed, the list the user accepted: anything that became removable
-// since waits for the next dry run. Run by the `housekeeping` skill.
+// neither a remote nor the PR, no process running inside, and no live thread
+// holding its branch or path. T3 removes a paused thread's worktree and
+// recreates it from the kept branch on resume, so a missing worktree is not
+// finished work: `--threads <file>` (required) lists every live thread's branch
+// and worktree path, and what one holds is kept, its database included. Every
+// other one is kept and reported with the reason, as is each one named with
+// `--keep <folder, path or branch>` (repeatable). `--apply` removes only what
+// the last dry run listed, databases included, the list the user accepted:
+// anything that became removable since waits for the next dry run. Run by the
+// `housekeeping` skill (docs/agents/housekeeping.md).
 
 type PullRequest = { number: number; state: "OPEN" | "MERGED" | "CLOSED" };
 
@@ -124,21 +130,102 @@ export function isManagedByT3(
   });
 }
 
+/** What the threads T3 still runs hold: a thread that exists, not settled, not archived. */
+export type LiveThreads = {
+  branches: ReadonlySet<string>;
+  worktreePaths: ReadonlySet<string>;
+};
+
+type LiveThread = {
+  branch: string | undefined;
+  worktreePath: string | undefined;
+};
+
+function isStringOrNothing(value: unknown): value is string | null | undefined {
+  return value === null || value === undefined || typeof value === "string";
+}
+
+function readLiveThread(entry: unknown): LiveThread | undefined {
+  if (typeof entry !== "object" || entry === null) return undefined;
+
+  const { branch, worktreePath } = entry as Record<string, unknown>;
+
+  if (!isStringOrNothing(branch) || !isStringOrNothing(worktreePath)) {
+    return undefined;
+  }
+
+  // A thread with neither is a read that came back empty, not a thread.
+  if (!branch && !worktreePath) return undefined;
+
+  return {
+    branch: branch || undefined,
+    worktreePath: worktreePath || undefined,
+  };
+}
+
+export function parseLiveThreads(text: string, file: string): LiveThreads {
+  const refuse = () =>
+    new Error(
+      `${file} is not a list of live threads ({"branch", "worktreePath"} each, from t3_thread_read): the sweep will not guess which branches a paused thread still needs.`,
+    );
+  let entries: unknown;
+
+  try {
+    entries = JSON.parse(text);
+  } catch {
+    throw refuse();
+  }
+  // The thread running the sweep is live itself, so an empty list is a survey
+  // that failed, never a machine with no threads.
+  if (!Array.isArray(entries) || entries.length === 0) throw refuse();
+
+  const threads = (entries as unknown[]).map(readLiveThread);
+
+  if (threads.includes(undefined)) throw refuse();
+
+  const live = threads as LiveThread[];
+
+  return {
+    branches: new Set(live.flatMap(({ branch }) => (branch ? [branch] : []))),
+    worktreePaths: new Set(
+      live.flatMap(({ worktreePath }) => (worktreePath ? [worktreePath] : [])),
+    ),
+  };
+}
+
 type SweepOptions = {
   /** Folders, paths or branches the user spared with `--keep`. */
   keep?: readonly string[];
-  /** The worktree paths and branches the accepted dry run listed; `--apply` only. */
+  /** The live threads' branches and worktree paths, from `--threads`. */
+  live?: LiveThreads;
+  /** What the accepted dry run listed of this kind (worktree paths or branches); `--apply` only. */
   accepted?: ReadonlySet<string>;
 };
+
+function isHeldByLiveThread(
+  { branch, path: worktreePath }: { branch?: string; path?: string },
+  live: LiveThreads | undefined,
+): boolean {
+  if (!live) return false;
+
+  return (
+    (branch !== undefined && live.branches.has(branch)) ||
+    (worktreePath !== undefined && live.worktreePaths.has(worktreePath))
+  );
+}
 
 function withUserSay(
   verdict: Verdict,
   key: string,
   names: readonly string[],
-  { keep = [], accepted }: SweepOptions,
+  held: { branch?: string; path?: string },
+  { keep = [], live, accepted }: SweepOptions,
 ): Verdict {
   if (keep.some((name) => names.includes(name))) {
     return { remove: false, reason: "kept on request" };
+  }
+  if (verdict.remove && isHeldByLiveThread(held, live)) {
+    return { remove: false, reason: "live thread" };
   }
   if (verdict.remove && accepted && !accepted.has(key)) {
     return { remove: false, reason: "not in the accepted dry run" };
@@ -147,7 +234,7 @@ function withUserSay(
   return verdict;
 }
 
-/** `classifyWorktree`, then the user's say: `--keep` and the accepted list. */
+/** `classifyWorktree`, then the user's say: `--keep`, the live threads and the accepted list. */
 export function sweepVerdict(
   facts: WorktreeFacts,
   options: SweepOptions = {},
@@ -160,11 +247,12 @@ export function sweepVerdict(
       path.basename(facts.path),
       ...(facts.branch ? [facts.branch] : []),
     ],
+    { branch: facts.branch, path: facts.path },
     options,
   );
 }
 
-/** `classifyBranch`, then the user's say: `--keep` and the accepted list. */
+/** `classifyBranch`, then the user's say: `--keep`, the live threads and the accepted list. */
 export function branchSweepVerdict(
   facts: BranchFacts,
   options: SweepOptions = {},
@@ -173,6 +261,7 @@ export function branchSweepVerdict(
     classifyBranch(facts),
     facts.branch,
     [facts.branch],
+    { branch: facts.branch },
     options,
   );
 }
@@ -429,6 +518,7 @@ function removeWorktree({ facts, verdict }: Judged) {
 export function parseSweepArgs(args: readonly string[]) {
   const keep: string[] = [];
   let apply = false;
+  let threads: string | undefined;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -445,12 +535,26 @@ export function parseSweepArgs(args: readonly string[]) {
       }
       keep.push(name);
       index += 1;
+    } else if (arg === "--threads") {
+      const file = args[index + 1];
+
+      if (!file || file.startsWith("-")) {
+        throw new Error("--threads needs the live-threads file after it.");
+      }
+      threads = file;
+      index += 1;
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }
   }
 
-  return { apply, keep };
+  if (!threads) {
+    throw new Error(
+      "The sweep needs --threads <file>: the live threads' branches and worktree paths, built as docs/agents/housekeeping.md says.",
+    );
+  }
+
+  return { apply, keep, threads };
 }
 
 // In the shared git dir, so the dry run and `--apply` agree from any worktree.
@@ -461,7 +565,14 @@ function acceptedListFile() {
   );
 }
 
-function readAcceptedList(): Set<string> {
+/** What a dry run listed, kept apart so a branch can never approve a database of the same name. */
+export type AcceptedList = {
+  worktrees: ReadonlySet<string>;
+  branches: ReadonlySet<string>;
+  databases: ReadonlySet<string>;
+};
+
+function readAcceptedList(): AcceptedList {
   const file = acceptedListFile();
 
   if (!existsSync(file)) {
@@ -473,29 +584,73 @@ function readAcceptedList(): Set<string> {
   return parseAcceptedList(readFileSync(file, "utf8"), file);
 }
 
-export function parseAcceptedList(text: string, file: string): Set<string> {
-  let paths: unknown;
+const acceptedKinds = ["worktrees", "branches", "databases"] as const;
+
+function isStringList(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) && value.every((entry) => typeof entry === "string")
+  );
+}
+
+export function parseAcceptedList(text: string, file: string): AcceptedList {
+  let list: unknown;
 
   try {
-    paths = JSON.parse(text);
+    list = JSON.parse(text);
   } catch {
-    paths = undefined;
+    list = undefined;
   }
 
+  const record = (list ?? {}) as Record<string, unknown>;
+
   if (
-    !Array.isArray(paths) ||
-    !paths.every((entry) => typeof entry === "string")
+    Array.isArray(list) ||
+    !acceptedKinds.every((kind) => isStringList(record[kind]))
   ) {
     throw new Error(
-      `${file} is not a list of worktree paths and branches: run \`pnpm worktree:sweep\` again to rewrite it.`,
+      `${file} is not the worktrees, branches and databases of a dry run: run \`pnpm worktree:sweep\` again to rewrite it.`,
     );
   }
 
-  return new Set(paths);
+  return {
+    worktrees: new Set(record.worktrees as string[]),
+    branches: new Set(record.branches as string[]),
+    databases: new Set(record.databases as string[]),
+  };
 }
 
-function sweep({ apply, keep }: { apply: boolean; keep: string[] }) {
+/**
+ * `--apply` judges against the live threads as they are now: a thread may have
+ * resumed on a listed branch while the user read the report.
+ */
+export function checkThreadsFresh(
+  threadsWrittenMs: number,
+  dryRunWrittenMs: number,
+) {
+  if (threadsWrittenMs <= dryRunWrittenMs) {
+    throw new Error(
+      "The live-threads file predates the dry run: list the live threads again, after the dry run, then --apply.",
+    );
+  }
+}
+
+function sweep({
+  apply,
+  keep,
+  threads,
+}: {
+  apply: boolean;
+  keep: string[];
+  threads: string;
+}) {
   const accepted = apply ? readAcceptedList() : undefined;
+  if (apply) {
+    checkThreadsFresh(
+      statSync(threads).mtimeMs,
+      statSync(acceptedListFile()).mtimeMs,
+    );
+  }
+  const live = parseLiveThreads(readFileSync(threads, "utf8"), threads);
 
   run("git", ["worktree", "prune"]);
   run("git", ["fetch", "--quiet", "origin"]);
@@ -511,7 +666,11 @@ function sweep({ apply, keep }: { apply: boolean; keep: string[] }) {
     pullRequests,
   ).map((facts) => ({
     facts,
-    verdict: sweepVerdict(facts, { keep, accepted }),
+    verdict: sweepVerdict(facts, {
+      keep,
+      live,
+      accepted: accepted?.worktrees,
+    }),
   }));
   const branches = gatherBranchFacts(
     new Set(
@@ -522,7 +681,11 @@ function sweep({ apply, keep }: { apply: boolean; keep: string[] }) {
     pullRequests,
   ).map((facts) => ({
     facts,
-    verdict: branchSweepVerdict(facts, { keep, accepted }),
+    verdict: branchSweepVerdict(facts, {
+      keep,
+      live,
+      accepted: accepted?.branches,
+    }),
   }));
   const removed = judged.filter(({ verdict }) => verdict.remove);
   const kept = judged.filter(({ verdict }) => !verdict.remove);
@@ -543,22 +706,24 @@ function sweep({ apply, keep }: { apply: boolean; keep: string[] }) {
   console.log("");
 
   if (!apply) {
+    const databases = prune(true, [
+      ...kept.map(({ facts }) => facts.path),
+      ...leftToT3.map(({ path: p }) => p),
+      ...live.worktreePaths,
+    ]);
     // Written beside the target and renamed over it, so an interrupted write
     // cannot leave a truncated accepted list behind.
     const listFile = acceptedListFile();
     const tempFile = `${listFile}.${process.pid}.tmp`;
     writeFileSync(
       tempFile,
-      JSON.stringify([
-        ...removed.map(({ facts }) => facts.path),
-        ...deleted.map(({ facts }) => facts.branch),
-      ]),
+      JSON.stringify({
+        worktrees: removed.map(({ facts }) => facts.path),
+        branches: deleted.map(({ facts }) => facts.branch),
+        databases,
+      }),
     );
     renameSync(tempFile, listFile);
-    prune(true, [
-      ...kept.map(({ facts }) => facts.path),
-      ...leftToT3.map(({ path: p }) => p),
-    ]);
     console.log("\nNothing changed. Re-run with --apply to remove the above.");
     return;
   }
@@ -567,8 +732,12 @@ function sweep({ apply, keep }: { apply: boolean; keep: string[] }) {
   deleted.forEach(deleteBranch);
   rmSync(acceptedListFile(), { force: true });
   // Re-listed rather than taken from `kept`: a removal that failed keeps its
-  // worktree, and with it its database.
-  prune(false);
+  // worktree, and with it its database. Only the databases the dry run listed go.
+  prune(
+    false,
+    [...worktreePaths(), ...live.worktreePaths],
+    accepted?.databases,
+  );
 }
 
 if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1] ?? "")) {

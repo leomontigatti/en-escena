@@ -80,14 +80,22 @@ export function parseEnvPort(content: string): number | undefined {
   return match ? Number(match[1]) : undefined;
 }
 
+/**
+ * The worktree databases whose worktree is gone. With `accepted`, only those
+ * the accepted dry run listed: one orphaned since waits for the next report.
+ */
 export function planPrune(input: {
   databases: string[];
   worktreePaths: string[];
+  accepted?: ReadonlySet<string>;
 }): string[] {
   const live = new Set(input.worktreePaths.map(worktreeDatabaseName));
 
   return input.databases.filter(
-    (name) => name.startsWith(PREFIX) && !live.has(name),
+    (name) =>
+      name.startsWith(PREFIX) &&
+      !live.has(name) &&
+      (!input.accepted || input.accepted.has(name)),
   );
 }
 
@@ -250,15 +258,21 @@ function setUp(root: string) {
   console.log(`Dev server: http://localhost:${port} (pnpm dev)`);
 }
 
-export function prune(dryRun: boolean, livePaths = worktreePaths()) {
+/** Returns the databases it dropped, or would drop on a dry run. */
+export function prune(
+  dryRun: boolean,
+  livePaths = worktreePaths(),
+  accepted?: ReadonlySet<string>,
+): string[] {
   const drop = planPrune({
     databases: psql("select datname from pg_database").split("\n"),
     worktreePaths: livePaths,
+    accepted,
   });
 
   if (drop.length === 0) {
     console.log("No database belongs to a removed worktree.");
-    return;
+    return drop;
   }
 
   for (const database of drop) {
@@ -271,6 +285,8 @@ export function prune(dryRun: boolean, livePaths = worktreePaths()) {
       run("docker", ["exec", CONTAINER, "dropdb", "-U", "postgres", database]);
     }
   }
+
+  return drop;
 }
 
 if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1] ?? "")) {

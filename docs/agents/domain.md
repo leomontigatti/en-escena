@@ -31,7 +31,7 @@ Single-context repo:
 
 When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in `GLOSSARY.md`. Don't drift to synonyms the glossary explicitly avoids.
 
-Entries are keyed on the canonical code identifier; the `ui:` value is the Spanish copy the user sees. Use the identifier when naming code and the `ui:` value when writing anything that reaches a screen or a URL. The full reading rules are in [coding-standards.md](./coding-standards.md#code-language).
+Entries are keyed on the canonical code identifier; the `ui:` value is the Spanish copy the user sees. Use the identifier when naming code and the `ui:` value when writing anything that reaches a screen or a URL. The full reading rules are in [coding-standards.md](./coding-standards.md#code-language). A test holds `GLOSSARY.md` to its entry shapes, and `pnpm check:comment-language` reads the `ui:` values as the Spanish terms English prose may borrow.
 
 If the concept you need isn't in the glossary yet, that's a signal - either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for the `domain-modeling` skill).
 

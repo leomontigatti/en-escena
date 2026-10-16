@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -26,8 +26,10 @@ import { collectSourceFiles } from "./source-files";
 const scanned: { directory: string; keeps: RegExp }[] = [
   { directory: ".github/workflows", keeps: /\.ya?ml$/ },
   { directory: "scripts", keeps: /\.(ts|mts|mjs|sh)$/ },
+  // The project's own skills, and the contract files the shared skills read
+  // their label commands from (docs/agents/issue-tracker.md § Labels).
   { directory: ".agents/skills", keeps: /\.md$/ },
-  { directory: ".agents/agents", keeps: /\.md$/ },
+  { directory: "docs/agents", keeps: /\.md$/ },
 ];
 
 // Fixtures in tests hold misspelled labels on purpose.
@@ -155,6 +157,10 @@ export function checkLabels(
   const files =
     options.files ??
     scanned
+      // `.agents/skills` exists only once the project has a skill of its own.
+      .filter(({ directory }) =>
+        existsSync(path.join(rootDirectory, directory)),
+      )
       .flatMap(({ directory, keeps }) =>
         collectSourceFiles({
           directoryPath: path.join(rootDirectory, directory),

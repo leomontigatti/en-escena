@@ -20,7 +20,7 @@ is in [architecture-review.md](../agents/architecture-review.md) and
 An implement run on `ubuntu-latest` had no `.env`, no dev server, no browser
 and nobody to ask. For a product that is mostly screens, that meant every
 layout, empty-state and copy mistake reached review unseen, and the
-[UI evidence rule](../agents/pull-requests.md#ui-evidence) had to exempt the
+[UI evidence rule](../agents/verification.md#evidence) had to exempt the
 runner that produced most PRs. A local T3 Code session has the dev server, a
 scriptable browser, the dev database and the user in the same thread, so the
 agent verifies its own work before the PR exists and the screenshot it took to
@@ -70,8 +70,8 @@ changing how the code is written.
   are no longer in `.github/labels.json`. `pnpm labels:sync` never deletes, so
   they remain on GitHub until removed by hand.
 - The `review-triage` skill and `pnpm afk:watch` were built on the retired
-  labels and are gone with them. Babysitting a PR is described in
-  [pull-requests.md](../agents/pull-requests.md#babysitting-a-pr).
+  labels and are gone with them. The `babysit-pr` skill handles PR babysitting; the base-branch rules are in
+  [pull-requests.md](../agents/pull-requests.md#base-branch).
 - The `agent/` branch prefix is no longer reserved.
 - A session implements a PRD's sub-issues in list order onto one branch, as
   Implement PRD did, and leaves each sub-issue open with an
@@ -112,7 +112,7 @@ Architecture Review is now the only AFK workflow. The other three are replaced a
   and moved the head under a babysitting session: on #1222 it stalled the session on a fresh
   review while three known threads sat unanswered. It also missed a PR that was opened already
   behind, since only a push to `master` fired it. The
-  [`babysit-pr`](../../.agents/skills/babysit-pr/SKILL.md) skill now updates the branch once,
+  `babysit-pr` skill now updates the branch once,
   when being behind is the only thing between the PR and merge. `gh pr update-branch` does it
   when the merge is clean. A conflict is resolved in the session with the
   `resolving-merge-conflicts` skill, which knows what the PR is for; the runner's agent knew only
@@ -141,7 +141,7 @@ Architecture Review workflow runs read any of them: its runner reads only
 What was still true moved: the runner contract (inputs, output files, the two passes, the token-less
 agent, the single publisher), the secret and the permissions into
 `docs/agents/afk-setup.md` (retired with the runner by the amendment of 2026-10-13), and where each skill came from into
-[vendored-skills.md](../agents/vendored-skills.md). The history of the retired workflows stays in
+`docs/agents/vendored-skills.md` (deleted by the amendment of 2026-10-16). The history of the retired workflows stays in
 this ADR, the issues it cites and git.
 
 ## Amendment (2026-10-13): Architecture Review moves to a T3 Code scheduled task
@@ -169,3 +169,13 @@ The trade-off: the review runs only while this machine and T3 Code are up. A Mon
 closed is a week without a review, which a weekly proposal queue that already outpaces triage can
 absorb. GitHub Actions now runs no agent at all: `ci.yml` and `pr-title.yml` are the only
 workflows. The `CLAUDE_CODE_OAUTH_TOKEN` secret stays on GitHub until removed by hand.
+
+## Amendment (2026-10-16): the skills move to the shared workflow
+
+The skills, the reviewer, research and implementer briefs and the `check-tool-path` and
+`block-pkill-f` hooks this ADR's sessions run on are no longer in this repo. They live once, for
+every project, in leomontigatti/agent-workflow, installed at `~/.agents/workflow`, and reach a
+project only through the files its `contract.md` lists. This repo keeps its facts in those files
+(`AGENTS.md` names them). The decision stands: implementation runs in a local T3 Code session.
+The record of where each skill came from (`docs/agents/vendored-skills.md`) is deleted; the
+shared repo's `NOTICE` and `upstreams/` hold it.

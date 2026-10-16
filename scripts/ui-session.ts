@@ -23,7 +23,7 @@ import { git } from "./worktree-db";
 // Usage: pnpm ui:session <admin|academy|auditor|judge> <path>
 //
 // The session is left open for `playwright-cli -s=<role> …`, sized 1440×900
-// as docs/agents/workflows.md asks, and its login is saved to
+// as docs/agents/verification.md asks, and its login is saved to
 // `.playwright-cli/<role>-state.json`. A dev server it started keeps running;
 // `pnpm dev:stop` stops it.
 

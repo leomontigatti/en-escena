@@ -33,9 +33,79 @@ cannot rebuild cheaply, in this order:
    `question` + `ready-for-human` instead.
 
 One problem per issue. Triage it on the way out
-([triage-labels.md](./triage-labels.md)) or leave `needs-triage` on it. PRDs and
+([Labels](#labels)) or leave `needs-triage` on it. PRDs and
 their sub-issues keep their own templates
 ([PRD workflow](#prd-workflow)).
+
+## Labels
+
+The list of labels (name, colour, description) is [`.github/labels.json`](../../.github/labels.json);
+this section says what they mean. Add or change a label in the JSON, run `pnpm labels:sync`, then
+describe it here; `pnpm check:labels` fails CI when a workflow or script names a label the file
+does not hold ([scripts](../operations/scripts.md#validation)).
+
+The shared skills speak of a few triage roles; each maps to a label here:
+
+| Role                      | Label                          | Meaning                                                                               |
+| ------------------------- | ------------------------------ | ------------------------------------------------------------------------------------- |
+| needs triage              | `needs-triage`                 | Maintainer needs to evaluate this issue                                               |
+| needs information         | `question` + `ready-for-human` | Not specified enough to act on; a person has to decide first                          |
+| work an agent may pick up | `ready-for-agent`              | Fully specified and grabbable: a triage state, **not** a trigger                      |
+| work for a human          | `ready-for-human`              | Needs a human: a decision to settle or work an agent cannot do                        |
+| will not be done          | none: close it                 | Close `not planned` with a `Closure:` comment ([Closing an issue](#closing-an-issue)) |
+
+`needs-info` and `wontfix` were retired. With one maintainer there is no reporter to wait on, so
+"needs more information" is a decision the maintainer owes, which is what `question` +
+`ready-for-human` already say. And a decision not to do something is made by closing: an open
+issue labelled "will not be actioned" is a closure that did not happen.
+
+### Priority and type
+
+The roles above say whether an issue can be picked up. They do not say how much it matters.
+Triage also gives every issue exactly one priority label and at least one type label, and removes
+`needs-triage` on the way out. An issue with no `priority:*` label has not been triaged.
+
+| Priority label    | Meaning                                                                       | Test                                   |
+| ----------------- | ----------------------------------------------------------------------------- | -------------------------------------- |
+| `priority:urgent` | Breaks money, data or the live event, or the next event cannot run without it | Would I drop what I am doing for this? |
+| `priority:next`   | The short list to pull from next. Keep it to about 15                         | Will I start this within two weeks?    |
+| `priority:later`  | Worth doing, no blocker, not scheduled                                        | Would I be sad to close it?            |
+| `priority:parked` | Deliberately not now, and the issue names what wakes it                       | Is there a condition that reopens it?  |
+
+`priority:urgent` is empty outside the run-up to an event. Dated work also goes in a milestone
+("Before the next event"), which is what carries the deadline; the label only says it comes
+first. A parked issue carries a comment stating its wake-up trigger ("the first slice of the
+list-query work lands"); without one it is `priority:later`. Deciding against is a different
+thing: parked will be done when the trigger fires, a rejected issue is closed.
+
+| Type label    | Meaning                                                                   |
+| ------------- | ------------------------------------------------------------------------- |
+| `bug`         | Wrong behaviour today                                                     |
+| `enhancement` | New capability or UX                                                      |
+| `refactor`    | Internal structure, no behaviour change                                   |
+| `chore`       | Dependencies, tooling, CI, docs or operations                             |
+| `question`    | A decision to settle rather than work to do; pairs with `ready-for-human` |
+
+An Architecture Review PRD that documents a confirmed defect carries `bug` next to `refactor`.
+When the defect is cheap and the PRD is large, extract the defect into its own `bug` issue so it
+can ship alone.
+
+### The dispatch queue
+
+The queue is `priority:next` plus `ready-for-agent`:
+`gh issue list --label priority:next --label ready-for-agent`. Skip an issue whose
+`gh issue view <n> --json blockedBy` still lists an open blocker: blocking is GitHub's native
+relation ([Ticket operations](#ticket-operations)), and no label tracks it.
+
+Sub-issues are not triaged on their own. `to-tickets` creates each slice with its PRD's priority,
+type and milestone ([Ticket operations](#ticket-operations)). That multiplies a PRD in any
+priority list, so add `no:parent-issue` for the PRD-level view:
+`gh issue list --label priority:next --search "no:parent-issue"`.
+
+> **`ready-for-agent` triggers nothing.** It is a triage state ("specified and grabbable"): a
+> local session picks the issue up from the dispatch queue above (ADR-0016). No label starts a
+> run: Architecture Review, the one unattended run left, is a T3 Code scheduled task
+> ([architecture-review.md](architecture-review.md)).
 
 ## Closing an issue
 
@@ -121,7 +191,7 @@ the spec is then read from its comments alone.
 
 ## Ticket operations
 
-The `to-spec` and `to-tickets` skills (`.agents/skills/`) ask for this section: where
+The shared `to-spec` and `to-tickets` skills ask for this section: where
 the spec lives and how this tracker expresses tickets and their blocking edges. Both are
 user-invoked (`disable-model-invocation`): a session asks the user to run `/to-spec` or
 `/to-tickets <PRD>` rather than calling the Skill tool.
@@ -130,7 +200,7 @@ user-invoked (`disable-model-invocation`): a session asks the user to run `/to-s
 --label ready-for-agent --label priority:<p> --label <type>`, body per the `to-spec` template.
 - **Tickets** are native sub-issues of the PRD, flat, and created in the order a session
   will implement them: `gh issue create --parent <PRD> ...`, with the PRD's priority, type
-  and milestone plus `ready-for-agent` ([triage-labels.md](./triage-labels.md)). Check first
+  and milestone plus `ready-for-agent` ([Labels](#labels)). Check first
   that the PRD has none yet (`gh issue view <PRD> --json subIssues,subIssuesSummary`), and
   publish no slice before the user approves the slicing in `to-tickets`' quiz. One session
   works them with `/implement-spec`, every unblocked one at once, onto one PR
@@ -162,12 +232,12 @@ not know about this repo:
   tests only at seams agreed up front, and this session is the last point where a human agrees
   them, so the skill's "check with the user that these seams match" step is not skippable.
 - Labels: `ready-for-agent` as the skill says, which here is a triage state and triggers nothing
-  ([triage-labels.md](./triage-labels.md)), plus one `priority:*` and a type label. Ask the
+  ([Labels](#labels)), plus one `priority:*` and a type label. Ask the
   priority together with the seams when the conversation has not settled it. No `agent:*` label.
 
 ## Wayfinding operations
 
-The `wayfinder` skill (`.agents/skills/wayfinder`) asks for this section: how
+The shared `wayfinder` skill asks for this section: how
 _this_ tracker expresses the map, its tickets, blocking and the frontier, and what shape
 the destination takes when the map is reached.
 
@@ -183,19 +253,7 @@ the destination takes when the map is reached.
   `--jq '[.blockedBy.nodes[] | select(.state == "OPEN") | .number]'`.
 - **Claiming** is `gh issue edit <ticket> --add-assignee @me`, before any work.
 
-### Research tickets
-
-A research ticket is resolved by the **`research` agent** (`.agents/agents/research.md`): spawn
-it with the ticket's question, one per research ticket, in parallel, the way
-"Delegating to subagents" in [agent-configuration.md](./agent-configuration.md#delegating-to-subagents) says for
-your harness. Its definition carries the rules (primary sources
-with a URL beside every claim, `curl` and web search for fetching, a tool-call budget, a fixed
-report shape); there is no `research` skill.
-
-The agent reports back as text and leaves git and the tracker alone, so the session that spawned
-it does the capture: post the findings on the ticket as its resolution, and only when they are a
-durable primary source worth keeping, name a `docs/research/<kebab-name>.md` path in the brief
-and commit that file on the session's own branch. There is no throwaway `research/<name>` branch.
+A research ticket is resolved as [Research tickets](#research-tickets) says.
 
 ### Test seams
 
@@ -231,3 +289,16 @@ A session implements the PRD's sub-issues with `/implement-spec` onto one branch
 standalone issues one PR at a time. Either way, the map issue is the durable state: post a
 two-line "State" comment on it at each merge (what landed, what is next and its label) so a
 fresh session, on any machine, starts from the record instead of from a summary.
+
+## Research tickets
+
+A research ticket is resolved by the shared **`research` agent**: spawn it with the ticket's
+question, one per research ticket, in parallel, in the Research role of the shared
+`agents/models.md`. Its brief carries the rules (primary sources with a URL beside every claim,
+a tool-call budget, a fixed report shape), and [research.md](research.md) names the sources this
+stack prefers; there is no `research` skill.
+
+The agent reports back as text and leaves git and the tracker alone, so the session that spawned
+it does the capture: post the findings on the ticket as its resolution, and only when they are a
+durable primary source worth keeping, name a `docs/research/<kebab-name>.md` path in the brief
+and commit that file on the session's own branch. There is no throwaway `research/<name>` branch.

@@ -6,8 +6,10 @@ import {
   branchSweepVerdict,
   classifyBranch,
   classifyWorktree,
+  checkThreadsFresh,
   isManagedByT3,
   parseAcceptedList,
+  parseLiveThreads,
   t3WorktreeFolders,
   parseSweepArgs,
   sweepVerdict,
@@ -117,6 +119,24 @@ describe("classifyWorktree", () => {
     ).toBe(true);
   });
 
+  it("keeps a removable worktree whose branch or path a live thread holds", () => {
+    const live = (branch: string | null, worktreePath: string | null) => ({
+      live: parseLiveThreads(
+        JSON.stringify([{ branch, worktreePath }]),
+        "threads.json",
+      ),
+    });
+
+    expect(sweepVerdict(merged, live("t3code/1", null))).toEqual({
+      remove: false,
+      reason: "live thread",
+    });
+    expect(sweepVerdict(merged, live(null, "/wt/t3code-1")).remove).toBe(false);
+    expect(sweepVerdict(merged, live("t3code/2", "/wt/t3code-2")).remove).toBe(
+      true,
+    );
+  });
+
   it("puts unsaved work ahead of a merged PR", () => {
     expect(classifyWorktree({ ...merged, dirty: true }).remove).toBe(false);
   });
@@ -220,6 +240,20 @@ describe("classifyBranch", () => {
     });
   });
 
+  it("keeps a never-committed branch a live thread will recreate its worktree from", () => {
+    const live = parseLiveThreads(
+      '[{"branch":"fix/x","worktreePath":"/wt/gone"}]',
+      "threads.json",
+    );
+
+    expect(
+      branchSweepVerdict(
+        { ...mergedBranch, pullRequest: undefined, commitsAheadOfMaster: 0 },
+        { live },
+      ),
+    ).toEqual({ remove: false, reason: "live thread" });
+  });
+
   it("spares a branch named with --keep and one the dry run did not list", () => {
     expect(branchSweepVerdict(mergedBranch, { keep: ["fix/x"] })).toEqual({
       remove: false,
@@ -235,34 +269,105 @@ describe("classifyBranch", () => {
 });
 
 describe("parseSweepArgs", () => {
-  it("reads --apply and every --keep", () => {
+  it("reads --threads, --apply and every --keep", () => {
     expect(
-      parseSweepArgs(["--keep", "t3code-1", "--apply", "--keep", "t3code-2"]),
-    ).toEqual({ apply: true, keep: ["t3code-1", "t3code-2"] });
-    expect(parseSweepArgs([])).toEqual({ apply: false, keep: [] });
+      parseSweepArgs([
+        "--threads",
+        "t.json",
+        "--keep",
+        "t3code-1",
+        "--apply",
+        "--keep",
+        "t3code-2",
+      ]),
+    ).toEqual({
+      apply: true,
+      keep: ["t3code-1", "t3code-2"],
+      threads: "t.json",
+    });
+    expect(parseSweepArgs(["--threads", "t.json"])).toEqual({
+      apply: false,
+      keep: [],
+      threads: "t.json",
+    });
   });
 
   it.each([
-    [["--keep"]],
-    [["--keep", "--apply"]],
-    [["--keep", "-x"]],
-    [["--apply", "--kep", "t3code-1"]],
+    [[]],
+    [["--apply"]],
+    [["--threads"]],
+    [["--threads", "--apply"]],
+    [["--threads", "t.json", "--keep"]],
+    [["--threads", "t.json", "--keep", "--apply"]],
+    [["--threads", "t.json", "--keep", "-x"]],
+    [["--threads", "t.json", "--apply", "--kep", "t3code-1"]],
   ])("refuses %j rather than sweep without the intended exclusion", (args) => {
     expect(() => parseSweepArgs(args)).toThrow();
   });
 });
 
-describe("parseAcceptedList", () => {
-  it("reads the paths the dry run saved", () => {
-    expect(parseAcceptedList('["/wt/a","/wt/b"]', "list.json")).toEqual(
-      new Set(["/wt/a", "/wt/b"]),
-    );
+describe("parseLiveThreads", () => {
+  it("reads each live thread's branch and worktree path", () => {
+    expect(
+      parseLiveThreads(
+        '[{"branch":"fix/x","worktreePath":"/wt/a"},{"branch":"fix/y","worktreePath":null}]',
+        "threads.json",
+      ),
+    ).toEqual({
+      branches: new Set(["fix/x", "fix/y"]),
+      worktreePaths: new Set(["/wt/a"]),
+    });
   });
 
-  it.each(["{not json", '{"path":"/wt/a"}', "[1]"])(
-    "refuses %j, naming the file, rather than sweep from it",
+  it.each([
+    "{not json",
+    '{"branch":"fix/x"}',
+    "[1]",
+    '[{"branch":3}]',
+    "[]",
+    "[{}]",
+    '[{"branch":null,"worktreePath":""}]',
+  ])(
+    "refuses %j, naming the file, rather than sweep without the live threads",
     (text) => {
-      expect(() => parseAcceptedList(text, "list.json")).toThrow(/list\.json/);
+      expect(() => parseLiveThreads(text, "threads.json")).toThrow(
+        /threads\.json/,
+      );
     },
   );
+});
+
+describe("parseAcceptedList", () => {
+  it("reads the worktrees, branches and databases the dry run saved, each apart", () => {
+    expect(
+      parseAcceptedList(
+        '{"worktrees":["/wt/a"],"branches":["en-escena-wt-a"],"databases":[]}',
+        "list.json",
+      ),
+    ).toEqual({
+      worktrees: new Set(["/wt/a"]),
+      branches: new Set(["en-escena-wt-a"]),
+      databases: new Set(),
+    });
+  });
+
+  it.each([
+    "{not json",
+    '["/wt/a","/wt/b"]',
+    '{"worktrees":["/wt/a"],"branches":[]}',
+    '{"worktrees":[1],"branches":[],"databases":[]}',
+  ])("refuses %j, naming the file, rather than sweep from it", (text) => {
+    expect(() => parseAcceptedList(text, "list.json")).toThrow(/list\.json/);
+  });
+});
+
+describe("checkThreadsFresh", () => {
+  it("accepts a live-threads file written after the dry run", () => {
+    expect(() => checkThreadsFresh(2000, 1000)).not.toThrow();
+  });
+
+  it("refuses the dry run's own live-threads file, since a thread may have resumed since", () => {
+    expect(() => checkThreadsFresh(1000, 1000)).toThrow(/after the dry run/);
+    expect(() => checkThreadsFresh(500, 1000)).toThrow(/after the dry run/);
+  });
 });
