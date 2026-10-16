@@ -44,7 +44,7 @@ email and the seed's password, submit. Size the viewport to 1440×900, the desig
 [style-guide.md](style-guide.md#viewports), once: it holds across navigations and sign-ins. When
 the change touches a table or a dense row, also check it at 1280×800, the floor. The admin
 sidebar fills most of the snapshot's tree, so target a popover's items by role locator, and wait
-for text the main content shows (a sidebar label such as "Resultados" matches before the page
+for text the main content shows (a sidebar label such as `Resultados` matches before the page
 loads).
 
 The preview tools are on trial (the shared `preview-tools-verification` dependency). Since the
