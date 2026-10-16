@@ -39,6 +39,7 @@ jobs:
           # The check walks the branch's commits since the reviewed one and
           # diffs against the base, so it needs the whole history.
           fetch-depth: 0
-      # Pinned like every other action; bump the SHA to take a change to the
-      # shared rules.
-      - uses: leomontigatti/agent-workflow/actions/review-record@59ab2cea232e5cc8e2b638d5fbbc98f79f2f587e # main
+      # Pinned like every other action, to a release tag's commit: a branch in
+      # the comment fails zizmor once the branch moves. Dependabot proposes
+      # each new tag, which is how a change to the shared rules arrives.
+      - uses: leomontigatti/agent-workflow/actions/review-record@3f3cd55e3c2f98ee97508de683b830806ab0520c # v1.0.0
