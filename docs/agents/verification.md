@@ -14,7 +14,8 @@ check a screen by hand: drive it and show the result.
   [local-auth.md](../local-auth.md#demo-data) lists what it creates.
 - **The server** is `pnpm dev`, on the worktree's own port, which `pnpm dev:info` prints (the
   examples here say 5173). The first `pnpm dev`, `db:seed` or `db:migrate` in a worktree creates
-  its database and port ([local-auth.md](../local-auth.md#one-database-per-worktree)). Run it as a
+  its database and port ([local-auth.md](../local-auth.md#one-database-per-worktree)), so read the
+  port after that first command: before it, `pnpm dev:info` prints the default. Run it as a
   background command.
 - **A signed-in session**: the demo accounts are `admin`, `academy`, `auditor` and `judge`
   (`admin@enescena.local`, `academia@enescena.local`, `auditoria@enescena.local`,
@@ -40,15 +41,18 @@ check a screen by hand: drive it and show the result.
 In a T3 thread, drive with T3's preview tools as the shared `implement` skill's `PREVIEW.md` says,
 on the URL § Launch started. Sign in by hand: navigate to `/ingresar`, type the demo account's
 email and the seed's password, submit. Size the viewport to 1440×900, the design width in
-[style-guide.md](style-guide.md#viewports); when the change touches a table or a dense row, also
-check it at 1280×800, the floor.
+[style-guide.md](style-guide.md#viewports), once: it holds across navigations and sign-ins. When
+the change touches a table or a dense row, also check it at 1280×800, the floor. The admin
+sidebar fills most of the snapshot's tree, so target a popover's items by role locator, and wait
+for text the main content shows (a sidebar label such as `Resultados` matches before the page
+loads).
 
-The preview tools are on trial here (the shared `preview-tools-verification` dependency). This
-repo moved to `playwright-cli` because the preview's screenshots blurred mid-animation, it
-resized itself off the design width, and its clicks failed when a menu closed in between: wait
-for each step's outcome before capturing, re-size before every capture, and note each shortfall
-in the final report. When a step cannot be done with the preview tools, finish it with
-`playwright-cli` below and say so.
+The preview tools are on trial (the shared `preview-tools-verification` dependency). Since the
+2026-10-16 probe they drive, assert, read the console and record reliably here, but their
+captures cannot be evidence: they save at 1280×800, shrinking the 1440×900 viewport, and draw
+the blurred backdrop behind every dialog and sheet as mirrored tiles. PR images therefore come
+from `playwright-cli` (§ Evidence). When a step cannot be done with the preview tools, finish it
+with `playwright-cli` below and say so in the final report.
 
 Outside T3, or as that fallback, the browser is the Playwright CLI (`@playwright/cli`, the
 `playwright-cli` binary), installed globally with a headless Chromium
@@ -76,17 +80,19 @@ A PR that changes what a screen looks like carries before and after images; a ch
 interaction a short recording or GIF.
 
 - Capture the **before** during exploration, before the first edit, and the **after** once the
-  change is final: same screen, same account, same size (1440×900). With the preview tools that
-  is `preview_snapshot` with `save: true`; with `playwright-cli`,
-  `screenshot --filename=.playwright-cli/<what>-before.png` (and `-after.png`).
+  change is final: same screen, same account, same size (1440×900), both with `playwright-cli`
+  (`pnpm ui:session <role> <path>`, then
+  `screenshot --filename=.playwright-cli/<what>-before.png`, and `-after.png`), even in a T3
+  thread: the preview's captures are not evidence here (§ Drive).
 - Name the files `<what>-before.png` and `<what>-after.png`, then run
   `pnpm pr:evidence <pr> <files...>`. It uploads them to the `pr-assets` prerelease (`gh` has no
   attachment upload, and a release asset renders inline) and prints the markdown, pairs already
   laid out as a Before/After table. Paste it under `## Evidence`. Running it again with the same
   file names replaces the assets.
 - Motion goes in as a short GIF through the same command. GitHub only gives its video player to
-  files uploaded through the browser, so a real video goes in the session's final message as a
-  path, and the human drags it into the PR.
+  files uploaded through the browser, so a real video (such as a preview recording, an MP4 from
+  `preview_recording_stop`) goes in the session's final message as a path, and the human drags it
+  into the PR.
 - **The repository is public, and so is every asset.** Remove one with
   `gh release delete-asset pr-assets <name>`. Never commit PR-only evidence to the repo.
 
