@@ -23,7 +23,7 @@ removes nothing T3 created: it reports those as left to T3.
    needs the threads, which only T3's tools can give. Page through `t3_thread_list` with
    `settled: false`; for each thread, `t3_thread_read` (with `limit: 1`) gives `branch`,
    `worktreePath` and `archived`. Write every thread that is not archived to a file outside the
-   repo, as `[{"branch": "...", "worktreePath": "..."}]` (either may be `null`). With many
+   repo, as `[{"branch": "...", "worktreePath": "..."}]` (either may be `null`, not both). With many
    threads, give the reads to one subagent and have it write the file.
 2. **Dry run**: `pnpm worktree:sweep --threads <file>`. It lists, changing nothing: the worktrees
    T3 did not create (Agent-tool ones under `.claude/worktrees/`, fallow caches) and the local

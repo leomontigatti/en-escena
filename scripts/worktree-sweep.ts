@@ -154,6 +154,9 @@ function readLiveThread(entry: unknown): LiveThread | undefined {
     return undefined;
   }
 
+  // A thread with neither is a read that came back empty, not a thread.
+  if (!branch && !worktreePath) return undefined;
+
   return {
     branch: branch || undefined,
     worktreePath: worktreePath || undefined,

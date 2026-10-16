@@ -310,16 +310,24 @@ describe("parseLiveThreads", () => {
   it("reads each live thread's branch and worktree path", () => {
     expect(
       parseLiveThreads(
-        '[{"branch":"fix/x","worktreePath":"/wt/a"},{"branch":null,"worktreePath":null}]',
+        '[{"branch":"fix/x","worktreePath":"/wt/a"},{"branch":"fix/y","worktreePath":null}]',
         "threads.json",
       ),
     ).toEqual({
-      branches: new Set(["fix/x"]),
+      branches: new Set(["fix/x", "fix/y"]),
       worktreePaths: new Set(["/wt/a"]),
     });
   });
 
-  it.each(["{not json", '{"branch":"fix/x"}', "[1]", '[{"branch":3}]', "[]"])(
+  it.each([
+    "{not json",
+    '{"branch":"fix/x"}',
+    "[1]",
+    '[{"branch":3}]',
+    "[]",
+    "[{}]",
+    '[{"branch":null,"worktreePath":""}]',
+  ])(
     "refuses %j, naming the file, rather than sweep without the live threads",
     (text) => {
       expect(() => parseLiveThreads(text, "threads.json")).toThrow(
