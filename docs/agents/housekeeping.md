@@ -31,11 +31,13 @@ removes nothing T3 created: it reports those as left to T3.
    committed); the `en-escena-wt-*` databases it would drop; every worktree and branch it keeps,
    with the reason; and T3's own worktrees, as left to T3. A branch or worktree path a live
    thread holds is kept as "live thread", and so is its database. "In use by bash" usually means
-   a thread still holds a shell there. Without `--threads` the sweep refuses to run.
-3. **Apply**, once the user accepts: `pnpm worktree:sweep --threads <file> --apply`, adding
+   a thread still holds a shell there. Without `--threads`, or with an empty list (the thread running the sweep is live itself), the sweep refuses to run.
+3. **Apply**, once the user accepts: list the live threads again (step 1, a new file: the sweep
+   refuses a live-threads file older than the dry run, since a thread may have resumed while the
+   user read the report), then `pnpm worktree:sweep --threads <new file> --apply`, adding
    `--keep <folder, path or branch>` for each one the user spared. It removes only what the dry
-   run listed, databases included, each by name: anything that became removable since is kept as
-   "not in the accepted dry run" and waits for the next report.
+   run listed, databases included, each by name: anything that became removable since is kept
+   as "not in the accepted dry run" and waits for the next report.
 
 The dry run's list lives in the main checkout's `.git/worktree-sweep-accepted.json`, so a dry run
 and its `--apply` agree from any worktree.

@@ -46,13 +46,6 @@ on 2026-10-16.
 - **Would improve if:** scheduled tasks run while the desktop app is closed. `docs/user/background-service.md` covers the server as a service and says nothing about scheduled tasks.
 - **Watch:** `docs/user/background-service.md`.
 
-### scheduled-thread-base-main
-
-- **Workaround:** the Architecture Review task's Base branch is set to `master` in the app's Settings → Scheduled tasks. A task created or rebound over MCP gets `{baseRef: "main", startFromOrigin: true}`, hard-coded at 3417bc3856a2 in `scheduledTaskWorkspaceStrategy` (`apps/server/src/mcp/OrchestratorMcpService.ts`); this repo has no `main`, so every run would fail at worktree preparation, while the scheduler records it as succeeded.
-- **Used by:** `docs/agents/architecture-review.md` § The contract ("The checkout comes from the task's settings").
-- **Would improve if:** a task made over MCP takes the project's default branch (or accepts a `workspaceStrategy`).
-- **Watch:** pingdotgg/t3code#16183 (open). The shared `scheduled-run-status` entry watches #17889, the run recorded as succeeded.
-
 ## Ready
 
 None yet.

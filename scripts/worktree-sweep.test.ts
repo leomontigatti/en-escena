@@ -6,6 +6,7 @@ import {
   branchSweepVerdict,
   classifyBranch,
   classifyWorktree,
+  checkThreadsFresh,
   isManagedByT3,
   parseAcceptedList,
   parseLiveThreads,
@@ -316,13 +317,9 @@ describe("parseLiveThreads", () => {
       branches: new Set(["fix/x"]),
       worktreePaths: new Set(["/wt/a"]),
     });
-    expect(parseLiveThreads("[]", "threads.json")).toEqual({
-      branches: new Set(),
-      worktreePaths: new Set(),
-    });
   });
 
-  it.each(["{not json", '{"branch":"fix/x"}', "[1]", '[{"branch":3}]'])(
+  it.each(["{not json", '{"branch":"fix/x"}', "[1]", '[{"branch":3}]', "[]"])(
     "refuses %j, naming the file, rather than sweep without the live threads",
     (text) => {
       expect(() => parseLiveThreads(text, "threads.json")).toThrow(
@@ -333,16 +330,36 @@ describe("parseLiveThreads", () => {
 });
 
 describe("parseAcceptedList", () => {
-  it("reads the paths the dry run saved", () => {
-    expect(parseAcceptedList('["/wt/a","/wt/b"]', "list.json")).toEqual(
-      new Set(["/wt/a", "/wt/b"]),
-    );
+  it("reads the worktrees, branches and databases the dry run saved, each apart", () => {
+    expect(
+      parseAcceptedList(
+        '{"worktrees":["/wt/a"],"branches":["en-escena-wt-a"],"databases":[]}',
+        "list.json",
+      ),
+    ).toEqual({
+      worktrees: new Set(["/wt/a"]),
+      branches: new Set(["en-escena-wt-a"]),
+      databases: new Set(),
+    });
   });
 
-  it.each(["{not json", '{"path":"/wt/a"}', "[1]"])(
-    "refuses %j, naming the file, rather than sweep from it",
-    (text) => {
-      expect(() => parseAcceptedList(text, "list.json")).toThrow(/list\.json/);
-    },
-  );
+  it.each([
+    "{not json",
+    '["/wt/a","/wt/b"]',
+    '{"worktrees":["/wt/a"],"branches":[]}',
+    '{"worktrees":[1],"branches":[],"databases":[]}',
+  ])("refuses %j, naming the file, rather than sweep from it", (text) => {
+    expect(() => parseAcceptedList(text, "list.json")).toThrow(/list\.json/);
+  });
+});
+
+describe("checkThreadsFresh", () => {
+  it("accepts a live-threads file written after the dry run", () => {
+    expect(() => checkThreadsFresh(2000, 1000)).not.toThrow();
+  });
+
+  it("refuses the dry run's own live-threads file, since a thread may have resumed since", () => {
+    expect(() => checkThreadsFresh(1000, 1000)).toThrow(/after the dry run/);
+    expect(() => checkThreadsFresh(500, 1000)).toThrow(/after the dry run/);
+  });
 });

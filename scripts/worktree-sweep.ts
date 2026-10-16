@@ -7,6 +7,7 @@ import {
   realpathSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import os from "node:os";
@@ -140,23 +141,22 @@ type LiveThread = {
   worktreePath: string | undefined;
 };
 
-// A non-empty string, nothing for null or absent, and `false` for anything else.
-function optionalString(value: unknown): string | undefined | false {
-  if (value === null || value === undefined || value === "") return undefined;
-  return typeof value === "string" ? value : false;
+function isStringOrNothing(value: unknown): value is string | null | undefined {
+  return value === null || value === undefined || typeof value === "string";
 }
 
 function readLiveThread(entry: unknown): LiveThread | undefined {
   if (typeof entry !== "object" || entry === null) return undefined;
 
   const { branch, worktreePath } = entry as Record<string, unknown>;
-  const fields = [optionalString(branch), optionalString(worktreePath)];
 
-  if (fields.includes(false)) return undefined;
+  if (!isStringOrNothing(branch) || !isStringOrNothing(worktreePath)) {
+    return undefined;
+  }
 
   return {
-    branch: fields[0] || undefined,
-    worktreePath: fields[1] || undefined,
+    branch: branch || undefined,
+    worktreePath: worktreePath || undefined,
   };
 }
 
@@ -172,7 +172,9 @@ export function parseLiveThreads(text: string, file: string): LiveThreads {
   } catch {
     throw refuse();
   }
-  if (!Array.isArray(entries)) throw refuse();
+  // The thread running the sweep is live itself, so an empty list is a survey
+  // that failed, never a machine with no threads.
+  if (!Array.isArray(entries) || entries.length === 0) throw refuse();
 
   const threads = (entries as unknown[]).map(readLiveThread);
 
@@ -193,7 +195,7 @@ type SweepOptions = {
   keep?: readonly string[];
   /** The live threads' branches and worktree paths, from `--threads`. */
   live?: LiveThreads;
-  /** The worktree paths and branches the accepted dry run listed; `--apply` only. */
+  /** What the accepted dry run listed of this kind (worktree paths or branches); `--apply` only. */
   accepted?: ReadonlySet<string>;
 };
 
@@ -560,7 +562,14 @@ function acceptedListFile() {
   );
 }
 
-function readAcceptedList(): Set<string> {
+/** What a dry run listed, kept apart so a branch can never approve a database of the same name. */
+export type AcceptedList = {
+  worktrees: ReadonlySet<string>;
+  branches: ReadonlySet<string>;
+  databases: ReadonlySet<string>;
+};
+
+function readAcceptedList(): AcceptedList {
   const file = acceptedListFile();
 
   if (!existsSync(file)) {
@@ -572,25 +581,54 @@ function readAcceptedList(): Set<string> {
   return parseAcceptedList(readFileSync(file, "utf8"), file);
 }
 
-export function parseAcceptedList(text: string, file: string): Set<string> {
-  let paths: unknown;
+const acceptedKinds = ["worktrees", "branches", "databases"] as const;
+
+function isStringList(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) && value.every((entry) => typeof entry === "string")
+  );
+}
+
+export function parseAcceptedList(text: string, file: string): AcceptedList {
+  let list: unknown;
 
   try {
-    paths = JSON.parse(text);
+    list = JSON.parse(text);
   } catch {
-    paths = undefined;
+    list = undefined;
   }
 
+  const record = (list ?? {}) as Record<string, unknown>;
+
   if (
-    !Array.isArray(paths) ||
-    !paths.every((entry) => typeof entry === "string")
+    Array.isArray(list) ||
+    !acceptedKinds.every((kind) => isStringList(record[kind]))
   ) {
     throw new Error(
-      `${file} is not a list of worktree paths and branches: run \`pnpm worktree:sweep\` again to rewrite it.`,
+      `${file} is not the worktrees, branches and databases of a dry run: run \`pnpm worktree:sweep\` again to rewrite it.`,
     );
   }
 
-  return new Set(paths);
+  return {
+    worktrees: new Set(record.worktrees as string[]),
+    branches: new Set(record.branches as string[]),
+    databases: new Set(record.databases as string[]),
+  };
+}
+
+/**
+ * `--apply` judges against the live threads as they are now: a thread may have
+ * resumed on a listed branch while the user read the report.
+ */
+export function checkThreadsFresh(
+  threadsWrittenMs: number,
+  dryRunWrittenMs: number,
+) {
+  if (threadsWrittenMs <= dryRunWrittenMs) {
+    throw new Error(
+      "The live-threads file predates the dry run: list the live threads again, after the dry run, then --apply.",
+    );
+  }
 }
 
 function sweep({
@@ -603,6 +641,12 @@ function sweep({
   threads: string;
 }) {
   const accepted = apply ? readAcceptedList() : undefined;
+  if (apply) {
+    checkThreadsFresh(
+      statSync(threads).mtimeMs,
+      statSync(acceptedListFile()).mtimeMs,
+    );
+  }
   const live = parseLiveThreads(readFileSync(threads, "utf8"), threads);
 
   run("git", ["worktree", "prune"]);
@@ -619,7 +663,11 @@ function sweep({
     pullRequests,
   ).map((facts) => ({
     facts,
-    verdict: sweepVerdict(facts, { keep, live, accepted }),
+    verdict: sweepVerdict(facts, {
+      keep,
+      live,
+      accepted: accepted?.worktrees,
+    }),
   }));
   const branches = gatherBranchFacts(
     new Set(
@@ -630,7 +678,11 @@ function sweep({
     pullRequests,
   ).map((facts) => ({
     facts,
-    verdict: branchSweepVerdict(facts, { keep, live, accepted }),
+    verdict: branchSweepVerdict(facts, {
+      keep,
+      live,
+      accepted: accepted?.branches,
+    }),
   }));
   const removed = judged.filter(({ verdict }) => verdict.remove);
   const kept = judged.filter(({ verdict }) => !verdict.remove);
@@ -662,11 +714,11 @@ function sweep({
     const tempFile = `${listFile}.${process.pid}.tmp`;
     writeFileSync(
       tempFile,
-      JSON.stringify([
-        ...removed.map(({ facts }) => facts.path),
-        ...deleted.map(({ facts }) => facts.branch),
-        ...databases,
-      ]),
+      JSON.stringify({
+        worktrees: removed.map(({ facts }) => facts.path),
+        branches: deleted.map(({ facts }) => facts.branch),
+        databases,
+      }),
     );
     renameSync(tempFile, listFile);
     console.log("\nNothing changed. Re-run with --apply to remove the above.");
@@ -678,7 +730,11 @@ function sweep({
   rmSync(acceptedListFile(), { force: true });
   // Re-listed rather than taken from `kept`: a removal that failed keeps its
   // worktree, and with it its database. Only the databases the dry run listed go.
-  prune(false, [...worktreePaths(), ...live.worktreePaths], accepted);
+  prune(
+    false,
+    [...worktreePaths(), ...live.worktreePaths],
+    accepted?.databases,
+  );
 }
 
 if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1] ?? "")) {
