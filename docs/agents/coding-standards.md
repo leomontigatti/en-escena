@@ -30,7 +30,7 @@ confidence and tend to break during harmless refactors.
 Every test names the bug it catches: the wrong implementation that would make
 it fail. The anti-patterns that cannot, and the rules on fixtures and on
 deleting redundant tests, are in the
-[`tdd` skill](../../.agents/skills/tdd/SKILL.md). A test never asserts that a
+shared `tdd` skill. A test never asserts that a
 document contains fixed text; it checks a doc's structure against something
 outside it (a link resolves, an index matches its files, a value matches the
 code that enforces it). `pnpm check:docs-tests` enforces that one.
@@ -53,7 +53,7 @@ No other suffix (`*.test-helpers.ts`, `*-test-fixtures.server.db.ts`,
 and the directory as test code, and a reader finds every fixture with one
 search. Identifiers are English like the rest of the code. Before adding a file, extend
 the one that already builds those rows or requests, as the
-[`tdd` skill](../../.agents/skills/tdd/SKILL.md) says; a fixture that a second
+shared `tdd` skill says; a fixture that a second
 domain starts importing moves to `app/lib/test-support/`.
 
 ### Component tests
@@ -69,7 +69,7 @@ earns its place when it covers something a glance at the page would not:
 
 - **Keep**: reducers, state machines, validation, formatting and label logic
   (ideally extracted into a pure module and tested without React, per
-  [FRONTEND-TDD.md](../../.agents/skills/implement/FRONTEND-TDD.md)), and user
+  [tdd-frontend.md](tdd-frontend.md)), and user
   flows that type or click and assert the resulting behaviour — what gets
   submitted, what the user is told, what becomes disabled — or an
   accessibility contract such as focus, labels or roles a keyboard user

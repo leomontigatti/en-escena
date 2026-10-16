@@ -75,7 +75,7 @@ a database it just created. The dev server holds its port strictly and fails whe
 has it, rather than moving to a port the session did not expect.
 
 `pnpm worktree:sweep` drops the database of every worktree that is gone, including those T3's storage cleanup removed (see
-[workflows.md](agents/workflows.md#branches-worktrees-and-t3-code-threads)). The main checkout keeps
+[housekeeping.md](agents/housekeeping.md)). The main checkout keeps
 `en-escena`; `TEST_DATABASE_URL` and the storage directory stay shared.
 
 After changing the schema, generate a migration and apply pending migrations to
@@ -150,7 +150,7 @@ playwright-cli install-browser chromium
 ```
 
 `pnpm ui:session <role> <path>` then does the start, seed and sign-in above in
-one step ([UI verification](agents/workflows.md#ui-verification)).
+one step ([verification.md](agents/verification.md)).
 
 ### Demo data
 
@@ -213,7 +213,7 @@ through the UI — and created again. Only one event can be active, so any other
 active event is deactivated, and the command names it. It refuses to run
 unless `DATABASE_URL`'s host is `localhost` or `127.0.0.1`: the password is
 published here, and screenshots taken against this data go into a public
-repository ([pull-requests.md](agents/pull-requests.md#ui-evidence)).
+repository ([verification.md](agents/verification.md#evidence)).
 
 The main local auth routes are:
 

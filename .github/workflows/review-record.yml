@@ -1,15 +1,16 @@
 # Review-record gate. A PR body carries a `## Review` section naming the review
 # tier, the commit the in-session review covered, and one line per reviewer
-# (the `pr` skill). `pnpm check:review-record` derives the tier from the diff,
-# fails a record missing a reviewer that tier requires, and fails a code commit
-# pushed after the reviewed one. The rules are in `scripts/review-record.ts`;
-# why they exist is step 5 of the `implement` skill.
+# (the shared `pr` skill). The shared `review-record` action derives the tier
+# from the diff and the `review-paths` block of `docs/agents/review.md`, fails a
+# record missing a reviewer that tier requires, and fails a code commit pushed
+# after the reviewed one. The rules are `skills/implement/scripts/review.py` in
+# leomontigatti/agent-workflow; why they exist is step 5 of its `implement` skill.
 #
 # Its own workflow, like `pr-title.yml`, because it needs `edited`: updating
 # the record re-runs the gate without re-running the full suite.
 #
-# Branch protection: `review-record` becomes a required context on `master`
-# once the repo setting names it; this file only produces the check.
+# Branch protection: `review-record` is a required context on `master`, by its
+# job name; renaming the job means updating the repo setting.
 name: Review record
 
 on:
@@ -38,20 +39,6 @@ jobs:
           # The check walks the branch's commits since the reviewed one and
           # diffs against the base, so it needs the whole history.
           fetch-depth: 0
-      # The pnpm version comes from the `packageManager` field.
-      # The install is needed: the script is TypeScript and runs under `tsx`.
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: check:review-record (tier, reviewers, reviewed commit)
-        env:
-          # Through the environment, never interpolated into `run:`: the body is
-          # attacker-controlled text (zizmor `template-injection`).
-          PR_BODY: ${{ github.event.pull_request.body }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: pnpm check:review-record
+      # Pinned like every other action; bump the SHA to take a change to the
+      # shared rules.
+      - uses: leomontigatti/agent-workflow/actions/review-record@0a8b391d120dc9d12debee315154fd7c7c143c71 # main

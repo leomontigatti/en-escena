@@ -7,7 +7,7 @@ lives in the comments of its workflow file.
 
 ## Required contexts
 
-Five contexts are required on `master`. Required contexts are a repo setting
+Six contexts are required on `master`. Required contexts are a repo setting
 outside the repo: renaming a job, or adding one, does not update branch
 protection, so making a job required is a human step in the repo settings.
 
@@ -34,11 +34,13 @@ protection, so making a job required is a human step in the repo settings.
   body edit too, and in `ci.yml` that would re-run the build and the Postgres
   shards on every description change. The title reaches the script through
   `env: PR_TITLE`, never interpolated into a `run:` block.
-- `review-record` (`review-record.yml`): `pnpm check:review-record` over the PR
-  body's `## Review` record (the `pr` skill): the reviewers the diff's tier
-  requires are named, and no code commit landed after the reviewed one. Its own
-  file for the same `edited` reason; it skips drafts and Dependabot's PRs. It
-  is a required context only once branch protection names it.
+- `review-record` (`review-record.yml`): the shared workflow's `review-record`
+  action over the PR body's `## Review` record (the shared `pr` skill): the
+  reviewers the diff's tier requires are named, by the `review-paths` block of
+  [review.md](../agents/review.md), and no code commit landed after the
+  reviewed one. Its own file for the same `edited` reason; it skips drafts and
+  Dependabot's PRs. The action is pinned to a commit of
+  leomontigatti/agent-workflow; bump the SHA to take a change to its rules.
 
 The commit gate before any of these is `.husky/pre-commit`: gitleaks on the
 staged diff, `lint-staged`, `check:comment-language`, `typecheck`,

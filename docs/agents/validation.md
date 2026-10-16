@@ -1,10 +1,16 @@
 # Validation
 
-How a session validates its work before committing — the `implement` skill's
-step 3, and what a babysitting session runs before each push. CI is the merge
+How a session validates its work: § As you go after each green slice (the
+`implement` skill's step 2), § Before committing once at the end (step 3, and
+what a babysitting session runs before each push). CI is the merge
 gate; a session's job is to catch its own mistakes cheaply, not to reproduce CI.
 
-## The rule
+## As you go
+
+Each time a slice goes green: `pnpm typecheck`, and the one test file for the
+slice, `pnpm test:unit <path>` or `pnpm test:db <path>`.
+
+## Before committing
 
 ```sh
 pnpm gate                # pnpm typecheck, pnpm lint, pnpm test:unit
@@ -52,7 +58,7 @@ The scripts that exist and what owns what:
 | `pnpm check:dependency-audit`       | High and critical advisories the branch introduces, against `master`                                                                                                                                                                                                                    |
 | `pnpm check:comment-language`       | Spanish prose in comments, test names, thrown error messages, shell stderr, docs and YAML                                                                                                                                                                                               |
 | `pnpm check:pr-title "<title>"`     | A PR title is a conventional commit with an English subject — CI only, from `pr-title.yml`, a required context on `master`                                                                                                                                                              |
-| `pnpm check:review-record`          | The PR body records the review its tier requires, and nothing but docs landed after the reviewed commit — CI only, from `review-record.yml`                                                                                                                                             |
+| review-record (CI only)             | The PR body records the review its tier requires, and nothing but docs landed after the reviewed commit — the shared `review-record` action from `review-record.yml`, tiered by [review.md](./review.md)                                                                                |
 | `pnpm check:fallow`                 | Fallow's `new-only` gate on what the branch adds                                                                                                                                                                                                                                        |
 | zizmor (CI only)                    | Actions security posture and pin freshness — `.github/workflows/**`                                                                                                                                                                                                                     |
 | actionlint (CI only)                | Workflow syntax and expressions — `.github/workflows/**`                                                                                                                                                                                                                                |

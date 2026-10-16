@@ -4,7 +4,7 @@
   "scripts": [
     {
       "name": "Setup worktree",
-      "command": "ln -sf \"$T3CODE_PROJECT_ROOT/.env\" .env && pnpm install --frozen-lockfile && pnpm exec react-router typegen",
+      "command": "if [ \"$(git rev-parse --path-format=absolute --git-dir)\" = \"$(git rev-parse --path-format=absolute --git-common-dir)\" ]; then echo \"The main checkout: nothing to set up, .env left as it is.\"; else ln -sf \"$T3CODE_PROJECT_ROOT/.env\" .env && pnpm install --frozen-lockfile && pnpm exec react-router typegen; fi",
       "icon": "configure",
       "runOnWorktreeCreate": true,
       "async": false

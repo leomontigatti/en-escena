@@ -1,80 +1,66 @@
 # Pull requests
 
-How a PR is written here. The title rule is
-enforced (`pnpm check:pr-title`, see [ci.md](../operations/ci.md#required-contexts)),
-and so is the body's `## Review` record (`pnpm check:review-record`);
-everything below is convention. Branches and linking the PR to its T3 thread are
-in [workflows.md](./workflows.md#branches-worktrees-and-t3-code-threads).
+What the shared `pr` and `babysit-pr` skills need to know about this repo. The body (Summary,
+Evidence, Merge Danger, `## Review`, `Closes #N`), the title rule and stacking are the shared
+`pr` skill's; `.github/pull_request_template.md` is the same template for a PR opened by hand.
 
-## Body
+## Title
 
-The body is written with the `pr` skill
-([`.agents/skills/pr/SKILL.md`](../../.agents/skills/pr/SKILL.md)): the template (Summary,
-Evidence, Merge Danger, `Closes #N`), the rules, the one-way doors of this repo and the shape of a
-PRD PR's body all live there. `.github/pull_request_template.md` is the same template for a PR
-opened by hand.
+PRs are squash-merged, so the title is the commit subject. `pnpm check:pr-title "<title>"` checks
+it (a Conventional Commit with an English subject); CI runs it from `pr-title.yml`, a required
+context on `master` ([ci.md](../operations/ci.md#required-contexts)). Run it before
+`gh pr create`.
 
-### PRD PRs
+## Base branch
+
+- The default branch is `master`. Branch protection requires `checks`, `db-gate`, `docs-gate`,
+  `actions-gate`, `pr-title` and `review-record`, with `strict: true`: the branch must be up to
+  date with `master`, and nothing updates it on its own. The babysit does it once, when being
+  behind is all that is left (`gh pr update-branch`, or a local merge when it conflicts). A PR
+  nobody is babysitting is updated the same way by hand.
+- `db-gate` runs after the `db-shard` matrix, so it is missing from a fresh push's checks for
+  about four minutes: read the required list from branch protection, not from the rollup.
+- A stack is linked with `gh stack` so CI evaluates every layer as if it targeted `master`
+  ([ci.md](../operations/ci.md#stacked-prs)). Babysit once the whole stack is open: a babysit per
+  layer spends checks on commits the next layer's push restarts. After a stack's bottom layer
+  merges, the next layer is behind: babysit it again.
+
+## PRD PRs
 
 One PR carries every sub-issue of a PRD, with the body the `pr` skill describes. It is the one PR
 opened as a **draft**: the `implement-spec` skill opens it after the first slice merges and marks
-it ready when the last has landed and the chain has been reviewed, then babysits it. CodeRabbit
-does not review drafts (`auto_review.drafts` defaults to off), so the chain pays one review
-instead of one per slice.
+it ready when the last has landed and the chain has been reviewed, then babysits it. The
+`review-record` check skips drafts, and so does CodeRabbit (`auto_review.drafts` defaults to off),
+so the chain pays one review instead of one per slice.
 
-## UI evidence
+## Evidence
 
-A PR that changes what a screen looks like carries before and after images. A
-change to motion or interaction carries a short GIF instead.
+Before and after images, recordings and their upload with `pnpm pr:evidence` are
+[verification.md](verification.md#evidence)'s.
 
-- Capture against seed data, never a database refreshed from production:
-  screenshots show names and payments. The screenshots come from the browser
-  loop in [workflows.md](./workflows.md#ui-verification), run against what
-  `pnpm db:seed` creates.
-- Name the files `<what>-before.png` and `<what>-after.png`, then run
-  `pnpm pr:evidence <pr> <files...>`. It uploads them to the `pr-assets`
-  prerelease (`gh` has no attachment upload, and a release asset renders inline)
-  and prints the markdown, pairs already laid out as a Before/After table. Paste
-  it under `## Evidence`. Running it again with the same file names replaces the
-  assets.
-- Motion goes in as a short GIF through the same command. GitHub only gives its
-  video player to files uploaded through the browser, so a real video is put in
-  the session's final message as a path, and the human drags it into the PR.
-- **The repository is public, and so is every asset.** Remove one with
-  `gh release delete-asset pr-assets <name>`.
-- Never commit PR-only evidence to the repo.
+## Review bot
 
-## Babysitting a PR
+CodeRabbit, configured by `.coderabbit.yaml`, which is read from the PR's head branch; its
+`base_branches` entry is what lets a PR stacked on a non-master branch be reviewed at all.
 
-Seeing a PR through CI and review is the `babysit-pr` skill: the session that
-opened the PR has T3 watch it (`watch_pull_request`; outside T3, a background
-`gh pr checks --watch`), wakes when a round needs judgement, fixes the findings that hold, answers the rest with the
-reason, and stops at ready to merge. The merge stays the user's, or the launching
-thread's when the user hands it over ([workflows.md](./workflows.md#branches-worktrees-and-t3-code-threads)).
-In a stack, babysit once the whole stack is open: a babysit per layer spends
-checks on commits the next layer's push restarts.
-
-Branch protection requires a branch up to date with `master`, and nothing
-updates it on its own: the babysit does it once, when being behind is all that
-is left (`gh pr update-branch`, or a local merge when it conflicts). A PR nobody
-is babysitting is updated the same way by hand. After a stack's bottom layer
-merges, the next layer is behind: babysit it again.
-
-CodeRabbit is optional. The in-session review carries its job: the correctness
-axis of `implement` step 5 runs on every diff that changes behaviour, on the model
-family that did not write it and on both in the `full` tier, and its brief names
-the areas where CodeRabbit caught bugs that review used to miss. CodeRabbit is asked once, by the babysit, and only on
-a PR in the full-review tier, once the PR is final (and once more if a push of
-the babysit's own cancels that review); no other PR waits on it. While the repo has under 10 GitHub stars,
-CodeRabbit gives it no automatic reviews and each request spends a small hourly
-allowance, so a rate limit or a skipped review is never a reason to wait: the
-PR is ready once its checks are green and the in-session review ran, and the
-babysit reports CodeRabbit as skipped.
-
-When it does run, it is configured by `.coderabbit.yaml`, which is read from
-the PR's head branch; its `base_branches` entry is what lets a PR stacked on a
-non-master branch be reviewed at all. It reports through its `CodeRabbit`
-commit status; a pass with no findings posts no review, only its summary
-comment. `@coderabbitai review` asks for a pass. Its findings are verified
-against the source like any other: it has the diff and the repo's standards,
-not the issue or the domain.
+- **When to ask.** Only on a PR in the `full` tier ([review.md](review.md#full-review)), once the
+  PR is final: `gh pr comment <n> --body "@coderabbitai review"`, once on the head the PR was
+  opened with. A push made before it has reviewed cancels the review: it edits its reply to the
+  request into "Action not completed" with "Pull request base or head changed". Then ask once
+  more, on the new head. No other PR asks it, and none waits on it. While the repo has under 10
+  GitHub stars it gives no automatic reviews and each request spends a small hourly allowance,
+  so a rate limit ("Review limit reached") or a skipped review is never a reason to wait: report
+  CodeRabbit as `skipped`, with the reason.
+- **Its login** starts with `coderabbitai`; that is the `<bot login>` of the babysit's commands.
+- **How to read it.** It reports through its `CodeRabbit` commit status: a red status is it
+  declining to review, not a check to triage. A pass is a review it posted on the PR; a pass that
+  finds nothing posts no review, only its summary comment, which names the commit it covered. A
+  review's body findings sit in its "Prompt to fix review comments" block, outside the "Inline
+  comments" section, which repeats the threads. It edits its replies in place, so read the
+  current body of its latest comment.
+- **What it knows.** It reads the diff and `docs/agents/coding-standards.md`, not the issue or the
+  domain: check each claim against the code before acting on it. A finding backed by
+  [coding-standards.md](coding-standards.md) or [style-guide.md](style-guide.md) is never declined
+  on the triager's judgement alone.
+- **Whether it stays** is what the two-family trial decides ([review.md](review.md#full-review)):
+  the in-session correctness axis took over the job it did on every PR.

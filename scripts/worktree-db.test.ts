@@ -93,4 +93,14 @@ describe("planPrune", () => {
       }),
     ).toEqual(["en-escena-wt-gone"]);
   });
+
+  it("drops, when applying, only the databases the accepted dry run listed", () => {
+    expect(
+      planPrune({
+        databases: ["en-escena-wt-listed", "en-escena-wt-orphaned-since"],
+        worktreePaths: [],
+        accepted: new Set(["en-escena-wt-listed"]),
+      }),
+    ).toEqual(["en-escena-wt-listed"]);
+  });
 });

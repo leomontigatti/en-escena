@@ -1,4 +1,4 @@
-<!-- Template and rules: the `pr` skill (.agents/skills/pr/SKILL.md). Keep it short; the issue holds the reasoning. -->
+<!-- Template and rules: the shared `pr` skill (leomontigatti/agent-workflow). Keep it short; the issue holds the reasoning. -->
 
 <!-- Anything the reviewer must do or decide goes here, first. Delete if there is nothing. -->
 
@@ -21,7 +21,7 @@
 
 ## Review
 
-<!-- Tier and reviewers from `pnpm review:tier`; CI checks this section. Shape: "Review" in the skill above. -->
+<!-- Tier and reviewers from the shared `review.py tier`, by docs/agents/review.md; CI checks this section. Shape: "Review" in the skill above. -->
 
 Tier: , reviewed
 

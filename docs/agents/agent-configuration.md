@@ -3,54 +3,42 @@
 How Claude Code and Codex share this repo's instructions, skills, hooks and
 subagents, and how a session delegates to a subagent.
 
-## One copy, two harnesses
+## The shared workflow and this repo
 
-Claude Code and Codex read one copy of everything; only the wiring each harness
-insists on reading from its own directory is kept per harness, and none of those
-files holds instructions of its own.
+The skills, the agent briefs and the hooks that depend on no project are not in this repo: they
+are the shared workflow, `leomontigatti/agent-workflow`, installed once per machine at
+`~/.agents/workflow` by its `install.sh`, which links the skills into `~/.agents/skills` (Codex)
+and `~/.claude/skills` (Claude Code), the agent wrappers into `~/.claude/agents` and
+`~/.codex/agents`, and wires the shared hooks at user level. Which model each agent role runs on
+is the shared `agents/models.md`. A shared skill reads this repo's facts only from the files its
+`contract.md` lists; `AGENTS.md` names them.
 
-| What                   | The one copy                    | Claude Code reads it through                                          | Codex reads it through                                      |
-| ---------------------- | ------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Repo instructions      | `AGENTS.md`                     | `AGENTS.md` directly (2.1.277+, only while no `CLAUDE.md` exists)     | `AGENTS.md` directly                                        |
-| Skills                 | `.agents/skills/<name>/`        | `.claude/skills`, a symlink to `.agents/skills`                       | `.agents/skills` directly                                   |
-| Hooks                  | `.agents/hooks/*.sh`            | the `hooks` block of `.claude/settings.json`                          | `.codex/hooks.json`                                         |
-| `research` subagent    | `.agents/agents/research.md`    | in T3, a `delegate_task` child; outside, `.claude/agents/research.md` | `.codex/agents/research.toml` (model)                       |
-| `reviewer` subagent    | `.agents/agents/reviewer.md`    | in T3, `delegate_task` children; outside, `reviewer-opus`             | `.codex/agents/reviewer.toml`, `reviewer-luna.toml` (model) |
-| `implementer` subagent | `.agents/agents/implementer.md` | `.claude/agents/implementer.md`, pinned to Opus                       | `.codex/agents/implementer.toml` (model)                    |
-| `reviewer-opus`        | `.agents/agents/reviewer.md`    | `.claude/agents/reviewer-opus.md`, on Opus, read-only                 | none: Codex uses `reviewer`                                 |
+What stays here:
+
+| What              | Where                                 | Claude Code reads it through                                      | Codex reads it through |
+| ----------------- | ------------------------------------- | ----------------------------------------------------------------- | ---------------------- |
+| Repo instructions | `AGENTS.md`                           | `AGENTS.md` directly (2.1.277+, only while no `CLAUDE.md` exists) | `AGENTS.md` directly   |
+| Project hooks     | `.agents/hooks/*.sh`                  | the `hooks` block of `.claude/settings.json`                      | `.codex/hooks.json`    |
+| Tools on PATH     | `.agents/required-tools`              | the shared `check-tool-path` hook                                 | the same               |
+| A project skill   | `.agents/skills/<name>/` (none today) | `.claude/skills`, a symlink to `.agents/skills`, to recreate      | `.agents/skills`       |
 
 - **`AGENTS.md` is the only instructions file**, here and in every parent directory: Claude
   Code reads `AGENTS.md` only as a fallback, when no `CLAUDE.md`, `.claude/CLAUDE.md` or
   `CLAUDE.local.md` sits in the working directory or above it, so adding one would silently
   stop it reading these instructions. Claude-only notes go in `~/.claude/CLAUDE.md`, which
   does not count.
-- **Skills are the one symlink**: Claude Code reads skills only from `.claude/skills`, with
-  no setting to add a directory, so `.claude/skills` points at `.agents/skills`.
-- **A new skill** goes in `.agents/skills/<name>/` and both harnesses see it; there is
-  nothing to link.
-- **A hook change** is a change to the script. Adding or removing a hook touches both
+- **A change to a shared skill** is a PR to `leomontigatti/agent-workflow`, never a copy here. A
+  skill only this repo uses goes in `.agents/skills/<name>/`, under a name no shared skill has,
+  with `.claude/skills` linked to `.agents/skills` again so Claude Code sees it.
+- **A hook change** is a change to the script. Adding or removing a project hook touches both
   wiring files, which carry the same events and matchers (Codex accepts `Write|Edit` for
   its `apply_patch` tool). The scripts read either payload: Claude Code's
   `tool_input.file_path` or a Codex patch in `tool_input.command`, and
   `$CLAUDE_PROJECT_DIR` or, when Codex leaves it unset, the checkout the hook runs in.
-- **`implementer` runs on its harness's own model**: it edits, tests and commits in its own
-  worktree. Claude Code's wrapper pins Opus in its frontmatter, since a subagent left to the
-  user's default (`CLAUDE_CODE_SUBAGENT_MODEL`) may run on Haiku; Codex's names gpt-6.1-sol.
-- **The review roles and research run on Codex models whichever harness orchestrates**: a
-  Claude session in T3 reaches them through `delegate_task`, Codex through its own agents.
-  Which model, effort and route each takes lives in one place: "Spawning a reviewer" in the
-  `code-review` skill for the reviewers, [Delegating to subagents](#delegating-to-subagents)
-  below for research. The `.toml` wrappers repeat the model for Codex, which reads it
-  nowhere else.
-- **The correctness axis runs on the model family that did not write the code**: Sol through
-  `delegate_task` when Claude implements, Opus when Codex does (through T3's `delegate_task`;
-  Codex cannot spawn Opus natively), and both in the `full` tier, through `reviewer-opus` under
-  Claude Code. "Spawning a reviewer" in the `code-review` skill holds the details.
 - **Codex reads `.codex/` from the main checkout, even in a worktree** (verified on
-  codex-cli 0.159): a T3 worktree gets the hooks and the `research`, `reviewer` and
-  `reviewer-luna` agents only once they are on the branch the main checkout has out, while
-  `AGENTS.md` and the skills come from the worktree itself. The hook commands resolve
-  `git rev-parse --show-toplevel`, so the scripts that run are the worktree's.
+  codex-cli 0.159): a T3 worktree gets the project hooks only once they are on the branch the
+  main checkout has out, while `AGENTS.md` comes from the worktree itself. The hook commands
+  resolve `git rev-parse --show-toplevel`, so the scripts that run are the worktree's.
 - **Codex's sandbox needs elevated permission for real Postgres**, since
   `TEST_DATABASE_URL` reaches it over TCP on `localhost:5433`. A persistent approval
   uses these scoped prefixes, never a broader one: `pnpm test:db:postgres`,
@@ -64,16 +52,17 @@ files holds instructions of its own.
 
 ## Session hooks
 
-Hooks are configuration, not a terminal feature, so they run in a headless session too.
+Hooks are configuration, not a terminal feature, so they run in a headless session too. The
+shared ones are wired at user level by the shared `install.sh`; the rest from this repo's two
+wiring files.
 
-- **`SessionStart`**: `check-tool-path.sh` adds a warning to the session's context when
-  its shell cannot find `node`, `pnpm` or `playwright-cli`, pointing at
-  [the agent shell's PATH](#the-agent-shells-path). It never edits PATH itself.
+- **`SessionStart`** (shared): `check-tool-path.sh` warns when the session's shell cannot find
+  a tool the work needs; this repo adds `node`, `pnpm` and `playwright-cli` in
+  `.agents/required-tools`. The fix is [the agent shell's PATH](#the-agent-shells-path).
 - **`PreToolUse` on Bash**: `block-npx-tsc.sh` blocks `npx tsc`, `pnpm exec tsc` and
-  `pnpm dlx tsc`, because `pnpm typecheck` generates the React Router route types first;
-  `block-pkill-f.sh` blocks `pkill -f` and `pkill --full`, whose pattern matches the
-  shell running it and kills the agent's own Bash call (exit 144). Each hook's message
-  names what to run instead.
+  `pnpm dlx tsc`, because `pnpm typecheck` generates the React Router route types first. The
+  shared `block-pkill-f.sh` blocks `pkill -f`, whose pattern matches the shell running it and
+  kills the agent's own Bash call (exit 144); the dev server stops with `pnpm dev:stop`.
 - **`PostToolUse` on `Write|Edit`**: `format-edited-file.sh` runs Prettier over each
   file the tool just wrote, silently, so `pnpm format` is not a session's to remember.
 - **`Stop`**: `stop-typecheck-lint.sh` runs `pnpm typecheck && pnpm lint` (~11.6 s) and
@@ -118,11 +107,6 @@ of them, and ask for its report as text with a fixed shape: status, one-line
 summary, artifacts touched, next step, risks. A subagent whose last action is a
 tool call returns the tool result instead of its report.
 
-Reading outside the repo goes to the `research` agent (`.agents/agents/research.md`), on
-Codex's gpt-6-luna at medium effort: it judges and condenses sources more than it reasons, and
-Luna spares the Sol quota. It fetches plain-text sources with `curl`, and searches and reads
-rendered pages with its harness's web search. Spawn it the way the `code-review` skill's
-"Spawning a reviewer" spawns a Codex role, with this model and effort and `role: "research"`,
-its task opening with "Before anything else, read `.agents/agents/research.md` and follow
-it."; under Codex as the `research` agent; outside T3, from Claude Code, as the `research`
-agent, which runs on Sonnet.
+Reading outside the repo goes to the shared `research` agent, in the Research role of the
+shared `agents/models.md`, which also says how each harness reaches it; the sources it prefers
+for this stack are [research.md](research.md).
