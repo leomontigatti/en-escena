@@ -41,4 +41,4 @@ jobs:
           fetch-depth: 0
       # Pinned like every other action; bump the SHA to take a change to the
       # shared rules.
-      - uses: leomontigatti/agent-workflow/actions/review-record@0a8b391d120dc9d12debee315154fd7c7c143c71 # main
+      - uses: leomontigatti/agent-workflow/actions/review-record@59ab2cea232e5cc8e2b638d5fbbc98f79f2f587e # main
