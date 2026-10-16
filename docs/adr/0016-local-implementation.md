@@ -70,7 +70,7 @@ changing how the code is written.
   are no longer in `.github/labels.json`. `pnpm labels:sync` never deletes, so
   they remain on GitHub until removed by hand.
 - The `review-triage` skill and `pnpm afk:watch` were built on the retired
-  labels and are gone with them. Babysitting a PR is the `babysit-pr` skill's; the base-branch rules are in
+  labels and are gone with them. The `babysit-pr` skill handles PR babysitting; the base-branch rules are in
   [pull-requests.md](../agents/pull-requests.md#base-branch).
 - The `agent/` branch prefix is no longer reserved.
 - A session implements a PRD's sub-issues in list order onto one branch, as
