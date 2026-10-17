@@ -7,8 +7,9 @@ import { afterAll } from "vitest";
 
 // Gives each test file a storage directory of its own and removes it when the
 // file is done. A hard assignment, not `??=`: Vitest loads the `.env`, whose
-// `STORAGE_VOLUME_DIR` is the developer's local storage, shared by every
-// worktree, and every file a test uploaded used to stay there (#1687). Only the
+// `STORAGE_VOLUME_DIR` is the main checkout's local storage, which every
+// worktree's `.env` links to, and every file a test uploaded used to stay
+// there (#1687). Only the
 // path is reserved: the storage adapter creates the directory on its first
 // write, so a file that never writes, or whose tests are all skipped (and so
 // never reaches `afterAll`), leaves nothing behind.

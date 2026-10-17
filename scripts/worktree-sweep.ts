@@ -23,8 +23,8 @@ import { git, prune, run, worktreePaths } from "./worktree-db";
 // last thread is deleted; the sweep only reports those. It removes the other
 // worktrees (Agent-tool ones under `.claude/worktrees/`, fallow audit caches),
 // deletes local branches no worktree holds, T3's leftovers included, and drops
-// the `en-escena-wt-*` database of every worktree that is gone
-// (`pnpm db:worktree`). It lists by default and acts only with `--apply`.
+// the `en-escena-wt-*` database and storage folder of every worktree that is
+// gone (`pnpm db:worktree`). It lists by default and acts only with `--apply`.
 // A worktree or branch goes only when nothing in it can be lost: its PR merged
 // or closed, or it never committed; no uncommitted change, no commit that is on
 // neither a remote nor the PR, no process running inside, and no live thread
@@ -732,7 +732,8 @@ function sweep({
   deleted.forEach(deleteBranch);
   rmSync(acceptedListFile(), { force: true });
   // Re-listed rather than taken from `kept`: a removal that failed keeps its
-  // worktree, and with it its database. Only the databases the dry run listed go.
+  // worktree, and with it its database and storage folder. Only those the dry
+  // run listed go.
   prune(
     false,
     [...worktreePaths(), ...live.worktreePaths],

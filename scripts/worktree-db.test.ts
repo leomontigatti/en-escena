@@ -6,7 +6,9 @@ import {
   parseEnvPort,
   planPrune,
   renderEnvLocal,
+  withStorageDir,
   worktreeDatabaseName,
+  worktreeStorageDir,
 } from "./worktree-db";
 
 describe("worktreeDatabaseName", () => {
@@ -63,6 +65,7 @@ describe("renderEnvLocal / parseEnvPort", () => {
     const content = renderEnvLocal({
       databaseUrl: "postgres://postgres:postgres@localhost:5433/en-escena-wt-x",
       port: 5321,
+      storageDir: "/home/u/.local/share/en-escena/worktrees/en-escena-wt-x",
     });
 
     expect(content).toContain(
@@ -70,11 +73,59 @@ describe("renderEnvLocal / parseEnvPort", () => {
     );
     expect(content).toContain('APP_URL="http://localhost:5321"');
     expect(content).toContain('BETTER_AUTH_URL="http://localhost:5321"');
+    expect(content).toContain(
+      'STORAGE_VOLUME_DIR="/home/u/.local/share/en-escena/worktrees/en-escena-wt-x"',
+    );
     expect(parseEnvPort(content)).toBe(5321);
   });
 
   it("reads no port from a file without one", () => {
     expect(parseEnvPort('DATABASE_URL="x"\n')).toBeUndefined();
+  });
+});
+
+describe("worktreeStorageDir", () => {
+  it("keeps a worktree's files in the data home, named like its database", () => {
+    expect(worktreeStorageDir("en-escena-wt-x", { HOME: "/home/u" })).toBe(
+      "/home/u/.local/share/en-escena/worktrees/en-escena-wt-x",
+    );
+  });
+
+  it("follows XDG_DATA_HOME when it is set", () => {
+    expect(
+      worktreeStorageDir("en-escena-wt-x", {
+        HOME: "/home/u",
+        XDG_DATA_HOME: "/data",
+      }),
+    ).toBe("/data/en-escena/worktrees/en-escena-wt-x");
+  });
+});
+
+describe("withStorageDir", () => {
+  const older = [
+    "# Written by `pnpm db:worktree`",
+    'DATABASE_URL="postgres://localhost:5433/en-escena-wt-x"',
+    'PORT="5321"',
+    "",
+  ].join("\n");
+
+  it("adds the storage line to a .env.local written before it existed", () => {
+    const upgraded = withStorageDir(older, "/s/en-escena-wt-x");
+
+    expect(upgraded).toBe(`${older}STORAGE_VOLUME_DIR="/s/en-escena-wt-x"\n`);
+    expect(parseEnvPort(upgraded ?? "")).toBe(5321);
+  });
+
+  it("adds the line on its own line when the file lacks a final newline", () => {
+    expect(withStorageDir('PORT="5321"', "/s/x")).toBe(
+      'PORT="5321"\nSTORAGE_VOLUME_DIR="/s/x"\n',
+    );
+  });
+
+  it("leaves a file that already sets one untouched", () => {
+    const current = `${older}STORAGE_VOLUME_DIR="/elsewhere"\n`;
+
+    expect(withStorageDir(current, "/s/en-escena-wt-x")).toBeUndefined();
   });
 });
 
@@ -92,6 +143,20 @@ describe("planPrune", () => {
         worktreePaths: ["/home/poto/projects/en-escena", "/wt/live"],
       }),
     ).toEqual(["en-escena-wt-gone"]);
+  });
+
+  it("also lists the storage folder of a gone worktree whose database is already dropped", () => {
+    expect(
+      planPrune({
+        databases: ["en-escena", "en-escena-wt-live", "en-escena-wt-gone"],
+        storageDirs: [
+          "en-escena-wt-live",
+          "en-escena-wt-gone",
+          "en-escena-wt-files-only",
+        ],
+        worktreePaths: ["/wt/live"],
+      }),
+    ).toEqual(["en-escena-wt-gone", "en-escena-wt-files-only"]);
   });
 
   it("drops, when applying, only the databases the accepted dry run listed", () => {

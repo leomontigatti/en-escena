@@ -1,18 +1,29 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-// A worktree's own database and dev server port, so concurrent sessions stop
-// re-seeding, refreshing and screenshotting each other's data. Both land in a
-// gitignored `.env.local`, which `react-router dev` and the `db:*` scripts load
-// over the `.env` symlinked from the main checkout.
+// A worktree's own database, storage folder and dev server port, so concurrent
+// sessions stop re-seeding, refreshing and screenshotting each other's data. All
+// three land in a gitignored `.env.local`, which `react-router dev` and the
+// `db:*` scripts load over the `.env` symlinked from the main checkout.
+//
+// The storage folder lives outside the worktree, named like the database, so
+// the two share a lifecycle: T3 removes a paused thread's worktree and recreates
+// it on resume, and the database's rows must still find their files.
 //
 // `ensure` (run ahead of `pnpm dev`, `db:seed` and `db:migrate`) sets it up on
 // first use, so a thread that never needs data never gets a database; with no
 // argument (`pnpm db:worktree`) it re-runs the setup. `pnpm worktree:sweep`
-// calls `prune` for the databases of removed worktrees.
+// calls `prune` for the databases and storage folders of removed worktrees.
 // Runbook: docs/local-auth.md, "One database per worktree".
 
 const CONTAINER = "en-escena-postgres";
@@ -29,6 +40,22 @@ export function worktreeDatabaseName(worktreePath: string): string {
     .replace(/^-+|-+$/g, "");
 
   return `${PREFIX}${slug}`.slice(0, 63);
+}
+
+/** Where a worktree's uploaded files live: the data home, never the repo. */
+export function worktreeStorageDir(
+  database: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  return path.join(storageRoot(env), database);
+}
+
+function storageRoot(env: NodeJS.ProcessEnv = process.env): string {
+  const dataHome =
+    env.XDG_DATA_HOME?.trim() ||
+    path.join(env.HOME?.trim() || os.homedir(), ".local", "share");
+
+  return path.join(dataHome, "en-escena", "worktrees");
 }
 
 export function databaseUrlFor(baseUrl: string, database: string): string {
@@ -61,18 +88,38 @@ export function choosePort(database: string, claimed: Set<number>): number {
 export function renderEnvLocal(input: {
   databaseUrl: string;
   port: number;
+  storageDir: string;
 }): string {
   const origin = `http://localhost:${input.port}`;
 
   return [
-    "# Written by `pnpm db:worktree`: this worktree's own database and dev port,",
-    "# loaded over the shared .env. Rewritten on every run.",
+    "# Written by `pnpm db:worktree`: this worktree's own database, storage folder",
+    "# and dev port, loaded over the shared .env. Rewritten on every run.",
     `DATABASE_URL="${input.databaseUrl}"`,
     `PORT="${input.port}"`,
     `APP_URL="${origin}"`,
     `BETTER_AUTH_URL="${origin}"`,
+    storageLine(input.storageDir),
     "",
   ].join("\n");
+}
+
+function storageLine(storageDir: string): string {
+  return `STORAGE_VOLUME_DIR="${storageDir}"`;
+}
+
+/**
+ * A `.env.local` written before worktrees had their own storage folder, with
+ * the line added; undefined when it already sets one.
+ */
+export function withStorageDir(
+  content: string,
+  storageDir: string,
+): string | undefined {
+  if (/^STORAGE_VOLUME_DIR=/m.test(content)) return undefined;
+
+  const separator = content === "" || content.endsWith("\n") ? "" : "\n";
+  return `${content}${separator}${storageLine(storageDir)}\n`;
 }
 
 export function parseEnvPort(content: string): number | undefined {
@@ -81,17 +128,22 @@ export function parseEnvPort(content: string): number | undefined {
 }
 
 /**
- * The worktree databases whose worktree is gone. With `accepted`, only those
- * the accepted dry run listed: one orphaned since waits for the next report.
+ * The worktree databases and storage folders, by name, whose worktree is gone.
+ * With `accepted`, only those the accepted dry run listed: one orphaned since
+ * waits for the next report.
  */
 export function planPrune(input: {
   databases: string[];
+  storageDirs?: string[];
   worktreePaths: string[];
   accepted?: ReadonlySet<string>;
 }): string[] {
   const live = new Set(input.worktreePaths.map(worktreeDatabaseName));
+  const names = [
+    ...new Set([...input.databases, ...(input.storageDirs ?? [])]),
+  ];
 
-  return input.databases.filter(
+  return names.filter(
     (name) =>
       name.startsWith(PREFIX) &&
       !live.has(name) &&
@@ -158,9 +210,25 @@ function isMainCheckout(root: string): boolean {
 function ensure() {
   const root = git(["rev-parse", "--show-toplevel"]);
 
-  if (!isMainCheckout(root) && !existsSync(path.join(root, ENV_LOCAL))) {
+  if (isMainCheckout(root)) return;
+
+  const envLocalPath = path.join(root, ENV_LOCAL);
+
+  if (!existsSync(envLocalPath)) {
     console.log("First use of the database here: setting up this worktree's.");
     setUp(root);
+    return;
+  }
+
+  const storageDir = worktreeStorageDir(worktreeDatabaseName(root));
+  const upgraded = withStorageDir(
+    readFileSync(envLocalPath, "utf8"),
+    storageDir,
+  );
+
+  if (upgraded !== undefined) {
+    writeFileSync(envLocalPath, upgraded);
+    console.log(`This worktree's uploads now go to ${storageDir}.`);
   }
 }
 
@@ -191,10 +259,14 @@ function migrateAndSeed(options: {
 }) {
   const { envLocalPath, databaseUrl, port, database, created } = options;
   const hadEnvLocal = existsSync(envLocalPath);
+  const storageDir = worktreeStorageDir(database);
 
-  writeFileSync(envLocalPath, renderEnvLocal({ databaseUrl, port }));
+  writeFileSync(
+    envLocalPath,
+    renderEnvLocal({ databaseUrl, port, storageDir }),
+  );
 
-  const env = { DATABASE_URL: databaseUrl };
+  const env = { DATABASE_URL: databaseUrl, STORAGE_VOLUME_DIR: storageDir };
 
   try {
     run("pnpm", ["db:migrate"], env);
@@ -209,6 +281,8 @@ function migrateAndSeed(options: {
     // that has `.env.local`, so leave nothing behind for the next run to trust.
     if (!hadEnvLocal) rmSync(envLocalPath, { force: true });
     if (created) {
+      // The seed's uploads belong to the database it is about to drop.
+      rmSync(storageDir, { recursive: true, force: true });
       try {
         run("docker", [
           "exec",
@@ -255,34 +329,61 @@ function setUp(root: string) {
   migrateAndSeed({ envLocalPath, databaseUrl, port, database, created });
 
   console.log(`\nDatabase: ${database}`);
+  console.log(`Storage:  ${worktreeStorageDir(database)}`);
   console.log(`Dev server: http://localhost:${port} (pnpm dev)`);
 }
 
-/** Returns the databases it dropped, or would drop on a dry run. */
+/**
+ * Returns the worktree names whose database and storage folder it dropped, or
+ * would drop on a dry run.
+ */
 export function prune(
   dryRun: boolean,
   livePaths = worktreePaths(),
   accepted?: ReadonlySet<string>,
 ): string[] {
+  const databases = new Set(
+    psql("select datname from pg_database").split("\n"),
+  );
+  const root = storageRoot();
+  const storageDirs = new Set(
+    existsSync(root)
+      ? readdirSync(root, { withFileTypes: true })
+          .filter((entry) => entry.isDirectory())
+          .map((entry) => entry.name)
+      : [],
+  );
   const drop = planPrune({
-    databases: psql("select datname from pg_database").split("\n"),
+    databases: [...databases],
+    storageDirs: [...storageDirs],
     worktreePaths: livePaths,
     accepted,
   });
 
   if (drop.length === 0) {
-    console.log("No database belongs to a removed worktree.");
+    console.log("No database or storage folder belongs to a removed worktree.");
     return drop;
   }
 
-  for (const database of drop) {
-    console.log(`${dryRun ? "Would drop" : "Dropping"} ${database}`);
+  for (const name of drop) {
+    const pieces = [
+      databases.has(name) ? "database" : undefined,
+      storageDirs.has(name) ? "storage folder" : undefined,
+    ].filter(Boolean);
+    console.log(
+      `${dryRun ? "Would drop" : "Dropping"} ${name} (${pieces.join(" and ")})`,
+    );
 
-    if (!dryRun) {
+    if (dryRun) continue;
+
+    if (databases.has(name)) {
       psql(
-        `select pg_terminate_backend(pid) from pg_stat_activity where datname = '${database}'`,
+        `select pg_terminate_backend(pid) from pg_stat_activity where datname = '${name}'`,
       );
-      run("docker", ["exec", CONTAINER, "dropdb", "-U", "postgres", database]);
+      run("docker", ["exec", CONTAINER, "dropdb", "-U", "postgres", name]);
+    }
+    if (storageDirs.has(name)) {
+      rmSync(path.join(root, name), { recursive: true, force: true });
     }
   }
 

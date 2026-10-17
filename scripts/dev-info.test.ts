@@ -22,6 +22,7 @@ describe("renderInfo", () => {
     branch: "feat/x",
     setup: [{ name: ".env.local", ok: false, detail: "not yet" }],
     port: 5301,
+    storage: "/data/en-escena/worktrees/en-escena-wt-x",
     tools: [{ name: "codex", ok: true, detail: "Logged in" }],
   };
 
@@ -34,6 +35,9 @@ describe("renderInfo", () => {
     );
     expect(output).toContain("en_escena_");
     expect(output).toContain("Dev port: 5301");
+    expect(output).toContain(
+      "Storage:  /data/en-escena/worktrees/en-escena-wt-x",
+    );
     expect(output).toContain("MISSING .env.local: not yet");
     expect(output).toContain("ok      codex: Logged in");
   });
@@ -43,5 +47,11 @@ describe("renderInfo", () => {
 
     expect(output).not.toContain("psql");
     expect(output).not.toContain("db:sql");
+  });
+
+  it("says when no storage folder is set", () => {
+    expect(renderInfo({ ...base, database: null, storage: null })).toContain(
+      "Storage:  none: STORAGE_VOLUME_DIR is not set",
+    );
   });
 });

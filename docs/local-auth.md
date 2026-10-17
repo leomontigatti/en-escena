@@ -20,7 +20,7 @@ EMAIL_FROM="En Escena <acceso@example.com>"
 EMAIL_PROVIDER="resend"
 BREVO_API_KEY=""
 RESEND_API_KEY=""
-STORAGE_VOLUME_DIR="<an absolute directory you can write, outside the repo>"
+STORAGE_VOLUME_DIR=".storage"
 STORAGE_URL_SIGNING_SECRET="<a-long-random-storage-signing-secret>"
 ```
 
@@ -43,10 +43,11 @@ STORAGE_URL_SIGNING_SECRET="<a-long-random-storage-signing-secret>"
   required when `NODE_ENV=production`. Leave provider keys empty for local
   development.
 - `STORAGE_VOLUME_DIR` is where uploaded files live (music, documents,
-  pictures), one directory per bucket. `.env.example` carries production's
-  `/var/lib/en-escena/storage`, which an ordinary user cannot create: replace
-  it locally, or `pnpm db:seed` fails when it uploads the demo music. Every
-  worktree shares it through the linked `.env`.
+  pictures), one directory per bucket, created on the first upload. Locally it
+  is the main checkout's gitignored `.storage/`, a path relative to the repo
+  root the `pnpm` scripts run from; each worktree overrides it in `.env.local`
+  (see [One database per worktree](#one-database-per-worktree)). Production
+  sets its own mount point, `/var/lib/en-escena/storage`, in Coolify.
 - `STORAGE_URL_SIGNING_SECRET` signs the short-lived links the
   `/almacenamiento` route serves files through.
 
@@ -73,9 +74,16 @@ docker compose up -d postgres
 The container is shared by every checkout, but each worktree gets its own
 database in it, `en-escena-wt-<worktree>`, created on first use: the first
 `pnpm dev`, `pnpm db:seed` or `pnpm db:migrate` in a worktree without
-`.env.local` creates, migrates and seeds it, and writes a gitignored `.env.local` with its `DATABASE_URL` and a
+`.env.local` creates, migrates and seeds it, and writes a gitignored `.env.local` with its `DATABASE_URL`, a
 dev server `PORT` no other worktree claims (`APP_URL` and `BETTER_AUTH_URL`
-follow the port). `react-router dev` and every `db:*` script load `.env.local`
+follow the port) and a `STORAGE_VOLUME_DIR` of its own,
+`~/.local/share/en-escena/worktrees/en-escena-wt-<worktree>` (under
+`$XDG_DATA_HOME` when set), where its seeded music and uploads go. The folder is
+named after the database and lives outside the worktree so the two share a
+lifecycle: T3 removes a paused thread's worktree and recreates it on resume,
+and the database's rows must still find their files. A `.env.local` written
+before worktrees had their own folder gains the line on the next `pnpm dev`,
+`db:seed` or `db:migrate`, keeping its database and port. `react-router dev` and every `db:*` script load `.env.local`
 over the `.env` linked from the main checkout, so a session's seed, migrations,
 refresh and screenshots touch only its own data, and a thread that never needs
 data (grilling, research, review) never gets a database. `pnpm db:worktree`
@@ -83,9 +91,12 @@ runs the same setup by hand; re-running it is safe: it migrates, and seeds only
 a database it just created. The dev server holds its port strictly and fails when another process
 has it, rather than moving to a port the session did not expect.
 
-`pnpm worktree:sweep` drops the database of every worktree that is gone, including those T3's storage cleanup removed (see
+`pnpm worktree:sweep` drops the database and storage folder of every worktree that is gone, including those T3's storage cleanup removed (see
 [housekeeping.md](agents/housekeeping.md)). The main checkout keeps
-`en-escena`; `TEST_DATABASE_URL` and the storage directory stay shared.
+`en-escena` and the storage `.env` names; `TEST_DATABASE_URL` stays shared, and DB tests write
+to a temporary folder of their own. `pnpm db:refresh:prod` copies production's
+database only, not its files: rows that point at uploaded files find nothing
+locally.
 
 After changing the schema, generate a migration and apply pending migrations to
 the local `DATABASE_URL`:
