@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import {
   chmodSync,
   mkdirSync,
@@ -176,6 +177,15 @@ describe("copyUploads", () => {
 
     expect(readFileSync(path.join(to, "music", "linked.mp3"), "utf8")).toBe(
       "the whole song",
+    );
+  });
+
+  it("fails on a named pipe, naming it, rather than waiting on it forever", () => {
+    const { from, to } = folders();
+    execFileSync("mkfifo", [path.join(from, "music", "pipe")]);
+
+    expect(() => copyUploads(from, to)).toThrow(
+      /pipe[\s\S]*STORAGE_VOLUME_DIR/,
     );
   });
 

@@ -6,6 +6,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import os from "node:os";
@@ -278,9 +279,13 @@ function copyTree(from: string, to: string) {
     if (entry.isDirectory()) {
       copyTree(source, target);
     } else {
-      // Anything else is copied as a file too, a link as what it points at,
-      // so an entry that cannot be copied fails here rather than going missing.
+      // Anything else must be, or link to, a regular file: it is copied as
+      // one, and the rest (a pipe would block the read forever, a broken link)
+      // fails here rather than going missing.
       try {
+        if (!statSync(source).isFile()) {
+          throw new Error("not a regular file");
+        }
         copyFileSync(source, target);
       } catch (error) {
         throw new Error(`Could not copy ${source}: ${String(error)}`, {
