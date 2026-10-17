@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { databaseName, renderInfo } from "./dev-info";
+import { databaseName, renderInfo, storageFolder } from "./dev-info";
 
 describe("databaseName", () => {
   it("keeps only the database name, never the credentials", () => {
@@ -16,12 +16,25 @@ describe("databaseName", () => {
   });
 });
 
+describe("storageFolder", () => {
+  it("resolves the main checkout's relative default from the repo root", () => {
+    expect(storageFolder("/repo", ".storage")).toBe("/repo/.storage");
+  });
+
+  it("keeps a worktree's absolute folder as it is", () => {
+    expect(storageFolder("/repo", "/data/en-escena/worktrees/x")).toBe(
+      "/data/en-escena/worktrees/x",
+    );
+  });
+});
+
 describe("renderInfo", () => {
   const base = {
     root: "/wt",
     branch: "feat/x",
     setup: [{ name: ".env.local", ok: false, detail: "not yet" }],
     port: 5301,
+    storage: "/data/en-escena/worktrees/en-escena-wt-x",
     tools: [{ name: "codex", ok: true, detail: "Logged in" }],
   };
 
@@ -43,5 +56,11 @@ describe("renderInfo", () => {
 
     expect(output).not.toContain("psql");
     expect(output).not.toContain("db:sql");
+  });
+
+  it("says when no storage folder is set", () => {
+    expect(renderInfo({ ...base, database: null, storage: null })).toContain(
+      "Storage:  none: STORAGE_VOLUME_DIR is not set",
+    );
   });
 });

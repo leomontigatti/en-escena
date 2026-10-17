@@ -31,7 +31,7 @@ check a screen by hand: drive it and show the result.
 - `pnpm dev:info` reports the worktree's state without opening `.env`, which agents are denied:
   no `.env` means T3's setup script was never imported; `.env` but no `node_modules` means the
   install failed. It also prints the dev port, the database with the `pnpm db:sql` and `psql`
-  lines, and which tools the shell reaches.
+  lines, the storage folder uploads go to, and which tools the shell reaches.
 - "Port … is already in use" from `pnpm dev` usually means your own earlier server is still up:
   `pnpm dev:stop` (§ Cleanup).
 - A first load may log `504 (Outdated Optimize Dep)` while Vite pre-bundles; reload once.

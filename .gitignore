@@ -4,6 +4,7 @@ build
 .react-router
 .env
 .env.local
+.storage/
 .DS_Store
 .firecrawl
 tmp/

@@ -8,7 +8,8 @@ import { git } from "./worktree-db";
 
 // Prints what an agent needs to work in this worktree without reading `.env`,
 // which agents are denied: the setup state, the dev port, the database and the
-// `pnpm db:sql` and psql lines for it, and which tools the agent's shell can reach. It prints no
+// `pnpm db:sql` and psql lines for it, the storage folder, and which tools the
+// agent's shell can reach. It prints no
 // secret: of `DATABASE_URL` only the database name leaves this script.
 //
 // Usage: pnpm dev:info. Always exits 0; a missing piece is a line, not an error.
@@ -27,12 +28,18 @@ export function databaseName(databaseUrl: string | undefined): string | null {
   }
 }
 
+/** The folder uploads go to; a relative `.env` value is the repo root's. */
+export function storageFolder(root: string, value: string | undefined) {
+  return value ? path.resolve(root, value) : null;
+}
+
 export function renderInfo(input: {
   root: string;
   branch: string;
   setup: Check[];
   port: number;
   database: string | null;
+  storage: string | null;
   tools: Check[];
 }): string {
   const mark = (check: Check) =>
@@ -54,6 +61,7 @@ export function renderInfo(input: {
           "          Tables are prefixed `en_escena_` (en_escena_choreography); `\\dt en_escena_*` lists them.",
         ]
       : []),
+    `Storage:  ${input.storage ?? "none: STORAGE_VOLUME_DIR is not set; is .env linked?"}`,
     "",
     "Tools on this shell's PATH:",
     ...input.tools.map(mark),
@@ -110,7 +118,7 @@ function main() {
       name: ".env.local",
       ok: existsSync(at(".env.local")),
       detail: existsSync(at(".env.local"))
-        ? "worktree database and port set up"
+        ? "worktree database, storage folder and port set up"
         : "not yet: the first pnpm dev, db:seed or db:migrate sets it up",
     },
   ];
@@ -155,6 +163,7 @@ function main() {
       setup,
       port: Number(process.env.PORT) || DEFAULT_PORT,
       database: databaseName(process.env.DATABASE_URL),
+      storage: storageFolder(root, process.env.STORAGE_VOLUME_DIR),
       tools,
     }),
   );
