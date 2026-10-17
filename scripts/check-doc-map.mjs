@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 import {
   DOC_CHANGE_NOT_NEEDED_TRAILER,
@@ -16,10 +17,18 @@ import {
  * Runs in CI and locally, so the GitHub Actions annotation prefix is only
  * emitted under Actions, where it means something.
  *
- * Usage: node scripts/check-doc-map.mjs [base-ref]
+ * With `--message-file`, it runs from `.husky/commit-msg` on the commit being
+ * written: the staged tree stands in for `HEAD`, and the message in the file
+ * counts as one more commit whose trailer can declare the skip.
+ *
+ * Usage: node scripts/check-doc-map.mjs [base-ref] [--message-file <path>]
  */
 
-const baseRef = process.argv[2] ?? "origin/master";
+const args = process.argv.slice(2);
+const messageFlag = args.indexOf("--message-file");
+const messageFile = messageFlag === -1 ? undefined : args[messageFlag + 1];
+if (messageFlag !== -1) args.splice(messageFlag, 2);
+const baseRef = args[0] ?? "origin/master";
 const errorPrefix = process.env.GITHUB_ACTIONS === "true" ? "::error::" : "";
 
 /**
@@ -63,10 +72,14 @@ if (!mergeBase) {
 // `--no-renames` on purpose: a mapped file moved out of its directory should
 // fire on its old path, because rehoming documented code is precisely when the
 // document needs to move too.
-const diff = git(["diff", "--name-only", "--no-renames", mergeBase, "HEAD"]);
+const diff = git(
+  messageFile === undefined
+    ? ["diff", "--name-only", "--no-renames", mergeBase, "HEAD"]
+    : ["diff", "--name-only", "--no-renames", "--cached", mergeBase],
+);
 
 if (diff === undefined) {
-  giveUp(`Could not diff ${mergeBase}..HEAD; nothing to compare against.`);
+  giveUp(`Could not diff from ${mergeBase}; nothing to compare against.`);
 }
 
 const changedFiles = diff.split("\n").filter(Boolean);
@@ -82,7 +95,8 @@ if (undocumentedChanges.length === 0) {
 }
 
 const reasons = findDocChangeNotNeededReasons(
-  git(["log", "--format=%B", `${mergeBase}..HEAD`]) ?? "",
+  (git(["log", "--format=%B", `${mergeBase}..HEAD`]) ?? "") +
+    (messageFile === undefined ? "" : `\n${readFileSync(messageFile, "utf8")}`),
 );
 
 if (reasons.length > 0) {

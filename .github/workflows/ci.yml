@@ -100,9 +100,9 @@ jobs:
       # No test asserts that a doc contains fixed text (#1571): such a test
       # breaks on every rewording and catches no bug.
       - run: pnpm check:docs-tests
-      # Every label the automation names exists (#1116). The AFK state machine
-      # runs on exact label strings, and a typo in an `--add-label` otherwise
-      # surfaces only as a refused edit in the middle of the run that needs it.
+      # Every label a workflow, script or skill names exists (#1116). Labels
+      # match as exact strings, and a typo in an `--add-label` otherwise
+      # surfaces only as a refused edit when the command runs.
       - run: pnpm check:labels
       # Engineering prose stays English (#592). The sweep took the tree to zero
       # Spanish comments and test names; this is what keeps it there, since the
@@ -152,9 +152,9 @@ jobs:
           pnpm check:migration-safety
       # Dependency hygiene (#999): `pnpm audit --prod` over this branch's tree and
       # over master's, failing only on the high and critical advisories the branch
-      # *introduces*. Auditing the whole tree instead would redden every open PR —
-      # AFK branches included — the day a CVE is disclosed against a dependency
-      # nobody here touched, and the fix would belong to no branch in particular.
+      # *introduces*. Auditing the whole tree instead would redden every open PR
+      # the day a CVE is disclosed against a dependency nobody here touched, and
+      # the fix would belong to no branch in particular.
       # Dependabot alerts watch the full tree for that case, with security update
       # PRs off, so nothing is missed. Same `origin/master` the step above fetches,
       # which is why this sits right after it — and if that fetch ever stops

@@ -1,23 +1,10 @@
-<!-- Template and rules: the shared `pr` skill (leomontigatti/agent-workflow). Keep it short; the issue holds the reasoning. -->
+<!-- Template and rules: the shared `pr` skill (leomontigatti/agent-workflow). Keep it short; the issue holds the reasoning. No images: screens are approved in the thread. -->
 
-<!-- Anything the reviewer must do or decide goes here, first. Delete if there is nothing. -->
+<!-- Anything the user must do or decide goes here, first. Delete if there is nothing. -->
 
-## Summary
+<!-- What changed, as the user or the maintainer would see it, in one to three sentences. -->
 
-<!-- The problem in one or two sentences, then the fix; a picture when the point is structure or order. -->
-
-## Evidence
-
-- **Before:**
-  **After:**
-
-<!-- UI change? Before/after images from `pnpm pr:evidence`, or a short GIF for motion. -->
-
-## Merge Danger
-
-**Door:** <!-- one-way or two-way -->
-
-**Blast Radius:** <!-- what breaks, and for whom, if this is wrong -->
+<!-- One-way door only (a revert does not undo it): **Door: one-way.** <what survives a revert> -->
 
 ## Review
 

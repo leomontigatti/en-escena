@@ -24,8 +24,8 @@ describe("DB test workflow", () => {
     expect(scripts["test"]).toBe("pnpm test:unit && pnpm test:db");
     expect(scripts["test:unit"]).toBe("vitest --run");
 
-    // The default DB suite runs on PGlite so the AFK implementer/reviewer can
-    // run it on a GHA runner with no Postgres service.
+    // The default DB suite runs on PGlite so a session can run it with no
+    // Postgres service.
     expect(scripts["test:db"]).toContain("vitest.db.fast.config.ts");
     expect(scripts["test:db"]).toContain("--run");
 

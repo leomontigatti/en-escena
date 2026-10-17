@@ -1,0 +1,3 @@
+# CI's `docs-gate`, on the commit being written: here, not in pre-commit,
+# because its escape hatch is a trailer in this commit's message.
+node scripts/check-doc-map.mjs --message-file "$1"

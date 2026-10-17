@@ -202,8 +202,8 @@ describe("doc gate", () => {
     ).toEqual([]);
   });
 
-  // The message is the mechanism: an AFK runner holds no GitHub token and
-  // cannot read anything this text does not say.
+  // The message is the mechanism: whoever hits the gate acts on this text
+  // alone.
   test("names the code, the document and the verbatim escape hatch", () => {
     const message = formatUndocumentedChange({
       doc: "docs/domain/access.md",

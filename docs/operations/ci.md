@@ -32,8 +32,10 @@ protection, so making a job required is a human step in the repo settings.
 - `pr-title` (`pr-title.yml`): `pnpm check:pr-title` over the PR title. It
   lives in its own file because it needs the `edited` event, which fires on a
   body edit too, and in `ci.yml` that would re-run the build and the Postgres
-  shards on every description change. The title reaches the script through
-  `env: PR_TITLE`, never interpolated into a `run:` block.
+  shards on every description change. An edit that changes neither the title
+  nor the base skips the job, which still reports `pr-title` as a success. The
+  title reaches the script through `env: PR_TITLE`, never interpolated into a
+  `run:` block.
 - `review-record` (`review-record.yml`): the shared workflow's `review-record`
   action over the PR body's `## Review` record (the shared `pr` skill): the
   reviewers the diff's tier requires are named, by the `review-paths` block of
@@ -44,8 +46,12 @@ protection, so making a job required is a human step in the repo settings.
 
 The commit gate before any of these is `.husky/pre-commit`: gitleaks on the
 staged diff, `lint-staged`, `check:comment-language`, `typecheck`,
-`check:file-tokens` and `check:fallow`. Hooks can be skipped, so it is the
-minimum, not the validation of a session's work. What joins it stays fast and
+`check:file-tokens`, `check:fallow`, and the sub-second `checks` steps
+(`check:repo-styles`, `check:banned-imports`, `check:docs-tests`,
+`check:labels`, the three migration checks). `.husky/commit-msg` runs
+`docs-gate` on the staged tree, reading the trailer from the message being
+written. Hooks can be skipped, so it is the minimum, not the validation of a
+session's work, and CI runs every one of them again. What joins it stays fast and
 deterministic: formatting staged files through `lint-staged` is the model.
 
 gitleaks is not a pnpm dependency: when the binary is not on `PATH`, the

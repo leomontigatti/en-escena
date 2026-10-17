@@ -9,7 +9,7 @@
       {
         "name": "ready-for-agent",
         "color": "0e8a16",
-        "description": "Fully specified and grabbable; a triage state, not an AFK trigger"
+        "description": "Fully specified and grabbable by an agent session"
       },
       {
         "name": "ready-for-human",

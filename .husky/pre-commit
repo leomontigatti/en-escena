@@ -1,7 +1,7 @@
 # Secrets first: nothing else matters if the commit carries a credential (#978).
 # Config in `.gitleaks.toml`. gitleaks is optional on purpose — it is not a pnpm
-# dependency, and the AFK runners do not install it, so a missing binary warns
-# and lets the commit through. CI's `checks` job runs the same scan blocking.
+# dependency, so a missing binary warns and lets the commit through. CI's
+# `checks` job runs the same scan blocking.
 if command -v gitleaks >/dev/null 2>&1; then
   gitleaks git --pre-commit --staged --no-banner --redact --verbose
 else
@@ -13,3 +13,12 @@ pnpm check:comment-language
 pnpm typecheck
 pnpm check:file-tokens
 pnpm check:fallow
+# The cheap CI checks, each under a second, so a commit catches what would
+# otherwise fail a PR. CI still runs them all: a hook can be skipped, CI cannot.
+pnpm check:repo-styles
+pnpm check:banned-imports
+pnpm check:docs-tests
+pnpm check:labels
+pnpm check:migration-order
+pnpm check:migration-immutability
+pnpm check:migration-safety
