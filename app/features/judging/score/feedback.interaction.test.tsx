@@ -40,6 +40,7 @@ function buildRow(feedbackAudioUrl: string | null): JudgePresentationRow {
     status: "pending",
     submodalityName: "Lyrical",
     value: null,
+    withdrawn: false,
   };
 }
 

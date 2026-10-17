@@ -9,6 +9,7 @@ import {
   createEventCatalog,
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 import {
   assignJudges,
@@ -222,6 +223,31 @@ describe("assignJudges", () => {
     expect(result).toEqual({ judgeCount: 0, presentationCount: 0 });
   });
 
+  // A withdrawn presentation keeps the judges it had, but gains none: there is
+  // nothing for a new one to score.
+  test("skips a withdrawn presentation and keeps the judges it already had", async () => {
+    const { addChoreography } = await seedEvent();
+    const performing = await addChoreography({ name: "Una", orderNumber: 1 });
+    const withdrawn = await addChoreography({ name: "Otra", orderNumber: 2 });
+    const judge = await createUser({ name: "Ana Juez", role: "judge" });
+    const other = await createUser({ name: "Bruno Juez", role: "judge" });
+
+    await assignJudges({
+      choreographyIds: [withdrawn.id],
+      judgeIds: [judge.id],
+    });
+    await withdrawChoreographyForTest(withdrawn.id);
+
+    const result = await assignJudges({
+      choreographyIds: [performing.id, withdrawn.id],
+      judgeIds: [other.id],
+    });
+
+    expect(result).toEqual({ judgeCount: 1, presentationCount: 1 });
+    expect(await readAssignmentPairs(performing.id)).toEqual([other.id]);
+    expect(await readAssignmentPairs(withdrawn.id)).toEqual([judge.id]);
+  });
+
   // The judge edit adds and removes in one write: a removal that fails after
   // the assignment must take the assignment back with it.
   test("is undone with the larger write it was made part of", async () => {
@@ -271,6 +297,34 @@ describe("removeJudges", () => {
     expect(await readAssignmentPairs(first.id)).toEqual([other.id]);
     expect(await readAssignmentPairs(second.id)).toEqual([other.id]);
     expect(await readAssignmentPairs(third.id)).toEqual([judge.id]);
+  });
+
+  // A withdrawn presentation is read-only: its judges stay, reading
+  // `Retirada` on their lists, and no edit reaches it in either direction.
+  test("leaves the judges of a withdrawn presentation where they are", async () => {
+    const { addChoreography } = await seedEvent();
+    const performing = await addChoreography({ name: "Una", orderNumber: 1 });
+    const withdrawn = await addChoreography({ name: "Otra", orderNumber: 2 });
+    const judge = await createUser({ name: "Ana Juez", role: "judge" });
+
+    await assignJudges({
+      choreographyIds: [performing.id, withdrawn.id],
+      judgeIds: [judge.id],
+    });
+    await withdrawChoreographyForTest(withdrawn.id);
+
+    const result = await removeJudges({
+      choreographyIds: [performing.id, withdrawn.id],
+      judgeIds: [judge.id],
+    });
+
+    expect(result).toEqual({
+      judgeCount: 1,
+      keptCount: 0,
+      presentationCount: 1,
+    });
+    expect(await readAssignmentPairs(performing.id)).toEqual([]);
+    expect(await readAssignmentPairs(withdrawn.id)).toEqual([judge.id]);
   });
 
   test("refuses the one pair that already has a score", async () => {

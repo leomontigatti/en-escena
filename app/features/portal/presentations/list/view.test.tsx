@@ -130,6 +130,7 @@ function buildRow(
     orderNumber: 1,
     scheduledDate: "2026-05-01",
     submodalityName: null,
+    withdrawn: false,
     ...overrides,
   };
 }

@@ -137,15 +137,14 @@ describe("readEventProgram", () => {
     ]);
   });
 
-  test("leaves out a withdrawn choreography", async () => {
+  test("prints a withdrawn choreography at its number, marked withdrawn", async () => {
     const { addAcademy, event } = await seedEvent();
     const { addChoreography } = await addAcademy("Academia Norte");
     const performing = await addChoreography({
       name: "En escena",
       orderNumber: 1,
     });
-    // A withdrawal drops the presentation, but the program never leans on that
-    // to keep a choreography that will not be performed out of print.
+    // The number was announced, so it stays printed: marked, never a gap.
     const withdrawn = await addChoreography({
       name: "Retirada",
       orderNumber: 2,
@@ -154,8 +153,15 @@ describe("readEventProgram", () => {
     await withdrawChoreographyForTest(withdrawn.id);
 
     expect(
-      (await readEventProgram(event.id)).rows.map((row) => row.choreographyId),
-    ).toEqual([performing.id]);
+      (await readEventProgram(event.id)).rows.map((row) => [
+        row.choreographyId,
+        row.orderNumber,
+        row.withdrawn,
+      ]),
+    ).toEqual([
+      [performing.id, 1, false],
+      [withdrawn.id, 2, true],
+    ]);
   });
 
   test("names the dancers of a solo and a duo and of nothing else", async () => {

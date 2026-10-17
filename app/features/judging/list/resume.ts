@@ -1,5 +1,20 @@
 import type { JudgeScoreStatus } from "@/lib/judging/judge-status";
 
+/** What the resume reads of a row of the judge's list. */
+type ResumeRow = {
+  presentationId: string;
+  status: JudgeScoreStatus;
+  withdrawn: boolean;
+};
+
+/**
+ * Whether the judge still owes the row a score. A withdrawn presentation is
+ * never scored, so it is never owed, whatever its status reads.
+ */
+export function isOwedScore(row: Omit<ResumeRow, "presentationId">) {
+  return row.status === "pending" && !row.withdrawn;
+}
+
 /**
  * Where a judge coming back to the list left off. It counts from the last
  * presentation they opened rather than from the top, so a judge who scored out
@@ -8,11 +23,10 @@ import type { JudgeScoreStatus } from "@/lib/judging/judge-status";
  * is left to do.
  */
 export function findResumePresentationId(
-  rows: readonly { presentationId: string; status: JudgeScoreStatus }[],
+  rows: readonly ResumeRow[],
   lastOpenedPresentationId: string | null,
 ): string | null {
-  const isPending = (row: { status: JudgeScoreStatus }) =>
-    row.status === "pending";
+  const isPending = isOwedScore;
   const lastOpenedIndex = rows.findIndex(
     (row) => row.presentationId === lastOpenedPresentationId,
   );
@@ -26,7 +40,7 @@ export function findResumePresentationId(
  * now, so a day that is not open, past or coming, has none.
  */
 export function findResumeMarkerPresentationId(
-  rows: readonly { presentationId: string; status: JudgeScoreStatus }[],
+  rows: readonly ResumeRow[],
   lastOpenedPresentationId: string | null,
   isOpen: boolean,
 ): string | null {

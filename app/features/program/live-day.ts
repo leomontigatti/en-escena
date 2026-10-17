@@ -18,7 +18,10 @@ import {
  */
 export type ProgramLiveDay = {
   date: string;
-  /** The day's last presentation, by order, is evaluated. */
+  /**
+   * The day's last presentation, by order, is evaluated. A withdrawn one is
+   * never danced, so the last one still taking part is the one that counts.
+   */
   isOver: boolean;
   evaluatedChoreographyIds: string[];
   /** `HH:MM`, the start of the day's first schedule. */
@@ -53,6 +56,7 @@ export function readProgramLiveDay({
     choreographyId: string;
     orderNumber: number | null;
     scheduledDate: string;
+    withdrawn: boolean;
   }>;
   schedules: ReadonlyArray<{ scheduledDate: string; startTime: string }>;
 }): ProgramLiveDay | null {
@@ -67,13 +71,20 @@ export function readProgramLiveDay({
     return null;
   }
 
-  const lastRow = dayRows.reduce((last, row) =>
-    (row.orderNumber ?? 0) > (last.orderNumber ?? 0) ? row : last,
+  const performingRows = dayRows.filter((row) => !row.withdrawn);
+  const lastRow = performingRows.reduce<(typeof performingRows)[number] | null>(
+    (last, row) =>
+      last === null || (row.orderNumber ?? 0) > (last.orderNumber ?? 0)
+        ? row
+        : last,
+    null,
   );
 
   return {
     date,
-    isOver: evaluatedChoreographyIds.has(lastRow.choreographyId),
+    // A day of withdrawn presentations only has nothing left to dance.
+    isOver:
+      lastRow === null || evaluatedChoreographyIds.has(lastRow.choreographyId),
     evaluatedChoreographyIds: dayRows
       .map((row) => row.choreographyId)
       .filter((id) => evaluatedChoreographyIds.has(id)),

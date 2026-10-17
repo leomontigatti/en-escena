@@ -32,6 +32,7 @@ import { dayTabParam, useUrlTab } from "@/lib/shared/url-tab";
 import {
   findResumeMarkerPresentationId,
   findResumePresentationId,
+  isOwedScore,
   readLastOpenedPresentationId,
   rememberOpenedPresentation,
 } from "./resume";
@@ -74,7 +75,7 @@ export function JudgePanelView({
     [isOpen],
   );
   const rows = onlyPending
-    ? loaderData.presentations.filter((row) => row.status === "pending")
+    ? loaderData.presentations.filter(isOwedScore)
     : loaderData.presentations;
 
   useJudgeScoreFeedback({
@@ -262,7 +263,8 @@ function JudgeListFilters({
 /**
  * Which presentation the judge has open, kept in the URL so that coming back to
  * the tab, or a revalidation mid-show, reopens what they were looking at. On a
- * day that is not open nothing opens, whatever the URL says.
+ * day that is not open nothing opens, whatever the URL says, and neither does
+ * a withdrawn presentation, which is never scored.
  */
 function useOpenPresentation(
   presentations: JudgePresentationRow[],
@@ -289,8 +291,9 @@ function useOpenPresentation(
   );
 
   const openPresentation = isOpen
-    ? (presentations.find((row) => row.presentationId === openPresentationId) ??
-      null)
+    ? (presentations.find(
+        (row) => row.presentationId === openPresentationId && !row.withdrawn,
+      ) ?? null)
     : null;
   const openedPresentationId = openPresentation?.presentationId ?? null;
 
@@ -435,7 +438,8 @@ function useResumePresentationId({
 // with the number's share moved to the level so `Profesional` fits the
 // narrower card. Laid out `fit`: four free-text columns share the row, so each keeps its share
 // and a long academy or name is cut rather than pushing `Estado` off the card.
-// On a day that is not open the name is plain text: there is no form to open.
+// On a day that is not open the name is plain text: there is no form to open;
+// nor is there on a withdrawn presentation, which keeps its number unscored.
 function buildJudgePresentationColumns(
   isOpen: boolean,
 ): DataTableColumn<JudgePresentationRow>[] {
@@ -453,7 +457,7 @@ function buildJudgePresentationColumns(
       header: "Nombre",
       className: "font-medium",
       cell: (row) =>
-        isOpen ? (
+        isOpen && !row.withdrawn ? (
           <DataTableTruncatedText value={row.name}>
             <DataTableLink to={`?presentacion=${row.presentationId}`}>
               {row.name}

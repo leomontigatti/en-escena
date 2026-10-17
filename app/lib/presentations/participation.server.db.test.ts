@@ -192,7 +192,7 @@ describe("readParticipationRows", () => {
     ]);
   });
 
-  test("leaves out a withdrawn choreography, numbered or not", async () => {
+  test("marks a withdrawn choreography, at its number or without one", async () => {
     const { addChoreography, event } = await seedEvent();
     const performing = await addChoreography({ name: "En escena" });
     const withdrawnLate = await addChoreography({ name: "Retirada" });
@@ -206,7 +206,13 @@ describe("readParticipationRows", () => {
 
     const rows = await readParticipationRows(event.id);
 
-    expect(rows.map((row) => row.choreographyId)).toEqual([performing.id]);
+    expect(
+      rows.map((row) => [row.choreographyId, row.orderNumber, row.withdrawn]),
+    ).toEqual([
+      [withdrawnNumbered.id, 2, true],
+      [performing.id, null, false],
+      [withdrawnLate.id, null, true],
+    ]);
   });
 
   test("carries the category's levels, so a row without one is warned", async () => {
@@ -244,6 +250,34 @@ describe("runAutomaticOrdering", () => {
         choreographyId: performing.id,
         orderNumber: 1,
       }),
+    ]);
+  });
+
+  test("keeps a withdrawn presentation at its number and orders the rest around it", async () => {
+    const { addChoreography, event } = await seedEvent();
+    const first = await addChoreography({ name: "Primera", orderNumber: 3 });
+    const withdrawn = await addChoreography({
+      name: "Retirada",
+      orderNumber: 1,
+    });
+    const second = await addChoreography({ name: "Segunda", orderNumber: 2 });
+
+    await withdrawChoreographyForTest(withdrawn.id);
+
+    expect(await runAutomaticOrdering(event.id)).toEqual({
+      ok: true,
+      frozenCount: 0,
+      orderedCount: 2,
+    });
+    expect(
+      (await readOrder(event.id)).map((row) => [
+        row.choreographyId,
+        row.orderNumber,
+      ]),
+    ).toEqual([
+      [withdrawn.id, 1],
+      [first.id, 2],
+      [second.id, 3],
     ]);
   });
 
@@ -586,6 +620,37 @@ describe("movePresentation", () => {
     expect((await readOrder(event.id)).map((row) => row.orderNumber)).toEqual([
       1, 2, 3,
     ]);
+  });
+
+  test("refuses to move a withdrawn presentation, and refuses its number as the target", async () => {
+    const { addChoreography, event } = await seedEvent();
+    const withdrawn = await addChoreography({
+      name: "Retirada",
+      orderNumber: 1,
+    });
+    const performing = await addChoreography({
+      name: "En escena",
+      orderNumber: 2,
+    });
+
+    await withdrawChoreographyForTest(withdrawn.id);
+
+    await expect(
+      movePresentation({
+        choreographyId: withdrawn.id,
+        eventId: event.id,
+        fromOrderNumber: 1,
+        toOrderNumber: 2,
+      }),
+    ).resolves.toEqual({ ok: false, reason: "withdrawnRow" });
+    await expect(
+      movePresentation({
+        choreographyId: performing.id,
+        eventId: event.id,
+        fromOrderNumber: 2,
+        toOrderNumber: 1,
+      }),
+    ).resolves.toEqual({ ok: false, reason: "withdrawnPosition" });
   });
 
   test("refuses every move before the event's first automatic ordering", async () => {

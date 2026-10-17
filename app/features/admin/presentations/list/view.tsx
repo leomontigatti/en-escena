@@ -43,7 +43,12 @@ import {
 import { PresentationDayTabs, PresentationNotices } from "./notices";
 import {
   movePresentationIntent,
+  canTakeJudgeEdit,
+  isHeldInPlace,
   presentationRowPath,
+  readJudgeEditSelection,
+  presentationStatusFilterOptions,
+  presentationStatusFilterParam,
   type PresentationListActionData,
   type PresentationListItem,
   type PresentationListResult,
@@ -78,10 +83,10 @@ function buildPresentationColumns({
             // room from the cell's padding to keep to the shared row height.
             className: "px-1 py-0.5",
             headerClassName: "px-1",
-            // A frozen row has no grip: its schedule already ran, so there
-            // is nowhere for it to go.
+            // A frozen or withdrawn row has no grip: its number is kept, so
+            // there is nowhere for it to go.
             cell: (row) =>
-              row.frozen ? null : (
+              isHeldInPlace(row) ? null : (
                 <DataTableDragHandle label="Mover la presentación" />
               ),
           } satisfies DataTableColumn<PresentationListItem>,
@@ -249,8 +254,8 @@ function usePresentationMoving(loaderData: PresentationListResult) {
  * The number, always an input once the event has been ordered: typing one is
  * the way to place a row that dragging cannot reach, under another sort or a
  * search. Before the first ordering there is no order to type into, and
- * a frozen row's number is not the administrator's to change, so both are
- * locked.
+ * a frozen or withdrawn row's number is not the administrator's to change, so
+ * both are locked.
  */
 function PresentationOrderCell({
   moving,
@@ -272,12 +277,12 @@ function PresentationOrderCell({
     setError(null);
   }
 
-  if (!moving.canMove || moving.highestNumber === null || row.frozen) {
+  if (!moving.canMove || moving.highestNumber === null || isHeldInPlace(row)) {
     return (
       <div className="relative">
         <Input
           aria-label={
-            row.frozen
+            isHeldInPlace(row)
               ? `Número de presentación de ${row.name}`
               : "Número de presentación"
           }
@@ -343,10 +348,37 @@ function PresentationOrderCell({
   );
 }
 
-// The one facet of the list: which choreographies asked to be evaluated as
-// professional. It is otherwise invisible here, since the rows carry no badge
-// for it; the judges read it off the score heading.
+/** How each `Estado` answer reads on its applied filter: as the row's badge. */
+const statusFilterBadgeVariants = {
+  advertencias: "warning",
+  descalificada: "destructive",
+  evaluada: "success",
+  retirada: "secondary",
+} as const;
+
+// `Estado` keeps the rows whose badge reads the answer chosen, and is the one
+// way to a choreography withdrawn before it had a number. `Evaluación` keeps
+// the choreographies that asked to be evaluated as professional, otherwise
+// invisible here: the rows carry no badge for it, and the judges read it off
+// the score heading.
 const presentationFacetedFilters: DataTableFacetedFilter[] = [
+  {
+    id: presentationStatusFilterParam,
+    label: "Estado",
+    options: [...presentationStatusFilterOptions],
+    renderValue: (option) => (
+      <Badge
+        variant={
+          statusFilterBadgeVariants[
+            option.value as keyof typeof statusFilterBadgeVariants
+          ]
+        }
+        className="font-normal"
+      >
+        {option.label}
+      </Badge>
+    ),
+  },
   {
     id: "evaluacion",
     icon: Gavel,
@@ -354,6 +386,22 @@ const presentationFacetedFilters: DataTableFacetedFilter[] = [
     options: [{ label: "Profesional", value: "profesional" }],
   },
 ];
+
+function buildInitialPresentationFilters(
+  filters: PresentationListResult["filters"],
+) {
+  const values: Record<string, string> = {};
+
+  if (filters.status) {
+    values[presentationStatusFilterParam] = filters.status;
+  }
+
+  if (filters.evaluation) {
+    values.evaluacion = filters.evaluation;
+  }
+
+  return values;
+}
 
 /** The list's rows are choreographies, whether or not they are numbered yet. */
 const emptyPresentationList = describeEmptyList(
@@ -373,7 +421,7 @@ export function PresentationsListView({
   const columns = buildPresentationColumns({ moving });
   // The selection lives on the rows the search and the filters leave, so the
   // rows it names are read out of them rather than out of the whole event.
-  const selectedRows = rows.filter((row) => selectedRowIds.includes(row.id));
+  const selectedRows = readJudgeEditSelection(rows, selectedRowIds);
 
   return (
     <AdminResourceLayout
@@ -391,7 +439,7 @@ export function PresentationsListView({
             loaderData.canWrite && loaderData.musicDownloadDays.length > 0
           }
           canExportProgram={loaderData.programExportDays.length > 0}
-          canOrderRows={loaderData.canWrite && loaderData.hasAnyRow}
+          canOrderRows={loaderData.canWrite && loaderData.hasOrderableRow}
           hasSelection={selectedRows.length > 0}
           onDownloadMusic={() => setOutputDialog("musicDownload")}
           onExportProgram={() => setOutputDialog("programExport")}
@@ -426,19 +474,14 @@ export function PresentationsListView({
                 getRowKey={(row) => row.id}
                 layout="fit"
                 selectableRows={loaderData.canWrite}
-                // Only a numbered row can carry a judge: there is nothing to
-                // hang the assignment off until the choreography has a
-                // presentation.
-                canSelectRow={(row) => row.orderNumber !== null}
+                canSelectRow={canTakeJudgeEdit}
                 selectedRowIds={selectedRowIds}
                 onSelectedRowIdsChange={setSelectedRowIds}
                 searchPlaceholder="Buscar por número, nombre o academia"
                 initialSearchValue={loaderData.filters.query}
                 facetedFilters={presentationFacetedFilters}
                 initialFacetedFilterValues={{
-                  filters: loaderData.filters.evaluation
-                    ? { evaluacion: loaderData.filters.evaluation }
-                    : {},
+                  filters: buildInitialPresentationFilters(loaderData.filters),
                 }}
                 initialSort={loaderData.filters.order}
                 emptyMessage={emptyPresentationList.nothingMatched}
@@ -460,7 +503,7 @@ export function PresentationsListView({
       )}
       {loaderData.canWrite && isOrderingDialogOpen ? (
         <AutomaticOrderingDialogs
-          days={loaderData.days}
+          days={loaderData.orderableDays}
           frozenDays={loaderData.frozenDays}
           onClose={() => setIsOrderingDialogOpen(false)}
         />
@@ -531,14 +574,14 @@ function moveDraggedRow({
   const active = rows.find((row) => row.id === activeRowId);
   const over = rows.find((row) => row.id === overRowId);
 
-  // Neither a frozen row nor a frozen place moves: the server would refuse
-  // both, so the drop is ignored rather than shown and then undone.
+  // Neither a held row nor a held place moves: the server would refuse both,
+  // so the drop is ignored rather than shown and then undone.
   if (
     !active ||
     !over ||
     over.orderNumber === null ||
-    active.frozen ||
-    over.frozen
+    isHeldInPlace(active) ||
+    isHeldInPlace(over)
   ) {
     return;
   }

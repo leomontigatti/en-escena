@@ -14,7 +14,6 @@ import {
   submodalities,
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
-import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-financial-status";
 import { readEventChoreographyFinancialStatuses } from "@/lib/finances/operational-summary.server";
@@ -52,13 +51,21 @@ export type ParticipationRow = PresentationOrderingRow &
  * within. `stale`: the row's number is not the one the client moved it from.
  * `frozenRow` and `frozenPosition`: the row, or the number it was sent to,
  * belongs to a schedule that already has an evaluated presentation.
+ * `withdrawnRow` and `withdrawnPosition`: the same for a withdrawn
+ * presentation, whose number is kept for good.
  */
 export type MovePresentationResult =
   | { ok: true; movedToOrderNumber: number }
   | {
       ok: false;
       reason:
-        "frozenPosition" | "frozenRow" | "notFound" | "notOrdered" | "stale";
+        | "frozenPosition"
+        | "frozenRow"
+        | "notFound"
+        | "notOrdered"
+        | "stale"
+        | "withdrawnPosition"
+        | "withdrawnRow";
     };
 
 /**
@@ -71,9 +78,10 @@ export type AutomaticOrderingResult =
 
 /**
  * Every choreography of the event, numbered or not, whatever its money says:
- * what it owes is a warning on the row, never a reason to leave it out. Only a
- * withdrawn one is missing — it will not be performed, so no filter of this
- * list brings it back.
+ * what it owes is a warning on the row, never a reason to leave it out. A
+ * withdrawn one is here too, marked `withdrawn`: at its number when it had
+ * one, because that number is what the academies and the public were told,
+ * and without one otherwise, which the ordering never gives it.
  *
  * The result is the reading order of the list: the numbered rows by their
  * number, the rest after them by choreography number.
@@ -104,6 +112,7 @@ export async function readParticipationRows(
         scheduleStartTime: schedules.startTime,
         scheduledDate: schedules.scheduledDate,
         submodalityName: submodalities.name,
+        withdrawnAt: choreographies.withdrawnAt,
       })
       .from(choreographies)
       .innerJoin(academies, eq(choreographies.academyId, academies.id))
@@ -121,9 +130,7 @@ export async function readParticipationRows(
         presentations,
         eq(presentations.choreographyId, choreographies.id),
       )
-      .where(
-        and(eq(choreographies.eventId, eventId), notWithdrawnChoreography()),
-      ),
+      .where(eq(choreographies.eventId, eventId)),
     readEventChoreographyFinancialStatuses(eventId, executor),
   ]);
 
@@ -166,6 +173,7 @@ export async function readParticipationRows(
           startTime: row.scheduleStartTime,
         },
         submodalityName: row.submodalityName,
+        withdrawn: row.withdrawnAt !== null,
       } satisfies ParticipationRow;
     })
     .sort(compareParticipationRows);

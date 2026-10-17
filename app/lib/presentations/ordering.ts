@@ -39,6 +39,11 @@ export type PresentationOrderingRow = PresentationBlock & {
   choreographyNumber: number;
   /** `null` while the choreography has no presentation. */
   orderNumber: number | null;
+  /**
+   * `Coreografía retirada`: a numbered one keeps its number for good and an
+   * unnumbered one is never given one.
+   */
+  withdrawn: boolean;
 };
 
 /** One number handed to one choreography; the frozen rows are not in it. */
@@ -62,6 +67,8 @@ export type AutomaticOrderResult =
 /**
  * `frozenRow`: the row itself is frozen. `frozenPosition`: the number typed or
  * dropped on is held by a frozen row, or sits inside a frozen run.
+ * `withdrawnRow` and `withdrawnPosition`: the same for a withdrawn
+ * presentation, which keeps its number however the rest move.
  */
 export type ManualMoveResult =
   | {
@@ -69,12 +76,17 @@ export type ManualMoveResult =
       movedToOrderNumber: number;
       placements: PresentationPlacement[];
     }
-  | { ok: false; reason: "frozenPosition" | "frozenRow" };
+  | {
+      ok: false;
+      reason:
+        "frozenPosition" | "frozenRow" | "withdrawnPosition" | "withdrawnRow";
+    };
 
 type FrozenRow = {
   choreographyId: string;
   orderNumber: number | null;
   schedule: { id: string };
+  withdrawn: boolean;
 };
 
 /**
@@ -143,6 +155,10 @@ export function comparePresentationBlocks(
  * when the next position is free, and after the next frozen schedule when it
  * is not. Frozen numbers are never shifted to make room.
  *
+ * A withdrawn presentation is held like a frozen one: its number is kept and
+ * never handed to another row. A withdrawn choreography with no number is
+ * left without one.
+ *
  * `days` narrows the ordering to those days; none orders every day. A day left
  * out keeps its numbered rows in the order they have now, manual moves
  * included, and only shifts with the days before it; its late rows wait for
@@ -156,11 +172,14 @@ export function computeAutomaticOrder(
 ): AutomaticOrderResult {
   const isChosen = (row: PresentationOrderingRow) =>
     days.length === 0 || days.includes(row.schedule.scheduledDate);
-  const frozen = rows.filter((row) =>
-    frozenChoreographyIds.has(row.choreographyId),
+  const frozen = rows.filter(
+    (row) => frozenChoreographyIds.has(row.choreographyId) && !row.withdrawn,
+  );
+  const withdrawn = rows.filter(
+    (row) => row.withdrawn && row.orderNumber !== null,
   );
   const unfrozen = rows.filter(
-    (row) => !frozenChoreographyIds.has(row.choreographyId),
+    (row) => !frozenChoreographyIds.has(row.choreographyId) && !row.withdrawn,
   );
   const chosen = unfrozen.filter(isChosen);
 
@@ -172,7 +191,7 @@ export function computeAutomaticOrder(
     (row) => !isChosen(row) && row.orderNumber !== null,
   );
   const byPosition = new Map<number, PresentationOrderingRow>(
-    frozen.map((row) => [row.orderNumber!, row]),
+    [...frozen, ...withdrawn].map((row) => [row.orderNumber!, row]),
   );
   const freePositions = listFreePositions(
     rows,
@@ -252,6 +271,12 @@ export function computeManualMove(
   choreographyId: string,
   toOrderNumber: number,
 ): ManualMoveResult {
+  if (
+    rows.some((row) => row.choreographyId === choreographyId && row.withdrawn)
+  ) {
+    return { ok: false, reason: "withdrawnRow" };
+  }
+
   if (frozenChoreographyIds.has(choreographyId)) {
     return { ok: false, reason: "frozenRow" };
   }
@@ -260,8 +285,17 @@ export function computeManualMove(
     (row): row is FrozenRow & { orderNumber: number } =>
       row.orderNumber !== null,
   );
+
+  if (
+    numbered.some((row) => row.withdrawn && row.orderNumber === toOrderNumber)
+  ) {
+    return { ok: false, reason: "withdrawnPosition" };
+  }
+
   const unfrozenIds = numbered
-    .filter((row) => !frozenChoreographyIds.has(row.choreographyId))
+    .filter(
+      (row) => !frozenChoreographyIds.has(row.choreographyId) && !row.withdrawn,
+    )
     .sort((left, right) => left.orderNumber - right.orderNumber)
     .map((row) => row.choreographyId);
   const isLate = !unfrozenIds.includes(choreographyId);
@@ -318,7 +352,9 @@ export function movePosition(
  * before the one being filled, of which only those of the candidate's own
  * schedule count. A new schedule therefore starts the count over, while blocks
  * of one schedule carry it — and a frozen tail counts too, since the dancers
- * in it need the same rest whether the algorithm placed it or not.
+ * in it need the same rest whether the algorithm placed it or not. A withdrawn
+ * presentation is skipped rather than counted: nobody dances in its slot, so
+ * it is no rest, exactly as the `Separación` warning reads it.
  */
 function conflictsWithRecentPlacements(
   row: PresentationOrderingRow,
@@ -326,9 +362,20 @@ function conflictsWithRecentPlacements(
   byPosition: Map<number, PresentationOrderingRow>,
 ) {
   const dancerIds = new Set(row.activeDancerIds);
+  let counted = 0;
 
-  for (let offset = 1; offset <= dancerSpacingGap; offset += 1) {
-    const previous = byPosition.get(position - offset);
+  for (
+    let earlier = position - 1;
+    earlier >= 1 && counted < dancerSpacingGap;
+    earlier -= 1
+  ) {
+    const previous = byPosition.get(earlier);
+
+    if (previous?.withdrawn) {
+      continue;
+    }
+
+    counted += 1;
 
     if (
       previous &&
@@ -343,10 +390,11 @@ function conflictsWithRecentPlacements(
 }
 
 /**
- * The positions a row may not take: the number of a frozen row, and any gap
- * between two consecutive numbered rows that are both frozen. Such a gap is
- * inside, or between, runs that already ran, and filling it would put a
- * stranger in the middle of what was announced.
+ * The positions a row may not take: the number of a frozen or a withdrawn row,
+ * and any gap between two consecutive numbered rows that are both frozen. Such
+ * a gap is inside, or between, runs that already ran, and filling it would put
+ * a stranger in the middle of what was announced. A gap beside a withdrawn row
+ * of a schedule that has not run is an ordinary free position.
  */
 function listBlockedPositions(
   rows: FrozenRow[],
@@ -362,6 +410,10 @@ function listBlockedPositions(
 
   for (let index = 0; index < numbered.length; index += 1) {
     const current = numbered[index];
+
+    if (current.withdrawn) {
+      blocked.add(current.orderNumber);
+    }
 
     if (!frozenChoreographyIds.has(current.choreographyId)) {
       continue;

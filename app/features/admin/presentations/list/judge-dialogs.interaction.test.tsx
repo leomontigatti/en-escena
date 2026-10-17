@@ -297,6 +297,7 @@ function buildItem(
     scheduledDate: "2026-05-01",
     submodalityName: null,
     warnings: [],
+    withdrawn: false,
     ...overrides,
   };
 }
@@ -313,10 +314,12 @@ function buildLoaderData(): PresentationListResult {
       evaluation: null,
       order: { columnId: "orden", direction: "asc" },
       query: "",
-      warnings: null,
+      status: null,
     },
     frozenDays: [],
     hasAnyRow: true,
+    hasOrderableRow: true,
+    orderableDays: [],
     hasPresentations: true,
     presentations: [
       buildItem({ assignedJudgeIds: [ana.id] }),

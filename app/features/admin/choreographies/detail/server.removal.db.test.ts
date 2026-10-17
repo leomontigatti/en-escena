@@ -400,10 +400,10 @@ describe("administrative choreography detail: access, rename, delete and withdra
     ).resolves.toEqual({ withdrawnAt: withdrawn?.withdrawnAt });
   });
 
-  // The presentation is removed on a withdrawal too: a choreography that will
-  // not be performed must not stay programmed. Its number stays a gap, exactly
-  // as on a delete.
-  test("removes the unevaluated presentation of a withdrawn choreography and leaves its number as a gap", async () => {
+  // Unlike a delete, a withdrawal keeps the presentation: the number is what the
+  // academies and the public were told, so it stays in the order, marked
+  // `Retirada`, rather than turning into a gap.
+  test("keeps the unevaluated presentation of a withdrawn choreography at its number", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Retirada Numerada",
       email: "admin.coreografias.retirada.numerada.academia@example.com",
@@ -463,9 +463,18 @@ describe("administrative choreography detail: access, rename, delete and withdra
       db.query.presentations.findMany({
         where: eq(presentations.eventId, event.id),
       }),
-    ).resolves.toMatchObject([
-      { choreographyId: neighbour.id, orderNumber: 4 },
-    ]);
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          choreographyId: withdrawing.id,
+          orderNumber: 3,
+        }),
+        expect.objectContaining({
+          choreographyId: neighbour.id,
+          orderNumber: 4,
+        }),
+      ]),
+    );
   });
 
   // The one refusal left, and it refuses both outcomes: with money on the

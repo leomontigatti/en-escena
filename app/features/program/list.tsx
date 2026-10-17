@@ -14,6 +14,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import { withdrawnChoreographyStatusLabel } from "@/lib/choreographies/operational-status";
 import { matchesPresentationSearch } from "@/lib/presentations/search";
 
 import { ScheduleDayTabs } from "./day-tabs";
@@ -92,6 +94,7 @@ export function ProgramList({
           columns={buildProgramColumns({
             choreographyPath,
             evaluatedChoreographyIds: liveView.evaluatedChoreographyIds,
+            hasWithdrawnRow: visibleRows.some((row) => row.withdrawn),
             showAcademy,
             showLevel,
           })}
@@ -139,11 +142,14 @@ export function ProgramList({
 function buildProgramColumns({
   choreographyPath,
   evaluatedChoreographyIds,
+  hasWithdrawnRow,
   showAcademy,
   showLevel,
 }: {
   choreographyPath: ((row: ProgramListRow) => string) | null;
   evaluatedChoreographyIds: ReadonlySet<string>;
+  /** Whether some row of the chosen day is withdrawn, which widens the mark. */
+  hasWithdrawnRow: boolean;
   showAcademy: boolean;
   showLevel: boolean;
 }): DataTableColumn<ProgramListRow>[] {
@@ -194,17 +200,23 @@ function buildProgramColumns({
           cell: (row) => <DataTableTruncatedText value={row.levelLabel} />,
         }
       : null,
-    // Header-less and only while some row of the chosen day is evaluated:
-    // the check needs no title, and no other day carries the column.
-    evaluatedChoreographyIds.size > 0
+    // Header-less and only while some row of the chosen day is evaluated or
+    // withdrawn: the mark needs no title, and no other day carries the column.
+    // A withdrawn row is never evaluated, so a row carries one mark at most.
+    evaluatedChoreographyIds.size > 0 || hasWithdrawnRow
       ? {
           id: "evaluated",
           header: "",
-          width: 4,
-          cell: (row) =>
-            evaluatedChoreographyIds.has(row.choreographyId) ? (
+          width: hasWithdrawnRow ? 9 : 4,
+          cell: (row) => {
+            if (row.withdrawn) {
+              return <WithdrawnBadge />;
+            }
+
+            return evaluatedChoreographyIds.has(row.choreographyId) ? (
               <EvaluatedCheck />
-            ) : null,
+            ) : null;
+          },
         }
       : null,
   ];
@@ -212,6 +224,14 @@ function buildProgramColumns({
   return columns.filter(
     (column): column is DataTableColumn<ProgramListRow> => column !== null,
   );
+}
+
+/**
+ * A withdrawn row keeps the number it was announced with, so the numbering
+ * shows no unexplained gap; the badge says why it will not be danced.
+ */
+function WithdrawnBadge() {
+  return <Badge variant="secondary">{withdrawnChoreographyStatusLabel}</Badge>;
 }
 
 function EvaluatedCheck() {

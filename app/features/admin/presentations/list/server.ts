@@ -52,17 +52,20 @@ import {
   editJudgesIntent,
   formatAutomaticOrderingMessage,
   formatProgramVisibilityMessage,
+  isPresentationStatusFilter,
   judgeEditSchema,
   judgeToAddFieldName,
   judgeToRemoveFieldName,
   movePresentationIntent,
   orderAutomaticallyIntent,
   orderDayFieldName,
+  presentationStatusFilterParam,
   presentationChoreographyIdFieldName,
   programEventIdFieldName,
   programVisibilitySchema,
   programVisibleDayFieldName,
   readJudgeEditOutcome,
+  readPresentationStatus,
   setProgramVisibilityIntent,
   type JudgeEditSubmissionValues,
   type PresentationListActionData,
@@ -104,7 +107,7 @@ export async function loadPresentationListRouteData(request: Request) {
     facets: {
       dia: namedListDay(result.days, result.filters.day),
       evaluacion: result.filters.evaluation,
-      advertencias: result.filters.warnings,
+      [presentationStatusFilterParam]: result.filters.status,
     },
     query: {
       order: result.filters.order,
@@ -133,6 +136,8 @@ async function loadPresentationList(input: {
       filters: input.filters,
       frozenDays: [],
       hasAnyRow: false,
+      hasOrderableRow: false,
+      orderableDays: [],
       hasPresentations: false,
       highestOrderNumber: 0,
       musicDownloadDays: [],
@@ -181,12 +186,22 @@ async function loadPresentationList(input: {
       warnings,
     }),
   );
-  const days = [...new Set(items.map((item) => item.scheduledDate))].sort();
+  // A choreography withdrawn before it had a number has no place in the order:
+  // it makes no day tab and counts in no day until `Retirada` asks for it.
+  const reachableItems =
+    input.filters.status === "retirada"
+      ? items
+      : items.filter((item) => !isWithdrawnUnplaced(item));
+  const days = [
+    ...new Set(reachableItems.map((item) => item.scheduledDate)),
+  ].sort();
   const filters = {
     ...input.filters,
     day: selectListDay(days, input.filters.day),
   };
-  const dayItems = items.filter((item) => item.scheduledDate === filters.day);
+  const dayItems = reachableItems.filter(
+    (item) => item.scheduledDate === filters.day,
+  );
   const filteredItems = sortPresentations(
     dayItems.filter((item) => matchesPresentationFilters(item, filters)),
     filters.order,
@@ -204,6 +219,14 @@ async function loadPresentationList(input: {
       ),
     ].sort(),
     hasAnyRow: items.length > 0,
+    hasOrderableRow: items.some((item) => !item.withdrawn),
+    orderableDays: [
+      ...new Set(
+        items
+          .filter((item) => !item.withdrawn)
+          .map((item) => item.scheduledDate),
+      ),
+    ].sort(),
     hasPresentations: items.some((item) => item.orderNumber !== null),
     highestOrderNumber: Math.max(
       0,
@@ -220,10 +243,16 @@ async function loadPresentationList(input: {
     ].sort(),
     programVisibleDays,
     selectedEventId: input.selectedEventId,
-    unorderedCount: items.filter((item) => item.orderNumber === null).length,
+    // A withdrawn choreography never gets a number, so it is never late.
+    unorderedCount: items.filter(
+      (item) => item.orderNumber === null && !item.withdrawn,
+    ).length,
     // The day on screen only: the notice's `Ver` narrows that day, so an
-    // event-wide count could send the reader to an empty list.
-    warnedCount: dayItems.filter((item) => item.warnings.length > 0).length,
+    // event-wide count could send the reader to an empty list. It counts the
+    // rows `Con advertencias` keeps, the ones whose badge is a warning.
+    warnedCount: dayItems.filter(
+      (item) => readPresentationStatus(item) === "advertencias",
+    ).length,
   };
 }
 
@@ -501,7 +530,15 @@ function movePresentationRefusal(
       return "Esa presentación está fija: su cronograma ya fue evaluado.";
     case "frozenPosition":
       return "Esa posición está fija: su cronograma ya fue evaluado.";
+    case "withdrawnRow":
+      return "Esa presentación está retirada: conserva su número.";
+    case "withdrawnPosition":
+      return "Esa posición es de una presentación retirada.";
   }
+}
+
+function readStatusFilter(value: string | null) {
+  return isPresentationStatusFilter(value) ? value : null;
 }
 
 function readPresentationFilters(
@@ -517,7 +554,9 @@ function readPresentationFilters(
         : null,
     order: listQuery.order,
     query: listQuery.search,
-    warnings: searchParams.get("advertencias") === "con" ? "con" : null,
+    status: readStatusFilter(
+      readListFacet(searchParams, presentationStatusFilterParam),
+    ),
   };
 }
 
@@ -554,14 +593,22 @@ function buildPresentationListItem(
     scheduledDate: row.schedule.scheduledDate,
     submodalityName: row.submodalityName,
     warnings: event.warnings.get(row.choreographyId) ?? [],
+    withdrawn: row.withdrawn,
   };
+}
+
+function isWithdrawnUnplaced(item: PresentationListItem) {
+  return item.withdrawn && item.orderNumber === null;
 }
 
 function matchesPresentationFilters(
   item: PresentationListItem,
   filters: PresentationListFilters,
 ) {
-  if (filters.warnings === "con" && item.warnings.length === 0) {
+  if (
+    filters.status !== null &&
+    readPresentationStatus(item) !== filters.status
+  ) {
     return false;
   }
 

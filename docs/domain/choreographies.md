@@ -165,10 +165,16 @@ What the dialog announced is advisory.
   outcomes, because competitive history is never lost. Comprobantes block
   nothing: they are a reason to withdraw, not a reason to refuse (ADR-0014
   correction).
-- An **unevaluated** presentation blocks neither outcome. It is deleted with
-  either one, the dialog says so (`… y pierde el número de orden`), and the
-  number stays a gap until the order is next changed
-  (`docs/domain/judging.md`).
+- An **unevaluated** presentation blocks neither outcome, and the dialog names
+  what happens to it. A **hard delete** takes it with the choreography
+  (`… y pierde el número de orden`), and the number stays a gap until the order
+  is next changed. A **withdrawal** keeps it at its number for good, judges
+  included (`… y conserva el N.º 7, marcada como retirada`)
+  (`docs/domain/judging.md`, "Participation And Judging"). The removal locks
+  the event row first, as the ordering does, so an ordering cannot write
+  numbers it read before the withdrawal; and it locks the presentation row with
+  the choreography's, because a judge's score write locks it, so a score cannot
+  land between the evaluation check and the withdrawal.
 - Each outcome has **its own dialog**, so the admin confirms the one that will
   happen: `¿Retirar la coreografía?` when the choreography has money allocated
   or comprobantes, pointing to the finance list where that money is reviewed;
@@ -180,7 +186,9 @@ What the dialog announced is advisory.
   roster state, not financial state, exactly as `choreography_dancer.withdrawnAt`
   is, so ADR-0009 is untouched.
 - It **keeps its `choreographyNumber`** and it keeps `scheduleId` and
-  `scheduleCapacityId`, as the record of where it was.
+  `scheduleCapacityId`, as the record of where it was. It keeps its
+  **presentation** too, when it had one: the number it was announced with
+  stays in the order, marked `Retirada`.
 - It **occupies no schedule capacity** — not in the displayed occupancy, not in
   the locking count, and not in the event's bases guard, which asks "not
   withdrawn". Its two references are not deleted alike, and this is the one
@@ -205,7 +213,10 @@ What the dialog announced is advisory.
 - **Lists:** hidden by default from the operational and portal choreography
   lists, reachable through a `Retirada` option on the existing `Estado` filter;
   **always** shown in the admin and portal financial lists, with the badge and
-  the same filter option. Never shown in presentations or the program.
+  the same filter option. In presentations and the program it is shown at its
+  number with a `Retirada` badge when it has one (`docs/domain/judging.md`);
+  one withdrawn before it was numbered is not in the program, and the
+  presentations list shows it only under its `Estado: Retirada` filter.
 - The admin instance view is **read-only** — rename, roster, modality, level,
   schedule capacity and `Archivo de música`. `Eliminar` stays in its menu and
   opens the blocked dialog that says the withdrawal is final; the

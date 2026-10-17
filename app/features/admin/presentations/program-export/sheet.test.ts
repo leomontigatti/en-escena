@@ -18,6 +18,7 @@ function row(overrides: Partial<ProgramExportRow> = {}): ProgramExportRow {
     scheduledDate: "2026-10-17",
     startTime: "10:00",
     submodalityName: "Repertorio",
+    withdrawn: false,
     ...overrides,
   };
 }
@@ -49,6 +50,7 @@ describe("the program export sheet", () => {
         "Coreografía",
         "Profesores",
         "Bailarines",
+        "Estado",
       ],
     ]);
   });
@@ -78,6 +80,7 @@ describe("the program export sheet", () => {
       "Lago",
       "Laura Sosa\nMarcos Vega",
       "Ana Pérez\nBruno Gómez\nCarla Díaz",
+      null,
     ]);
   });
 
@@ -110,5 +113,11 @@ describe("the program export sheet", () => {
     );
 
     expect(cells[12]).toBe(4);
+  });
+
+  test("marks a withdrawn presentation, which keeps its number in the program", () => {
+    const [, cells] = values(buildProgramSheet([row({ withdrawn: true })]));
+
+    expect(cells[13]).toBe("Retirada");
   });
 });

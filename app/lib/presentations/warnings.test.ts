@@ -25,6 +25,7 @@ function row({
     financialStatus: "depositMet",
     groupType: "solo",
     orderNumber,
+    withdrawn: false,
     ...overrides,
     category: {
       experienceLevels: [],
@@ -365,5 +366,30 @@ describe("derivePresentationWarnings", () => {
       "missingJudges",
       "belowDeposit",
     ]);
+  });
+
+  test("raises nothing on a withdrawn presentation, and nothing on others because of it", () => {
+    const teen = { maxAge: 100, minAge: 13, name: "Juvenil" };
+    const warnings = derivePresentationWarnings(
+      [
+        row({
+          activeDancers: [ana],
+          choreographyId: "withdrawn",
+          category: teen,
+          financialStatus: "depositPending",
+          orderNumber: 1,
+          withdrawn: true,
+        }),
+        row({
+          activeDancers: [ana],
+          choreographyId: "child-1",
+          orderNumber: 2,
+        }),
+        row({ choreographyId: "child-2", orderNumber: 3 }),
+      ],
+      { assignedChoreographyIds: new Set(["withdrawn"]) },
+    );
+
+    expect(warnings.size).toBe(0);
   });
 });

@@ -13,6 +13,7 @@ import {
   readJudgeAssignedDays,
   readJudgePresentations,
 } from "@/lib/judging/judge-list.server";
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import { createFeedbackAudioStorage } from "@/lib/storage/feedback-audio.server";
 
@@ -59,6 +60,31 @@ describe("the judge's list of one day's presentations", () => {
     await expect(
       readJudgePresentations({ judgeId, scheduledDate: "2026-05-02" }),
     ).resolves.toMatchObject([{ name: "Mañana" }]);
+  });
+
+  test("keeps a withdrawn presentation at its number, marked withdrawn", async () => {
+    const fixture = await seedJudgingFixture();
+    const performing = await fixture.addPresentation({
+      name: "En escena",
+      orderNumber: 1,
+    });
+    const withdrawn = await fixture.addPresentation({
+      name: "Retirada",
+      orderNumber: 2,
+    });
+    const { judgeId } = await fixture.assignJudge(performing.presentationId);
+    await fixture.assignJudge(withdrawn.presentationId, judgeId);
+    await withdrawChoreographyForTest(withdrawn.choreographyId);
+
+    const rows = await readJudgePresentations({
+      judgeId,
+      scheduledDate: showDay,
+    });
+
+    expect(rows.map((row) => [row.orderNumber, row.withdrawn])).toEqual([
+      [1, false],
+      [2, true],
+    ]);
   });
 
   test("describes the row, academy included, without another judge's work", async () => {

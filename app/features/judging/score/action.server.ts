@@ -53,10 +53,14 @@ export type JudgePanelActionData = {
 
 const savedScoreMessage = "Guardaste el puntaje.";
 
-/** What a judge is told when the presentation's day is not the open one. */
-const judgingDayRefusalMessages: Partial<Record<string, string>> = {
+/**
+ * What a judge is told when the presentation stopped taking scores: its day is
+ * not the open one, or its choreography was withdrawn while the form was open.
+ */
+const closedPresentationRefusalMessages: Partial<Record<string, string>> = {
   closed: "La jornada ya cerró, no se pueden guardar puntajes.",
   "not-started": "La jornada todavía no empezó, no se pueden guardar puntajes.",
+  withdrawn: "La coreografía fue retirada, no se pueden guardar puntajes.",
 };
 
 const incompleteSheetMessage =
@@ -136,12 +140,13 @@ async function saveScore(
     };
   }
 
-  const judgingDayRefusalMessage = judgingDayRefusalMessages[result.reason];
+  const closedPresentationRefusalMessage =
+    closedPresentationRefusalMessages[result.reason];
 
-  if (judgingDayRefusalMessage) {
+  if (closedPresentationRefusalMessage) {
     return {
       intent,
-      message: judgingDayRefusalMessage,
+      message: closedPresentationRefusalMessage,
       status: "error",
       values: { presentationId, value },
     };

@@ -24,9 +24,24 @@ const day: ProgramLiveDay = {
 
 describe("readProgramLiveDay", () => {
   const rows = [
-    { choreographyId: "a", orderNumber: 1, scheduledDate: "2026-12-09" },
-    { choreographyId: "b", orderNumber: 2, scheduledDate: "2026-12-09" },
-    { choreographyId: "c", orderNumber: 3, scheduledDate: "2026-12-10" },
+    {
+      choreographyId: "a",
+      orderNumber: 1,
+      scheduledDate: "2026-12-09",
+      withdrawn: false,
+    },
+    {
+      choreographyId: "b",
+      orderNumber: 2,
+      scheduledDate: "2026-12-09",
+      withdrawn: false,
+    },
+    {
+      choreographyId: "c",
+      orderNumber: 3,
+      scheduledDate: "2026-12-10",
+      withdrawn: false,
+    },
   ];
   const schedules = [
     { scheduledDate: "2026-12-09", startTime: "21:00" },
@@ -57,6 +72,19 @@ describe("readProgramLiveDay", () => {
         now: at,
         evaluatedChoreographyIds: new Set(["b"]),
         rows,
+        schedules,
+      })?.isOver,
+    ).toBe(true);
+  });
+
+  // A withdrawn presentation is never evaluated, so a day closing on one would
+  // read `En vivo` until 03:00.
+  test("is over once the last presentation still taking part is evaluated", () => {
+    expect(
+      readProgramLiveDay({
+        now: at,
+        evaluatedChoreographyIds: new Set(["a"]),
+        rows: [rows[0], { ...rows[1], withdrawn: true }],
         schedules,
       })?.isOver,
     ).toBe(true);

@@ -256,7 +256,7 @@ describe("the participation list moved by hand", () => {
         evaluation: null,
         order: { columnId: "orden", direction: "desc" },
         query: "",
-        warnings: null,
+        status: null,
       },
     });
 
@@ -381,6 +381,7 @@ describe("the participation list's automatic ordering", () => {
             <PresentationsListView
               loaderData={buildLoaderData({
                 days: ["2026-12-04", "2026-12-05"],
+                orderableDays: ["2026-12-04", "2026-12-05"],
               })}
             />
           ),
@@ -455,6 +456,7 @@ function buildItem(
     scheduledDate: "2026-05-01",
     submodalityName: null,
     warnings: [],
+    withdrawn: false,
     ...overrides,
   };
 }
@@ -473,10 +475,12 @@ function buildLoaderData(
       evaluation: null,
       order: { columnId: "orden", direction: "asc" },
       query: "",
-      warnings: null,
+      status: null,
     },
     frozenDays: [],
     hasAnyRow: true,
+    hasOrderableRow: true,
+    orderableDays: [],
     hasPresentations: true,
     presentations: [
       buildItem({ id: "choreography-1", name: "Primera", orderNumber: 1 }),

@@ -36,6 +36,8 @@ export type PresentationWarningRow = PresentationBlock & {
   financialStatus: ChoreographyFinancialStatus;
   /** `null` while the choreography has no presentation. */
   orderNumber: number | null;
+  /** A withdrawn presentation raises nothing and counts for no other row. */
+  withdrawn: boolean;
 };
 
 /**
@@ -78,13 +80,16 @@ export type PresentationWarningContext = {
  * absent.
  */
 export function derivePresentationWarnings(
-  rows: PresentationWarningRow[],
+  allRows: PresentationWarningRow[],
   {
     assignedChoreographyIds = new Set(),
     disqualifiedChoreographyIds = new Set(),
     frozenChoreographyIds = new Set(),
   }: PresentationWarningContext = {},
 ) {
+  // A withdrawn presentation keeps its number and nothing else: it will not be
+  // danced, so it neither asks for anything nor stands in another row's way.
+  const rows = allRows.filter((row) => !row.withdrawn);
   const frozenScheduleIds = scheduleIdsOf(rows, frozenChoreographyIds);
   const assignedScheduleIds = scheduleIdsOf(rows, assignedChoreographyIds);
   const warnings = new Map<string, PresentationWarning[]>();

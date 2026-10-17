@@ -51,6 +51,7 @@ export type SaveJudgeScoreRefusal =
   | "not-assigned"
   | "closed"
   | "not-started"
+  | "withdrawn"
   | "incomplete-sheet"
   | "invalid-value";
 

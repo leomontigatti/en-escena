@@ -16,7 +16,6 @@ import {
   experienceLevelDisplayLabel,
   experienceLevelRequirement,
 } from "@/lib/choreographies/experience-level-requirement";
-import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import {
@@ -127,9 +126,9 @@ export async function findPublishedProgramEvent(
  * Every presentation of the event in the order it dances, and the schedules
  * those rows belong to, in the day and time order the printed program runs in.
  *
- * A withdrawn choreography is never printed. Withdrawing one already drops its
- * presentation, so the filter is belt and braces — but the program is what the
- * public is told will be danced, and it must not depend on that.
+ * A withdrawn choreography is printed at the number it was announced with,
+ * marked `withdrawn`, so the public reads a withdrawal rather than a gap. One
+ * withdrawn before it was numbered has no presentation, so it is not here.
  */
 export async function readEventProgram(
   eventId: string,
@@ -169,6 +168,7 @@ export async function readEventProgram(
         scheduleId: schedules.id,
         scheduledDate: schedules.scheduledDate,
         submodalityName: submodalities.name,
+        withdrawnAt: choreographies.withdrawnAt,
       })
       .from(presentations)
       .innerJoin(
@@ -186,13 +186,7 @@ export async function readEventProgram(
       // through `scheduleCapacityId`, which stays nullable.
       .innerJoin(categories, eq(choreographies.categoryId, categories.id))
       .innerJoin(schedules, eq(choreographies.scheduleId, schedules.id))
-      .where(
-        and(
-          eq(presentations.eventId, eventId),
-          notWithdrawnChoreography(),
-          onDays,
-        ),
-      )
+      .where(and(eq(presentations.eventId, eventId), onDays))
       .orderBy(asc(presentations.orderNumber)),
     executor
       .select({
@@ -241,6 +235,7 @@ export async function readEventProgram(
       scheduleId: row.scheduleId,
       scheduledDate: row.scheduledDate,
       submodalityName: row.submodalityName,
+      withdrawn: row.withdrawnAt !== null,
     })),
     // A schedule nobody presents in is no page of the program.
     schedules: eventSchedules.filter((schedule) =>

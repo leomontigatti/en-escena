@@ -1,7 +1,12 @@
 import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { choreographies, choreographyDancers } from "@/db/schema";
+import {
+  choreographies,
+  choreographyDancers,
+  events,
+  presentations,
+} from "@/db/schema";
 import { choreographyHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
 import { deleteChoreographyPresentation } from "@/lib/presentations/presentation-queries.server";
@@ -24,6 +29,11 @@ export type ChoreographyRemovalOutcome = "deleted" | "evaluated" | "withdrawn";
  * money allocated between the render and the click still leads to a withdrawal
  * instead of destroying the allocations through the cascade.
  *
+ * The event row is locked first, the lock the automatic ordering and a manual
+ * move take: a withdrawn choreography keeps its presentation, so an ordering
+ * that read the event before the withdrawal committed must not then renumber
+ * that presentation, or number one withdrawn before it had a number.
+ *
  * The evaluated presentation is the only refusal left, and it refuses both
  * outcomes: `"evaluated"` is returned without writing anything. It is read
  * inside the transaction because a caller that answered it from outside the
@@ -33,6 +43,24 @@ export async function removeChoreography(
   choreographyId: string,
 ): Promise<ChoreographyRemovalOutcome> {
   return await db.transaction(async (tx) => {
+    const [owner] = await tx
+      .select({ eventId: choreographies.eventId })
+      .from(choreographies)
+      .where(eq(choreographies.id, choreographyId));
+
+    if (!owner) {
+      throw new Error(`Cannot remove unknown choreography ${choreographyId}.`);
+    }
+
+    // `NO KEY UPDATE` and not `UPDATE`: it still waits for the ordering's
+    // lock, but lets an allocation racing this removal take the `KEY SHARE`
+    // its foreign key to the event needs, while this waits on its inscription.
+    await tx
+      .select({ id: events.id })
+      .from(events)
+      .where(eq(events.id, owner.eventId))
+      .for("no key update");
+
     const [locked] = await tx
       .select({ withdrawnAt: choreographies.withdrawnAt })
       .from(choreographies)
@@ -50,18 +78,25 @@ export async function removeChoreography(
       return "withdrawn";
     }
 
+    // The presentation is locked too, because a judge's score write locks it
+    // and nothing else: without it a score could land between the evaluation
+    // check below and the commit, leaving a withdrawn choreography evaluated.
+    await tx
+      .select({ id: presentations.id })
+      .from(presentations)
+      .where(eq(presentations.choreographyId, choreographyId))
+      .for("update");
+
     // Competitive history is never lost: a scored or disqualified presentation
     // leaves the choreography neither deletable nor withdrawable.
     if (await hasEvaluatedPresentation(choreographyId, tx)) {
       return "evaluated";
     }
 
-    // The presentation goes with either outcome: a choreography that will not
-    // be performed must not stay programmed. The number it held stays a gap —
-    // every other number is what the academies were told.
-    await deleteChoreographyPresentation(tx, choreographyId);
-
+    // A deleted choreography takes its presentation with it, and the number it
+    // held stays a gap: every other number is what the academies were told.
     if (!(await hasEvidenceToPreserve(tx, choreographyId))) {
+      await deleteChoreographyPresentation(tx, choreographyId);
       await tx
         .delete(choreographies)
         .where(eq(choreographies.id, choreographyId));
@@ -69,6 +104,9 @@ export async function removeChoreography(
       return "deleted";
     }
 
+    // A withdrawn one keeps its presentation, judges included, at its number:
+    // it stays in the order marked `Retirada`, never moved and never scored.
+    //
     // One timestamp value for the choreography and for every inscription still
     // active, including those holding no money: it tells the inscriptions this
     // withdrawal took from the dancers removed individually beforehand, who keep

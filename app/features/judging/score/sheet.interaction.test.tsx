@@ -65,6 +65,7 @@ function buildRow(
     status: "pending",
     submodalityName: "Acrobática",
     value: null,
+    withdrawn: false,
     professionalEvaluation: false,
     ...overrides,
     presentationId: overrides.presentationId,

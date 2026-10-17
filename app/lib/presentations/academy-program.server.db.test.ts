@@ -157,7 +157,7 @@ describe("readAcademyPresentations", () => {
     expect(rows.map((row) => row.choreographyId)).toEqual([own.id]);
   });
 
-  test("leaves out the academy's withdrawn choreographies", async () => {
+  test("keeps a withdrawn choreography at its number and leaves out one that had none", async () => {
     const { addAcademy, event, everyDay } = await seedEvent();
     const { academy, addChoreography } = await addAcademy();
     const performing = await addChoreography({
@@ -179,7 +179,12 @@ describe("readAcademyPresentations", () => {
       visibleDays: everyDay,
     });
 
-    expect(rows.map((row) => row.choreographyId)).toEqual([performing.id]);
+    expect(
+      rows.map((row) => [row.choreographyId, row.orderNumber, row.withdrawn]),
+    ).toEqual([
+      [performing.id, 1, false],
+      [withdrawnNumbered.id, 2, true],
+    ]);
   });
 
   test("names the dancers of a solo and a duo and of nothing else", async () => {

@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events, presentations, scores } from "@/db/schema";
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import { publishResults } from "@/lib/judging/results.server";
 import { activateEvent, deactivateEvent } from "@/lib/events/management.server";
@@ -144,6 +145,21 @@ describe("the results list", () => {
     const result = await loadTheList("admin.resultados.sin-numero@example.com");
 
     expect(result.results.map((row) => row.name)).toEqual(["Numerada"]);
+    expect(result.totalCount).toBe(1);
+  });
+
+  test("leaves out a withdrawn presentation, which keeps its number but has no result", async () => {
+    const fixture = await seedJudgingFixture();
+    await fixture.addPresentation({ name: "En escena", orderNumber: 1 });
+    const withdrawn = await fixture.addPresentation({
+      name: "Retirada",
+      orderNumber: 2,
+    });
+    await withdrawChoreographyForTest(withdrawn.choreographyId);
+
+    const result = await loadTheList("admin.resultados.retirada@example.com");
+
+    expect(result.results.map((row) => row.name)).toEqual(["En escena"]);
     expect(result.totalCount).toBe(1);
   });
 
