@@ -22,7 +22,10 @@ import {
   votingRoundFinalists,
   votingRounds,
 } from "@/db/schema";
+import { loadChoreographies } from "@/features/admin/choreographies/list/server";
 import { signInAccessUser } from "@/lib/auth/access-auth.test-support";
+import { createAcademySession } from "@/lib/choreographies/registration.test-support";
+import { resolveChoreographyStatusBadge } from "@/lib/choreographies/operational-status";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import { listAnchorComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
@@ -45,6 +48,12 @@ import {
   DEV_SEED_PASSWORD,
 } from "@/lib/dev-seed/accounts";
 import { seedDevData } from "@/lib/dev-seed/seed.server";
+import { createDefaultChoreographyMusicStorage } from "@/lib/storage/choreography-music.server";
+import {
+  getDefaultStorageUrlSigningSecret,
+  getDefaultStorageVolumeDir,
+  serveFilesystemObject,
+} from "@/lib/storage/filesystem-client.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -113,7 +122,7 @@ describe("dev seed", () => {
     ]);
   });
 
-  test("opens registrations on the active event and registers four choreographies for the academy", async () => {
+  test("opens registrations on the active event and registers five choreographies for the academy", async () => {
     await seedDevData({ now });
 
     const seededEvents = await db.query.events.findMany({
@@ -149,6 +158,7 @@ describe("dev seed", () => {
     });
     expect(registered.map(({ name }) => name)).toEqual([
       "Luna de Papel",
+      "Marea Alta",
       "Río Arriba",
       "Sal y Arena",
       "Viento Sur",
@@ -156,6 +166,100 @@ describe("dev seed", () => {
     expect(registered.every(({ eventId }) => eventId === activeEvent.id)).toBe(
       true,
     );
+  });
+
+  // The admin list's `Estado` cell has three answers, and a browser check of
+  // the column or its filter needs a row for each. `Retirada` only turns up
+  // under its own filter, so the list is read with and without it.
+  test("shows every answer of the admin `Estado` cell, with a pending item for the incomplete one", async () => {
+    await seedDevData({ now });
+
+    const activeEvent = await db.query.events.findFirst({
+      where: eq(events.active, true),
+    });
+    if (!activeEvent) throw new Error("Expected the seed's active event.");
+
+    await expect(readEstadoCells(activeEvent.id, null)).resolves.toEqual([
+      { name: "Luna de Papel", estado: "Completa", pendingItems: [] },
+      { name: "Viento Sur", estado: "Completa", pendingItems: [] },
+      { name: "Río Arriba", estado: "Completa", pendingItems: [] },
+      { name: "Sal y Arena", estado: "Incompleta", pendingItems: ["music"] },
+    ]);
+    await expect(
+      readEstadoCells(activeEvent.id, "retirada"),
+    ).resolves.toMatchObject([{ name: "Marea Alta", estado: "Retirada" }]);
+  });
+
+  // The detail page's player streams the music through the storage route, so
+  // a key with no file behind it would show a player that never plays.
+  test("stores the complete choreographies' music where the storage route serves it", async () => {
+    await seedDevData({ now });
+
+    const withMusic = await db.query.choreographies.findMany({
+      orderBy: asc(choreographies.name),
+    });
+    expect(
+      withMusic
+        .filter(({ musicStorageKey }) => musicStorageKey !== null)
+        .map(({ name }) => name),
+    ).toEqual(["Luna de Papel", "Río Arriba", "Viento Sur"]);
+    for (const { musicStorageKey } of withMusic) {
+      if (musicStorageKey === null) continue;
+
+      const response = await serveMusic(musicStorageKey);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toBe("audio/wav");
+    }
+  });
+
+  // The reset deletes every choreography of the seeded event, whichever
+  // academy registered it, so the music of all of them has to go with it.
+  test("re-running removes the music of every choreography the reset deletes", async () => {
+    await seedDevData({ now });
+    const seeded = await db.query.choreographies.findFirst({
+      where: eq(choreographies.name, "Luna de Papel"),
+    });
+    if (!seeded?.musicStorageKey) {
+      throw new Error("Expected the seed's choreography with music.");
+    }
+    const other = await createAcademySession({
+      academyName: "Academia Ajena",
+      email: "ajena@example.com",
+    });
+    const { id: _id, musicStorageKey: _key, ...copied } = seeded;
+    const [foreign] = await db
+      .insert(choreographies)
+      .values({
+        ...copied,
+        academyId: other.academyId,
+        choreographyNumber: 999,
+        name: "Ajena",
+      })
+      .returning();
+    const uploaded = await createDefaultChoreographyMusicStorage().uploadMusic({
+      academyId: other.academyId,
+      choreographyId: foreign.id,
+      file: new File(["RIFF"], "ajena.wav", { type: "audio/wav" }),
+    });
+    if (!uploaded.ok) throw new Error("Expected the upload to be accepted.");
+    await db
+      .update(choreographies)
+      .set({ musicStorageKey: uploaded.storageKey })
+      .where(eq(choreographies.id, foreign.id));
+    await expect(serveMusic(uploaded.storageKey)).resolves.toHaveProperty(
+      "status",
+      200,
+    );
+
+    await seedDevData({ now });
+
+    for (const storageKey of [seeded.musicStorageKey, uploaded.storageKey]) {
+      await expect(serveMusic(storageKey)).resolves.toHaveProperty(
+        "status",
+        404,
+      );
+    }
   });
 
   // A grupal is the one group type whose level is optional, so the wizard's
@@ -233,7 +337,12 @@ describe("dev seed", () => {
 
     // Each paid inscription covers the 30% deposit of its 25000 price, which
     // locks the price in the money dialog and makes the choreography orderable.
-    for (const name of ["Luna de Papel", "Viento Sur", "Río Arriba"]) {
+    for (const name of [
+      "Luna de Papel",
+      "Viento Sur",
+      "Río Arriba",
+      "Marea Alta",
+    ]) {
       await expect(allocatedTo(name)).resolves.toEqual([10000]);
     }
 
@@ -402,6 +511,44 @@ async function frozenChoreographyNames(eventId: string) {
     .filter((row) => frozen.has(row.choreographyId))
     .map((row) => row.name)
     .sort();
+}
+
+/** The storage route's answer to the signed link the music player gets. */
+async function serveMusic(storageKey: string) {
+  const signedUrl =
+    await createDefaultChoreographyMusicStorage().createMusicSignedUrl(
+      storageKey,
+    );
+
+  return await serveFilesystemObject({
+    baseDir: getDefaultStorageVolumeDir(),
+    now: Date.now(),
+    params: new URL(signedUrl, "http://localhost").searchParams,
+    secret: getDefaultStorageUrlSigningSecret(),
+  });
+}
+
+/** What the admin list's `Estado` cell reads for each row, in list order. */
+async function readEstadoCells(eventId: string, status: "retirada" | null) {
+  const { choreographies: rows } = await loadChoreographies({
+    filters: {
+      category: null,
+      groupType: null,
+      modalityId: null,
+      order: { columnId: "numero", direction: "asc" },
+      page: 1,
+      query: "",
+      scheduleDate: null,
+      status,
+    },
+    selectedEventId: eventId,
+  });
+
+  return rows.map((row) => ({
+    name: row.name,
+    estado: resolveChoreographyStatusBadge(row).label,
+    pendingItems: row.operationalStatus.pendingItems,
+  }));
 }
 
 /** What each inscription of the named choreography has allocated to it. */

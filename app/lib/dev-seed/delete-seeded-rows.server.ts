@@ -1,4 +1,4 @@
-import { inArray, or, sql } from "drizzle-orm";
+import { and, inArray, isNotNull, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -33,12 +33,15 @@ type SeededIds = Awaited<ReturnType<typeof collectSeededIds>>;
  * that both cascade from the event (a schedule's modality link, a category's)
  * are checked before the cascade reaches the link. So every level is deleted
  * explicitly, children first, in one transaction.
+ *
+ * Returns the music storage keys of the choreographies it deleted: the files
+ * are not rows, so the caller removes them once the deletion has committed.
  */
 export async function deleteSeededRows(input: {
   emails: string[];
   eventNames: string[];
-}) {
-  await db.transaction(async (tx) => {
+}): Promise<{ musicStorageKeys: string[] }> {
+  return await db.transaction(async (tx) => {
     // A `Gran final` vote is never deleted: its keys restrict and a trigger
     // refuses the row, so a seeded academy or event that holds one cannot go.
     // The seed only runs against a local database (`local-database-url.ts`),
@@ -47,11 +50,26 @@ export async function deleteSeededRows(input: {
     await tx.execute(sql`truncate table ${votes}`);
 
     const ids = await collectSeededIds(tx, input);
+    const withMusic = await tx
+      .select({ musicStorageKey: choreographies.musicStorageKey })
+      .from(choreographies)
+      .where(
+        and(
+          inArray(choreographies.id, ids.choreographyIds),
+          isNotNull(choreographies.musicStorageKey),
+        ),
+      );
 
     await deleteRegistrationsAndJudging(tx, ids);
     // The user cascades to its academy, sessions, roster and payments.
     await tx.delete(user).where(inArray(user.id, ids.userIds));
     await deleteEventCatalogs(tx, ids.eventIds);
+
+    return {
+      musicStorageKeys: withMusic.flatMap(({ musicStorageKey }) =>
+        musicStorageKey ? [musicStorageKey] : [],
+      ),
+    };
   });
 }
 
