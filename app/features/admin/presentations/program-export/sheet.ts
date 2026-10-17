@@ -1,4 +1,5 @@
 import { formatProvinceLabel, type Province } from "@/lib/academies/provinces";
+import { withdrawnChoreographyStatusLabel } from "@/lib/choreographies/operational-status";
 import {
   formatGroupTypeLabel,
   type ChoreographyGroupType,
@@ -34,6 +35,8 @@ export type ProgramExportRow = {
   scheduledDate: string;
   startTime: string;
   submodalityName: string | null;
+  /** `Coreografía retirada`, printed at its number and marked as such. */
+  withdrawn: boolean;
 };
 
 export const programExportColumns: SheetColumn<ProgramExportRow>[] = [
@@ -84,6 +87,20 @@ export const programExportColumns: SheetColumn<ProgramExportRow>[] = [
   },
 ];
 
+/**
+ * The program's own sheet: the shared columns, then whether the presentation
+ * was withdrawn. The results sheet reuses the shared ones without it, since a
+ * withdrawn presentation has no result to be listed with.
+ */
+export const programSheetColumns: SheetColumn<ProgramExportRow>[] = [
+  ...programExportColumns,
+  {
+    header: "Estado",
+    width: 12,
+    cell: (row) => (row.withdrawn ? withdrawnChoreographyStatusLabel : null),
+  },
+];
+
 export function buildProgramSheet(rows: ProgramExportRow[]) {
-  return buildSheet(programExportColumns, rows);
+  return buildSheet(programSheetColumns, rows);
 }

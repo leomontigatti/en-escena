@@ -83,6 +83,11 @@ export type PresentationScoresView = {
   /** `Evaluar como profesional`: the academy asked the judges to be severe. */
   professionalEvaluation: boolean;
   submodalityName: string | null;
+  /**
+   * `Coreografía retirada`: it keeps its number but is never judged, so the
+   * panel has nothing to settle on it.
+   */
+  withdrawn: boolean;
 };
 
 export async function readPresentationScores(
@@ -104,6 +109,7 @@ export async function readPresentationScores(
       orderNumber: presentations.orderNumber,
       professionalEvaluation: choreographies.professionalEvaluation,
       submodalityName: submodalities.name,
+      withdrawnAt: choreographies.withdrawnAt,
     })
     .from(presentations)
     .innerJoin(
@@ -145,6 +151,7 @@ export async function readPresentationScores(
     presentationId: input.presentationId,
     professionalEvaluation: presentation.professionalEvaluation,
     submodalityName: presentation.submodalityName,
+    withdrawn: presentation.withdrawnAt !== null,
   };
 }
 

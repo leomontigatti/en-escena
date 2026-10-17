@@ -148,6 +148,11 @@ export type PresentationListItem = {
   scheduledDate: string;
   submodalityName: string | null;
   warnings: PresentationWarning[];
+  /**
+   * `Coreografía retirada`: it keeps its number, read-only, with `Retirada`
+   * as its badge, and is never moved nor offered as a place to move to.
+   */
+  withdrawn: boolean;
 };
 
 export type PresentationListFilters = {
@@ -157,8 +162,62 @@ export type PresentationListFilters = {
   evaluation: "profesional" | null;
   order: PresentationOrder;
   query: string;
-  warnings: "con" | null;
+  /** The one value of the `estado` facet; `null` shows every row in place. */
+  status: PresentationStatusFilter | null;
 };
+
+/** The URL parameter, and the facet id, of the `Estado` filter. */
+export const presentationStatusFilterParam = "estado";
+
+/**
+ * The answers of the `Estado` facet, one per badge the column can draw, in
+ * the order a presentation moves through them. `Retirada` comes last: it is
+ * the other axis, and the only way to reach a choreography withdrawn before it
+ * had a number, which has no place in the order to be listed at.
+ */
+export const presentationStatusFilterOptions = [
+  { label: "Con advertencias", value: "advertencias" },
+  { label: "Evaluada", value: "evaluada" },
+  { label: "Descalificada", value: "descalificada" },
+  { label: "Retirada", value: "retirada" },
+] as const;
+
+export type PresentationStatusFilter =
+  (typeof presentationStatusFilterOptions)[number]["value"];
+
+export function isPresentationStatusFilter(
+  value: string | null,
+): value is PresentationStatusFilter {
+  return presentationStatusFilterOptions.some(
+    (option) => option.value === value,
+  );
+}
+
+/**
+ * Which `Estado` answer the row's badge reads, or `null` for a row with no
+ * badge. The withdrawal replaces everything, and an evaluation replaces the
+ * warnings, exactly as the badge does.
+ */
+export function readPresentationStatus(
+  row: Pick<
+    PresentationListItem,
+    "evaluationStatus" | "warnings" | "withdrawn"
+  >,
+): PresentationStatusFilter | null {
+  if (row.withdrawn) {
+    return "retirada";
+  }
+
+  if (row.evaluationStatus === "evaluated") {
+    return "evaluada";
+  }
+
+  if (row.evaluationStatus === "disqualified") {
+    return "descalificada";
+  }
+
+  return row.warnings.length > 0 ? "advertencias" : null;
+}
 
 export type PresentationOrder = {
   columnId: "orden";
@@ -181,6 +240,16 @@ export type PresentationListResult = {
    */
   frozenDays: string[];
   hasAnyRow: boolean;
+  /**
+   * Whether any row can be ordered: one not withdrawn. A withdrawn choreography
+   * is never numbered, so an event of withdrawn ones only has nothing to order.
+   */
+  hasOrderableRow: boolean;
+  /**
+   * The days the automatic ordering is offered, in date order: the ones with a
+   * row not withdrawn, whatever the `Estado` filter shows.
+   */
+  orderableDays: string[];
   hasPresentations: boolean;
   /** The days the music download offers, in date order. */
   musicDownloadDays: MusicDownloadDay[];
@@ -198,6 +267,31 @@ export type PresentationListResult = {
   unorderedCount: number;
   warnedCount: number;
 };
+
+/**
+ * Whether the row can be chosen for the judge edit: it needs a presentation to
+ * hang an assignment off, and a withdrawn one is read-only, keeping the judges
+ * it had.
+ */
+export function canTakeJudgeEdit(
+  row: Pick<PresentationListItem, "orderNumber" | "withdrawn">,
+) {
+  return row.orderNumber !== null && !row.withdrawn;
+}
+
+/**
+ * The chosen rows the judge edit reaches, in list order. The ids outlive a
+ * revalidation, so a row withdrawn since it was chosen is dropped here rather
+ * than counted by a dialog whose submission would skip it.
+ */
+export function readJudgeEditSelection(
+  rows: PresentationListItem[],
+  selectedRowIds: readonly string[],
+) {
+  return rows.filter(
+    (row) => selectedRowIds.includes(row.id) && canTakeJudgeEdit(row),
+  );
+}
 
 /** Where a judge stands across the chosen rows: on all of them, some, none. */
 export type JudgeChoiceState = "all" | "none" | "some";
@@ -402,6 +496,17 @@ export function formatProgramVisibilityMessage(visibleDays: readonly string[]) {
   return days.length === 1
     ? `Programa visible del ${named}.`
     : `Programa visible de los días ${named}.`;
+}
+
+/**
+ * Whether the row's number is not the administrator's to change: a frozen row
+ * because its schedule already ran, a withdrawn one because its number is kept
+ * for good. Neither moves, and neither number is a place to move to.
+ */
+export function isHeldInPlace(
+  row: Pick<PresentationListItem, "frozen" | "withdrawn">,
+) {
+  return row.frozen || row.withdrawn;
 }
 
 /**

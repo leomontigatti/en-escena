@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, or } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -55,11 +55,15 @@ export type AcademyPresentationRow = {
   orderNumber: number | null;
   scheduledDate: string;
   submodalityName: string | null;
+  /** `Coreografía retirada`, kept only while it shows its number. */
+  withdrawn: boolean;
 };
 
 /**
- * Every choreography of the academy, numbered or not, whatever its money says;
- * only a withdrawn one is left out. Numbered rows come first by their number,
+ * Every choreography of the academy, numbered or not, whatever its money says.
+ * A withdrawn one is kept only while it shows a number, which it keeps
+ * marked `withdrawn`: one never numbered, or whose day is not published, has
+ * nothing left to tell the academy and is left out. Numbered rows come first by their number,
  * the rest after them by choreography number, which is the reading order of
  * the list.
  *
@@ -90,6 +94,7 @@ export async function readAcademyPresentations(
         orderNumber: presentations.orderNumber,
         scheduledDate: schedules.scheduledDate,
         submodalityName: submodalities.name,
+        withdrawnAt: choreographies.withdrawnAt,
       })
       .from(choreographies)
       .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
@@ -110,7 +115,7 @@ export async function readAcademyPresentations(
         and(
           eq(choreographies.eventId, input.eventId),
           eq(choreographies.academyId, input.academyId),
-          notWithdrawnChoreography(),
+          or(notWithdrawnChoreography(), isNotNull(presentations.id)),
         ),
       ),
     // The status is the same rollup the finance surfaces show. It is read for
@@ -129,15 +134,20 @@ export async function readAcademyPresentations(
   const visibleDays = new Set(input.visibleDays);
 
   return rows
+    .filter(
+      (row) => row.withdrawnAt === null || visibleDays.has(row.scheduledDate),
+    )
     .map((row) => ({
       categoryName: row.categoryName,
       choreographyId: row.choreographyId,
       choreographyNumber: row.choreographyNumber,
       dancerNames: dancerNamesByChoreography.get(row.choreographyId) ?? [],
       groupType: row.groupType as ChoreographyGroupType,
+      // A withdrawn one reads `Retirada`, never a deposit to cover.
       isBelowDeposit:
+        row.withdrawnAt === null &&
         (financialStatuses.get(row.choreographyId) ?? "depositPending") ===
-        "depositPending",
+          "depositPending",
       levelLabel: experienceLevelDisplayLabel(
         row.experienceLevel,
         experienceLevelRequirement({
@@ -150,6 +160,7 @@ export async function readAcademyPresentations(
       orderNumber: visibleDays.has(row.scheduledDate) ? row.orderNumber : null,
       scheduledDate: row.scheduledDate,
       submodalityName: row.submodalityName,
+      withdrawn: row.withdrawnAt !== null,
     }))
     .sort(compareAcademyPresentationRows);
 }
@@ -170,7 +181,8 @@ function compareAcademyPresentationRows(
 }
 
 /**
- * Whether a published day of the event has a presentation of a choreography still taking part, which is what
+ * Whether a published day of the event has a presentation, a withdrawn one
+ * included since it keeps its number in the program, which is what
  * separates "no number has been published yet" from "your academy has nothing
  * in the program". An event ordered with no day published reads as the first:
  * the academy is told nothing about an order still open to change.
@@ -195,7 +207,6 @@ export async function hasPublishedPresentations(
       and(
         eq(presentations.eventId, input.eventId),
         inArray(schedules.scheduledDate, [...input.visibleDays]),
-        notWithdrawnChoreography(),
       ),
     )
     .limit(1);

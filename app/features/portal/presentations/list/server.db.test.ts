@@ -222,7 +222,9 @@ describe("loadPortalPresentationsList", () => {
     ]);
     expect(JSON.stringify(loaderData)).not.toContain('"orderNumber":1');
   });
-  test("does not count a withdrawn choreography as a published presentation", async () => {
+  // A withdrawn presentation keeps its number in the program, so a day whose
+  // only number is a withdrawn one has still told the academy something.
+  test("counts a withdrawn presentation as published, since it keeps its number", async () => {
     const session = await createAcademySession({
       academyName: "Academia Retirada",
       email: "presentaciones.retirada@example.com",
@@ -256,6 +258,6 @@ describe("loadPortalPresentationsList", () => {
         eventId: event.id,
         visibleDays: [catalog.schedule.scheduledDate],
       }),
-    ).resolves.toBe(false);
+    ).resolves.toBe(true);
   });
 });

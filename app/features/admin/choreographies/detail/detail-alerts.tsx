@@ -64,8 +64,12 @@ export function ChoreographyDetailAlerts({
           <AlertTitle>
             Tiene la presentación N.º {choreography.presentationOrderNumber}
           </AlertTitle>
+          {/* A withdrawn choreography is read-only and keeps its number for
+              good, so there is no correction to warn about. */}
           <AlertDescription>
-            Si la modificás, revisá sus advertencias en presentaciones.
+            {choreography.isWithdrawn
+              ? "Figura en el programa con ese número, marcada como retirada."
+              : "Si la modificás, revisá sus advertencias en presentaciones."}
           </AlertDescription>
         </Alert>
       )}

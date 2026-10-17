@@ -6,7 +6,7 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
-import { PresentationDayTabs } from "./notices";
+import { PresentationDayTabs, PresentationNotices } from "./notices";
 import type { PresentationListResult } from "./shared";
 
 describe("PresentationDayTabs", () => {
@@ -39,7 +39,7 @@ describe("PresentationDayTabs", () => {
       {
         initialEntries: [
           "/administracion",
-          "/administracion/presentaciones?pagina=3&advertencias=con",
+          "/administracion/presentaciones?pagina=3&estado=advertencias",
         ],
       },
     );
@@ -48,13 +48,13 @@ describe("PresentationDayTabs", () => {
     await selectTab(1);
 
     expect(router.state.location.search).toBe(
-      "?advertencias=con&dia=2026-05-02",
+      "?estado=advertencias&dia=2026-05-02",
     );
 
     // The first day is the one a URL naming none opens on.
     await selectTab(0);
 
-    expect(router.state.location.search).toBe("?advertencias=con");
+    expect(router.state.location.search).toBe("?estado=advertencias");
 
     await act(async () => {
       await router.navigate(-1);
@@ -73,4 +73,69 @@ describe("PresentationDayTabs", () => {
         );
     });
   }
+});
+
+describe("PresentationNotices", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  function mountNotices(search: string, status: "advertencias" | null) {
+    const loaderData = {
+      canWrite: true,
+      filters: { status },
+      hasPresentations: true,
+      unorderedCount: 0,
+      warnedCount: 2,
+    } as PresentationListResult;
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/administracion/presentaciones",
+          element: (
+            <PresentationNotices
+              loaderData={loaderData}
+              needsNumberSortToDrag={false}
+              onOrderAutomatically={() => {}}
+            />
+          ),
+        },
+      ],
+      { initialEntries: [`/administracion/presentaciones${search}`] },
+    );
+
+    return { router };
+  }
+
+  function seeButton() {
+    return [...document.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Ver",
+    );
+  }
+
+  // `Ver` is the `Estado` filter's `Con advertencias`, applied from the notice;
+  // once it is applied, the filter's own control takes it off.
+  test("applies `Con advertencias` from the warnings notice, and offers nothing once applied", async () => {
+    const { router } = mountNotices("?pagina=2&dia=2026-05-02", null);
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+    await act(async () => {
+      seeButton()?.click();
+    });
+
+    expect(router.state.location.search).toBe(
+      "?dia=2026-05-02&estado=advertencias",
+    );
+
+    renderer.cleanup();
+    const filtered = mountNotices("?estado=advertencias", "advertencias");
+    await renderer.renderAsync(<RouterProvider router={filtered.router} />);
+
+    expect(seeButton()).toBeUndefined();
+    expect(
+      [...document.querySelectorAll("button")].map((button) =>
+        button.textContent?.trim(),
+      ),
+    ).not.toContain("Ver todas");
+  });
 });

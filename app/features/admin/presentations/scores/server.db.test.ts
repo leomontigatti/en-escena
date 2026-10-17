@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { presentations, scores } from "@/db/schema";
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { expectThrownResponse } from "@/lib/test-support/http";
@@ -276,6 +277,37 @@ describe("the scores route's writes", () => {
 
     expect(missing).toMatchObject({
       data: { message: "No se encontró la presentación buscada." },
+    });
+  });
+
+  test("reads a withdrawn presentation as withdrawn and refuses to disqualify it", async () => {
+    const fixture = await seedJudgingFixture();
+    const presentation = await fixture.addPresentation({
+      name: "Retirada",
+      orderNumber: 1,
+      submodalityId: null,
+    });
+    await withdrawChoreographyForTest(presentation.choreographyId);
+    const { request } = await createSignedInRequest({
+      email: "admin.puntajes.retirada@example.com",
+      requestUrl: scoresUrl(presentation.presentationId),
+      role: "admin",
+    });
+
+    await expect(
+      loadPresentationScoresRouteData({
+        params: { presentationId: presentation.presentationId },
+        request,
+      }),
+    ).resolves.toMatchObject({ presentation: { withdrawn: true } });
+
+    const result = await submitAsAdmin(presentation.presentationId, {
+      intent: "disqualify",
+    });
+
+    expect(result).toMatchObject({
+      data: { status: "error" },
+      init: { status: 409 },
     });
   });
 

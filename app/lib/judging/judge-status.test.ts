@@ -53,6 +53,7 @@ describe("a judge's own status on a presentation", () => {
   test("shows the judge's own score in place of `Completa`", () => {
     expect(
       judgeScoreStatusBadge({
+        withdrawn: false,
         isOpen: true,
         status: "complete",
         value: "87.5",
@@ -60,6 +61,7 @@ describe("a judge's own status on a presentation", () => {
     ).toEqual({ label: "87.5", variant: "success" });
     expect(
       judgeScoreStatusBadge({
+        withdrawn: false,
         isOpen: true,
         status: "complete",
         value: "90.0",
@@ -70,6 +72,7 @@ describe("a judge's own status on a presentation", () => {
   test("warns about a score without a `Devolución`", () => {
     expect(
       judgeScoreStatusBadge({
+        withdrawn: false,
         isOpen: true,
         status: "noFeedback",
         value: "80.5",
@@ -79,13 +82,19 @@ describe("a judge's own status on a presentation", () => {
 
   test("keeps `Pendiente` and `Descalificada` as words, never a score", () => {
     expect(
-      judgeScoreStatusBadge({ isOpen: true, status: "pending", value: null }),
+      judgeScoreStatusBadge({
+        withdrawn: false,
+        isOpen: true,
+        status: "pending",
+        value: null,
+      }),
     ).toEqual({
       label: "Pendiente",
       variant: "outline",
     });
     expect(
       judgeScoreStatusBadge({
+        withdrawn: false,
         isOpen: true,
         status: "disqualified",
         value: "90.0",
@@ -96,6 +105,7 @@ describe("a judge's own status on a presentation", () => {
   test("on a closed day, shows the score with or without a `Devolución`, since it can no longer be fixed", () => {
     expect(
       judgeScoreStatusBadge({
+        withdrawn: false,
         isOpen: false,
         status: "noFeedback",
         value: "80.0",
@@ -103,6 +113,7 @@ describe("a judge's own status on a presentation", () => {
     ).toEqual({ label: "80", variant: "success" });
     expect(
       judgeScoreStatusBadge({
+        withdrawn: false,
         isOpen: false,
         status: "complete",
         value: "87.5",
@@ -112,14 +123,31 @@ describe("a judge's own status on a presentation", () => {
 
   test("on a closed day, keeps `Pendiente` and `Descalificada`", () => {
     expect(
-      judgeScoreStatusBadge({ isOpen: false, status: "pending", value: null }),
+      judgeScoreStatusBadge({
+        withdrawn: false,
+        isOpen: false,
+        status: "pending",
+        value: null,
+      }),
     ).toEqual({ label: "Pendiente", variant: "outline" });
     expect(
       judgeScoreStatusBadge({
+        withdrawn: false,
         isOpen: false,
         status: "disqualified",
         value: "90.0",
       }),
     ).toEqual({ label: "Descalificada", variant: "destructive" });
+  });
+
+  test("reads `Retirada` for a withdrawn presentation, whatever the judge's status", () => {
+    expect(
+      judgeScoreStatusBadge({
+        isOpen: true,
+        status: "pending",
+        value: null,
+        withdrawn: true,
+      }),
+    ).toEqual({ label: "Retirada", variant: "secondary" });
   });
 });

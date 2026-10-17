@@ -101,9 +101,10 @@ async function loadResultsList(input: {
   }
 
   const allRows = await readParticipationRows(input.selectedEventId);
-  // A choreography with no number has no presentation, so nothing to score.
+  // A choreography with no number has no presentation, so nothing to score;
+  // a withdrawn one keeps its number but is never scored, so it has no result.
   const rows = allRows.flatMap((row) =>
-    row.orderNumber === null || row.presentationId === null
+    row.orderNumber === null || row.presentationId === null || row.withdrawn
       ? []
       : [
           {

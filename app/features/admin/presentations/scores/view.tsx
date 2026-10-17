@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Info, Undo2, UsersRound } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useForm, useFormState } from "react-hook-form";
 import { Link, useNavigation, useSubmit } from "react-router";
 
@@ -11,19 +11,12 @@ import {
 } from "@/components/admin/resource-layout";
 import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
-import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { DiscardChangesDialog } from "@/components/shared/discard-guard";
 import { MetricCard } from "@/components/shared/metric-card";
 import { PinnedActions } from "@/components/shared/pinned-actions";
-import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
 import {
   Table,
@@ -49,7 +42,6 @@ import {
   formatPresentationTitle,
 } from "@/features/judging/score/presentation-heading";
 import { SheetParts } from "@/features/judging/score/sheet-parts";
-import { choreographyDetailPath } from "@/lib/choreographies/admin-paths";
 import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
 import { awardLabels } from "@/lib/judging/award";
 import type { PresentationJudgeScore } from "@/lib/judging/presentation-scores.server";
@@ -65,6 +57,7 @@ import {
   useSettleAfterSave,
   type DraftChangeHandler,
 } from "./drafts";
+import { PresentationActions } from "./actions";
 import type { PresentationScoresLoaderData } from "./server";
 
 /**
@@ -110,6 +103,16 @@ export function PresentationScoresView({
       }
     >
       <AlertStack>
+        {presentation.withdrawn ? (
+          <Alert variant="info">
+            <Info aria-hidden="true" />
+            <AlertTitle>Coreografía retirada</AlertTitle>
+            <AlertDescription>
+              Conserva su número en el programa, pero no se presenta ni se
+              juzga.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {presentation.disqualified ? (
           <Alert variant="info">
             <Info aria-hidden="true" />
@@ -132,82 +135,11 @@ export function PresentationScoresView({
 type Presentation = PresentationScoresLoaderData["presentation"];
 
 /**
- * The record's actions: the way to the choreography, and — for administration
- * only — the disqualification. It is rare and pulls the presentation out of the
- * results, so it asks first; reinstating puts back exactly what was there and
- * does not.
- */
-function PresentationActions({
-  canWrite,
-  presentation,
-}: {
-  canWrite: boolean;
-  presentation: Presentation;
-}) {
-  const submit = useSubmit();
-  const navigation = useNavigation();
-  // Either way the presentation is mid-change, so neither is offered again
-  // until the page has the answer.
-  const isSettling =
-    isRouteFormPending(navigation, { intent: "disqualify" }) ||
-    isRouteFormPending(navigation, { intent: "reinstate" });
-  const [isDisqualifyDialogOpen, setIsDisqualifyDialogOpen] = useState(false);
-  const submitIntent = (intent: "disqualify" | "reinstate") => {
-    void submit({ intent }, { method: "post" });
-  };
-
-  return (
-    <>
-      <ResourceActionsMenu contentClassName="w-48">
-        <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
-            <Link to={choreographyDetailPath(presentation.choreographyId)}>
-              Ver la coreografía
-            </Link>
-          </DropdownMenuItem>
-          {canWrite && presentation.disqualified ? (
-            <DropdownMenuItem
-              disabled={isSettling}
-              onSelect={() => submitIntent("reinstate")}
-            >
-              Volver a calificar
-            </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuGroup>
-        {canWrite && !presentation.disqualified ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                disabled={isSettling}
-                variant="destructive"
-                onSelect={() => setIsDisqualifyDialogOpen(true)}
-              >
-                Descalificar
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </>
-        ) : null}
-      </ResourceActionsMenu>
-      <ConfirmationDialog
-        confirmLabel="Descalificar"
-        description="Queda fuera de los resultados, sin promedio ni premio. Los puntajes guardados se conservan y vuelven si la calificás de nuevo."
-        destructive
-        onConfirm={() => submitIntent("disqualify")}
-        onOpenChange={setIsDisqualifyDialogOpen}
-        open={isDisqualifyDialogOpen}
-        title="¿Descalificar la presentación?"
-      />
-    </>
-  );
-}
-
-/**
  * A disqualified presentation has no result to give, so its average and award
  * do not apply; one no judge has scored yet simply has none so far.
  */
 function averageText(presentation: Presentation) {
-  if (presentation.disqualified) {
+  if (presentation.disqualified || presentation.withdrawn) {
     return notApplicableText;
   }
 
@@ -217,7 +149,7 @@ function averageText(presentation: Presentation) {
 }
 
 function awardText(presentation: Presentation) {
-  if (presentation.disqualified) {
+  if (presentation.disqualified || presentation.withdrawn) {
     return notApplicableText;
   }
 
@@ -239,6 +171,17 @@ function PanelScores({
   presentation: Presentation;
 }) {
   if (presentation.judges.length === 0) {
+    // A withdrawn presentation gains no judges, so it points nowhere.
+    if (presentation.withdrawn) {
+      return (
+        <AdminEmptyState
+          description="Una presentación retirada no suma jueces."
+          icon={UsersRound}
+          title="Sin jueces asignados"
+        />
+      );
+    }
+
     return (
       <AdminEmptyState
         description={

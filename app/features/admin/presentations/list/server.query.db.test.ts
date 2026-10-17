@@ -1,5 +1,9 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
+import { db } from "@/db";
+import { presentations } from "@/db/schema";
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import { adminListPageSize } from "@/lib/admin/admin-list";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import { createSignedInRequest } from "@/lib/test-support/auth";
@@ -192,6 +196,110 @@ describe("the participation list's query", () => {
     );
   });
 
+  // A withdrawn presentation keeps its place in the order, so it is listed with
+  // no filter; one withdrawn before it had a number has no place, and only the
+  // `Retirada` answer of `Estado` reaches it.
+  test("lists a withdrawn presentation in place, and reaches one never numbered through `Retirada`", async () => {
+    const fixture = await seedJudgingFixture();
+    await fixture.addPresentation({ name: "En escena", orderNumber: 1 });
+    const numbered = await fixture.addPresentation({
+      name: "Retirada numerada",
+      orderNumber: 2,
+    });
+    const unnumbered = await fixture.addPresentation({
+      name: "Retirada sin número",
+      orderNumber: 3,
+    });
+    await db
+      .delete(presentations)
+      .where(eq(presentations.id, unnumbered.presentationId));
+    await withdrawChoreographyForTest(numbered.choreographyId);
+    await withdrawChoreographyForTest(unnumbered.choreographyId);
+
+    const everyRow = await loadTheList("");
+    const withdrawn = await loadTheList("?estado=retirada");
+
+    expect(everyRow.presentations.map((row) => row.name)).toEqual([
+      "En escena",
+      "Retirada numerada",
+    ]);
+    expect(everyRow.unorderedCount).toBe(0);
+    expect(withdrawn.filters.status).toBe("retirada");
+    expect(withdrawn.presentations.map((row) => row.name)).toEqual([
+      "Retirada numerada",
+      "Retirada sin número",
+    ]);
+  });
+
+  // A choreography withdrawn before it had a number has no place in the order:
+  // its day is no tab and it is nothing to order, until `Retirada` asks for it.
+  test("opens no tab and offers no ordering for a choreography withdrawn before it had a number", async () => {
+    const fixture = await seedJudgingFixture();
+    const withdrawn = await fixture.addPresentation({
+      name: "Retirada sin número",
+      orderNumber: 1,
+      scheduledDate: "2026-11-20",
+    });
+    await db
+      .delete(presentations)
+      .where(eq(presentations.id, withdrawn.presentationId));
+    await withdrawChoreographyForTest(withdrawn.choreographyId);
+
+    const onlyWithdrawn = await loadTheList("");
+
+    expect(onlyWithdrawn.days).toEqual([]);
+    expect(onlyWithdrawn.hasOrderableRow).toBe(false);
+
+    await fixture.addPresentation({
+      name: "En escena",
+      orderNumber: 2,
+      scheduledDate: "2026-11-21",
+    });
+
+    const opening = await loadTheList("");
+    const withdrawnOnly = await loadTheList("?estado=retirada");
+
+    expect(opening.days).toEqual(["2026-11-21"]);
+    expect(opening.presentations.map((row) => row.name)).toEqual(["En escena"]);
+    expect(opening.hasOrderableRow).toBe(true);
+    expect(withdrawnOnly.days).toEqual(["2026-11-20", "2026-11-21"]);
+    // The ordering is offered only the days it has something to order on.
+    expect(withdrawnOnly.orderableDays).toEqual(["2026-11-21"]);
+    expect(withdrawnOnly.presentations.map((row) => row.name)).toEqual([
+      "Retirada sin número",
+    ]);
+  });
+
+  // Each answer of `Estado` keeps the rows whose badge reads it: a row the
+  // panel judged reads its evaluation, never the warnings it still carries.
+  test("narrows the list to the rows whose badge reads the status chosen", async () => {
+    const fixture = await seedJudgingFixture();
+    // A solo with no level, where its category requires one, is warned.
+    await fixture.addPresentation({
+      experienceLevelId: null,
+      name: "Advertida",
+      orderNumber: 1,
+    });
+    const disqualified = await fixture.addPresentation({
+      experienceLevelId: null,
+      name: "Descalificada",
+      orderNumber: 2,
+    });
+    await db
+      .update(presentations)
+      .set({ disqualifiedAt: new Date("2026-10-10T23:00:00Z") })
+      .where(eq(presentations.id, disqualified.presentationId));
+
+    const warned = await loadTheList("?estado=advertencias");
+    const settled = await loadTheList("?estado=descalificada");
+
+    expect(warned.presentations.map((row) => row.name)).toEqual(["Advertida"]);
+    expect(warned.warnedCount).toBe(1);
+    expect(settled.presentations.map((row) => row.name)).toEqual([
+      "Descalificada",
+    ]);
+  });
+
   // The notice's `Ver` narrows the day on screen, so it counts that day only:
   // an event-wide count would send the reader to an empty list.
   test("counts the warned presentations of the day on screen", async () => {
@@ -222,12 +330,14 @@ describe("the participation list's query", () => {
     await fixture.addPresentation({ name: "Única", orderNumber: 1 });
 
     const response = await expectThrownResponse(
-      loadTheList("?pagina=2&dia=2099-01-01&evento=abc&advertencias=con"),
+      loadTheList(
+        "?pagina=2&dia=2099-01-01&evento=abc&advertencias=con&estado=advertencias",
+      ),
       302,
     );
 
     expect(response.headers.get("Location")).toBe(
-      "/administracion/presentaciones?advertencias=con",
+      "/administracion/presentaciones?estado=advertencias",
     );
   });
 });

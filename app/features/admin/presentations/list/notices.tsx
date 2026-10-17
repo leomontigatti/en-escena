@@ -16,7 +16,10 @@ import {
   useScheduleDayTab,
 } from "@/features/program/day-tabs";
 
-import type { PresentationListResult } from "./shared";
+import {
+  presentationStatusFilterParam,
+  type PresentationListResult,
+} from "./shared";
 
 /**
  * Everything the participation list says around its table: the notices above
@@ -35,7 +38,7 @@ export function PresentationNotices({
 }) {
   return (
     <AlertStack>
-      {loaderData.hasPresentations ? null : (
+      {loaderData.hasPresentations || !loaderData.hasOrderableRow ? null : (
         <Alert variant="info">
           <Info aria-hidden="true" />
           <AlertTitle>Sin números de presentación</AlertTitle>
@@ -83,24 +86,23 @@ export function PresentationNotices({
   );
 }
 
-/** The warnings count, and the filter that narrows the list down to them. */
+/**
+ * The warnings count, and `Ver`: the `Estado` filter's `Con advertencias`,
+ * applied from here. Once it is applied the notice offers nothing, since the
+ * filter's own control is what takes it off.
+ */
 function PresentationWarningsNotice({
   loaderData,
 }: {
   loaderData: PresentationListResult;
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const isFilteredToWarnings = loaderData.filters.warnings === "con";
+  const isFilteredToWarnings = loaderData.filters.status === "advertencias";
 
-  const toggleWarningFilter = () => {
+  const filterToWarnings = () => {
     const next = new URLSearchParams(searchParams);
 
-    if (isFilteredToWarnings) {
-      next.delete("advertencias");
-    } else {
-      next.set("advertencias", "con");
-    }
-
+    next.set(presentationStatusFilterParam, "advertencias");
     next.delete(listQueryParamNames.page);
     setSearchParams(next);
   };
@@ -114,16 +116,18 @@ function PresentationWarningsNotice({
           ? "Existe 1 presentación con advertencias."
           : `Existen ${loaderData.warnedCount} presentaciones con advertencias.`}
       </AlertDescription>
-      <AlertAction className="top-1/2 -translate-y-1/2">
-        <Button
-          type="button"
-          size="sm"
-          variant="link"
-          onClick={toggleWarningFilter}
-        >
-          {isFilteredToWarnings ? "Ver todas" : "Ver"}
-        </Button>
-      </AlertAction>
+      {isFilteredToWarnings ? null : (
+        <AlertAction className="top-1/2 -translate-y-1/2">
+          <Button
+            type="button"
+            size="sm"
+            variant="link"
+            onClick={filterToWarnings}
+          >
+            Ver
+          </Button>
+        </AlertAction>
+      )}
     </Alert>
   );
 }

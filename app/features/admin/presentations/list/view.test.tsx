@@ -16,7 +16,11 @@ describe("PresentationsListView", () => {
   });
 
   test("shows the empty state when the event has nothing to order", () => {
-    const markup = renderView({ hasAnyRow: false, presentations: [] });
+    const markup = renderView({
+      hasAnyRow: false,
+      hasOrderableRow: false,
+      presentations: [],
+    });
 
     expect(markup).toContain("Todavía no hay coreografías.");
   });
@@ -152,6 +156,7 @@ function buildItem(
     scheduledDate: "2026-05-01",
     submodalityName: null,
     warnings: [],
+    withdrawn: false,
     ...overrides,
   };
 }
@@ -168,10 +173,12 @@ function renderView(overrides: Partial<PresentationListResult> = {}) {
       evaluation: null,
       order: { columnId: "orden", direction: "asc" },
       query: "",
-      warnings: null,
+      status: null,
     },
     frozenDays: [],
     hasAnyRow: true,
+    hasOrderableRow: true,
+    orderableDays: [],
     hasPresentations: true,
     highestOrderNumber: 1,
     musicDownloadDays: [],

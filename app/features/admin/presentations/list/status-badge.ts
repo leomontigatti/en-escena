@@ -1,6 +1,7 @@
+import { withdrawnChoreographyStatusLabel } from "@/lib/choreographies/operational-status";
 import type { PresentationWarningKind } from "@/lib/presentations/warnings";
 
-import type { PresentationListItem } from "./shared";
+import { readPresentationStatus, type PresentationListItem } from "./shared";
 
 /**
  * The row's one badge in the participation list's `Estado` column, decided
@@ -11,7 +12,7 @@ export type PresentationStatusBadge = {
   label: string;
   /** What the tooltip lists, most relevant first; none for an evaluation. */
   messages: string[];
-  variant: "destructive" | "success" | "warning";
+  variant: "destructive" | "secondary" | "success" | "warning";
 };
 
 /**
@@ -44,10 +45,29 @@ const evaluationBadges = {
 } as const;
 
 export function readPresentationStatusBadge(
-  row: Pick<PresentationListItem, "evaluationStatus" | "warnings">,
+  row: Pick<
+    PresentationListItem,
+    "evaluationStatus" | "warnings" | "withdrawn"
+  >,
 ): PresentationStatusBadge | null {
-  if (row.evaluationStatus !== "pending") {
-    return { ...evaluationBadges[row.evaluationStatus], messages: [] };
+  const status = readPresentationStatus(row);
+
+  // A withdrawn presentation keeps its number and is never judged, so the
+  // withdrawal is the whole answer, worded and coloured as on every other list.
+  if (status === "retirada") {
+    return {
+      label: withdrawnChoreographyStatusLabel,
+      messages: [],
+      variant: "secondary",
+    };
+  }
+
+  if (status === "evaluada") {
+    return { ...evaluationBadges.evaluated, messages: [] };
+  }
+
+  if (status === "descalificada") {
+    return { ...evaluationBadges.disqualified, messages: [] };
   }
 
   const sorted = [...row.warnings].sort(

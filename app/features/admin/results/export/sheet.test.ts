@@ -22,6 +22,7 @@ function row(overrides: Partial<ResultsExportRow> = {}): ResultsExportRow {
     scheduledDate: "2026-10-17",
     startTime: "10:00",
     submodalityName: "Repertorio",
+    withdrawn: false,
     ...overrides,
   };
 }

@@ -92,6 +92,11 @@ export type JudgePresentationRow = {
    * shows once the score is complete.
    */
   value: string | null;
+  /**
+   * `Coreografía retirada`: the row keeps its number and reads `Retirada`, but
+   * it is not owed a score and opens no form.
+   */
+  withdrawn: boolean;
 };
 
 export async function readJudgePresentations(
@@ -122,6 +127,7 @@ export async function readJudgePresentations(
       scoreValue: scores.value,
       submodalityId: choreographies.submodalityId,
       submodalityName: submodalities.name,
+      withdrawnAt: choreographies.withdrawnAt,
     })
     .from(judgeAssignments)
     .innerJoin(
@@ -199,6 +205,7 @@ export async function readJudgePresentations(
       }),
       submodalityName: row.submodalityName,
       value: row.scoreValue,
+      withdrawn: row.withdrawnAt !== null,
     })),
   );
 }

@@ -8,6 +8,7 @@ describe("readPresentationStatusBadge", () => {
       readPresentationStatusBadge({
         evaluationStatus: "pending",
         warnings: [],
+        withdrawn: false,
       }),
     ).toBeNull();
   });
@@ -20,6 +21,7 @@ describe("readPresentationStatusBadge", () => {
           { kind: "outOfBlock", message: "Fuera de su bloque" },
           { kind: "belowDeposit", message: "Seña pendiente" },
         ],
+        withdrawn: false,
       }),
     ).toEqual({
       label: "Seña pendiente",
@@ -39,6 +41,7 @@ describe("readPresentationStatusBadge", () => {
             message: "Sin jueces: otras presentaciones ya los tienen",
           },
         ],
+        withdrawn: false,
       }),
     ).toMatchObject({ label: "Sin jueces", variant: "destructive" });
   });
@@ -48,13 +51,25 @@ describe("readPresentationStatusBadge", () => {
       readPresentationStatusBadge({
         evaluationStatus: "evaluated",
         warnings: [{ kind: "belowDeposit", message: "Seña pendiente" }],
+        withdrawn: false,
       }),
     ).toEqual({ label: "Evaluada", messages: [], variant: "success" });
     expect(
       readPresentationStatusBadge({
         evaluationStatus: "disqualified",
         warnings: [],
+        withdrawn: false,
       }),
     ).toEqual({ label: "Descalificada", messages: [], variant: "destructive" });
+  });
+
+  test("reads a withdrawn presentation as withdrawn whatever else it carries", () => {
+    expect(
+      readPresentationStatusBadge({
+        evaluationStatus: "pending",
+        warnings: [{ kind: "belowDeposit", message: "Seña pendiente" }],
+        withdrawn: true,
+      }),
+    ).toEqual({ label: "Retirada", messages: [], variant: "secondary" });
   });
 });

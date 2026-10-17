@@ -1,7 +1,14 @@
 import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { judgeAssignments, presentations, scores, user } from "@/db/schema";
+import {
+  choreographies,
+  judgeAssignments,
+  presentations,
+  scores,
+  user,
+} from "@/db/schema";
+import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 
 /**
@@ -107,7 +114,9 @@ export async function readAssignedJudges(
  *
  * Only an assignable judge is written, so an id that went suspended or changed
  * role between the dialog opening and the confirmation is dropped rather than
- * refused. The counts answer for what was actually reached.
+ * refused, and only a presentation still taking part: a withdrawn one keeps
+ * the judges it had and gains none. The counts answer for what was actually
+ * reached.
  */
 export async function assignJudges(
   input: {
@@ -121,7 +130,7 @@ export async function assignJudges(
     const judgeIds = assignable
       .map((judge) => judge.id)
       .filter((id) => input.judgeIds.includes(id));
-    const presentationIds = await findPresentationIds(
+    const presentationIds = await findJudgeablePresentationIds(
       tx,
       input.choreographyIds,
     );
@@ -157,6 +166,9 @@ export async function assignJudges(
  * behind in the same notification as the success — and a single removal, which
  * is a selection of one, comes back having removed nothing, which is the
  * refusal.
+ *
+ * A withdrawn presentation is read-only, so its judges are left where they
+ * are: they read `Retirada` on their lists and cannot score it anyway.
  */
 export async function removeJudges(
   input: {
@@ -166,7 +178,7 @@ export async function removeJudges(
   executor: Executor = db,
 ): Promise<JudgeRemovalResult> {
   return await executor.transaction(async (tx) => {
-    const presentationIds = await findPresentationIds(
+    const presentationIds = await findJudgeablePresentationIds(
       tx,
       input.choreographyIds,
     );
@@ -260,4 +272,39 @@ async function findPresentationIds(
     .where(inArray(presentations.choreographyId, choreographyIds));
 
   return rows.map((row) => row.id);
+}
+
+/**
+ * The presentations of the given choreographies that are not withdrawn. The
+ * choreographies are locked first, in the order a withdrawal locks them before
+ * their presentation, and `NO KEY UPDATE`: it waits for a withdrawal and for
+ * another judge edit of the same rows, so two edits never interleave, while
+ * letting the key checks of other inserts through. A withdrawal
+ * that commits while this waits is read by the lock's recheck, so neither an assignment nor a removal reaches what it
+ * just withdrew.
+ */
+async function findJudgeablePresentationIds(
+  executor: Executor,
+  choreographyIds: string[],
+) {
+  if (choreographyIds.length === 0) {
+    return [];
+  }
+
+  const taking = await executor
+    .select({ id: choreographies.id })
+    .from(choreographies)
+    .where(
+      and(
+        inArray(choreographies.id, choreographyIds),
+        notWithdrawnChoreography(),
+      ),
+    )
+    .orderBy(asc(choreographies.id))
+    .for("no key update");
+
+  return await findPresentationIds(
+    executor,
+    taking.map((row) => row.id),
+  );
 }

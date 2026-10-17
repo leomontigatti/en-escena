@@ -71,6 +71,9 @@ const unknownScoreMessage = "No se encontró el puntaje que se quiso editar.";
 
 const unknownIntentMessage = "No se reconoció la acción solicitada.";
 
+const withdrawnPresentationMessage =
+  "La coreografía fue retirada: su presentación no se juzga.";
+
 /**
  * Administration's writes on one presentation's panel. Every one of them is
  * asked of `requireAdminPanelWriter`, so an auditor reading the page is refused with
@@ -132,12 +135,21 @@ function answerDisqualification(
   message: string,
   result: ScoreSettlementResult,
 ): PresentationScoresActionData | ReturnType<typeof data> {
-  return result.ok
-    ? { message, status: "success" }
-    : data(
-        { message: presentationNotFoundMessage, status: "error" as const },
-        { status: 404 },
-      );
+  if (result.ok) {
+    return { message, status: "success" };
+  }
+
+  if (result.reason === "withdrawn") {
+    return data(
+      { message: withdrawnPresentationMessage, status: "error" as const },
+      { status: 409 },
+    );
+  }
+
+  return data(
+    { message: presentationNotFoundMessage, status: "error" as const },
+    { status: 404 },
+  );
 }
 
 /**

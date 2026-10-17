@@ -167,32 +167,37 @@ export type ChoreographyRemovalPreview = "deleted" | "withdrawn";
  * leaves nothing behind, the other keeps the choreography with its money
  * exactly where it was allocated, so it asks to withdraw rather than delete.
  *
- * An unevaluated presentation does not block either outcome — it is deleted
- * with the choreography — so the number is named as a consequence and not as a
- * reason to stop. The gap it leaves stays: every other number is what the
- * academies were told.
+ * An unevaluated presentation does not block either outcome, so the number is
+ * named as a consequence and not as a reason to stop. A deletion takes the
+ * presentation with it and leaves a gap; a withdrawal keeps it at its number,
+ * marked `Retirada`. Either way every other number is what the academies were
+ * told.
  */
 export function describeChoreographyRemoval(input: {
   outcome: ChoreographyRemovalPreview;
   presentationOrderNumber: number | null;
 }) {
-  const ending =
+  const deletionEnding =
     input.presentationOrderNumber === null
       ? "."
       : " y pierde el número de orden.";
+  const withdrawalEnding =
+    input.presentationOrderNumber === null
+      ? "."
+      : ` y conserva el N.º ${input.presentationOrderNumber}, marcada como retirada.`;
 
   return input.outcome === "withdrawn"
     ? {
         // A withdrawal is final (#1496), so the dialog says so before the
         // admin confirms it.
-        consequence: `Al retirarla también libera su cupo del cronograma${ending} El retiro es definitivo: para que vuelva a participar hay que registrar una coreografía nueva.`,
+        consequence: `Al retirarla también libera su cupo del cronograma${withdrawalEnding} El retiro es definitivo: para que vuelva a participar hay que registrar una coreografía nueva.`,
         description:
           "Al tener dinero asignado o comprobantes emitidos, no puede eliminarse. Podés revisarla desde la lista de finanzas.",
         outcome: input.outcome,
         title: "¿Retirar la coreografía?",
       }
     : {
-        description: `Al no tener dinero asignado ni comprobantes emitidos, se elimina por completo. Al eliminarla también libera su cupo del cronograma${ending}`,
+        description: `Al no tener dinero asignado ni comprobantes emitidos, se elimina por completo. Al eliminarla también libera su cupo del cronograma${deletionEnding}`,
         outcome: input.outcome,
         title: "¿Eliminar la coreografía?",
       };

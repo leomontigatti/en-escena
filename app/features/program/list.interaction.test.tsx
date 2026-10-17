@@ -546,6 +546,36 @@ describe("the program list everyone outside the administration reads", () => {
     expect(onLivePoll).toHaveBeenCalledTimes(1);
   });
 
+  // A withdrawn row keeps its number and says why beside it, in words only a
+  // screen reader hears: no column of its own, and no visible word.
+  test("marks a withdrawn row at its number, with no column of its own", async () => {
+    await mount({
+      rows: [
+        buildRow({ choreographyId: "kept", name: "En escena" }),
+        buildRow({
+          choreographyId: "withdrawn",
+          name: "Retirada",
+          orderNumber: 2,
+          withdrawn: true,
+        }),
+      ],
+      showAcademy: false,
+    });
+
+    const headers = [...document.querySelectorAll("thead th")];
+    const withdrawnMarks = [...document.querySelectorAll(".sr-only")].filter(
+      (node) => node.textContent?.includes("Retirada"),
+    );
+
+    expect(headers.every((header) => header.textContent !== "")).toBe(true);
+    // The table's number and the card's badge.
+    expect(withdrawnMarks).toHaveLength(2);
+    // The tooltip is the only visible explanation, so the mark takes focus.
+    expect(
+      document.querySelector("tbody [tabindex='0'] .sr-only")?.textContent,
+    ).toBe("Retirada");
+  });
+
   test("carries no state column on either surface", async () => {
     await mount({
       rows: [buildRow({ isBelowDeposit: true, orderNumber: null })],
@@ -572,6 +602,7 @@ function buildRow(overrides: Partial<ProgramListRow> = {}): ProgramListRow {
     orderNumber: 1,
     scheduledDate: "2026-05-01",
     submodalityName: null,
+    withdrawn: false,
     ...overrides,
   };
 }

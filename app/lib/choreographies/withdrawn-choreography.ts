@@ -4,9 +4,10 @@ import { choreographies } from "@/db/schema";
 
 /**
  * A withdrawn choreography stays in the table —it keeps the money its
- * inscriptions hold, its number and its schedule references, as the record of
- * a withdrawal that is final— so every read that asks about what is taking
- * part filters it out. This predicate
+ * inscriptions hold, its number, its schedule references and its presentation,
+ * as the record of a withdrawal that is final— so every read that asks about
+ * what is taking part filters it out. The reads of the order keep its
+ * presentation instead, marked withdrawn. This predicate
  * is the only place that filter lives: nobody writes
  * `isNull(choreographies.withdrawnAt)` by hand, exactly as with
  * `activeInscription()` for the roster.

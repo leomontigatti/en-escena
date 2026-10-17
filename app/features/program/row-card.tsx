@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { Check } from "lucide-react";
+import { Check, Minus } from "lucide-react";
 
 import { DataTableTruncatedText } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
@@ -11,6 +11,7 @@ import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-
 import { cn } from "@/lib/shared/utils";
 
 import { formatProgramOrderNumber, type ProgramListRow } from "./shared";
+import { withdrawnChoreographyStatusLabel } from "@/lib/choreographies/operational-status";
 
 /**
  * A row of the order as a card on a phone, for every list built on
@@ -21,7 +22,8 @@ import { formatProgramOrderNumber, type ProgramListRow } from "./shared";
  *
  * An evaluated card, on the public program's day being danced, fades all but
  * its number, which turns into a green badge: the faded run is what the show
- * has left behind, and the badge says so where the eye lands first.
+ * has left behind, and the badge says so where the eye lands first. A
+ * withdrawn card fades the same way, its number in a muted badge with a minus.
  */
 export function ProgramRowCard({
   children,
@@ -38,7 +40,7 @@ export function ProgramRowCard({
   to: string | null;
 }) {
   const number = `N.º ${formatProgramOrderNumber(row) || "—"}`;
-  const faded = evaluated ? "opacity-55" : undefined;
+  const faded = evaluated || row.withdrawn ? "opacity-55" : undefined;
 
   return (
     <>
@@ -52,17 +54,11 @@ export function ProgramRowCard({
             </DataTableLink>
           )}
         </div>
-        {evaluated ? (
-          <Badge variant="success" className="shrink-0 tabular-nums">
-            <Check aria-hidden="true" />
-            <span className="sr-only">Ya se presentó, </span>
-            {number}
-          </Badge>
-        ) : (
-          <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
-            {number}
-          </span>
-        )}
+        <CardNumber
+          evaluated={evaluated}
+          number={number}
+          withdrawn={row.withdrawn}
+        />
       </div>
       <p className={cn("text-xs wrap-break-word text-muted-foreground", faded)}>
         {[
@@ -73,8 +69,45 @@ export function ProgramRowCard({
           .filter(Boolean)
           .join(" · ")}
       </p>
-      {evaluated ? <div className={faded}>{children}</div> : children}
+      {faded ? <div className={faded}>{children}</div> : children}
     </>
+  );
+}
+
+/** The card's number: plain, badged as danced, or badged as withdrawn. */
+function CardNumber({
+  evaluated,
+  number,
+  withdrawn,
+}: {
+  evaluated: boolean;
+  number: string;
+  withdrawn: boolean;
+}) {
+  if (withdrawn) {
+    return (
+      <Badge variant="secondary" className="shrink-0 tabular-nums">
+        <Minus aria-hidden="true" />
+        <span className="sr-only">{withdrawnChoreographyStatusLabel}, </span>
+        {number}
+      </Badge>
+    );
+  }
+
+  if (evaluated) {
+    return (
+      <Badge variant="success" className="shrink-0 tabular-nums">
+        <Check aria-hidden="true" />
+        <span className="sr-only">Ya se presentó, </span>
+        {number}
+      </Badge>
+    );
+  }
+
+  return (
+    <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
+      {number}
+    </span>
   );
 }
 

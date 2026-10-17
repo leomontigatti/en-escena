@@ -31,6 +31,11 @@ export type ProgramListRow = {
   orderNumber: number | null;
   scheduledDate: string;
   submodalityName: string | null;
+  /**
+   * `Coreografía retirada`: it keeps the number it was announced with and
+   * reads `Retirada`, so the numbering has no unexplained gap.
+   */
+  withdrawn: boolean;
 };
 
 export function formatProgramOrderNumber(row: ProgramListRow) {

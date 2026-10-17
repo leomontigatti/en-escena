@@ -250,6 +250,22 @@ describe("correcting the panel's scores", () => {
     ]);
   });
 
+  // A withdrawn presentation is never judged, so the disqualification stays in
+  // the menu but explains itself instead of asking to confirm.
+  test("explains, instead of disqualifying, that a withdrawn presentation is not judged", async () => {
+    await mount({ average: null, award: null, withdrawn: true });
+    await openActionsMenu();
+
+    await act(async () => {
+      (menuItem("Descalificar") as HTMLElement | undefined)?.click();
+      await Promise.resolve();
+    });
+
+    expect(dialogTitle()).toBe("No se puede descalificar la presentación");
+    expect(dialogButton("Descalificar")).toBeUndefined();
+    expect(submitted).toEqual([]);
+  });
+
   test("offers a reader who may not edit only the way to the choreography", async () => {
     await mount({}, { canWrite: false });
     await openActionsMenu();
@@ -660,6 +676,7 @@ function buildPresentation(
     presentationId: "presentation-1",
     professionalEvaluation: false,
     submodalityName: "Acrobacia",
+    withdrawn: false,
     ...overrides,
   };
 }

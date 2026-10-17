@@ -6,10 +6,10 @@ import {
 } from "./resume";
 
 const rows = [
-  { presentationId: "a", status: "noFeedback" as const },
-  { presentationId: "b", status: "pending" as const },
-  { presentationId: "c", status: "disqualified" as const },
-  { presentationId: "d", status: "pending" as const },
+  { presentationId: "a", status: "noFeedback" as const, withdrawn: false },
+  { presentationId: "b", status: "pending" as const, withdrawn: false },
+  { presentationId: "c", status: "disqualified" as const, withdrawn: false },
+  { presentationId: "d", status: "pending" as const, withdrawn: false },
 ];
 
 describe("where the judge picks the list back up", () => {
@@ -32,9 +32,22 @@ describe("where the judge picks the list back up", () => {
   test("marks nothing once every presentation is scored", () => {
     expect(
       findResumePresentationId(
-        [{ presentationId: "a", status: "complete" }],
+        [{ presentationId: "a", status: "complete", withdrawn: false }],
         "a",
       ),
+    ).toBeNull();
+  });
+
+  test("skips a withdrawn presentation, which has nothing left to score", () => {
+    const withWithdrawn = [
+      { presentationId: "a", status: "pending" as const, withdrawn: false },
+      { presentationId: "b", status: "pending" as const, withdrawn: true },
+      { presentationId: "c", status: "pending" as const, withdrawn: false },
+    ];
+
+    expect(findResumePresentationId(withWithdrawn, "a")).toBe("c");
+    expect(
+      findResumePresentationId(withWithdrawn.slice(1, 2), null),
     ).toBeNull();
   });
 });

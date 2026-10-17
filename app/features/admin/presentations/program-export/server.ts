@@ -13,7 +13,7 @@ import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { readEventProgram } from "@/lib/presentations/event-program.server";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
-import { programExportColumns, type ProgramExportRow } from "./sheet";
+import { programSheetColumns, type ProgramExportRow } from "./sheet";
 
 /**
  * The program as a spreadsheet, for the organisation to work on outside the
@@ -123,7 +123,7 @@ export async function loadProgramExport(request: Request): Promise<Response> {
   const { day, eventName, rows } = await readProgramExport(request);
 
   return await spreadsheetResponse({
-    columns: programExportColumns,
+    columns: programSheetColumns,
     fileName: buildExportFileName("programa", eventName, day),
     rows,
     sheet: "Programa",

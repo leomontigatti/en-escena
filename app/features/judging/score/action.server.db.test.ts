@@ -8,6 +8,7 @@ import {
   createAccessRequestCookie,
   createAccessUser,
 } from "@/lib/auth/access-auth.test-support";
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import { judgingDate } from "@/lib/judging/judging-day";
 import { scoreValueMessage } from "@/lib/judging/score-value";
@@ -191,6 +192,29 @@ describe("the `/juzgamiento` action", () => {
       ).toEqual([]);
     },
   );
+
+  // A withdrawal can land while the judge has the form open: the save comes
+  // back as an error over the form, not as the value rule nor a 403.
+  test("refuses the score of a choreography withdrawn while the form was open", async () => {
+    const judge = await signIn("judge", "Juana Juez");
+    const { fixture, presentation } = await seedOpenPresentation();
+    await fixture.assignJudge(presentation.presentationId, judge.userId);
+
+    await withdrawChoreographyForTest(presentation.choreographyId);
+
+    const result = await action(
+      scoreRequest(judge.cookie, {
+        intent: "save-score",
+        presentationId: presentation.presentationId,
+        value: "90.5",
+      }),
+    );
+
+    expect(result).toMatchObject({
+      message: "La coreografía fue retirada, no se pueden guardar puntajes.",
+      status: "error",
+    });
+  });
 
   // A refusal is a toast, never a field error: the value rule rides on the
   // message the judge reads.

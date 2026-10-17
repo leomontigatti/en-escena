@@ -43,7 +43,9 @@ import {
  * have typed.
  */
 
-export type ScoreSettlementRefusal = "invalid-value" | "not-found";
+/** `withdrawn`: the presentation's choreography was withdrawn, so it is never judged. */
+export type ScoreSettlementRefusal =
+  "invalid-value" | "not-found" | "withdrawn";
 
 export type ScoreSettlementResult =
   | { fieldErrors: Record<string, string>; ok: false; reason: "invalid-sheet" }
@@ -178,18 +180,45 @@ async function readScoreCriteria(
  * be open on: a presentation is settled whenever the question is settled, and
  * that is routinely after the show it belonged to. Reinstating clears the
  * timestamp and nothing else, so the scores saved before come back with it.
+ *
+ * A withdrawn presentation is refused either way: it keeps its number but is
+ * never judged. The presentation is locked first, as a withdrawal locks it, and
+ * the withdrawal is read in a statement of its own after that lock, so the two
+ * writes never both land.
  */
 export async function setPresentationDisqualified(input: {
   disqualified: boolean;
   presentationId: string;
 }): Promise<ScoreSettlementResult> {
-  const updated = await db
-    .update(presentations)
-    .set({ disqualifiedAt: input.disqualified ? new Date() : null })
-    .where(eq(presentations.id, input.presentationId))
-    .returning({ id: presentations.id });
+  return await db.transaction(async (tx) => {
+    const [locked] = await tx
+      .select({ id: presentations.id })
+      .from(presentations)
+      .where(eq(presentations.id, input.presentationId))
+      .for("update");
 
-  return updated.length === 0
-    ? { ok: false, reason: "not-found" }
-    : { ok: true };
+    if (!locked) {
+      return { ok: false, reason: "not-found" };
+    }
+
+    const [owner] = await tx
+      .select({ withdrawnAt: choreographies.withdrawnAt })
+      .from(presentations)
+      .innerJoin(
+        choreographies,
+        eq(choreographies.id, presentations.choreographyId),
+      )
+      .where(eq(presentations.id, input.presentationId));
+
+    if (owner.withdrawnAt !== null) {
+      return { ok: false, reason: "withdrawn" };
+    }
+
+    await tx
+      .update(presentations)
+      .set({ disqualifiedAt: input.disqualified ? new Date() : null })
+      .where(eq(presentations.id, input.presentationId));
+
+    return { ok: true };
+  });
 }

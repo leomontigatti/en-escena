@@ -8,6 +8,7 @@ import {
   presentationRowPath,
   readJudgeChoices,
   readJudgeEditOutcome,
+  readJudgeEditSelection,
   type PresentationListItem,
 } from "./shared";
 
@@ -34,6 +35,7 @@ function buildItem(
     scheduledDate: "2026-05-01",
     submodalityName: null,
     warnings: [],
+    withdrawn: false,
     ...overrides,
   };
 }
@@ -275,5 +277,25 @@ describe("formatAutomaticOrderingMessage", () => {
     ).toBe(
       "Se ordenaron 2 presentaciones. Quedó fija 1 porque su cronograma ya fue evaluado.",
     );
+  });
+});
+
+describe("readJudgeEditSelection", () => {
+  // A row chosen before another administrator withdrew it comes back from the
+  // revalidation still chosen: the judge dialog must not count it, since the
+  // edit will not reach it.
+  test("keeps only the chosen rows that can still take a judge", () => {
+    const rows = [
+      buildItem({ id: "numbered" }),
+      buildItem({ id: "withdrawn", withdrawn: true }),
+      buildItem({ id: "late", orderNumber: null, presentationId: null }),
+      buildItem({ id: "unchosen" }),
+    ];
+
+    expect(
+      readJudgeEditSelection(rows, ["numbered", "withdrawn", "late"]).map(
+        (row) => row.id,
+      ),
+    ).toEqual(["numbered"]);
   });
 });

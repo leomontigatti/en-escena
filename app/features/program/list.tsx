@@ -1,5 +1,5 @@
 import { choreographyClassificationColumns } from "@/components/shared/choreography-classification-columns";
-import { CircleCheck } from "lucide-react";
+import { CircleCheck, CircleMinus, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import {
@@ -14,7 +14,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { withdrawnChoreographyStatusLabel } from "@/lib/choreographies/operational-status";
 import { matchesPresentationSearch } from "@/lib/presentations/search";
+import { cn } from "@/lib/shared/utils";
 
 import { ScheduleDayTabs } from "./day-tabs";
 import type { ProgramLive } from "./live-day";
@@ -153,7 +155,15 @@ function buildProgramColumns({
       header: "N.º",
       width: 8,
       className: "font-medium tabular-nums",
-      cell: formatProgramOrderNumber,
+      // The number carries the row's one mark beside it: the check of a
+      // presentation already danced, or the minus of a withdrawn one. They
+      // never meet, since a withdrawn presentation is never evaluated.
+      cell: (row) => (
+        <ProgramOrderNumber
+          evaluated={evaluatedChoreographyIds.has(row.choreographyId)}
+          row={row}
+        />
+      ),
       // The only sortable column, as on the participation list.
       sortValue: (row) => row.orderNumber,
     },
@@ -194,19 +204,6 @@ function buildProgramColumns({
           cell: (row) => <DataTableTruncatedText value={row.levelLabel} />,
         }
       : null,
-    // Header-less and only while some row of the chosen day is evaluated:
-    // the check needs no title, and no other day carries the column.
-    evaluatedChoreographyIds.size > 0
-      ? {
-          id: "evaluated",
-          header: "",
-          width: 4,
-          cell: (row) =>
-            evaluatedChoreographyIds.has(row.choreographyId) ? (
-              <EvaluatedCheck />
-            ) : null,
-        }
-      : null,
   ];
 
   return columns.filter(
@@ -214,17 +211,73 @@ function buildProgramColumns({
   );
 }
 
-function EvaluatedCheck() {
+/**
+ * The number and, beside it, the row's mark: a withdrawn row keeps the number
+ * it was announced with, so the numbering shows no unexplained gap, and the
+ * minus says why it will not be danced.
+ */
+function ProgramOrderNumber({
+  evaluated,
+  row,
+}: {
+  evaluated: boolean;
+  row: ProgramListRow;
+}) {
+  const number = formatProgramOrderNumber(row);
+
+  if (row.withdrawn) {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        {number}
+        <OrderNumberMark
+          icon={CircleMinus}
+          iconClassName="text-muted-foreground"
+          label={withdrawnChoreographyStatusLabel}
+        />
+      </span>
+    );
+  }
+
+  if (evaluated) {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        {number}
+        <OrderNumberMark
+          icon={CircleCheck}
+          iconClassName="text-success"
+          label="Ya se presentó"
+        />
+      </span>
+    );
+  }
+
+  return number;
+}
+
+function OrderNumberMark({
+  icon: Icon,
+  iconClassName,
+  label,
+}: {
+  icon: LucideIcon;
+  iconClassName: string;
+  label: string;
+}) {
   return (
     <TooltipProvider>
       <Tooltip>
+        {/* Focusable, since the tooltip is the mark's only visible
+            explanation: a keyboard reader reaches it like a pointer does. */}
         <TooltipTrigger asChild>
-          <span className="inline-flex">
-            <CircleCheck aria-hidden="true" className="size-4 text-success" />
-            <span className="sr-only">Ya se presentó</span>
+          <span
+            className="inline-flex rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            tabIndex={0}
+          >
+            <Icon aria-hidden="true" className={cn("size-4", iconClassName)} />
+            <span className="sr-only">{label}</span>
           </span>
         </TooltipTrigger>
-        <TooltipContent>Ya se presentó</TooltipContent>
+        <TooltipContent>{label}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );

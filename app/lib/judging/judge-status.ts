@@ -1,3 +1,4 @@
+import { withdrawnChoreographyStatusLabel } from "@/lib/choreographies/operational-status";
 import { formatScoreFieldValue } from "@/lib/judging/score-value";
 
 /**
@@ -35,7 +36,7 @@ export function deriveJudgeScoreStatus(
 
 export type JudgeScoreStatusBadge = {
   label: string;
-  variant: "destructive" | "outline" | "success" | "warning";
+  variant: "destructive" | "outline" | "secondary" | "success" | "warning";
 };
 
 /**
@@ -45,13 +46,21 @@ export type JudgeScoreStatusBadge = {
  * a warning rather than a fault, since the take is optional, so that the judge
  * notices it while it can still be recorded; on any other day it can no longer
  * be fixed, and the score reads as the score.
+ *
+ * A withdrawn presentation reads `Retirada` instead, as on every other list:
+ * the withdrawal is not one of the judge's statuses, and it replaces them.
  */
 export function judgeScoreStatusBadge(row: {
   /** Whether the row's day is the judging day, the only one open to writes. */
   isOpen: boolean;
   status: JudgeScoreStatus;
   value: string | null;
+  withdrawn: boolean;
 }): JudgeScoreStatusBadge {
+  if (row.withdrawn) {
+    return { label: withdrawnChoreographyStatusLabel, variant: "secondary" };
+  }
+
   switch (row.status) {
     case "complete":
       return { label: formatScoreFieldValue(row.value), variant: "success" };

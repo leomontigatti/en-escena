@@ -112,7 +112,7 @@ describe("describeChoreographyRemoval", () => {
     });
   });
 
-  test("says the order number is lost in both outcomes", () => {
+  test("says a deletion loses the order number and a withdrawal keeps it", () => {
     const withdrawal = describeChoreographyRemoval({
       outcome: "withdrawn",
       presentationOrderNumber: 7,
@@ -123,7 +123,7 @@ describe("describeChoreographyRemoval", () => {
     });
 
     expect(withdrawal.outcome === "withdrawn" && withdrawal.consequence).toBe(
-      "Al retirarla también libera su cupo del cronograma y pierde el número de orden. El retiro es definitivo: para que vuelva a participar hay que registrar una coreografía nueva.",
+      "Al retirarla también libera su cupo del cronograma y conserva el N.º 7, marcada como retirada. El retiro es definitivo: para que vuelva a participar hay que registrar una coreografía nueva.",
     );
     expect(deletion.description).toMatch(
       /cupo del cronograma y pierde el número de orden\.$/,

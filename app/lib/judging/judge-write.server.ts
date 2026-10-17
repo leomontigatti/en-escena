@@ -19,12 +19,14 @@ import { isBeforeJudgingDay, isOpenForJudges } from "@/lib/judging/judging-day";
  *
  * The two refusals are different in kind and stay apart: writing on a
  * presentation one is not assigned to is not a mistake the interface can make,
- * while a day that closed mid-show is an ordinary thing to run into.
+ * while a day that closed mid-show is an ordinary thing to run into. A
+ * choreography withdrawn while the judge had its form open is the second kind.
  */
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-export type JudgeWriteRefusal = "not-assigned" | "closed" | "not-started";
+export type JudgeWriteRefusal =
+  "not-assigned" | "closed" | "not-started" | "withdrawn";
 
 export type JudgeWriteTarget = {
   disqualified: boolean;
@@ -76,6 +78,13 @@ export async function readJudgeWriteTarget(
     return { ok: false, reason: "not-assigned" };
   }
 
+  // Read after the lock and in a statement of its own: a withdrawal holds the
+  // presentation locked until it commits, and only a statement that starts
+  // after that sees the stamp it wrote.
+  if (await isWithdrawn(tx, input.presentationId)) {
+    return { ok: false, reason: "withdrawn" };
+  }
+
   const closure = await readJudgingDayClosure(tx, input);
 
   if (closure) {
@@ -92,6 +101,20 @@ export async function readJudgeWriteTarget(
       judgeAssignmentId: assignment.id,
     },
   };
+}
+
+/** Whether the presentation's choreography has been withdrawn. */
+async function isWithdrawn(tx: Transaction, presentationId: string) {
+  const [row] = await tx
+    .select({ withdrawnAt: choreographies.withdrawnAt })
+    .from(presentations)
+    .innerJoin(
+      choreographies,
+      eq(choreographies.id, presentations.choreographyId),
+    )
+    .where(eq(presentations.id, presentationId));
+
+  return row !== undefined && row.withdrawnAt !== null;
 }
 
 /**

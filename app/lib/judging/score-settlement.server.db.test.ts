@@ -4,6 +4,8 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { presentations, scoreCriterionValues, scores } from "@/db/schema";
 
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
+
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 import {
@@ -214,5 +216,28 @@ describe("settling a disqualification as administration", () => {
         presentationId: "00000000-0000-0000-0000-000000000000",
       }),
     ).resolves.toEqual({ ok: false, reason: "not-found" });
+  });
+
+  test("refuses to disqualify a withdrawn presentation, which is never judged", async () => {
+    const fixture = await seedJudgingFixture();
+    const presentation = await fixture.addPresentation({
+      name: "Retirada",
+      orderNumber: 1,
+    });
+    await withdrawChoreographyForTest(presentation.choreographyId);
+
+    await expect(
+      setPresentationDisqualified({
+        disqualified: true,
+        presentationId: presentation.presentationId,
+      }),
+    ).resolves.toEqual({ ok: false, reason: "withdrawn" });
+
+    const [row] = await db
+      .select({ disqualifiedAt: presentations.disqualifiedAt })
+      .from(presentations)
+      .where(eq(presentations.id, presentation.presentationId));
+
+    expect(row.disqualifiedAt).toBeNull();
   });
 });

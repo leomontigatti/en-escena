@@ -8,6 +8,8 @@ import {
   createFeedbackAudioStorage,
 } from "@/lib/storage/feedback-audio.server";
 
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
+
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 import { setPresentationDisqualified } from "./score-settlement.server";
@@ -319,6 +321,21 @@ describe("saving a judge's score", () => {
     });
 
     expect(result).toEqual({ ok: false, reason: "closed" });
+    expect(await readScores(judge.judgeAssignmentId)).toEqual([]);
+  });
+
+  test("refuses a write on a presentation whose choreography was withdrawn", async () => {
+    const { judge, presentation } = await seedOpenPresentation();
+
+    await withdrawChoreographyForTest(presentation.choreographyId);
+
+    const result = await saveJudgeScore({
+      judgeId: judge.judgeId,
+      presentationId: presentation.presentationId,
+      value: "80",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "withdrawn" });
     expect(await readScores(judge.judgeAssignmentId)).toEqual([]);
   });
 

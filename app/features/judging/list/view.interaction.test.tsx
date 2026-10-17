@@ -39,6 +39,7 @@ function buildRow(
     status: "pending",
     submodalityName: "Lyrical",
     value: null,
+    withdrawn: false,
     professionalEvaluation: false,
     ...overrides,
     presentationId: overrides.presentationId,
@@ -329,6 +330,32 @@ describe("the judge's list of one day's presentations", () => {
       ).toBe(editable ? undefined : "Academia Pirueta");
     },
   );
+
+  // A withdrawn presentation stays on the list at its number, but nothing on
+  // it can be scored: no link, no form from its URL, and no pending row.
+  test("lists a withdrawn presentation without a way into its form, and not as pending", async () => {
+    const withWithdrawn = [
+      ...presentations,
+      buildRow({
+        name: "Sexta",
+        orderNumber: 6,
+        presentationId: "f",
+        withdrawn: true,
+      }),
+    ];
+
+    await mount(openDay, "/juzgamiento?presentacion=f", withWithdrawn);
+
+    expect(rowNames()).toContain("Sexta");
+    expect(
+      [...document.querySelectorAll("tbody a")].map((link) => link.textContent),
+    ).not.toContain("Sexta");
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+    await addTableFilter("Estado", "Pendientes");
+
+    expect(rowNames()).toEqual(["Segunda", "Tercera"]);
+  });
 
   test("leaves the `Gran final` out on a day no modality dances", async () => {
     await mount();

@@ -15,6 +15,7 @@ import type {
   EventProgramRow,
   EventProgramSchedule,
 } from "@/lib/presentations/event-program.server";
+import { withdrawnChoreographyStatusLabel } from "@/lib/choreographies/operational-status";
 import { isDateOnly } from "@/lib/shared/date-only";
 import { cn } from "@/lib/shared/utils";
 
@@ -58,7 +59,17 @@ const publicProgramColumns: ProgramPrintColumn<EventProgramRow>[] = [
     header: "Nombre",
     width: 18,
     className: "font-medium",
-    cell: (row) => <DataTableTruncatedText value={row.name} />,
+    // A withdrawn row keeps its printed number; the mark rides on the name so
+    // the columns keep their widths.
+    cell: (row) => (
+      <DataTableTruncatedText
+        value={
+          row.withdrawn
+            ? `${row.name} · ${withdrawnChoreographyStatusLabel}`
+            : row.name
+        }
+      />
+    ),
   },
   {
     id: "academy",

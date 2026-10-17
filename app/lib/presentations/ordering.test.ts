@@ -26,6 +26,7 @@ function row({
     experienceLevel: null,
     groupType: "solo",
     orderNumber: null,
+    withdrawn: false,
     schedule: {
       id: "schedule-1",
       name: "Sala A",
@@ -1134,5 +1135,145 @@ describe("computeManualMove", () => {
     const result = computeManualMove(numbered, new Set(), "d2-c", 1);
 
     expect(result.ok && result.movedToOrderNumber).toBe(1);
+  });
+});
+
+describe("withdrawn presentations", () => {
+  test("keep their number through an automatic ordering, the rest filling around them", () => {
+    const rows = [
+      row({ choreographyId: "a", choreographyNumber: 3, orderNumber: 1 }),
+      row({
+        choreographyId: "withdrawn",
+        choreographyNumber: 1,
+        orderNumber: 2,
+        withdrawn: true,
+      }),
+      row({ choreographyId: "b", choreographyNumber: 2, orderNumber: 3 }),
+    ];
+
+    const result = computeAutomaticOrder(rows);
+
+    expect(result).toEqual({
+      ok: true,
+      frozenCount: 0,
+      orderedCount: 2,
+      placements: expect.arrayContaining([
+        { choreographyId: "b", orderNumber: 1 },
+        { choreographyId: "a", orderNumber: 3 },
+      ]),
+    });
+    expect(result.ok && result.placements).toHaveLength(2);
+  });
+
+  test("are never numbered when they were withdrawn before having a number", () => {
+    const rows = [
+      row({ choreographyId: "a", choreographyNumber: 2 }),
+      row({
+        choreographyId: "withdrawn",
+        choreographyNumber: 1,
+        withdrawn: true,
+      }),
+    ];
+
+    expect(placementsOf(rows, new Set())).toEqual([["a", 1]]);
+  });
+
+  test("do not make the gap between two of them a blocked position", () => {
+    const rows = [
+      row({
+        choreographyId: "first",
+        choreographyNumber: 1,
+        orderNumber: 1,
+        withdrawn: true,
+      }),
+      row({
+        choreographyId: "second",
+        choreographyNumber: 2,
+        orderNumber: 3,
+        withdrawn: true,
+      }),
+      row({ choreographyId: "late", choreographyNumber: 3 }),
+    ];
+
+    expect(placementsOf(rows, new Set())).toEqual([["late", 2]]);
+  });
+
+  test("refuse to be moved by hand", () => {
+    const rows = [
+      row({ choreographyId: "a", choreographyNumber: 1, orderNumber: 1 }),
+      row({
+        choreographyId: "withdrawn",
+        choreographyNumber: 2,
+        orderNumber: 2,
+        withdrawn: true,
+      }),
+    ];
+
+    expect(computeManualMove(rows, new Set(), "withdrawn", 1)).toEqual({
+      ok: false,
+      reason: "withdrawnRow",
+    });
+  });
+
+  test("are never a place a row is moved to", () => {
+    const rows = [
+      row({ choreographyId: "a", choreographyNumber: 1, orderNumber: 1 }),
+      row({
+        choreographyId: "withdrawn",
+        choreographyNumber: 2,
+        orderNumber: 2,
+        withdrawn: true,
+      }),
+      row({ choreographyId: "b", choreographyNumber: 3, orderNumber: 3 }),
+    ];
+
+    expect(computeManualMove(rows, new Set(), "a", 2)).toEqual({
+      ok: false,
+      reason: "withdrawnPosition",
+    });
+    expect(computeManualMove(rows, new Set(), "b", 1)).toEqual({
+      ok: true,
+      movedToOrderNumber: 1,
+      placements: [
+        { choreographyId: "b", orderNumber: 1 },
+        { choreographyId: "a", orderNumber: 3 },
+      ],
+    });
+  });
+
+  // Nobody dances in a withdrawn slot, so it is no rest for a shared dancer:
+  // the gap counts the four presentations before, skipping it.
+  test("give a shared dancer no rest when counting the gap", () => {
+    const rows = [
+      row({
+        activeDancerIds: ["ana"],
+        choreographyId: "a",
+        choreographyNumber: 1,
+      }),
+      row({
+        choreographyId: "withdrawn",
+        choreographyNumber: 10,
+        orderNumber: 2,
+        withdrawn: true,
+      }),
+      row({ choreographyId: "b", choreographyNumber: 2 }),
+      row({ choreographyId: "c", choreographyNumber: 3 }),
+      row({
+        activeDancerIds: ["ana"],
+        choreographyId: "e",
+        choreographyNumber: 4,
+      }),
+      row({ choreographyId: "d", choreographyNumber: 5 }),
+      row({ choreographyId: "f", choreographyNumber: 6 }),
+    ];
+
+    expect(placementsOf(rows, new Set())).toEqual([
+      ["a", 1],
+      ["b", 3],
+      ["c", 4],
+      ["d", 5],
+      ["f", 6],
+      ["e", 7],
+    ]);
   });
 });
