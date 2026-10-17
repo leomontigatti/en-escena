@@ -1,7 +1,8 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import {
-  cpSync,
+  copyFileSync,
   existsSync,
+  mkdirSync,
   readFileSync,
   readdirSync,
   rmSync,
@@ -233,18 +234,59 @@ function ensure() {
 
   // Until now the worktree uploaded to the folder `.env` names, so its rows
   // point there: copy it over, never move it, since other checkouts read it too.
-  // The line goes in only after the copy, so a copy that fails is retried; it
-  // skips the files already there.
+  // The line goes in only after the copy, so a copy that fails is retried.
   const sharedDir = process.env.STORAGE_VOLUME_DIR;
   const from = sharedDir ? path.resolve(root, sharedDir) : undefined;
 
   if (from && existsSync(from) && !isWithin(storageDir, from)) {
-    cpSync(from, storageDir, { recursive: true, force: false });
+    copyUploads(from, storageDir);
     console.log(`Copied the files its rows point at from ${from}.`);
   }
 
   writeFileSync(envLocalPath, upgraded);
   console.log(`This worktree's uploads now go to ${storageDir}.`);
+}
+
+/**
+ * Copies the shared folder into a worktree's. Overwrites: until `ensure`
+ * writes the line, the target holds only earlier copies, one maybe cut short.
+ */
+export function copyUploads(from: string, to: string) {
+  try {
+    copyTree(from, to);
+  } catch (error) {
+    throw new Error(
+      [
+        error instanceof Error ? error.message : String(error),
+        "Fix that file and run it again, or skip the copy by adding this line",
+        "to .env.local (the worktree's rows will not find what was not copied):",
+        `STORAGE_VOLUME_DIR="${to}"`,
+      ].join("\n"),
+      { cause: error },
+    );
+  }
+}
+
+// File by file rather than `cpSync`, whose error names a folder, not the file.
+function copyTree(from: string, to: string) {
+  mkdirSync(to, { recursive: true });
+
+  for (const entry of readdirSync(from, { withFileTypes: true })) {
+    const source = path.join(from, entry.name);
+    const target = path.join(to, entry.name);
+
+    if (entry.isDirectory()) {
+      copyTree(source, target);
+    } else if (entry.isFile()) {
+      try {
+        copyFileSync(source, target);
+      } catch (error) {
+        throw new Error(`Could not copy ${source}: ${String(error)}`, {
+          cause: error,
+        });
+      }
+    }
+  }
 }
 
 /** Whether `target` is `folder` or inside it. */

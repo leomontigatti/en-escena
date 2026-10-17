@@ -1,6 +1,18 @@
-import { describe, expect, it } from "vitest";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  copyUploads,
   choosePort,
   databaseUrlFor,
   isWithin,
@@ -122,6 +134,47 @@ describe("isWithin", () => {
     expect(isWithin("/s-other/x", "/s")).toBe(false);
     expect(isWithin("/data/worktrees/x", "/data/storage")).toBe(false);
   });
+});
+
+describe("copyUploads", () => {
+  let scratch: string;
+
+  afterEach(() => {
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  function folders() {
+    scratch = mkdtempSync(path.join(tmpdir(), "copy-uploads-"));
+    const from = path.join(scratch, "shared", "music");
+    const to = path.join(scratch, "worktree");
+    mkdirSync(from, { recursive: true });
+    writeFileSync(path.join(from, "song.mp3"), "the whole song");
+    return { from: path.join(scratch, "shared"), to };
+  }
+
+  it("repairs a file an interrupted copy left half-written", () => {
+    const { from, to } = folders();
+    mkdirSync(path.join(to, "music"), { recursive: true });
+    writeFileSync(path.join(to, "music", "song.mp3"), "the wh");
+
+    copyUploads(from, to);
+
+    expect(readFileSync(path.join(to, "music", "song.mp3"), "utf8")).toBe(
+      "the whole song",
+    );
+  });
+
+  it.skipIf(process.getuid?.() === 0)(
+    "names the file it cannot copy and the way out",
+    () => {
+      const { from, to } = folders();
+      chmodSync(path.join(from, "music", "song.mp3"), 0o000);
+
+      expect(() => copyUploads(from, to)).toThrow(
+        /song\.mp3[\s\S]*STORAGE_VOLUME_DIR/,
+      );
+    },
+  );
 });
 
 describe("withStorageDir", () => {
