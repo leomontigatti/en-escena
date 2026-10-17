@@ -34,7 +34,10 @@ import {
 } from "@/lib/dev-seed/accounts";
 import { deleteSeededRows } from "@/lib/dev-seed/delete-seeded-rows.server";
 import { invoiceChoreography } from "@/lib/dev-seed/demo-invoice.server";
-import { uploadDemoMusic } from "@/lib/dev-seed/demo-music.server";
+import {
+  removeOrphanedMusic,
+  uploadDemoMusic,
+} from "@/lib/dev-seed/demo-music.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
 import { allocateToInscription } from "@/lib/finances/inscription-allocation.server";
@@ -82,11 +85,7 @@ export async function seedDevData(input: {
     emails: seededEmails,
     eventNames: Object.values(seededEventNames),
   });
-  // Nothing points at these files any more, and the next uploads are named
-  // after the new rows' ids, so left alone they would pile up on the volume.
-  for (const storageKey of musicStorageKeys) {
-    await musicStorage.removeMusic(storageKey);
-  }
+  await removeOrphanedMusic(musicStorage, musicStorageKeys);
 
   await createVerifiedUser({
     email: DEV_SEED_ADMIN_EMAIL,

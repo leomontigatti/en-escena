@@ -5,6 +5,30 @@ import type { ChoreographyMusicStorage } from "@/lib/storage/choreography-music.
 // player on their detail pages play something (docs/local-auth.md).
 
 /**
+ * Removes the files of the choreographies a re-seed deleted. Nothing points at
+ * them any more, and the next uploads are named after the new rows' ids, so
+ * left alone they would pile up on the volume. A file that cannot go is
+ * logged with its key and the rest still go: the rows are already deleted,
+ * so a later run would never find it again, and the portal accepts the same
+ * orphan for the same reason (`removePreviousMusic`).
+ */
+export async function removeOrphanedMusic(
+  storage: Pick<ChoreographyMusicStorage, "removeMusic">,
+  storageKeys: string[],
+) {
+  for (const storageKey of storageKeys) {
+    try {
+      await storage.removeMusic(storageKey);
+    } catch (thrown) {
+      console.error("[dev-seed:music:orphan]", {
+        detail: thrown instanceof Error ? thrown.message : String(thrown),
+        storageKey,
+      });
+    }
+  }
+}
+
+/**
  * Loads the music as the portal's editor does, so the key, the file on the
  * volume and the player reading it are the ones an academy's upload makes.
  */
