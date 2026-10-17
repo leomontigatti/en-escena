@@ -15,10 +15,12 @@ pnpm check:file-tokens
 pnpm check:fallow
 # The cheap CI checks, each under a second, so a commit catches what would
 # otherwise fail a PR. CI still runs them all: a hook can be skipped, CI cannot.
+# `check:migration-immutability` stays CI-only: it diffs `origin/master` against
+# the working tree, so on a branch behind master every newer migration there
+# reads as deleted here.
 pnpm check:repo-styles
 pnpm check:banned-imports
 pnpm check:docs-tests
 pnpm check:labels
 pnpm check:migration-order
-pnpm check:migration-immutability
 pnpm check:migration-safety

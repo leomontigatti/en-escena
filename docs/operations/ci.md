@@ -33,7 +33,9 @@ protection, so making a job required is a human step in the repo settings.
   lives in its own file because it needs the `edited` event, which fires on a
   body edit too, and in `ci.yml` that would re-run the build and the Postgres
   shards on every description change. An edit that changes neither the title
-  nor the base skips the job, which still reports `pr-title` as a success. The
+  nor the base skips the job under the name `pr-title (title unchanged)`, so
+  the required `pr-title` keeps the verdict of the last run that read the
+  title. The
   title reaches the script through `env: PR_TITLE`, never interpolated into a
   `run:` block.
 - `review-record` (`review-record.yml`): the shared workflow's `review-record`
@@ -48,7 +50,7 @@ The commit gate before any of these is `.husky/pre-commit`: gitleaks on the
 staged diff, `lint-staged`, `check:comment-language`, `typecheck`,
 `check:file-tokens`, `check:fallow`, and the sub-second `checks` steps
 (`check:repo-styles`, `check:banned-imports`, `check:docs-tests`,
-`check:labels`, the three migration checks). `.husky/commit-msg` runs
+`check:labels`, `check:migration-order` and `check:migration-safety`). `.husky/commit-msg` runs
 `docs-gate` on the staged tree, reading the trailer from the message being
 written. Hooks can be skipped, so it is the minimum, not the validation of a
 session's work, and CI runs every one of them again. What joins it stays fast and

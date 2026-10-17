@@ -67,8 +67,8 @@ The scripts that exist and what owns what:
 
 CI runs the `check:*` scripts and `pnpm build` for you. You do not need to: `.husky/pre-commit`
 runs every `check:*` script on each commit except `check:doc-map`, which `.husky/commit-msg`
-runs, and `check:dependency-audit` and `check:pr-title`, so a commit catches most of what would
-fail `checks` or `docs-gate`.
+runs, and `check:dependency-audit`, `check:migration-immutability` and `check:pr-title`, so a
+commit catches most of what would fail `checks` or `docs-gate`.
 
 Why the table has this shape — one owner per concern, gates scoped to what a
 PR adds — is `docs/adr/0015-deterministic-guardrails.md`.
