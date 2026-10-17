@@ -24,6 +24,7 @@ import {
 } from "@/db/schema";
 import { loadChoreographies } from "@/features/admin/choreographies/list/server";
 import { signInAccessUser } from "@/lib/auth/access-auth.test-support";
+import { createAcademySession } from "@/lib/choreographies/registration.test-support";
 import { resolveChoreographyStatusBadge } from "@/lib/choreographies/operational-status";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import { listAnchorComprobantes } from "@/lib/comprobantes/comprobantes.server";
@@ -197,8 +198,6 @@ describe("dev seed", () => {
     const withMusic = await db.query.choreographies.findMany({
       orderBy: asc(choreographies.name),
     });
-    const storage = createDefaultChoreographyMusicStorage();
-
     expect(
       withMusic
         .filter(({ musicStorageKey }) => musicStorageKey !== null)
@@ -207,16 +206,59 @@ describe("dev seed", () => {
     for (const { musicStorageKey } of withMusic) {
       if (musicStorageKey === null) continue;
 
-      const signedUrl = await storage.createMusicSignedUrl(musicStorageKey);
-      const response = await serveFilesystemObject({
-        baseDir: getDefaultStorageVolumeDir(),
-        now: Date.now(),
-        params: new URL(signedUrl, "http://localhost").searchParams,
-        secret: getDefaultStorageUrlSigningSecret(),
-      });
+      const response = await serveMusic(musicStorageKey);
 
       expect(response.status).toBe(200);
       expect(response.headers.get("content-type")).toBe("audio/wav");
+    }
+  });
+
+  // The reset deletes every choreography of the seeded event, whichever
+  // academy registered it, so the music of all of them has to go with it.
+  test("re-running removes the music of every choreography the reset deletes", async () => {
+    await seedDevData({ now });
+    const seeded = await db.query.choreographies.findFirst({
+      where: eq(choreographies.name, "Luna de Papel"),
+    });
+    if (!seeded?.musicStorageKey) {
+      throw new Error("Expected the seed's choreography with music.");
+    }
+    const other = await createAcademySession({
+      academyName: "Academia Ajena",
+      email: "ajena@example.com",
+    });
+    const { id: _id, musicStorageKey: _key, ...copied } = seeded;
+    const [foreign] = await db
+      .insert(choreographies)
+      .values({
+        ...copied,
+        academyId: other.academyId,
+        choreographyNumber: 999,
+        name: "Ajena",
+      })
+      .returning();
+    const uploaded = await createDefaultChoreographyMusicStorage().uploadMusic({
+      academyId: other.academyId,
+      choreographyId: foreign.id,
+      file: new File(["RIFF"], "ajena.wav", { type: "audio/wav" }),
+    });
+    if (!uploaded.ok) throw new Error("Expected the upload to be accepted.");
+    await db
+      .update(choreographies)
+      .set({ musicStorageKey: uploaded.storageKey })
+      .where(eq(choreographies.id, foreign.id));
+    await expect(serveMusic(uploaded.storageKey)).resolves.toHaveProperty(
+      "status",
+      200,
+    );
+
+    await seedDevData({ now });
+
+    for (const storageKey of [seeded.musicStorageKey, uploaded.storageKey]) {
+      await expect(serveMusic(storageKey)).resolves.toHaveProperty(
+        "status",
+        404,
+      );
     }
   });
 
@@ -469,6 +511,21 @@ async function frozenChoreographyNames(eventId: string) {
     .filter((row) => frozen.has(row.choreographyId))
     .map((row) => row.name)
     .sort();
+}
+
+/** The storage route's answer to the signed link the music player gets. */
+async function serveMusic(storageKey: string) {
+  const signedUrl =
+    await createDefaultChoreographyMusicStorage().createMusicSignedUrl(
+      storageKey,
+    );
+
+  return await serveFilesystemObject({
+    baseDir: getDefaultStorageVolumeDir(),
+    now: Date.now(),
+    params: new URL(signedUrl, "http://localhost").searchParams,
+    secret: getDefaultStorageUrlSigningSecret(),
+  });
 }
 
 /** What the admin list's `Estado` cell reads for each row, in list order. */

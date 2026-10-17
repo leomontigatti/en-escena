@@ -20,6 +20,8 @@ EMAIL_FROM="En Escena <acceso@example.com>"
 EMAIL_PROVIDER="resend"
 BREVO_API_KEY=""
 RESEND_API_KEY=""
+STORAGE_VOLUME_DIR="<an absolute directory you can write, outside the repo>"
+STORAGE_URL_SIGNING_SECRET="<a-long-random-storage-signing-secret>"
 ```
 
 - `DATABASE_URL` points Drizzle and the app-owned domain/access tables at the
@@ -40,6 +42,13 @@ RESEND_API_KEY=""
 - `EMAIL_PROVIDER`, `BREVO_API_KEY`, `RESEND_API_KEY` and `EMAIL_FROM` are only
   required when `NODE_ENV=production`. Leave provider keys empty for local
   development.
+- `STORAGE_VOLUME_DIR` is where uploaded files live (music, documents,
+  pictures), one directory per bucket. `.env.example` carries production's
+  `/var/lib/en-escena/storage`, which an ordinary user cannot create: replace
+  it locally, or `pnpm db:seed` fails when it uploads the demo music. Every
+  worktree shares it through the linked `.env`.
+- `STORAGE_URL_SIGNING_SECRET` signs the short-lived links the
+  `/almacenamiento` route serves files through.
 
 Do not commit real secrets.
 

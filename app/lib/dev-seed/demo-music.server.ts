@@ -1,40 +1,8 @@
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
-
-import { db } from "@/db";
-import { academies, choreographies, user } from "@/db/schema";
 import { updateChoreographyMusic } from "@/lib/portal/choreography-music.server";
 import type { ChoreographyMusicStorage } from "@/lib/storage/choreography-music.server";
 
 // The dev seed's music: what lets its choreographies read `Completa`, and the
 // player on their detail pages play something (docs/local-auth.md).
-
-/**
- * The music files of the previous run's choreographies. Their rows are about
- * to be deleted, and the next upload names its file after the new ids, so
- * these would stay on the volume with nothing pointing at them.
- */
-export async function removeSeededMusic(input: {
-  emails: string[];
-  storage: ChoreographyMusicStorage;
-}) {
-  const stored = await db
-    .select({ musicStorageKey: choreographies.musicStorageKey })
-    .from(choreographies)
-    .innerJoin(academies, eq(academies.id, choreographies.academyId))
-    .innerJoin(user, eq(user.id, academies.userId))
-    .where(
-      and(
-        inArray(user.email, input.emails),
-        isNotNull(choreographies.musicStorageKey),
-      ),
-    );
-
-  for (const { musicStorageKey } of stored) {
-    if (musicStorageKey) {
-      await input.storage.removeMusic(musicStorageKey);
-    }
-  }
-}
 
 /**
  * Loads the music as the portal's editor does, so the key, the file on the
