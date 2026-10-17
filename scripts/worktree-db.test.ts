@@ -4,6 +4,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -160,6 +161,20 @@ describe("copyUploads", () => {
     copyUploads(from, to);
 
     expect(readFileSync(path.join(to, "music", "song.mp3"), "utf8")).toBe(
+      "the whole song",
+    );
+  });
+
+  it("copies what a link points at rather than skipping it", () => {
+    const { from, to } = folders();
+    symlinkSync(
+      path.join(from, "music", "song.mp3"),
+      path.join(from, "music", "linked.mp3"),
+    );
+
+    copyUploads(from, to);
+
+    expect(readFileSync(path.join(to, "music", "linked.mp3"), "utf8")).toBe(
       "the whole song",
     );
   });

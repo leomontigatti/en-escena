@@ -277,7 +277,9 @@ function copyTree(from: string, to: string) {
 
     if (entry.isDirectory()) {
       copyTree(source, target);
-    } else if (entry.isFile()) {
+    } else {
+      // Anything else is copied as a file too, a link as what it points at,
+      // so an entry that cannot be copied fails here rather than going missing.
       try {
         copyFileSync(source, target);
       } catch (error) {
