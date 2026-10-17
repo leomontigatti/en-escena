@@ -180,17 +180,22 @@ primary way to get a local login. It creates, on the local `DATABASE_URL`:
   solo categories, and a solo and a grupal price.
 - Eight dancers and two professors in `Academia Demo`: four teenagers and four
   adults (Eli, Flor, Gabi, Hebe), enough to register a grupal in `Adultos
-grupal`, whose level is optional. Four choreographies on the active event,
-  each in a different state:
+grupal`, whose level is optional. Five choreographies on the active event,
+  each in a different state; `Estado` is what the admin list's column reads:
 
-  | Choreography    | Dancer, block   | State                                                                                                                             |
-  | --------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-  | `Luna de Papel` | Ana, morning    | Deposit paid and numbered; open to correction.                                                                                    |
-  | `Viento Sur`    | Bea, afternoon  | Deposit paid, numbered, disqualified by administration.                                                                           |
-  | `Río Arriba`    | Caro, afternoon | Deposit paid, numbered, evaluated as professional, scored 87 by the demo judge under `Contemporáneo`, and invoiced (`Factura C`). |
-  | `Sal y Arena`   | Dani, morning   | Nothing paid, and registered after the ordering, so it has no number.                                                             |
+  | Choreography    | Dancer, block   | `Estado`     | State                                                                                                                                                                           |
+  | --------------- | --------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `Luna de Papel` | Ana, morning    | `Completa`   | Deposit paid, music loaded, numbered; open to correction.                                                                                                                       |
+  | `Viento Sur`    | Bea, afternoon  | `Completa`   | Deposit paid, music loaded, numbered, disqualified by administration.                                                                                                           |
+  | `Río Arriba`    | Caro, afternoon | `Completa`   | Deposit paid, music loaded, numbered, evaluated as professional, scored 87 by the demo judge under `Contemporáneo`, and invoiced (`Factura C`).                                 |
+  | `Marea Alta`    | Eli, morning    | `Retirada`   | Deposit paid, then removed by administration: the money on it made the removal a withdrawal. Listed only under the `Retirada` filter.                                           |
+  | `Sal y Arena`   | Dani, morning   | `Incompleta` | No music (the portal detail reads `Falta cargar archivo de música`; the admin one shows the field empty), nothing paid, and registered after the ordering, so it has no number. |
 
-- One payment from `Academia Demo`, allocated past the deposit of the three
+  The music is a three-second demo tone (`musica-demo.wav`), uploaded through
+  the portal's own music path to the local storage volume, so the detail
+  pages' player plays it. A re-seed removes the previous run's files.
+
+- One payment from `Academia Demo`, allocated past the deposit of the four
   paid inscriptions, so the payment's academy and each of those inscriptions'
   price show their locks. The two afternoon presentations count as evaluated,
   which freezes that schedule's numbers; the score locks the criteria of
