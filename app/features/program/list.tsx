@@ -266,8 +266,13 @@ function OrderNumberMark({
   return (
     <TooltipProvider>
       <Tooltip>
+        {/* Focusable, since the tooltip is the mark's only visible
+            explanation: a keyboard reader reaches it like a pointer does. */}
         <TooltipTrigger asChild>
-          <span className="inline-flex">
+          <span
+            className="inline-flex rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            tabIndex={0}
+          >
             <Icon aria-hidden="true" className={cn("size-4", iconClassName)} />
             <span className="sr-only">{label}</span>
           </span>

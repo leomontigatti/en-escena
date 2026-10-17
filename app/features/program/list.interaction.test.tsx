@@ -570,6 +570,10 @@ describe("the program list everyone outside the administration reads", () => {
     expect(headers.every((header) => header.textContent !== "")).toBe(true);
     // The table's number and the card's badge.
     expect(withdrawnMarks).toHaveLength(2);
+    // The tooltip is the only visible explanation, so the mark takes focus.
+    expect(
+      document.querySelector("tbody [tabindex='0'] .sr-only")?.textContent,
+    ).toBe("Retirada");
   });
 
   test("carries no state column on either surface", async () => {
