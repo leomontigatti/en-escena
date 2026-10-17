@@ -231,11 +231,10 @@ function ensure() {
 
   if (upgraded === undefined) return;
 
-  writeFileSync(envLocalPath, upgraded);
-  console.log(`This worktree's uploads now go to ${storageDir}.`);
-
   // Until now the worktree uploaded to the folder `.env` names, so its rows
   // point there: copy it over, never move it, since other checkouts read it too.
+  // The line goes in only after the copy, so a copy that fails is retried; it
+  // skips the files already there.
   const sharedDir = process.env.STORAGE_VOLUME_DIR;
   const from = sharedDir ? path.resolve(root, sharedDir) : undefined;
 
@@ -243,6 +242,9 @@ function ensure() {
     cpSync(from, storageDir, { recursive: true, force: false });
     console.log(`Copied the files its rows point at from ${from}.`);
   }
+
+  writeFileSync(envLocalPath, upgraded);
+  console.log(`This worktree's uploads now go to ${storageDir}.`);
 }
 
 /** Whether `target` is `folder` or inside it. */
