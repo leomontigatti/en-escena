@@ -33,9 +33,9 @@ protection, so making a job required is a human step in the repo settings.
   lives in its own file because it needs the `edited` event, which fires on a
   body edit too, and in `ci.yml` that would re-run the build and the Postgres
   shards on every description change. An edit that changes neither the title
-  nor the base skips the job under the name `pr-title (title unchanged)`, so
-  the required `pr-title` keeps the verdict of the last run that read the
-  title. The
+  nor the base skips the job under another name (the raw `name:` expression,
+  which GitHub does not evaluate for a skipped job), so the required
+  `pr-title` keeps the verdict of the last run that read the title. The
   title reaches the script through `env: PR_TITLE`, never interpolated into a
   `run:` block.
 - `review-record` (`review-record.yml`): the shared workflow's `review-record`

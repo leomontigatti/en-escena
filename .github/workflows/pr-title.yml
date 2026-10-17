@@ -13,7 +13,9 @@
 # Body edits skip the job (the `if:` below): they re-ran it hundreds of times on
 # an unchanged title. A skipped job reports a success under its name, so a
 # skipped run takes another name and `pr-title` keeps the verdict of the last
-# run that read the title: a red title stays red through a body edit.
+# run that read the title: a red title stays red through a body edit. GitHub
+# does not evaluate a skipped job's `name:`, so that check shows the raw
+# expression (seen on #1693); evaluated or not, it is never `pr-title`.
 #
 # No bot skip. `github.event.pull_request.user.type == 'Bot'` would be the place
 # for it, but every PR here is opened under a user token, and a skip nobody
