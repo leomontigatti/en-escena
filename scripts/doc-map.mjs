@@ -170,9 +170,8 @@ export function findDocChangeNotNeededReasons(commitMessages) {
 }
 
 /**
- * Self-contained and prescriptive on purpose: both humans and AFK runners read
- * it, and a runner holds no GitHub token, so whatever this message does not say
- * is unavailable to whoever has to act on it. Single line, because a `::error::`
+ * Self-contained and prescriptive on purpose: whoever reads it, a person or an
+ * agent, has to act on it from this text alone. Single line, because a `::error::`
  * annotation keeps only its first line — anything after a newline is dropped
  * from the PR page, which is the one place this has to be readable.
  *

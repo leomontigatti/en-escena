@@ -10,13 +10,9 @@
 # suite is 81 s — and neither are the `check:*` scripts, which gate staged
 # source and belong to pre-commit.
 #
-# It exits early on the three paths where it buys nothing:
+# It exits early on the two paths where it buys nothing:
 #
 # - `SKIP_STOP_CHECKS` set: the documented local bypass.
-# - A GitHub workflow outside the AFK implement allowlist. Allowlisting by
-#   workflow name rather than by `CI` keeps the exclusion explicit and greppable.
-#   `AFK Review` is the case this protects: the reviewer authors no app code, so
-#   blocking it spends its budget on a red typecheck it cannot fix.
 # - No changed path — tracked or untracked — that typecheck or lint could read:
 #   `.ts`/`.tsx`/`.mts`/`.cts` and `tsconfig*.json`/`package.json` for typecheck,
 #   `.js`/`.jsx`/`.mjs`/`.cjs` and `.oxlintrc.json` for lint. The filter has to
@@ -26,9 +22,8 @@
 #   not split this pattern per half.
 #
 # The filter reads the working tree only. Committed work has already passed
-# `.husky/pre-commit`, which runs `pnpm typecheck` on every commit (#934,
-# including in the AFK runners), so this gate owns the uncommitted remainder of a
-# turn; unioning it with `master...HEAD` would re-run the gate on every turn of
+# `.husky/pre-commit`, which runs `pnpm typecheck` on every commit (#934), so
+# this gate owns the uncommitted remainder of a turn; unioning it with `master...HEAD` would re-run the gate on every turn of
 # any branch that ever committed a `.ts` file, which is the per-turn cost the
 # design avoids. Lint on committed changes is CI's `checks` job.
 #
@@ -48,12 +43,6 @@ set -uo pipefail
 input="$(cat)"
 
 if [ -n "${SKIP_STOP_CHECKS:-}" ]; then
-  exit 0
-fi
-
-# No workflow on GitHub Actions authors app code since ADR-0016, so the gate
-# is a local-session concern only.
-if [ -n "${GITHUB_WORKFLOW:-}" ]; then
   exit 0
 fi
 

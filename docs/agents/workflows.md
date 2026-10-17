@@ -7,8 +7,7 @@ doc change. How a rendered change is checked is [verification.md](verification.m
 ## Where work starts
 
 Implementation happens in a local T3 Code session (ADR-0016): a session has a
-browser, the dev database and a human to ask, and the AFK implement runners had
-none of those. Three entry points, by how much is still unknown:
+browser, the dev database and a human to ask. Three entry points, by how much is still unknown:
 
 - **Small and clear** (a bug, a UI tweak, a one-slice feature): say it in the
   thread, or write the issue with what to build and its acceptance criteria and

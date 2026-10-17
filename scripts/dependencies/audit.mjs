@@ -6,7 +6,7 @@
  * only on the high and critical advisories the branch *introduces*. An
  * advisory both sides carry is inherited from `master`, and failing on it
  * would turn every open PR red the day a CVE is disclosed against a dependency
- * nobody on that branch touched, AFK branches included. Dependabot alerts
+ * nobody on that branch touched. Dependabot alerts
  * cover the full tree for that case; this gate covers the delta.
  *
  * Advisories are keyed by GHSA id rather than by pnpm's numeric `id`: the GHSA

@@ -15,6 +15,7 @@ slice, `pnpm test:unit <path>` or `pnpm test:db <path>`.
 ```sh
 pnpm gate                # pnpm typecheck, pnpm lint, pnpm test:unit
 pnpm test:db <path>...   # only the DB test files your change touches
+pnpm check:doc-map       # CI's docs-gate over the branch; commit-msg runs it per commit
 ```
 
 Run this **once, after your edits**. Do not run `pnpm test`. `pnpm gate` runs its
@@ -57,14 +58,17 @@ The scripts that exist and what owns what:
 | `pnpm check:migration-safety`       | squawk over migrations the branch adds: drops and renames block, lock hazards warn                                                                                                                                                                                                      |
 | `pnpm check:dependency-audit`       | High and critical advisories the branch introduces, against `master`                                                                                                                                                                                                                    |
 | `pnpm check:comment-language`       | Spanish prose in comments, test names, thrown error messages, shell stderr, docs and YAML                                                                                                                                                                                               |
-| `pnpm check:pr-title "<title>"`     | A PR title is a conventional commit with an English subject — CI only, from `pr-title.yml`, a required context on `master`                                                                                                                                                              |
+| `pnpm check:pr-title "<title>"`     | A PR title is a conventional commit with an English subject — run it before `gh pr create`; CI runs it from `pr-title.yml`, a required context on `master`                                                                                                                              |
 | review-record (CI only)             | The PR body records the review its tier requires, and nothing but docs landed after the reviewed commit — the shared `review-record` action from `review-record.yml`, tiered by [review.md](./review.md)                                                                                |
 | `pnpm check:fallow`                 | Fallow's `new-only` gate on what the branch adds                                                                                                                                                                                                                                        |
 | zizmor (CI only)                    | Actions security posture and pin freshness — `.github/workflows/**`                                                                                                                                                                                                                     |
 | actionlint (CI only)                | Workflow syntax and expressions — `.github/workflows/**`                                                                                                                                                                                                                                |
 | gitleaks (pre-commit + CI)          | Secrets in commits — `.gitleaks.toml` rules over the staged diff, then over `origin/master..HEAD`                                                                                                                                                                                       |
 
-CI runs the `check:*` scripts and `pnpm build` for you. You do not need to.
+CI runs the `check:*` scripts and `pnpm build` for you. You do not need to: `.husky/pre-commit`
+runs every `check:*` script on each commit except `check:doc-map`, which `.husky/commit-msg`
+runs, and `check:dependency-audit`, `check:migration-immutability` and `check:pr-title`, so a
+commit catches most of what would fail `checks` or `docs-gate`.
 
 Why the table has this shape — one owner per concern, gates scoped to what a
 PR adds — is `docs/adr/0015-deterministic-guardrails.md`.
