@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { Check } from "lucide-react";
+import { Check, Minus } from "lucide-react";
 
 import { DataTableTruncatedText } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
@@ -23,7 +23,7 @@ import { withdrawnChoreographyStatusLabel } from "@/lib/choreographies/operation
  * An evaluated card, on the public program's day being danced, fades all but
  * its number, which turns into a green badge: the faded run is what the show
  * has left behind, and the badge says so where the eye lands first. A
- * withdrawn card fades the same way and badges its number `Retirada`.
+ * withdrawn card fades the same way, its number in a muted badge with a minus.
  */
 export function ProgramRowCard({
   children,
@@ -87,7 +87,9 @@ function CardNumber({
   if (withdrawn) {
     return (
       <Badge variant="secondary" className="shrink-0 tabular-nums">
-        {number} · {withdrawnChoreographyStatusLabel}
+        <Minus aria-hidden="true" />
+        <span className="sr-only">{withdrawnChoreographyStatusLabel}, </span>
+        {number}
       </Badge>
     );
   }
