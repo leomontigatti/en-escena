@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { databaseName, renderInfo } from "./dev-info";
+import { databaseName, renderInfo, storageFolder } from "./dev-info";
 
 describe("databaseName", () => {
   it("keeps only the database name, never the credentials", () => {
@@ -13,6 +13,18 @@ describe("databaseName", () => {
     expect(databaseName(undefined)).toBeNull();
     expect(databaseName("postgres://localhost:5432")).toBeNull();
     expect(databaseName("not a url")).toBeNull();
+  });
+});
+
+describe("storageFolder", () => {
+  it("resolves the main checkout's relative default from the repo root", () => {
+    expect(storageFolder("/repo", ".storage")).toBe("/repo/.storage");
+  });
+
+  it("keeps a worktree's absolute folder as it is", () => {
+    expect(storageFolder("/repo", "/data/en-escena/worktrees/x")).toBe(
+      "/data/en-escena/worktrees/x",
+    );
   });
 });
 
@@ -35,9 +47,6 @@ describe("renderInfo", () => {
     );
     expect(output).toContain("en_escena_");
     expect(output).toContain("Dev port: 5301");
-    expect(output).toContain(
-      "Storage:  /data/en-escena/worktrees/en-escena-wt-x",
-    );
     expect(output).toContain("MISSING .env.local: not yet");
     expect(output).toContain("ok      codex: Logged in");
   });

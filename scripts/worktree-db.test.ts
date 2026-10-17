@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   choosePort,
   databaseUrlFor,
+  isWithin,
   parseEnvPort,
   planPrune,
   renderEnvLocal,
@@ -73,9 +74,8 @@ describe("renderEnvLocal / parseEnvPort", () => {
     );
     expect(content).toContain('APP_URL="http://localhost:5321"');
     expect(content).toContain('BETTER_AUTH_URL="http://localhost:5321"');
-    expect(content).toContain(
-      'STORAGE_VOLUME_DIR="/home/u/.local/share/en-escena/worktrees/en-escena-wt-x"',
-    );
+    // A fresh file already names its folder, so `ensure` adds no second line.
+    expect(withStorageDir(content, "/elsewhere")).toBeUndefined();
     expect(parseEnvPort(content)).toBe(5321);
   });
 
@@ -98,6 +98,29 @@ describe("worktreeStorageDir", () => {
         XDG_DATA_HOME: "/data",
       }),
     ).toBe("/data/en-escena/worktrees/en-escena-wt-x");
+  });
+
+  it("ignores a relative XDG_DATA_HOME, which would land in the checkout", () => {
+    expect(
+      worktreeStorageDir("en-escena-wt-x", {
+        HOME: "/home/u",
+        XDG_DATA_HOME: "data",
+      }),
+    ).toBe("/home/u/.local/share/en-escena/worktrees/en-escena-wt-x");
+  });
+});
+
+describe("isWithin", () => {
+  // `ensure` copies the old shared folder into the worktree's; Node refuses
+  // to copy a folder onto itself or into its own subfolder.
+  it("is true for the folder itself and anything under it", () => {
+    expect(isWithin("/s", "/s")).toBe(true);
+    expect(isWithin("/s/worktrees/x", "/s")).toBe(true);
+  });
+
+  it("is false for a sibling whose name only starts the same", () => {
+    expect(isWithin("/s-other/x", "/s")).toBe(false);
+    expect(isWithin("/data/worktrees/x", "/data/storage")).toBe(false);
   });
 });
 
@@ -140,6 +163,7 @@ describe("planPrune", () => {
           "en-escena-wt-live",
           "en-escena-wt-gone",
         ],
+        storageDirs: [],
         worktreePaths: ["/home/poto/projects/en-escena", "/wt/live"],
       }),
     ).toEqual(["en-escena-wt-gone"]);
@@ -163,6 +187,7 @@ describe("planPrune", () => {
     expect(
       planPrune({
         databases: ["en-escena-wt-listed", "en-escena-wt-orphaned-since"],
+        storageDirs: [],
         worktreePaths: [],
         accepted: new Set(["en-escena-wt-listed"]),
       }),

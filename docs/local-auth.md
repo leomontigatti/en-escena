@@ -83,7 +83,9 @@ named after the database and lives outside the worktree so the two share a
 lifecycle: T3 removes a paused thread's worktree and recreates it on resume,
 and the database's rows must still find their files. A `.env.local` written
 before worktrees had their own folder gains the line on the next `pnpm dev`,
-`db:seed` or `db:migrate`, keeping its database and port. `react-router dev` and every `db:*` script load `.env.local`
+`db:seed` or `db:migrate`, keeping its database and port, and copies the folder
+`.env` names into its own, so the rows it already has still find their files;
+the shared folder is left as it is. `react-router dev` and every `db:*` script load `.env.local`
 over the `.env` linked from the main checkout, so a session's seed, migrations,
 refresh and screenshots touch only its own data, and a thread that never needs
 data (grilling, research, review) never gets a database. `pnpm db:worktree`

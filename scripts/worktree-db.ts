@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import {
+  cpSync,
   existsSync,
   readFileSync,
   readdirSync,
@@ -50,10 +51,14 @@ export function worktreeStorageDir(
   return path.join(storageRoot(env), database);
 }
 
+// A relative XDG_DATA_HOME is ignored, as the XDG spec asks: it would resolve
+// under whichever checkout runs the script, and the sweep would miss it.
 function storageRoot(env: NodeJS.ProcessEnv = process.env): string {
+  const xdgDataHome = env.XDG_DATA_HOME?.trim();
   const dataHome =
-    env.XDG_DATA_HOME?.trim() ||
-    path.join(env.HOME?.trim() || os.homedir(), ".local", "share");
+    xdgDataHome && path.isAbsolute(xdgDataHome)
+      ? xdgDataHome
+      : path.join(env.HOME?.trim() || os.homedir(), ".local", "share");
 
   return path.join(dataHome, "en-escena", "worktrees");
 }
@@ -134,14 +139,12 @@ export function parseEnvPort(content: string): number | undefined {
  */
 export function planPrune(input: {
   databases: string[];
-  storageDirs?: string[];
+  storageDirs: string[];
   worktreePaths: string[];
   accepted?: ReadonlySet<string>;
 }): string[] {
   const live = new Set(input.worktreePaths.map(worktreeDatabaseName));
-  const names = [
-    ...new Set([...input.databases, ...(input.storageDirs ?? [])]),
-  ];
+  const names = [...new Set([...input.databases, ...input.storageDirs])];
 
   return names.filter(
     (name) =>
@@ -226,10 +229,27 @@ function ensure() {
     storageDir,
   );
 
-  if (upgraded !== undefined) {
-    writeFileSync(envLocalPath, upgraded);
-    console.log(`This worktree's uploads now go to ${storageDir}.`);
+  if (upgraded === undefined) return;
+
+  writeFileSync(envLocalPath, upgraded);
+  console.log(`This worktree's uploads now go to ${storageDir}.`);
+
+  // Until now the worktree uploaded to the folder `.env` names, so its rows
+  // point there: copy it over, never move it, since other checkouts read it too.
+  const sharedDir = process.env.STORAGE_VOLUME_DIR;
+  const from = sharedDir ? path.resolve(root, sharedDir) : undefined;
+
+  if (from && existsSync(from) && !isWithin(storageDir, from)) {
+    cpSync(from, storageDir, { recursive: true, force: false });
+    console.log(`Copied the files its rows point at from ${from}.`);
   }
+}
+
+/** Whether `target` is `folder` or inside it. */
+export function isWithin(target: string, folder: string): boolean {
+  const relative = path.relative(folder, target);
+
+  return !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
 function pickPort(root: string, envLocalPath: string, database: string) {
@@ -281,8 +301,15 @@ function migrateAndSeed(options: {
     // that has `.env.local`, so leave nothing behind for the next run to trust.
     if (!hadEnvLocal) rmSync(envLocalPath, { force: true });
     if (created) {
-      // The seed's uploads belong to the database it is about to drop.
-      rmSync(storageDir, { recursive: true, force: true });
+      // The seed's uploads belong to the database it is about to drop; a
+      // folder that will not go must not keep the database from going too.
+      try {
+        rmSync(storageDir, { recursive: true, force: true });
+      } catch (cleanupError) {
+        console.error(
+          `Could not remove ${storageDir}: ${String(cleanupError)}`,
+        );
+      }
       try {
         run("docker", [
           "exec",

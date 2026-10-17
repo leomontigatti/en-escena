@@ -29,7 +29,7 @@ export function databaseName(databaseUrl: string | undefined): string | null {
 }
 
 /** The folder uploads go to; a relative `.env` value is the repo root's. */
-function storageFolder(root: string, value: string | undefined) {
+export function storageFolder(root: string, value: string | undefined) {
   return value ? path.resolve(root, value) : null;
 }
 
