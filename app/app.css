@@ -147,11 +147,13 @@
 
 /*
  * Toasts take the semantic tokens. Sonner appends its own stylesheet to
- * <head> at runtime, after this one, and sets these variables on the same
- * selector; `:root` outranks it, so its rich-colour rules read ours. The tints
- * mix in oklab: in oklch the hue would drift toward the background's.
+ * <head> at runtime, after this one, and sets these variables per its own
+ * `data-sonner-theme`; these selectors outrank it, so its rich-colour rules
+ * read ours. The palette follows the page's `.dark`, not Sonner's theme, which
+ * stays "light" while `AppToaster` passes none. The tints mix in oklab: in
+ * oklch the hue would drift toward the background's.
  */
-:root [data-sonner-toaster][data-sonner-theme="light"] {
+:root [data-sonner-toaster][data-sonner-theme] {
   --success-bg: oklch(0.98 0.02 151);
   --success-border: oklch(0.9 0.06 151);
   --success-text: var(--success);
@@ -170,7 +172,7 @@
   --error-text: var(--destructive);
 }
 
-:root [data-sonner-toaster][data-sonner-theme="dark"] {
+:root.dark [data-sonner-toaster][data-sonner-theme] {
   --success-bg: color-mix(in oklab, var(--success) 18%, var(--background));
   --success-border: color-mix(in oklab, var(--success) 36%, var(--background));
   --success-text: var(--success);
