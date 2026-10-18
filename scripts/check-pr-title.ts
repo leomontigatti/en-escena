@@ -68,7 +68,7 @@ const conventionalTitlePattern = new RegExp(
  * marker without flagging every "x and y" comment. Only the subject's first
  * word is read against this list, which is why it lives here and not in the
  * detector: anywhere else in a sentence these are names and data. English
- * homographs (`define`, `usa`) are left out.
+ * homographs (`define`, `mover`, `usa`) are left out.
  */
 const spanishSubjectVerbs = new Set([
   "actualiza",
@@ -104,7 +104,6 @@ const spanishSubjectVerbs = new Set([
   "mejora",
   "mejorar",
   "mueve",
-  "mover",
   "muestra",
   "mostrar",
   "permite",

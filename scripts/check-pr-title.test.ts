@@ -120,9 +120,12 @@ describe("PR-title gate (#1007)", () => {
     ]);
   });
 
-  test("reads only the first word for the verb", () => {
+  test("reads only the first word, and passes an English homograph", () => {
     expect(
       rulesBrokenBy("fix(admin): restore the corrige button label"),
+    ).toEqual([]);
+    expect(
+      rulesBrokenBy("fix: mover buttons retain focus after reordering"),
     ).toEqual([]);
   });
 
