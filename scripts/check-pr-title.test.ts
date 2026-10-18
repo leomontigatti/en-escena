@@ -108,6 +108,24 @@ describe("PR-title gate (#1007)", () => {
     ).toEqual(["conventional prefix", "english subject"]);
   });
 
+  // The subject's first word is its verb, and a Spanish verb there is the slip
+  // the shared detector misses: `quita`, `restos` and `y` are none of its
+  // markers, and `y` cannot become one without flagging every "x and y".
+  test("fails a subject that opens with a Spanish verb", () => {
+    expect(rulesBrokenBy("chore(ci): quita CodeRabbit y restos AFK")).toEqual([
+      "english subject",
+    ]);
+    expect(rulesBrokenBy("feat: Agregar export de CSV")).toEqual([
+      "english subject",
+    ]);
+  });
+
+  test("reads only the first word for the verb", () => {
+    expect(
+      rulesBrokenBy("fix(admin): restore the corrige button label"),
+    ).toEqual([]);
+  });
+
   test("reports both rules when a title breaks both", () => {
     expect(rulesBrokenBy("agregar la vista de inscripciones")).toEqual([
       "conventional prefix",
