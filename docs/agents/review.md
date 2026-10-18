@@ -1,7 +1,7 @@
 # Review
 
 What this repo's risky areas are, for the shared `implement` skill's step 5, the `code-review`
-correctness brief and the `pr` skill's Merge Danger. The tier comes from the `review-paths` block
+correctness brief and the `pr` skill's § Door. The tier comes from the `review-paths` block
 below, read by the shared `review.py` (`implement` step 5, locally) and by the `review-record`
 check in CI (`.github/workflows/review-record.yml`), which fails a PR whose `## Review` record
 lacks a reviewer its tier requires.
@@ -36,7 +36,6 @@ full auth: ^app/(lib/auth|lib/admin/users|features/admin/users)/|^app/routes/(ap
 full auth: ^app/[^ ]*(auth|password|permission)
 full migration: ^app/db/migrations/
 full script that deletes or overwrites: ^scripts/(restore-|staging-reset|refresh-local-db-from-production|reseed-storage|backup-storage|worktree-db|worktree-sweep|unexpected-error-(maintenance|retention)|migrate\.mjs|docker-entrypoint)
-quiet: ^\.coderabbit\.yaml$
 both-families
 ```
 
@@ -45,8 +44,7 @@ and on Opus, and each correctness line of the `## Review` record names how many 
 the other also found. Around 2026-11-15, or after 15 `full` PRs, read the records back
 (`gh pr list --state merged --search '"Tier: full" in:body' --json number,body`) and compare the
 fixed findings only one family raised, the declines and the overlap. Then keep both, or drop
-`both-families` here. The same numbers settle whether CodeRabbit stays
-([pull-requests.md](pull-requests.md#review-bot)).
+`both-families` here.
 
 ## Always ask
 

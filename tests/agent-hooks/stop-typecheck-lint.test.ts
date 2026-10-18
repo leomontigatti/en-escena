@@ -16,8 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 // #982: the blocking `Stop` gate. A turn may not end on a red typecheck, but the
 // gate costs ~6 s, so it has to stay off the paths where it buys nothing: a
-// docs-only session, the AFK reviewer (which authors no app code and cannot fix
-// what it would report), and the documented local bypass.
+// docs-only session and the documented local bypass.
 //
 // `pnpm` is stubbed on `PATH` so these assertions are about the hook's decisions,
 // not about the real compiler.
@@ -87,7 +86,6 @@ function runHook({
       PATH: `${binDir}:${process.env.PATH ?? ""}`,
       CLAUDE_PROJECT_DIR: projectDir,
       SKIP_STOP_CHECKS: "",
-      GITHUB_WORKFLOW: "",
       ...env,
     },
   });
@@ -136,7 +134,6 @@ describe("stop-typecheck-lint.sh", () => {
       ...process.env,
       PATH: `${binDir}:${process.env.PATH ?? ""}`,
       SKIP_STOP_CHECKS: "",
-      GITHUB_WORKFLOW: "",
       FAKE_TYPECHECK_FAILS: "1",
     };
     delete env.CLAUDE_PROJECT_DIR;
@@ -240,18 +237,6 @@ describe("stop-typecheck-lint.sh", () => {
     });
 
     expect(result.status).toBe(0);
-    expect(pnpmCalls()).toEqual([]);
-  });
-
-  it("skips every GitHub workflow, since none authors app code (ADR-0016)", () => {
-    change("app/routes/home.tsx");
-
-    for (const workflow of ["CI", "PR title"]) {
-      const result = runHook({
-        env: { GITHUB_WORKFLOW: workflow, FAKE_TYPECHECK_FAILS: "1" },
-      });
-      expect(result.status, workflow).toBe(0);
-    }
     expect(pnpmCalls()).toEqual([]);
   });
 });

@@ -364,4 +364,4 @@ disqualifications, program, results publishing and the academy's results.
 
 What to run, and when, is [validation.md](validation.md): `pnpm typecheck` for
 routes and types, `pnpm test:db <path>` for persistence work. `pnpm check:repo-styles`
-gates UI style (in CI) and `pnpm check:file-tokens` staged file size (in pre-commit).
+gates UI style and `pnpm check:file-tokens` staged file size, both in pre-commit.

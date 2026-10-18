@@ -8,10 +8,9 @@ import { collectSourceFiles } from "./source-files";
 
 // Every label the automation names is in `.github/labels.json` (#1116).
 //
-// The AFK state machine runs on exact label strings. A typo in a workflow's
-// `--add-label` does not fail anything until the run that needs it: GitHub
-// refuses the edit mid-run, or a trigger waits forever on a label nobody can
-// add. This check moves that failure to CI, and it is the part of labels-as-code
+// Labels are matched as exact strings. A typo in an `--add-label` does not
+// fail anything until the command that needs it: GitHub refuses the edit, or a
+// filter on the label quietly matches nothing. This check moves that failure to CI, and it is the part of labels-as-code
 // that pays for the rest.
 //
 // It reads the forms the repo actually uses rather than grepping for every

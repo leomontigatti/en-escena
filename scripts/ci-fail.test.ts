@@ -44,17 +44,17 @@ describe("failedJobs", () => {
     expect(
       failedJobs([
         {
-          name: "CodeRabbit",
+          name: "Vercel",
           bucket: "fail",
           workflow: "",
-          link: "https://coderabbit.ai/x",
+          link: "https://vercel.com/x",
         },
       ]),
     ).toEqual([
       {
-        name: "CodeRabbit",
+        name: "Vercel",
         workflow: "",
-        link: "https://coderabbit.ai/x",
+        link: "https://vercel.com/x",
         jobId: null,
       },
     ]);
