@@ -23,7 +23,8 @@ import {
 // The language half is that same detector, not a copy of it: the heuristics,
 // the glossary and the reserved terms all come from
 // `scripts/check-comment-language.ts` through `findSpanishMarkersInText`, so a
-// term added to `GLOSSARY.md` reaches this gate the day it is added.
+// term added to `GLOSSARY.md` reaches this gate the day it is added. The one
+// rule of its own is the verb: see `spanishSubjectVerbs`.
 
 /**
  * The types the repo's history actually uses, read off
@@ -59,6 +60,73 @@ export const conventionalTypes = [
 const conventionalTitlePattern = new RegExp(
   `^(?:${conventionalTypes.join("|")})(?:\\([^)]+\\))?!?: (\\S[\\s\\S]*)`,
 );
+
+/**
+ * The verbs a Spanish subject opens with, imperative and infinitive. The shared
+ * detector reads function words, and a terse subject has few:
+ * `chore(ci): quita CodeRabbit y restos AFK` passed it, since `y` cannot be a
+ * marker without flagging every "x and y" comment. Only the subject's first
+ * word is read against this list, which is why it lives here and not in the
+ * detector: anywhere else in a sentence these are names and data. English
+ * homographs (`define`, `mover`, `usa`) are left out.
+ */
+const spanishSubjectVerbs = new Set([
+  "actualiza",
+  "actualizar",
+  "agrega",
+  "agregar",
+  "ajusta",
+  "ajustar",
+  "añade",
+  "añadir",
+  "arregla",
+  "arreglar",
+  "borra",
+  "borrar",
+  "cambia",
+  "cambiar",
+  "corrige",
+  "corregir",
+  "crea",
+  "crear",
+  "documenta",
+  "documentar",
+  "elimina",
+  "eliminar",
+  "evita",
+  "evitar",
+  "extrae",
+  "extraer",
+  "implementa",
+  "implementar",
+  "limpia",
+  "limpiar",
+  "mejora",
+  "mejorar",
+  "mueve",
+  "muestra",
+  "mostrar",
+  "permite",
+  "permitir",
+  "quita",
+  "quitar",
+  "reemplaza",
+  "reemplazar",
+  "renombra",
+  "renombrar",
+  "simplifica",
+  "simplificar",
+  "unifica",
+  "unificar",
+]);
+
+function spanishVerbOpening(subject: string): string | undefined {
+  const firstWord = /^[\p{L}]+/u.exec(subject)?.[0].toLowerCase();
+
+  return firstWord !== undefined && spanishSubjectVerbs.has(firstWord)
+    ? firstWord
+    : undefined;
+}
 
 export type PrTitleViolation = {
   message: string;
@@ -103,10 +171,15 @@ export function checkPrTitle(input: {
     });
   }
 
-  const markers = findSpanishMarkersInText({
-    glossaryNouns: input.glossaryNouns,
-    text: subjectOf(title),
-  });
+  const subject = subjectOf(title);
+  const verb = spanishVerbOpening(subject);
+  const markers = [
+    ...(verb === undefined ? [] : [verb]),
+    ...findSpanishMarkersInText({
+      glossaryNouns: input.glossaryNouns,
+      text: subject,
+    }).filter((marker) => marker !== verb),
+  ];
 
   if (markers.length > 0) {
     violations.push({
