@@ -14,7 +14,7 @@ const KEEP_DUMP = process.argv.includes("--keep-dump");
 // there is no route from a laptop to dump it. The source is the artifact
 // Coolify's own scheduled backup already wrote on the VPS (7-day local
 // retention). See docs/operations/backups.md.
-const SSH_HOST = process.env.PROD_SSH_HOST ?? "rylai";
+const SSH_HOST = process.env.PROD_SSH_HOST ?? "root@rylai";
 const REMOTE_BACKUP_DIR =
   process.env.BACKUP_DIR ?? "/data/coolify/backups/databases";
 

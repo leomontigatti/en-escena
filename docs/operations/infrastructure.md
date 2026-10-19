@@ -97,7 +97,7 @@ restarts the agent when that value changes.
 `rylai` pushes to `https://panel.underthing.dev`. Check it from the host:
 
 ```bash
-ssh rylai 'docker inspect coolify-sentinel --format "{{range .Config.Env}}{{println .}}{{end}}" | grep PUSH_ENDPOINT'
+ssh root@rylai 'docker inspect coolify-sentinel --format "{{range .Config.Env}}{{println .}}{{end}}" | grep PUSH_ENDPOINT'
 ```
 
 The control plane's own agent pushes to `http://host.docker.internal:8000`,
@@ -119,13 +119,19 @@ which stays on the Docker network and never meets the firewall.
 
 Both VPSs are tagged nodes of the operator's Tailscale tailnet, and that is the
 only way anyone, Coolify included, gets a shell on either: neither firewall has
-a `22` rule. The access model, the tailnet policy and each host's state live in
-the operator's private `infra` repository; what En Escena work needs is below.
+a `22` rule. The access model, the tailnet policy, a new device's first login
+and each host's state live in the operator's private
+[`infra` repository](https://github.com/leomontigatti/infra), checked out at
+`~/.t3/projects/infra`: read its `README.md` and
+[`hosts/rylai.md`](https://github.com/leomontigatti/infra/blob/master/hosts/rylai.md)
+before acting on a host. What En Escena work needs is below.
 
-- **`ssh rylai` is Tailscale SSH.** The tailnet identity is the credential, so
+- **`ssh root@rylai` is Tailscale SSH.** The tailnet identity is the credential, so
   any admin device on the tailnet gets in with `ssh root@rylai` (or
-  `root@coolify`), no key needed; the `rylai` alias the scripts use only sets
-  `User root`.
+  `root@coolify`), no key and no `~/.ssh/config` entry needed. Write the user
+  out: a bare `ssh rylai` logs in as the local user, which has no account on
+  the host, and Tailscale refuses it. The scripts default to `root@rylai` for
+  the same reason.
 - **Coolify deploys over the tailnet.** Its server for `rylai` is the tailnet
   address, and the policy admits `tag:coolify` as root. A policy change that
   drops that rule breaks deploys.
@@ -143,7 +149,7 @@ with no file edit; the flip side is that the compose file does not record which
 patch is running, so read it from the container rather than the config:
 
 ```bash
-ssh rylai 'docker exec coolify-proxy traefik version'
+ssh root@rylai 'docker exec coolify-proxy traefik version'
 ```
 
 Running `3.7.13` as of 2026-09-16, updated from `3.7.10` for the CVEs fixed
@@ -200,7 +206,7 @@ error raised before any loader ran says `unknown` when its path holds a param.
 The release is `SOURCE_COMMIT`, which Coolify sets in the running container to
 the deployed commit; it reads `unknown` where unset. Read the lines in Coolify's
 application **Logs** tab, or with
-`ssh rylai 'docker logs x1383fsxfsixpgmvd9quv7tj-<deployment> 2>&1 | grep "server:unexpected"'`.
+`ssh root@rylai 'docker logs x1383fsxfsixpgmvd9quv7tj-<deployment> 2>&1 | grep "server:unexpected"'`.
 Retention there is short: `rylai`'s `/etc/docker/daemon.json` caps each
 container's `json-file` log at three 10 MB files, and every deploy replaces the
 container, so its lines go with it. A browser error writes the same line tagged
@@ -273,11 +279,11 @@ which Coolify reports as `TaskFailed` after its retries.
 - Database name: `enescena`. Every schema lives in it, including `public` and
   `drizzle`.
 - `is_public: false`, with **no published port**: there is no route from a
-  laptop. Reach it with `ssh rylai` and `docker exec`, not a tunnel. Read it as
+  laptop. Reach it with `ssh root@rylai` and `docker exec`, not a tunnel. Read it as
   the `readonly` role, which can neither write nor be reached over the network:
 
   ```sh
-  ssh rylai 'docker exec -i c24udczenueosjssymgxuhgf psql -U readonly -d enescena'
+  ssh root@rylai 'docker exec -i c24udczenueosjssymgxuhgf psql -U readonly -d enescena'
   ```
 
   The superuser is `postgres`; a write to production is a decision, not a
