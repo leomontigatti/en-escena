@@ -102,6 +102,10 @@ unused code is `tsc`'s and repo conventions are the `check:*` scripts', and a ru
 that duplicates another owner stays out (decision 2 of ADR-0015). If it reports
 nothing, that is the expected result, not a reason to look for another linter.
 
+To lint only some files, pass them: `pnpm lint <paths>` (the script is plain
+`oxlint`, and `.oxlintrc.json` still applies). This repo has no ESLint, so
+`pnpm exec eslint` is never the command.
+
 The un-awaited-promise rules are type-aware (`oxlint-tsgolint`), which is most of
 the ~6.5 s. Two of their options are load-bearing and invisible in the rule name:
 `no-floating-promises` runs with `checkThenables: true` because Drizzle's query
