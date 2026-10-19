@@ -117,28 +117,20 @@ which stays on the Docker network and never meets the firewall.
 
 ### Operator access
 
-Both VPSs are tagged nodes of the operator's Tailscale tailnet, and that is the
-only way anyone, Coolify included, gets a shell on either: neither firewall has
-a `22` rule. The access model, the tailnet policy, a new device's first login
-and each host's state live in the operator's private
-[`infra` repository](https://github.com/leomontigatti/infra), checked out at
-`~/.t3/projects/infra`: read its `README.md` and
+How anyone, Coolify included, gets a shell on either VPS lives in the operator's
+private [`infra` repository](https://github.com/leomontigatti/infra), checked out
+at `~/.t3/projects/infra`: the access model, the tailnet policy, a new device's
+first login and each host's state. Read its `README.md` and
 [`hosts/rylai.md`](https://github.com/leomontigatti/infra/blob/master/hosts/rylai.md)
-before acting on a host. What En Escena work needs is below.
+before acting on a host. What En Escena work adds:
 
-- **`ssh root@rylai` is Tailscale SSH.** The tailnet identity is the credential, so
-  any admin device on the tailnet gets in with `ssh root@rylai` (or
-  `root@coolify`), no key and no `~/.ssh/config` entry needed. Write the user
-  out: a bare `ssh rylai` logs in as the local user, which has no account on
-  the host, and Tailscale refuses it. The scripts default to `root@rylai` for
-  the same reason.
-- **Coolify deploys over the tailnet.** Its server for `rylai` is the tailnet
-  address, and the policy admits `tag:coolify` as root. A policy change that
-  drops that rule breaks deploys.
+- **Write `root@rylai`, never a bare `rylai`.** Every command here and the
+  scripts' defaults name the user, so they work from any admin device on the
+  tailnet with no `~/.ssh/config` entry.
+- **A tailnet policy change can break deploys.** Coolify reaches `rylai` over
+  the tailnet as root; the infra repo's policy tests guard that rule.
 - **Both hosts run with `--accept-dns=false`.** Tailscale leaves their resolver
   alone, so containers resolve as before.
-- **When Tailscale is unavailable**, the way in is hPanel's browser terminal,
-  which goes through neither the tailnet nor the firewall.
 
 ### Proxy
 
