@@ -92,7 +92,7 @@ staging's database directly, then assign the judges from the administration
 panel. The next reset undoes it:
 
 ```sh
-ssh rylai "docker exec jjhyytvgi9suem6e8sygshvp psql -U postgres -d enescena \
+ssh root@rylai "docker exec jjhyytvgi9suem6e8sygshvp psql -U postgres -d enescena \
   -c \"update en_escena_schedule set scheduled_date = '<YYYY-MM-DD>' where id = '<schedule id>'\""
 ```
 

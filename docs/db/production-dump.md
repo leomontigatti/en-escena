@@ -29,7 +29,7 @@ never touched.
 | --------------- | ----------------------------------------------------------------------------------------------------- |
 | `BACKUP_ON`     | Restore the newest artifact written on a given day, `YYYY-MM-DD`, by mtime in the server's time zone. |
 | `BACKUP_FILE`   | Restore one named artifact: an absolute path on the remote host, or a dump already on this machine.   |
-| `PROD_SSH_HOST` | The SSH host to fetch from. Defaults to `rylai`.                                                      |
+| `PROD_SSH_HOST` | The SSH host to fetch from. Defaults to `root@rylai`.                                                 |
 | `BACKUP_DIR`    | Where to search on that host. Defaults to `/data/coolify/backups/databases`.                          |
 
 With none of them set, the newest artifact there is wins.
@@ -84,7 +84,7 @@ the scheduled artifact is not enough. In order of preference:
 
 1. **Backup Now** on the Coolify Postgres resource, then re-run
    `pnpm db:refresh:prod`. No shell on the database at all.
-2. `ssh rylai` and `docker exec` a `pg_dump` on the Postgres container, then pass
+2. `ssh root@rylai` and `docker exec` a `pg_dump` on the Postgres container, then pass
    the result through `BACKUP_FILE`.
 
 ## Prefer not to clone at all
@@ -104,11 +104,11 @@ which is ignored by git.
 ```sh
 mkdir -p tmp/db-dumps
 
-REMOTE_PATH="$(ssh rylai "find '/data/coolify/backups/databases' -type f -name 'pg-dump-*.dmp' -printf '%T@ %p\n' | sort -rn | head -1 | cut -d' ' -f2-")"
+REMOTE_PATH="$(ssh root@rylai "find '/data/coolify/backups/databases' -type f -name 'pg-dump-*.dmp' -printf '%T@ %p\n' | sort -rn | head -1 | cut -d' ' -f2-")"
 
 DUMP_PATH="tmp/db-dumps/$(basename "$REMOTE_PATH")"
 
-scp "rylai:$REMOTE_PATH" "$DUMP_PATH"
+scp "root@rylai:$REMOTE_PATH" "$DUMP_PATH"
 ```
 
 Validate the archive before restoring it:

@@ -245,7 +245,7 @@ When you need to run something against production by hand, get a shell on the
 server rather than a route to the port:
 
 ```sh
-ssh rylai
+ssh root@rylai
 docker exec -it <app-container> node /app/scripts/migrate.mjs   # re-run migrations
 docker exec -it <postgres-container> psql -U postgres -d enescena
 ```
