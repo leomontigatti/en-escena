@@ -36,7 +36,7 @@ const SIGN_IN_ATTEMPTS = 3;
 const USAGE = `usage: pnpm ui:session <${ROLES.join("|")}> <path>`;
 const MISSING_CLI = [
   "playwright-cli is not on this shell's PATH.",
-  "Install it with `npm i -g @playwright/cli` and `playwright-cli install-browser chromium`,",
+  "Install it with `pnpm add -g @playwright/cli` and `playwright-cli install-browser chromium`,",
   "or, when it is installed, see docs/agents/agent-configuration.md#the-agent-shells-path.",
   "Stop and tell the user: do not verify the UI with a harness's built-in browser instead.",
 ].join("\n");

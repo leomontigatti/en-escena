@@ -167,7 +167,7 @@ Then sign in at `/ingresar` with one of the demo accounts below.
 Agents verify the UI with the Playwright CLI, installed once per machine:
 
 ```sh
-npm i -g @playwright/cli
+pnpm add -g @playwright/cli
 playwright-cli install-browser chromium
 ```
 
