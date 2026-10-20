@@ -15,7 +15,9 @@ import { WithdrawDialog } from "@/components/shared/withdraw-dialog";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { choreographyDancersExportPath } from "@/features/admin/choreographies/dancers-export/shared";
 import { FieldGroup } from "@/components/ui/field";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -60,6 +62,8 @@ export function ChoreographyDetailRouteView({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
+  const [isExportBlockedDialogOpen, setIsExportBlockedDialogOpen] =
+    useState(false);
   const deleteBlocker = loaderData.deletion.blockers.at(0)?.code;
 
   return (
@@ -75,10 +79,13 @@ export function ChoreographyDetailRouteView({
       description="Revisá y/o modificá la información y el elenco de la coreografía registrada."
       headerAction={
         // Offered on a withdrawn choreography too, where `canEdit` is false
-        // for the whole page: `Eliminar` then opens the blocked dialog that
+        // for the whole page: each item then opens the blocked dialog that
         // says the withdrawal is final.
         loaderData.deletion.isOffered ? (
           <ChoreographyDetailActionsMenu
+            choreographyId={loaderData.choreography.id}
+            isWithdrawn={loaderData.choreography.isWithdrawn}
+            onBlockedExport={() => setIsExportBlockedDialogOpen(true)}
             onDelete={() => setIsDeleteDialogOpen(true)}
           />
         ) : null
@@ -106,17 +113,54 @@ export function ChoreographyDetailRouteView({
           title="No se puede eliminar la coreografía"
         />
       ) : null}
+
+      {loaderData.choreography.isWithdrawn ? (
+        <BlockedActionDialog
+          description="Una coreografía retirada no tiene bailarines inscriptos para exportar."
+          onOpenChange={setIsExportBlockedDialogOpen}
+          open={isExportBlockedDialogOpen}
+          reasons="Sus inscripciones se retiraron con ella."
+          reasonsTitle="La coreografía está retirada"
+          title="No se pueden exportar los bailarines"
+        />
+      ) : null}
     </AdminResourceLayout>
   );
 }
 
 /**
- * The header's one action. A blocked removal stays enabled and opens the
- * acknowledgment that says why (style guide, Detail pages).
+ * The header's actions. A blocked item stays enabled and opens the
+ * acknowledgment that says why (style guide, Detail pages). The export is a
+ * plain link, so the browser downloads the file instead of the router
+ * navigating to it.
  */
-function ChoreographyDetailActionsMenu({ onDelete }: { onDelete: () => void }) {
+function ChoreographyDetailActionsMenu({
+  choreographyId,
+  isWithdrawn,
+  onBlockedExport,
+  onDelete,
+}: {
+  choreographyId: string;
+  isWithdrawn: boolean;
+  onBlockedExport: () => void;
+  onDelete: () => void;
+}) {
   return (
     <ResourceActionsMenu contentClassName="w-52">
+      <DropdownMenuGroup>
+        {isWithdrawn ? (
+          <DropdownMenuItem onSelect={() => onBlockedExport()}>
+            Exportar bailarines
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem asChild>
+            <a href={choreographyDancersExportPath(choreographyId)}>
+              Exportar bailarines
+            </a>
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuGroup>
+      <DropdownMenuSeparator />
       <DropdownMenuGroup>
         <DropdownMenuItem variant="destructive" onSelect={() => onDelete()}>
           Eliminar

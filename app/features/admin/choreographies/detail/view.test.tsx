@@ -12,6 +12,7 @@ import {
   type ChoreographyDraftPreview,
 } from "@/features/admin/choreographies/detail/draft.shared";
 import type { ChoreographyDetailLoaderData } from "@/features/admin/choreographies/detail/server";
+import { choreographyDancersExportPath } from "@/features/admin/choreographies/dancers-export/shared";
 import {
   createReactDomTestRenderer,
   findButton,
@@ -505,6 +506,43 @@ describe("ChoreographyDetailRouteView", () => {
     expect(dialog?.textContent).toContain("La coreografía está retirada");
     expect(dialog?.textContent).not.toContain("La evaluación");
     expect(dialog?.querySelector('button[type="submit"]')).toBeNull();
+  });
+
+  test("downloads the choreography's dancers from the resource actions menu", async () => {
+    await renderDetailIntoDocument();
+
+    await openActionsMenu();
+    const item = Array.from(
+      document.querySelectorAll('[role="menuitem"]'),
+    ).find((candidate) => candidate.textContent === "Exportar bailarines");
+
+    // A plain link, so the browser downloads the file instead of the router
+    // navigating to it.
+    expect(item?.tagName).toBe("A");
+    expect(item?.getAttribute("href")).toBe(
+      choreographyDancersExportPath(buildChoreography().id),
+    );
+  });
+
+  test("answers `Exportar bailarines` on a withdrawn choreography with why", async () => {
+    await renderDetailIntoDocument({
+      loaderData: buildLoaderData({
+        canEdit: false,
+        choreography: buildChoreography({ isWithdrawn: true }),
+        deletion: withdrawnDeletion,
+      }),
+    });
+
+    await openActionsMenu();
+    await clickMenuItem("Exportar bailarines");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.querySelector("h2")?.textContent).toBe(
+      "No se pueden exportar los bailarines",
+    );
+    expect(dialog?.textContent).toContain("La coreografía está retirada");
+    expect(dialog?.querySelector("a")).toBeNull();
   });
 
   test("offers no actions to an auditor", async () => {
