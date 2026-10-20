@@ -11,9 +11,13 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatAmount } from "@/lib/finances/formatters";
+import { Badge } from "@/components/ui/badge";
+import { NOTA_CREDITO_C_CBTE_TIPO } from "@/lib/comprobantes/arca/factura-c";
 import {
+  comprobanteTipoBadgeVariant,
   formatComprobanteArcaDate,
   formatComprobanteNumber,
+  formatComprobanteTipoInitials,
   formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
 
@@ -28,7 +32,7 @@ export function FinancialDetailTabsPrototype({
 }) {
   return (
     <Tabs defaultValue="inscriptions">
-      <TabsList>
+      <TabsList variant="line">
         <TabsTrigger value="inscriptions">Inscripciones</TabsTrigger>
         <TabsTrigger value="comprobantes">
           Comprobantes ({comprobantes.length})
@@ -39,7 +43,7 @@ export function FinancialDetailTabsPrototype({
         {comprobantes.length === 0 ? (
           <AdminEmptyState
             title="Todavía no se emitió ningún comprobante"
-            description="Emitilo desde Acciones → Emitir factura cuando haya algo cobrado para facturar."
+            description="Podés hacerlo desde el menú de acciones cuando haya algo cobrado para facturar."
           />
         ) : (
           <ComprobantesTable comprobantes={comprobantes} />
@@ -54,14 +58,11 @@ function ComprobantesTable({
 }: {
   comprobantes: AnchorComprobanteRow[];
 }) {
-  const numbersById = new Map(
-    comprobantes.map((row) => [row.id, formatComprobanteNumber(row)]),
-  );
   const columns: DataTableColumn<AnchorComprobanteRow>[] = [
     {
       id: "numero",
-      header: "Comprobante",
-      width: 20,
+      header: "N.°",
+      width: 30,
       className: "font-medium tabular-nums",
       cell: (row) => (
         <DataTableLink
@@ -71,36 +72,40 @@ function ComprobantesTable({
           {formatComprobanteNumber(row)}
         </DataTableLink>
       ),
-      filterValue: (row) => formatComprobanteNumber(row),
     },
     {
       id: "tipo",
       header: "Tipo",
       width: 20,
-      cell: (row) => formatComprobanteTipoLabel(row.cbteTipo),
-    },
-    {
-      id: "asociado",
-      header: "Corrige a",
-      width: 20,
-      className: "tabular-nums",
-      cell: (row) =>
-        row.associatedComprobanteId === null
-          ? "—"
-          : (numbersById.get(row.associatedComprobanteId) ?? "—"),
+      cell: (row) => (
+        <Badge
+          variant={comprobanteTipoBadgeVariant(row.cbteTipo)}
+          title={formatComprobanteTipoLabel(row.cbteTipo)}
+        >
+          {formatComprobanteTipoInitials(row.cbteTipo)}
+        </Badge>
+      ),
     },
     {
       id: "fecha",
       header: "Fecha",
-      width: 20,
+      width: 25,
       cell: (row) => formatComprobanteArcaDate(row.cbteFch),
     },
     {
       id: "importe",
       header: "Importe",
-      width: 20,
+      width: 25,
       className: "text-right tabular-nums",
-      cell: (row) => formatAmount(row.impTotal),
+      headerClassName: "text-right",
+      // A credit note takes money off what the anchor billed, so it reads
+      // negative and the column reads as a statement.
+      cell: (row) =>
+        formatAmount(
+          row.cbteTipo === NOTA_CREDITO_C_CBTE_TIPO
+            ? -row.impTotal
+            : row.impTotal,
+        ),
     },
   ];
 
@@ -111,7 +116,8 @@ function ComprobantesTable({
         columns={columns}
         getRowKey={(row) => row.id}
         searchPlaceholder="Buscar por número"
-        textFilterColumnId="numero"
+        hideSearch
+        hidePagination
         emptyMessage="No hay comprobantes para mostrar."
       />
     </section>

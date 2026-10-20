@@ -49,7 +49,7 @@ type ComprobantesListRouteViewProps = {
 const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "numero",
-    header: "Comprobante",
+    header: "N.°",
     width: 15,
     className: "font-medium tabular-nums",
     cell: (row) => (
