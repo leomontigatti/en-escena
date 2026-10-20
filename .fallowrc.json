@@ -10,7 +10,10 @@
   // `shadcn` is a devDependency on purpose: its only production use is the
   // `@import "shadcn/tailwind.css"` in `app/app.css`, which Tailwind inlines at
   // build time, so nothing resolves it at runtime.
-  "ignoreDependencies": ["shadcn"],
+  // `@fontsource/montserrat` is read from disk, not imported: the certificate
+  // PDF embeds its static font files, which `pdf.server.ts` finds with
+  // `require.resolve` at runtime.
+  "ignoreDependencies": ["shadcn", "@fontsource/montserrat"],
   "ignoreExports": [
     {
       "file": "tests/db/fast-db.ts",
