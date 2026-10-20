@@ -1,3 +1,4 @@
+import { Download } from "lucide-react";
 import { Fragment, useState } from "react";
 import { Link } from "react-router";
 
@@ -14,9 +15,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { individualCertificatePath } from "@/features/individual/choreographies/certificate/shared";
 import { individualProfilePath } from "@/features/individual/shell/view";
 import { formatCategoryAndGroupType } from "@/lib/choreographies/classification";
 import type { IndividualLinkState } from "@/lib/individuals/link-state";
@@ -34,7 +37,8 @@ import type {
  * academy reads it. The table keeps the portal `Resultados` columns, which is
  * all a row has room for at 1280 px; the name opens the rest, how the
  * individual takes part and each judge's score (`ChoreographyDialog`). On a
- * phone each row is a card that holds it all.
+ * phone each row is a card that holds it all. Where the individual has a
+ * certificate, the dialog and the card end on `Descargar certificado`.
  */
 function buildChoreographyColumns(
   onOpen: (row: IndividualChoreographyRow) => void,
@@ -155,6 +159,11 @@ function ChoreographyDialog({
           </DialogDescription>
         </DialogHeader>
         {row ? <ChoreographyResult row={row} /> : null}
+        {row?.hasCertificate ? (
+          <DialogFooter>
+            <CertificateLink row={row} variant="default" />
+          </DialogFooter>
+        ) : null}
       </DialogContent>
     </Dialog>
   );
@@ -237,7 +246,36 @@ function IndividualChoreographyCard({
           {formatScores(row)}
         </p>
       ) : null}
+      {row.hasCertificate ? (
+        <CertificateLink row={row} variant="outline" />
+      ) : null}
     </>
+  );
+}
+
+/** The individual's own certificate, opened in a new tab. */
+function CertificateLink({
+  row,
+  variant,
+}: {
+  row: IndividualChoreographyRow;
+  variant: "default" | "outline";
+}) {
+  return (
+    <Button
+      asChild
+      variant={variant}
+      size={variant === "outline" ? "sm" : "default"}
+    >
+      <a
+        href={individualCertificatePath(row.choreographyId)}
+        target="_blank"
+        rel="noreferrer"
+      >
+        <Download aria-hidden="true" data-icon="inline-start" />
+        Descargar certificado
+      </a>
+    </Button>
   );
 }
 

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { FeedbackPlayback } from "@/features/judging/score/feedback-playback";
+import { PortalCertificatesActions } from "@/features/portal/presentations/certificates/view";
 import { formatScoreFieldValue } from "@/lib/judging/score-value";
 import type { SheetCriterion } from "@/lib/judging/sheet-total";
 
@@ -22,7 +23,8 @@ import type {
 
 /**
  * What the academy reads about one of its presentations: the award beside the
- * title, the average at the top right, and a card per judge with the score, the
+ * title, the average at the top right with `Acciones` beside it when the
+ * choreography issues certificates, and a card per judge with the score, the
  * sheet it came from and the `Devolución` to listen to.
  *
  * Nothing is decided here. Every judge on screen is one the loader kept, and a
@@ -60,15 +62,22 @@ export function PortalPresentationEvaluationView({
       }
       description={loaderData.details}
       action={
-        loaderData.average === null ? null : (
-          <p className="text-xl font-semibold tabular-nums">
-            {loaderData.average}
-            <span className="text-sm font-normal text-muted-foreground">
-              {" "}
-              / 100
-            </span>
-          </p>
-        )
+        <div className="flex items-center gap-4">
+          {loaderData.average === null ? null : (
+            <p className="text-xl font-semibold tabular-nums">
+              {loaderData.average}
+              <span className="text-sm font-normal text-muted-foreground">
+                {" "}
+                / 100
+              </span>
+            </p>
+          )}
+          <PortalCertificatesActions
+            choreographyId={loaderData.choreographyId}
+            choreographyName={loaderData.title}
+            recipients={loaderData.certificateRecipients}
+          />
+        </div>
       }
     >
       {loaderData.disqualified ? (

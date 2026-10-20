@@ -11,6 +11,7 @@ import {
   modalities,
   submodalities,
 } from "@/db/schema";
+import { readIndividualCertificates } from "@/features/individual/choreographies/certificate/server";
 import { requireIndividualUser } from "@/lib/auth/internal-access.server";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
@@ -55,6 +56,8 @@ export type IndividualChoreographyRow = {
   categoryName: string;
   choreographyId: string;
   groupType: ChoreographyGroupType;
+  /** Whether it offers `Descargar certificado`: its own, as a dancer. */
+  hasCertificate: boolean;
   modalityName: string;
   name: string;
   /** How the individual takes part: as a dancer, a professor or both. */
@@ -109,10 +112,34 @@ export async function loadIndividualChoreographies(
   const results = await readPublishedResults(
     choreographyRows.map((row) => row.choreographyId),
   );
+  const dancerIdSet = new Set(dancerIds);
+  const certificateIds = new Set(
+    (
+      await Promise.all(
+        choreographyRows
+          // Only a dancer with an award can have one: the rest are not asked.
+          .filter(
+            (row) =>
+              row.roles.includes("dancer") &&
+              results.get(row.choreographyId)?.award,
+          )
+          .map(async (row) =>
+            (await readIndividualCertificates({
+              choreographyId: row.choreographyId,
+              dancerIds: dancerIdSet,
+              eventId: activeEvent.id,
+            }))
+              ? [row.choreographyId]
+              : [],
+          ),
+      )
+    ).flat(),
+  );
 
   return {
     choreographies: choreographyRows.map((row) => ({
       ...row,
+      hasCertificate: certificateIds.has(row.choreographyId),
       result: results.get(row.choreographyId) ?? null,
     })),
     hasActiveEvent: true,
@@ -124,7 +151,7 @@ async function readTakingPartChoreographies(input: {
   dancerIds: string[];
   eventId: string;
   professorIds: string[];
-}): Promise<Omit<IndividualChoreographyRow, "result">[]> {
+}): Promise<Omit<IndividualChoreographyRow, "hasCertificate" | "result">[]> {
   if (input.dancerIds.length === 0 && input.professorIds.length === 0) {
     return [];
   }

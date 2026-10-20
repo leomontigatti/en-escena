@@ -93,6 +93,10 @@ describe("an academy's evaluation detail", () => {
     expect(loaderData.details).toContain("Solo");
     expect(loaderData.average).toBe(90);
     expect(loaderData.award).toBe("gold");
+    // Its seeded dancer, whose certificate the page offers.
+    expect(loaderData.certificateRecipients).toEqual([
+      { dancerId: expect.any(String), name: "Ana Paz" },
+    ]);
     expect(loaderData.judges).toEqual([
       {
         criteriaValues: {},
@@ -220,6 +224,7 @@ describe("an academy's evaluation detail", () => {
       criteria: [],
       disqualified: true,
       award: null,
+      certificateRecipients: [],
     });
     expect(loaderData.judges).toEqual([
       {

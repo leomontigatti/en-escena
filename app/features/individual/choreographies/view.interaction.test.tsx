@@ -102,6 +102,7 @@ function buildRow(
     categoryName: "Juvenil",
     choreographyId: `choreography_${overrides.name ?? "1"}`,
     groupType: "solo",
+    hasCertificate: false,
     modalityName: "Jazz",
     name: "Coreografía",
     result: null,
