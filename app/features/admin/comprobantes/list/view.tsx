@@ -82,10 +82,9 @@ const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "anchor",
     // One column for both anchors: a choreography reads as its name, a seminar
-    // as `Seminario {instructor}, {fecha}`. There is no kind facet — the reading
-    // already says which it is, and a two-value filter over a list scoped to one
-    // event earns nothing.
-    header: "Coreografía o seminario",
+    // as `Seminario {instructor}, {fecha}`. PROTOTYPE (#726): named `Origen`,
+    // with an `Origen` facet over the two kinds.
+    header: "Origen",
     width: 24,
     className: "text-muted-foreground",
     cell: (row) => {
@@ -174,6 +173,14 @@ const comprobanteFacetedFilters: DataTableFacetedFilter[] = [
       </Badge>
     ),
   },
+  {
+    id: "origen",
+    label: "Origen",
+    options: [
+      { label: "Coreografía", value: "coreografia" },
+      { label: "Seminario", value: "seminario" },
+    ],
+  },
 ];
 
 const emptyComprobantesList = describeEmptyList(
@@ -191,7 +198,8 @@ export function ComprobantesListRouteView({
     loaderData.hasAnyComprobante ||
     loaderData.filters.query.length > 0 ||
     loaderData.filters.status !== null ||
-    loaderData.filters.kind !== null;
+    loaderData.filters.kind !== null ||
+    loaderData.filters.origin !== null;
 
   return (
     <AdminResourceLayout
@@ -246,6 +254,10 @@ function buildInitialFacetedFilterValues(
 
   if (loaderData.filters.kind !== null) {
     filters.tipo = loaderData.filters.kind;
+  }
+
+  if (loaderData.filters.origin !== null) {
+    filters.origen = loaderData.filters.origin;
   }
 
   return {

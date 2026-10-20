@@ -1,4 +1,14 @@
-import { and, asc, desc, eq, exists, not, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  exists,
+  isNotNull,
+  not,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
@@ -52,6 +62,10 @@ export type ComprobantesListRow = {
 // label.
 export type ComprobanteKindFacet = "factura_c" | "nota_credito_c";
 
+// PROTOTYPE (#726): the `Origen` facet, which of the two anchor kinds a row
+// belongs to.
+export type ComprobanteOriginFacet = "coreografia" | "seminario";
+
 export type ComprobantesListOrder = {
   columnId: "fecha" | "numero";
   direction: "asc" | "desc";
@@ -60,6 +74,7 @@ export type ComprobantesListOrder = {
 export type ComprobantesListFilters = {
   kind: ComprobanteKindFacet | null;
   order: ComprobantesListOrder;
+  origin: ComprobanteOriginFacet | null;
   page: number;
   query: string;
   status: ComprobanteStatus | null;
@@ -196,6 +211,7 @@ export async function loadComprobantesList(
           ? null
           : comprobanteStatusSearchValues[normalizedFilters.status],
       tipo: normalizedFilters.kind,
+      origen: normalizedFilters.origin,
     },
     query: {
       order: normalizedFilters.order,
@@ -241,6 +257,7 @@ function readComprobantesListFilters(
   return {
     kind: readKind(searchParams.get("tipo")),
     order: listQuery.order,
+    origin: readOrigin(searchParams.get("origen")),
     page: listQuery.page,
     query: listQuery.search,
     status: readComprobanteStatusSearchValue(searchParams.get("estado")),
@@ -249,6 +266,10 @@ function readComprobantesListFilters(
 
 function readKind(value: string | null): ComprobanteKindFacet | null {
   return value === "factura_c" || value === "nota_credito_c" ? value : null;
+}
+
+function readOrigin(value: string | null): ComprobanteOriginFacet | null {
+  return value === "coreografia" || value === "seminario" ? value : null;
 }
 
 function buildComprobantesWhere(
@@ -280,6 +301,12 @@ function buildComprobantesWhere(
 
   if (filters.kind !== null) {
     conditions.push(eq(comprobantes.cbteTipo, kindToCbteTipo(filters.kind)));
+  }
+
+  if (filters.origin === "coreografia") {
+    conditions.push(isNotNull(comprobantes.choreographyId));
+  } else if (filters.origin === "seminario") {
+    conditions.push(isNotNull(comprobantes.seminarId));
   }
 
   return and(...conditions);

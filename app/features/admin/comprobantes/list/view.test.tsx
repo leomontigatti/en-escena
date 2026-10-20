@@ -39,6 +39,7 @@ function loaderData(
     filters: {
       kind: null,
       order: { columnId: "fecha", direction: "desc" },
+      origin: null,
       page: 1,
       query: "",
       status: null,
