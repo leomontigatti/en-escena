@@ -79,10 +79,10 @@ Tailscale ([Operator access](#operator-access)). Coolify documents `8000`, `6001
 dashboard reached by IP; with the domain in place they have been closed since
 2026-09-17. Nothing in the platform needs UDP.
 
-**A change of the operator's IP locks out the REST API, and nothing else**: SSH
-does not depend on it, `443` is open to anywhere, and the Coolify MCP endpoint
-is not gated by the API allowlist. Recovery is the instance's
-`Allowed IPs for API Access` under `Settings > Configuration > Advanced`.
+**A device missing from the API allowlist is locked out of the REST API, and
+nothing else**: SSH does not depend on it, and `443` is open to anywhere. The
+fix is the instance's `Allowed IPs for API Access` under
+`Settings > Configuration > Advanced`.
 
 #### Sentinel follows its own URL, not the instance URL
 
