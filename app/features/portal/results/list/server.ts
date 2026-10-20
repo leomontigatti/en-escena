@@ -1,3 +1,4 @@
+import { readPrototypeCertificateDancers } from "@/features/portal/certificates-prototype/server";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import type { Award } from "@/lib/judging/award";
 import { readPresentationResults } from "@/lib/judging/presentation-results.server";
@@ -23,6 +24,7 @@ export type PortalResultRow = ProgramListRow & {
   average: number | null;
   award: Award | null;
   disqualified: boolean;
+  prototypeDancers: { id: string; name: string }[];
 };
 
 export type PortalResultsLoaderData = {
@@ -66,6 +68,11 @@ export async function loadPortalResultsList(
     publishedRows.map((row) => row.choreographyId),
   );
 
+  // PROTOTYPE (#1652)
+  const prototypeDancers = await readPrototypeCertificateDancers(
+    publishedRows.map((row) => row.choreographyId),
+  );
+
   return {
     areResultsPublished: publication.publishedAt !== null,
     hasActiveEvent: true,
@@ -78,6 +85,9 @@ export async function loadPortalResultsList(
         average: result?.average ?? null,
         award: result?.award ?? null,
         disqualified: result?.disqualified ?? false,
+        prototypeDancers: result?.disqualified
+          ? []
+          : (prototypeDancers.get(row.choreographyId) ?? []),
       };
     }),
   };

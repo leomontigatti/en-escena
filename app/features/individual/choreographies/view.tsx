@@ -1,3 +1,4 @@
+import { Download, FileBadge } from "lucide-react";
 import { Fragment, useState } from "react";
 import { Link } from "react-router";
 
@@ -9,11 +10,21 @@ import {
   DataTableTruncatedText,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { PrototypeSwitcher } from "@/components/shared/prototype-switcher";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useCertificateVariant } from "@/features/portal/certificates-prototype/view";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -38,8 +49,9 @@ import type {
  */
 function buildChoreographyColumns(
   onOpen: (row: IndividualChoreographyRow) => void,
+  withCertificateColumn = false,
 ): DataTableColumn<IndividualChoreographyRow>[] {
-  return [
+  const columns: DataTableColumn<IndividualChoreographyRow>[] = [
     {
       id: "name",
       header: "Nombre",
@@ -82,6 +94,87 @@ function buildChoreographyColumns(
       cell: formatAverage,
     },
   ];
+
+  // PROTOTYPE (#1652): variant A's column.
+  return withCertificateColumn
+    ? [
+        ...columns,
+        {
+          id: "certificate",
+          header: "Certificado",
+          width: 10,
+          cell: (row) =>
+            hasCertificate(row) ? (
+              <Button type="button" variant="outline" size="sm">
+                <Download aria-hidden="true" data-icon="inline-start" />
+                Descargar
+              </Button>
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            ),
+        },
+      ]
+    : columns;
+}
+
+// PROTOTYPE (#1652). Individual variants, switched with `?variant=`:
+//   A — a `Certificado` column (and a button on the phone card);
+//   B — a button in the choreography dialog;
+//   C — a `Certificados` card above the table.
+const individualCertificateVariants = [
+  { key: "A", name: "Columna en la tabla" },
+  { key: "B", name: "Botón en el detalle" },
+  { key: "C", name: "Tarjeta Certificados" },
+  { key: "D", name: "Tarjeta en el teléfono + diálogo (elegida)" },
+] as const;
+
+function hasCertificate(row: IndividualChoreographyRow) {
+  return (
+    row.result !== null &&
+    !row.result.disqualified &&
+    row.roles.includes("dancer")
+  );
+}
+
+function CertificatesSection({ rows }: { rows: IndividualChoreographyRow[] }) {
+  const available = rows.filter(hasCertificate);
+  if (available.length === 0) {
+    return null;
+  }
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Certificados</CardTitle>
+        <CardDescription>
+          Uno por coreografía en la que bailaste, cuando se publica su
+          resultado.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ul className="divide-y">
+          {available.map((row) => (
+            <li
+              key={row.choreographyId}
+              className="flex flex-wrap items-center justify-between gap-3 py-2"
+            >
+              <span className="flex min-w-0 items-center gap-2 text-sm">
+                <FileBadge aria-hidden="true" className="size-4 shrink-0" />
+                <span className="font-medium">{row.name}</span>
+                <span className="text-muted-foreground">
+                  {row.academyName}
+                </span>
+                <ResultAward row={row} />
+              </span>
+              <Button type="button" variant="outline" size="sm">
+                <Download aria-hidden="true" data-icon="inline-start" />
+                Descargar
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function IndividualChoreographiesView({
@@ -93,6 +186,7 @@ export function IndividualChoreographiesView({
   const [openRow, setOpenRow] = useState<IndividualChoreographyRow | null>(
     null,
   );
+  const variant = useCertificateVariant();
 
   return (
     <PortalListPage
@@ -100,12 +194,15 @@ export function IndividualChoreographiesView({
       title="Coreografías"
       description="Consultá las coreografías del evento activo en las que participás, en cualquier academia, y su resultado cuando se publique."
     >
+      {!emptyState && variant === "C" ? (
+        <CertificatesSection rows={loaderData.choreographies} />
+      ) : null}
       {emptyState ? (
         <PortalEmptyState {...emptyState} />
       ) : (
         <ClientDataTable
           rows={loaderData.choreographies}
-          columns={buildChoreographyColumns(setOpenRow)}
+          columns={buildChoreographyColumns(setOpenRow, variant === "A")}
           getRowKey={(row) => row.choreographyId}
           layout="fit"
           matchesSearch={(row, search) => {
@@ -115,13 +212,23 @@ export function IndividualChoreographiesView({
               value.toLocaleLowerCase("es").includes(needle),
             );
           }}
-          renderCard={(row) => <IndividualChoreographyCard row={row} />}
+          renderCard={(row) => (
+            <IndividualChoreographyCard
+              row={row}
+              withCertificate={variant === "A" || variant === "D"}
+            />
+          )}
           searchPlaceholder="Buscar por nombre o academia"
           initialSort={{ columnId: "academy", direction: "asc" }}
           emptyMessage="No hay coreografías que coincidan con la búsqueda."
         />
       )}
-      <ChoreographyDialog row={openRow} onClose={() => setOpenRow(null)} />
+      <ChoreographyDialog
+        row={openRow}
+        onClose={() => setOpenRow(null)}
+        withCertificate={variant === "B" || variant === "D"}
+      />
+      <PrototypeSwitcher variants={individualCertificateVariants} />
     </PortalListPage>
   );
 }
@@ -134,9 +241,11 @@ export function IndividualChoreographiesView({
 function ChoreographyDialog({
   onClose,
   row,
+  withCertificate,
 }: {
   onClose: () => void;
   row: IndividualChoreographyRow | null;
+  withCertificate: boolean;
 }) {
   return (
     <Dialog
@@ -155,6 +264,14 @@ function ChoreographyDialog({
           </DialogDescription>
         </DialogHeader>
         {row ? <ChoreographyResult row={row} /> : null}
+        {row && withCertificate && hasCertificate(row) ? (
+          <DialogFooter>
+            <Button type="button">
+              <Download aria-hidden="true" data-icon="inline-start" />
+              Descargar certificado
+            </Button>
+          </DialogFooter>
+        ) : null}
       </DialogContent>
     </Dialog>
   );
@@ -208,8 +325,10 @@ function ChoreographyResult({ row }: { row: IndividualChoreographyRow }) {
 /** A row on a phone: what it is first, its result last. */
 function IndividualChoreographyCard({
   row,
+  withCertificate,
 }: {
   row: IndividualChoreographyRow;
+  withCertificate: boolean;
 }) {
   return (
     <>
@@ -236,6 +355,12 @@ function IndividualChoreographyCard({
         <p className="text-xs wrap-break-word text-muted-foreground tabular-nums">
           {formatScores(row)}
         </p>
+      ) : null}
+      {withCertificate && hasCertificate(row) ? (
+        <Button type="button" variant="outline" size="sm">
+          <Download aria-hidden="true" data-icon="inline-start" />
+          Descargar certificado
+        </Button>
       ) : null}
     </>
   );

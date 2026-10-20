@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographies, presentations, schedules } from "@/db/schema";
+import { readPrototypeCertificateDancers } from "@/features/portal/certificates-prototype/server";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   experienceLevelDisplayLabel,
@@ -48,6 +49,7 @@ export type PortalEvaluationJudge = {
 };
 
 export type PortalPresentationEvaluationLoaderData = {
+  prototypeDancers?: { id: string; name: string }[];
   /** Null for a disqualified presentation and when nothing counts. */
   average: number | null;
   /** Empty without a sheet and on a disqualified presentation. */
@@ -117,6 +119,12 @@ export async function loadPortalPresentationEvaluation(input: {
   }
 
   return {
+    // PROTOTYPE (#1652): who gets a certificate.
+    prototypeDancers: view.disqualified
+      ? []
+      : await readPrototypeCertificateDancers([choreographyId]).then(
+          (byId) => byId.get(choreographyId) ?? [],
+        ),
     average: view.average,
     criteria: view.disqualified ? [] : view.criteria,
     details: formatEvaluationDetails({

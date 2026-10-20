@@ -1,6 +1,15 @@
 import { TriangleAlert } from "lucide-react";
 
 import { PortalListPage } from "@/components/portal/ui";
+import { PrototypeSwitcher } from "@/components/shared/prototype-switcher";
+import {
+  CertificatesActions,
+  CertificatesCard,
+  CertificatesElsewhereNote,
+  CertificatesMenu,
+  certificateVariants,
+  useCertificateVariant,
+} from "@/features/portal/certificates-prototype/view";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AwardBadge } from "@/components/shared/award-badge";
 import {
@@ -46,6 +55,18 @@ export function PortalPresentationEvaluationView({
 }: {
   loaderData: PortalPresentationEvaluationLoaderData;
 }) {
+  const variant = useCertificateVariant();
+  const averageNode =
+    loaderData.average === null ? null : (
+      <p className="text-xl font-semibold tabular-nums">
+        {loaderData.average}
+        <span className="text-sm font-normal text-muted-foreground">
+          {" "}
+          / 100
+        </span>
+      </p>
+    );
+
   return (
     <PortalListPage
       titleId="evaluation-title"
@@ -60,14 +81,21 @@ export function PortalPresentationEvaluationView({
       }
       description={loaderData.details}
       action={
-        loaderData.average === null ? null : (
-          <p className="text-xl font-semibold tabular-nums">
-            {loaderData.average}
-            <span className="text-sm font-normal text-muted-foreground">
-              {" "}
-              / 100
-            </span>
-          </p>
+        variant === "D" ? (
+          <div className="flex items-center gap-4">
+            {averageNode}
+            <CertificatesActions
+              choreographyName={loaderData.title}
+              dancers={loaderData.prototypeDancers ?? []}
+            />
+          </div>
+        ) : variant === "B" ? (
+          <div className="flex items-center gap-4">
+            <CertificatesMenu dancers={loaderData.prototypeDancers ?? []} />
+            {averageNode}
+          </div>
+        ) : (
+          averageNode
         )
       }
     >
@@ -88,6 +116,12 @@ export function PortalPresentationEvaluationView({
         disqualified={loaderData.disqualified}
         judges={loaderData.judges}
       />
+
+      {variant === "A" ? (
+        <CertificatesCard dancers={loaderData.prototypeDancers ?? []} />
+      ) : null}
+      {variant === "C" ? <CertificatesElsewhereNote /> : null}
+      <PrototypeSwitcher variants={certificateVariants} />
     </PortalListPage>
   );
 }

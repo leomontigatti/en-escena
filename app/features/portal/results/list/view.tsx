@@ -1,5 +1,11 @@
 import { choreographyClassificationColumns } from "@/components/shared/choreography-classification-columns";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
+import { PrototypeSwitcher } from "@/components/shared/prototype-switcher";
+import {
+  CertificatesRowButton,
+  certificateVariants,
+  useCertificateVariant,
+} from "@/features/portal/certificates-prototype/view";
 import { AwardBadge } from "@/components/shared/award-badge";
 import {
   ClientDataTable,
@@ -74,6 +80,7 @@ export function PortalResultsListView({
   loaderData: PortalResultsLoaderData;
 }) {
   const emptyState = selectEmptyState(loaderData);
+  const variant = useCertificateVariant();
 
   return (
     <PortalListPage
@@ -84,13 +91,36 @@ export function PortalResultsListView({
       {emptyState ? (
         <PortalEmptyState {...emptyState} />
       ) : (
-        <PortalResultsList rows={loaderData.rows} />
+        <PortalResultsList
+          rows={loaderData.rows}
+          withCertificates={variant === "C"}
+        />
       )}
+      <PrototypeSwitcher variants={certificateVariants} />
     </PortalListPage>
   );
 }
 
-function PortalResultsList({ rows }: { rows: PortalResultRow[] }) {
+// PROTOTYPE (#1652): variant C's column.
+const certificatesColumn: DataTableColumn<PortalResultRow> = {
+  id: "certificates",
+  header: "Certificados",
+  width: 10,
+  cell: (row) => (
+    <CertificatesRowButton
+      choreographyName={row.name}
+      dancers={row.prototypeDancers}
+    />
+  ),
+};
+
+function PortalResultsList({
+  rows,
+  withCertificates,
+}: {
+  rows: PortalResultRow[];
+  withCertificates: boolean;
+}) {
   // As on the presentations page: the day narrows what is on screen, and is in
   // the URL so a reload or a shared link lands on it.
   const days = listProgramDays(rows);
@@ -101,7 +131,11 @@ function PortalResultsList({ rows }: { rows: PortalResultRow[] }) {
     <ScheduleDayTabs days={days} tab={tab}>
       <ClientDataTable
         rows={visibleRows}
-        columns={resultsColumns}
+        columns={
+          withCertificates
+            ? [...resultsColumns, certificatesColumn]
+            : resultsColumns
+        }
         getRowKey={(row) => row.choreographyId}
         layout="fit"
         matchesSearch={(row, search) =>
@@ -111,7 +145,17 @@ function PortalResultsList({ rows }: { rows: PortalResultRow[] }) {
             orderNumber: row.orderNumber,
           })
         }
-        renderCard={(row) => <PortalResultCard row={row} />}
+        renderCard={(row) => (
+          <>
+            <PortalResultCard row={row} />
+            {withCertificates ? (
+              <CertificatesRowButton
+                choreographyName={row.name}
+                dancers={row.prototypeDancers}
+              />
+            ) : null}
+          </>
+        )}
         searchPlaceholder="Buscar por número o nombre"
         initialSort={{ columnId: "orden", direction: "asc" }}
         emptyMessage="No hay resultados que coincidan con la búsqueda."
