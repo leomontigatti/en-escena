@@ -30,6 +30,23 @@ describe("SeminarFinanceDetailView", () => {
     );
   });
 
+  test("counts the unit's comprobantes on the tab beside the inscriptions", () => {
+    const markup = renderDetail({
+      comprobantes: [
+        {
+          cbteFch: "20260722",
+          cbteNro: 7,
+          cbteTipo: 11,
+          id: "fc_1",
+          impTotal: 3000,
+          ptoVta: 1,
+        },
+      ],
+    });
+
+    expect(tabLabels(markup)).toEqual(["Inscripciones", "Comprobantes (1)"]);
+  });
+
   test("renders the five metrics with the academy's available balance", () => {
     const markup = renderDetail();
 
@@ -95,6 +112,14 @@ describe("SeminarFinanceDetailView", () => {
   });
 });
 
+function tabLabels(markup: string) {
+  return [
+    ...new DOMParser()
+      .parseFromString(markup, "text/html")
+      .querySelectorAll('[role="tab"]'),
+  ].map((tab) => tab.textContent);
+}
+
 function columnHeaders(markup: string) {
   return [...(inscriptionsTable(markup)?.querySelectorAll("thead th") ?? [])]
     .map((header) => header.textContent?.trim() ?? "")
@@ -153,6 +178,7 @@ function loaderDataFixture(
       phone: "11-5555-5555",
     },
     availableBalanceAmount: 7000,
+    comprobantes: [],
     inscriptions: [inscriptionFixture()],
     invoicing: { billableAmount: 4000, canEmit: true },
     priceOptionsByInscription: {

@@ -1,5 +1,6 @@
 import { redirect } from "react-router";
 
+import { readAnchorComprobantes } from "@/features/admin/finances/anchor-comprobantes/server";
 import {
   readFinanceAcademy,
   readFinanceAcademyId,
@@ -7,6 +8,7 @@ import {
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
+import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import {
   getFacturaCEmissionDeps,
   resolveAnchorBillable,
@@ -73,6 +75,7 @@ export async function loadChoreographyFinanceDetail(input: {
       academy,
       availableBalanceAmount: 0,
       choreography: null,
+      comprobantes: [],
       inscriptions: [],
       priceOptions: [],
       selectedEventId: null,
@@ -92,16 +95,22 @@ export async function loadChoreographyFinanceDetail(input: {
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  const [inscriptionRows, effectivePrices, priceOptions, invoicing] =
-    await Promise.all([
-      readChoreographyInscriptionRows({
-        academyEventInscriptions: financeDetail.inscriptions,
-        choreographyId,
-      }),
-      readInscriptionEffectivePrices({ choreographyId, eventId }),
-      readInscriptionPriceOptions({ choreographyId, eventId }),
-      readChoreographyInvoicing(choreographyId),
-    ]);
+  const [
+    inscriptionRows,
+    effectivePrices,
+    priceOptions,
+    invoicing,
+    comprobantes,
+  ] = await Promise.all([
+    readChoreographyInscriptionRows({
+      academyEventInscriptions: financeDetail.inscriptions,
+      choreographyId,
+    }),
+    readInscriptionEffectivePrices({ choreographyId, eventId }),
+    readInscriptionPriceOptions({ choreographyId, eventId }),
+    readChoreographyInvoicing(choreographyId),
+    readAnchorComprobantes(choreographyAnchor(choreographyId)),
+  ]);
   // One price travels with the row: the **effective** one, what the inscription
   // is charged at. It is the figure the dialog reads out, the row the picker
   // opens on and the same one `basePriceAmount` carries, so nothing on this
@@ -123,6 +132,7 @@ export async function loadChoreographyFinanceDetail(input: {
     // every allocation made in this detail comes out of.
     availableBalanceAmount: financeDetail.summary.availableBalanceAmount,
     invoicing,
+    comprobantes,
     choreography: {
       allocatedAmount: choreographyFinanceRow.allocatedAmount,
       anomalies: choreographyFinanceRow.anomalies,

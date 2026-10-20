@@ -137,12 +137,16 @@ export function ClientDataTable<TData extends RowData>(
 
   // A page beyond the last one — reachable from a stale bookmark or a pasted
   // link — resolves to page one, so the reader sees rows instead of an empty
-  // table.
+  // table. A table with no pages shows every row whatever the page says, and
+  // the page in the address bar is another table's on the same screen, which
+  // it must leave alone.
+  const paginated = !props.hidePagination;
+
   useEffect(() => {
-    if (page > 1 && page > pageCount) {
+    if (paginated && page > 1 && page > pageCount) {
       setPage(1);
     }
-  }, [page, pageCount, setPage]);
+  }, [paginated, page, pageCount, setPage]);
 
   const getSelectedFilterValues = (columnId: string) => {
     const filterValue = table.getColumn(columnId)?.getFilterValue();

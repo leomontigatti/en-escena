@@ -149,6 +149,25 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(markup).not.toContain("/administracion/comprobantes/");
   });
 
+  // The evidence that a comprobante exists, even once nothing is left to
+  // invoice and the actions menu is gone.
+  test("counts the choreography's comprobantes on the tab beside the inscriptions", () => {
+    const markup = renderDetail({
+      comprobantes: [
+        {
+          cbteFch: "20260722",
+          cbteNro: 7,
+          cbteTipo: 11,
+          id: "fc_1",
+          impTotal: 3000,
+          ptoVta: 1,
+        },
+      ],
+    });
+
+    expect(tabLabels(markup)).toEqual(["Inscripciones", "Comprobantes (1)"]);
+  });
+
   test("sums the deposit and balance into the Total card", () => {
     // depositAmount 3000 + balanceAmount 7000 = 10.000.
     const markup = renderDetail();
@@ -275,6 +294,14 @@ function inscriptionsTable(markup: string) {
   return document.querySelector('[aria-label="Inscripciones"] table');
 }
 
+function tabLabels(markup: string) {
+  return [
+    ...new DOMParser()
+      .parseFromString(markup, "text/html")
+      .querySelectorAll('[role="tab"]'),
+  ].map((tab) => tab.textContent);
+}
+
 function columnHeaders(markup: string) {
   return [
     ...(inscriptionsTable(markup)?.querySelectorAll("thead th") ?? []),
@@ -363,6 +390,7 @@ function loaderDataFixture(
       phone: "11-5555-5555",
     },
     availableBalanceAmount: 5000,
+    comprobantes: [],
     choreography: choreographyFixture(),
     inscriptions: [inscriptionFixture({ financialStatus: "depositMet" })],
     invoicing: invoicingFixture(),

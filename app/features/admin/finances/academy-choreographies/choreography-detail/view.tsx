@@ -29,6 +29,7 @@ import {
   inscriptionFinanceFacetedFilters,
 } from "@/lib/finances/inscription-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
+import { FinancialDetailTabs } from "@/features/admin/finances/anchor-comprobantes/tabs";
 import { NothingToBillDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
 import { InscriptionMoneyDialog } from "@/features/admin/finances/inscription-money/dialog";
@@ -114,9 +115,14 @@ export function ChoreographyFinanceDetailView({
             totalAmount={choreography.totalAmount}
           />
 
-          <InscriptionsTable
-            inscriptions={loaderData.inscriptions}
-            priceOptions={loaderData.priceOptions}
+          <FinancialDetailTabs
+            comprobantes={loaderData.comprobantes}
+            inscriptions={
+              <InscriptionsTable
+                inscriptions={loaderData.inscriptions}
+                priceOptions={loaderData.priceOptions}
+              />
+            }
           />
         </div>
       ) : (
