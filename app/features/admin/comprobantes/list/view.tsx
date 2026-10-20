@@ -33,7 +33,10 @@ import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { ComprobanteStatusBadge } from "@/components/shared/comprobante-status-badge";
 import type { ComprobantesListRow, ComprobantesListLoaderData } from "./server";
-import { comprobanteStatusSearchValues } from "./shared";
+import {
+  comprobanteAnchorKindSearchValues,
+  comprobanteStatusSearchValues,
+} from "./shared";
 
 type ComprobantesListRouteViewProps = {
   loaderData: ComprobantesListLoaderData;
@@ -41,15 +44,15 @@ type ComprobantesListRouteViewProps = {
 
 // A read-only global list, paginated/sorted/filtered on the server (ADR-0011,
 // #483). Fixed column order:
-// `# · Tipo · Academia · Coreografía o seminario · Estado · Fecha · Importe`.
-// Only `Comprobante` (the number) and `Fecha` are sortable (`sortValue` enables
+// `N.° · Tipo · Academia · Origen · Estado · Fecha · Importe`.
+// Only `N.°` (the number) and `Fecha` are sortable (`sortValue` enables
 // the header). The number links to the comprobante detail and the anchor to its
 // financial detail — the choreography's or the `(seminar, academy)` unit's;
 // there is no CAE column and no inline actions (print/annul live in the detail).
 const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "numero",
-    header: "Comprobante",
+    header: "N.°",
     width: 15,
     className: "font-medium tabular-nums",
     cell: (row) => (
@@ -81,11 +84,10 @@ const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   },
   {
     id: "anchor",
-    // One column for both anchors: a choreography reads as its name, a seminar
-    // as `Seminario {instructor}, {fecha}`. There is no kind facet — the reading
-    // already says which it is, and a two-value filter over a list scoped to one
-    // event earns nothing.
-    header: "Coreografía o seminario",
+    // One column for both anchors, the comprobante's `Origen`: a choreography
+    // reads as its name, a seminar as `Seminario {instructor}, {fecha}`. The
+    // `Origen` facet narrows the list to one kind.
+    header: "Origen",
     width: 24,
     className: "text-muted-foreground",
     cell: (row) => {
@@ -174,6 +176,17 @@ const comprobanteFacetedFilters: DataTableFacetedFilter[] = [
       </Badge>
     ),
   },
+  {
+    id: "origen",
+    label: "Origen",
+    options: [
+      {
+        label: "Coreografía",
+        value: comprobanteAnchorKindSearchValues.choreography,
+      },
+      { label: "Seminario", value: comprobanteAnchorKindSearchValues.seminar },
+    ],
+  },
 ];
 
 const emptyComprobantesList = describeEmptyList(
@@ -191,7 +204,8 @@ export function ComprobantesListRouteView({
     loaderData.hasAnyComprobante ||
     loaderData.filters.query.length > 0 ||
     loaderData.filters.status !== null ||
-    loaderData.filters.kind !== null;
+    loaderData.filters.kind !== null ||
+    loaderData.filters.anchorKind !== null;
 
   return (
     <AdminResourceLayout
@@ -246,6 +260,11 @@ function buildInitialFacetedFilterValues(
 
   if (loaderData.filters.kind !== null) {
     filters.tipo = loaderData.filters.kind;
+  }
+
+  if (loaderData.filters.anchorKind !== null) {
+    filters.origen =
+      comprobanteAnchorKindSearchValues[loaderData.filters.anchorKind];
   }
 
   return {

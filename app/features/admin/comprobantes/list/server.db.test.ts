@@ -333,6 +333,48 @@ describe("loadComprobantesList", () => {
     expect(facturas.rows.map((row) => row.id)).toEqual([factura.id]);
   });
 
+  test("filters by `Origen`: `coreografia` keeps the choreography anchors, `seminario` the seminar ones", async () => {
+    const event = await createEventRecord({ active: true });
+    const catalog = await createEventCatalog(event.id);
+    const alfa = await seedChoreography({
+      academyName: "Academia Alfa",
+      catalog,
+      email: `alfa.${crypto.randomUUID()}@example.com`,
+      eventId: event.id,
+      name: "Coreografía Alfa",
+    });
+    const choreographyInvoice = await recordComprobante(
+      facturaCInput({
+        choreographyId: alfa.choreography.id,
+        eventId: event.id,
+        cbteNro: 1,
+      }),
+    );
+    const seminarUnit = await seedSeminarComprobante({
+      academyName: "Academia Seminario",
+      email: `seminario.${crypto.randomUUID()}@example.com`,
+      eventId: event.id,
+      instructorName: "Abril Sosa",
+    });
+
+    const choreographyOnly = await loadComprobantesList(
+      await signedInAdminRequest("?origen=coreografia"),
+    );
+    const seminarOnly = await loadComprobantesList(
+      await signedInAdminRequest("?origen=seminario"),
+    );
+
+    expect(choreographyOnly.filters.anchorKind).toBe("choreography");
+    expect(choreographyOnly.rows.map((row) => row.id)).toEqual([
+      choreographyInvoice.id,
+    ]);
+    expect(seminarOnly.filters.anchorKind).toBe("seminar");
+    expect(seminarOnly.rows.map((row) => row.id)).toEqual([
+      seminarUnit.comprobante.id,
+    ]);
+    expect(seminarOnly.totalCount).toBe(1);
+  });
+
   test("searches by academy, choreography and comprobante number", async () => {
     const event = await createEventRecord({ active: true });
     const catalog = await createEventCatalog(event.id);
@@ -443,6 +485,22 @@ describe("loadComprobantesList", () => {
     expect(response.headers.get("Location")).toBe(
       "/administracion/comprobantes?estado=vigente",
     );
+  });
+
+  test("keeps a known `Origen` in the canonical URL and drops an unknown one", async () => {
+    await createEventRecord({ active: true });
+
+    const unknown = await expectThrownResponse(
+      loadComprobantesList(await signedInAdminRequest("?origen=academia")),
+    );
+    const known = await loadComprobantesList(
+      await signedInAdminRequest("?origen=seminario"),
+    );
+
+    expect(unknown.headers.get("Location")).toBe(
+      "/administracion/comprobantes",
+    );
+    expect(known.filters.anchorKind).toBe("seminar");
   });
 
   test("reads a seminar comprobante by its anchor and finds it by instructor name", async () => {

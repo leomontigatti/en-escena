@@ -1020,8 +1020,12 @@ settled model:
   detail's `Seña` and `Saldo` metric cards carry **no** badge and **no** link to
   a comprobante: the `Vigente` / `Desactualizada` pair they used to carry read a
   `porción` — which valid invoice covered it and whether new money had landed
-  inside it — and went with the field. A choreography's comprobantes are reached
-  from the global list, which searches by choreography name.
+  inside it — and went with the field. Each financial detail, the
+  choreography's and the `(seminar, academy)` one, names its comprobantes on a
+  `Comprobantes (n)` tab beside `Inscripciones`, newest first, with no status:
+  number (linking to the comprobante), type, date and amount, a credit note
+  reading negative. The count is what shows that something was issued once
+  nothing is left to invoice and the header menu is gone.
 - **`Anular comprobante` exists** as an action on the comprobante detail. It
   emits a mirror **credit note** for the target's full amount, replicating
   its lines and pointing at it. A unique index caps a
@@ -1058,10 +1062,11 @@ settled model:
   The printed receptor block is `{academia} — {unidad}` and the single detail
   line stays the constant `Inscripción` on both kinds, since the receptor block
   already names what was sold. The global comprobante list holds both kinds in
-  one `Coreografía o seminario` column, each reading linking to its unit's
-  financial detail, and the search matches the academy's name, the
-  choreography's name, the **instructor's** name and the fiscal number; there is
-  **no kind facet** — the reading already says which kind it is. The portal
+  one list, because ARCA numbers them in one sequence an auditor reads unbroken:
+  one `Origen` column, each reading linking to its unit's financial detail, an
+  `Origen` facet (`Coreografía` / `Seminario`) narrowing it to one kind, and a
+  search matching the academy's name, the choreography's name, the
+  **instructor's** name and the fiscal number. The portal
   shows no comprobante for either kind. The ADR-0014 §5 model stays the target
   for **both** kinds under
   [#657](https://github.com/leomontigatti/en-escena/issues/657).
@@ -1197,7 +1202,7 @@ disponible`, because unallocated money is each academy's pool.
   detail.
 - The admin **`(seminar, academy)` financial detail** is titled by the
   instructor alone and is the choreography one's twin: the five metrics, the
-  inscriptions table with `Precio` showing the effective row's name and **no
+  `Inscripciones` / `Comprobantes (n)` tabs, the inscriptions table with `Precio` showing the effective row's name and **no
   `Tipo` column**, the `Retirada` rows with what they retained, and the money
   dialog behind the person's name. It carries a non-blocking `info` notice while
   covered and reserved inscriptions fill the seminar's quota. A row holding a

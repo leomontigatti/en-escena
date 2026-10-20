@@ -14,6 +14,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { FinancialDetailTabs } from "@/features/admin/finances/anchor-comprobantes/tabs";
 import { NothingToBillDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
 import { IndividualPersonBadge } from "@/features/admin/finances/individual-person-badge";
@@ -87,9 +88,14 @@ export function SeminarFinanceDetailView({
             totalAmount={seminar.totalAmount}
           />
 
-          <InscriptionsTable
-            inscriptions={loaderData.inscriptions}
-            priceOptionsByInscription={loaderData.priceOptionsByInscription}
+          <FinancialDetailTabs
+            comprobantes={loaderData.comprobantes}
+            inscriptions={
+              <InscriptionsTable
+                inscriptions={loaderData.inscriptions}
+                priceOptionsByInscription={loaderData.priceOptionsByInscription}
+              />
+            }
           />
         </div>
       ) : (

@@ -1240,6 +1240,7 @@ function loaderDataFixture(
       phone: "11-5555-5555",
     },
     availableBalanceAmount: 5000,
+    comprobantes: [],
     choreography: {
       allocatedAmount: 3000,
       anomalies: [],

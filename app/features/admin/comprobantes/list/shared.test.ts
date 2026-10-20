@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   comprobanteStatusSearchValues,
+  readComprobanteAnchorKindSearchValue,
   readComprobanteStatusSearchValue,
 } from "./shared";
 
@@ -23,5 +24,13 @@ describe("the `estado` filter's URL values", () => {
     expect(readComprobanteStatusSearchValue(null)).toBeNull();
     expect(readComprobanteStatusSearchValue("vencida")).toBeNull();
     expect(readComprobanteStatusSearchValue("valid")).toBeNull();
+  });
+});
+
+describe("the `origen` filter's URL values", () => {
+  test("read an absent or unknown value, or the English kind itself, as no filter", () => {
+    expect(readComprobanteAnchorKindSearchValue(null)).toBeNull();
+    expect(readComprobanteAnchorKindSearchValue("academia")).toBeNull();
+    expect(readComprobanteAnchorKindSearchValue("seminar")).toBeNull();
   });
 });
