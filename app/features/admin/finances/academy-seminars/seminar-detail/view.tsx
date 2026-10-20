@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { CircleAlert, Info, TriangleAlert } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
@@ -129,6 +130,14 @@ function SeminarActions({ loaderData }: SeminarFinanceDetailViewProps) {
           }
         >
           Emitir factura
+        </DropdownMenuItem>
+        {/* PROTOTYPE (#726): the global list filtered to this seminar. */}
+        <DropdownMenuItem asChild>
+          <Link
+            to={`/administracion/comprobantes?busqueda=${encodeURIComponent(loaderData.seminar?.instructorName ?? "")}`}
+          >
+            Ver comprobantes
+          </Link>
         </DropdownMenuItem>
       </ResourceActionsMenu>
       <NothingToBillDialog

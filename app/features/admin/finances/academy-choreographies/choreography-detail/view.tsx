@@ -1,6 +1,6 @@
 import { CircleAlert, TriangleAlert } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { useFetcher } from "react-router";
+import { Link, useFetcher } from "react-router";
 
 import {
   AdminEmptyState,
@@ -230,6 +230,14 @@ function ChoreographyActions({
           }}
         >
           Emitir factura
+        </DropdownMenuItem>
+        {/* PROTOTYPE (#726): the global list filtered to this choreography. */}
+        <DropdownMenuItem asChild>
+          <Link
+            to={`/administracion/comprobantes?busqueda=${encodeURIComponent(loaderData.choreography?.name ?? "")}`}
+          >
+            Ver comprobantes
+          </Link>
         </DropdownMenuItem>
         {waiver.allWaived ? (
           <>
