@@ -110,6 +110,7 @@ function loaderDataFixture(
       phone: "11-5555-5555",
     },
     availableBalanceAmount: 7000,
+    comprobantes: [],
     inscriptions: [],
     invoicing: { billableAmount: 4000, canEmit: true },
     priceOptionsByInscription: {},

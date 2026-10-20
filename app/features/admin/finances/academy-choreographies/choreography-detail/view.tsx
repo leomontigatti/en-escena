@@ -1,6 +1,6 @@
 import { CircleAlert, TriangleAlert } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { Link, useFetcher } from "react-router";
+import { useFetcher } from "react-router";
 
 import {
   AdminEmptyState,
@@ -29,6 +29,7 @@ import {
   inscriptionFinanceFacetedFilters,
 } from "@/lib/finances/inscription-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
+import { FinancialDetailTabsPrototype } from "@/features/admin/finances/comprobante-emission/anchor-comprobantes.prototype";
 import { NothingToBillDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
 import { InscriptionMoneyDialog } from "@/features/admin/finances/inscription-money/dialog";
@@ -114,9 +115,14 @@ export function ChoreographyFinanceDetailView({
             totalAmount={choreography.totalAmount}
           />
 
-          <InscriptionsTable
-            inscriptions={loaderData.inscriptions}
-            priceOptions={loaderData.priceOptions}
+          <FinancialDetailTabsPrototype
+            comprobantes={loaderData.comprobantes}
+            inscriptions={
+              <InscriptionsTable
+                inscriptions={loaderData.inscriptions}
+                priceOptions={loaderData.priceOptions}
+              />
+            }
           />
         </div>
       ) : (
@@ -230,14 +236,6 @@ function ChoreographyActions({
           }}
         >
           Emitir factura
-        </DropdownMenuItem>
-        {/* PROTOTYPE (#726): the global list filtered to this choreography. */}
-        <DropdownMenuItem asChild>
-          <Link
-            to={`/administracion/comprobantes?busqueda=${encodeURIComponent(loaderData.choreography?.name ?? "")}`}
-          >
-            Ver comprobantes
-          </Link>
         </DropdownMenuItem>
         {waiver.allWaived ? (
           <>

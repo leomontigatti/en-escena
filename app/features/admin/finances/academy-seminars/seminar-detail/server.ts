@@ -1,5 +1,6 @@
 import { redirect } from "react-router";
 
+import { readAnchorComprobantesPrototype } from "@/features/admin/finances/comprobante-emission/anchor-comprobantes.prototype.server";
 import { runSeminarInscriptionMoneyIntent } from "@/features/admin/finances/inscription-money/seminar-money-action.server";
 import {
   readFinanceAcademy,
@@ -63,6 +64,7 @@ export async function loadSeminarFinanceDetail(input: {
     return {
       academy,
       availableBalanceAmount: 0,
+      comprobantes: [],
       inscriptions: [],
       invoicing: { billableAmount: 0, canEmit: false },
       priceOptionsByInscription: {} as Record<
@@ -87,14 +89,14 @@ export async function loadSeminarFinanceDetail(input: {
     throw new Response(seminarNotFoundMessage, { status: 404 });
   }
 
-  const [inscriptions, priceOptions, seminarRow, invoicing] = await Promise.all(
-    [
+  const [inscriptions, priceOptions, seminarRow, invoicing, comprobantes] =
+    await Promise.all([
       readSeminarInscriptionFinanceRows({ academyId, eventId, seminarId }),
       readSeminarInscriptionPriceOptions({ eventId, seminarId }),
       getSeminar(seminarId),
       readSeminarInvoicing(seminarId, academyId),
-    ],
-  );
+      readAnchorComprobantesPrototype(seminarAnchor(seminarId, academyId)),
+    ]);
 
   return {
     academy,
@@ -102,6 +104,7 @@ export async function loadSeminarFinanceDetail(input: {
     // belongs to neither, and it is the pool the allocations made here come out
     // of.
     availableBalanceAmount: financeDetail.summary.availableBalanceAmount,
+    comprobantes,
     inscriptions,
     invoicing,
     // A plain object rather than the `Map` the reader answers: it has to survive

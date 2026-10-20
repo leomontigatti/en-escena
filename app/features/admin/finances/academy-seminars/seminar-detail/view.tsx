@@ -1,4 +1,3 @@
-import { Link } from "react-router";
 import { CircleAlert, Info, TriangleAlert } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
@@ -15,6 +14,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { FinancialDetailTabsPrototype } from "@/features/admin/finances/comprobante-emission/anchor-comprobantes.prototype";
 import { NothingToBillDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
 import { IndividualPersonBadge } from "@/features/admin/finances/individual-person-badge";
@@ -88,9 +88,14 @@ export function SeminarFinanceDetailView({
             totalAmount={seminar.totalAmount}
           />
 
-          <InscriptionsTable
-            inscriptions={loaderData.inscriptions}
-            priceOptionsByInscription={loaderData.priceOptionsByInscription}
+          <FinancialDetailTabsPrototype
+            comprobantes={loaderData.comprobantes}
+            inscriptions={
+              <InscriptionsTable
+                inscriptions={loaderData.inscriptions}
+                priceOptionsByInscription={loaderData.priceOptionsByInscription}
+              />
+            }
           />
         </div>
       ) : (
@@ -130,14 +135,6 @@ function SeminarActions({ loaderData }: SeminarFinanceDetailViewProps) {
           }
         >
           Emitir factura
-        </DropdownMenuItem>
-        {/* PROTOTYPE (#726): the global list filtered to this seminar. */}
-        <DropdownMenuItem asChild>
-          <Link
-            to={`/administracion/comprobantes?busqueda=${encodeURIComponent(loaderData.seminar?.instructorName ?? "")}`}
-          >
-            Ver comprobantes
-          </Link>
         </DropdownMenuItem>
       </ResourceActionsMenu>
       <NothingToBillDialog

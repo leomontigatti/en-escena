@@ -363,6 +363,7 @@ function loaderDataFixture(
       phone: "11-5555-5555",
     },
     availableBalanceAmount: 5000,
+    comprobantes: [],
     choreography: choreographyFixture(),
     inscriptions: [inscriptionFixture({ financialStatus: "depositMet" })],
     invoicing: invoicingFixture(),
