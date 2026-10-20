@@ -46,10 +46,9 @@ type ComprobanteDetailRouteViewProps = {
 
 /**
  * Detail view of a comprobante (ADR-0011): it hosts the fiscal snapshot's data
- * and the actions menu (the invoiced unit, print, annul). The number on the global list is now its
- * ONLY entry point — the choreography financial detail's amount cards used to
- * link here through the `porción` badges, and both went with the field, which is
- * the navigation cost #723 took knowingly. Annulment lives here, next to the
+ * and the actions menu (the invoiced unit, print, annul). It is reached by its
+ * number, on the global list and on the `Comprobantes` tab of its unit's
+ * financial detail. Annulment lives here, next to the
  * comprobante it affects, and is confirmed with an `AlertDialog` whose copy
  * tells the truth: the real way out is a credit note.
  */

@@ -37,6 +37,7 @@ function loaderData(
 
   return {
     filters: {
+      anchorKind: null,
       kind: null,
       order: { columnId: "fecha", direction: "desc" },
       page: 1,

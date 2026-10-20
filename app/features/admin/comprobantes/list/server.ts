@@ -1,9 +1,20 @@
-import { and, asc, desc, eq, exists, not, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  exists,
+  isNotNull,
+  not,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
 import { academies, choreographies, comprobantes, seminars } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
+import type { ComprobanteAnchor } from "@/lib/comprobantes/anchor";
 import { readAnchorFromJoins } from "@/lib/comprobantes/anchor-context.server";
 import type { ComprobanteAnchorReading } from "@/lib/comprobantes/anchor-reading";
 import {
@@ -25,7 +36,9 @@ import {
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 import {
+  comprobanteAnchorKindSearchValues,
   comprobanteStatusSearchValues,
+  readComprobanteAnchorKindSearchValue,
   readComprobanteStatusSearchValue,
 } from "./shared";
 
@@ -58,6 +71,8 @@ export type ComprobantesListOrder = {
 };
 
 export type ComprobantesListFilters = {
+  // The `Origen` facet: which kind of anchor the comprobante belongs to.
+  anchorKind: ComprobanteAnchor["kind"] | null;
   kind: ComprobanteKindFacet | null;
   order: ComprobantesListOrder;
   page: number;
@@ -196,6 +211,10 @@ export async function loadComprobantesList(
           ? null
           : comprobanteStatusSearchValues[normalizedFilters.status],
       tipo: normalizedFilters.kind,
+      origen:
+        normalizedFilters.anchorKind === null
+          ? null
+          : comprobanteAnchorKindSearchValues[normalizedFilters.anchorKind],
     },
     query: {
       order: normalizedFilters.order,
@@ -239,6 +258,9 @@ function readComprobantesListFilters(
   const listQuery = readListQuery(searchParams, comprobantesListSpec);
 
   return {
+    anchorKind: readComprobanteAnchorKindSearchValue(
+      searchParams.get("origen"),
+    ),
     kind: readKind(searchParams.get("tipo")),
     order: listQuery.order,
     page: listQuery.page,
@@ -280,6 +302,14 @@ function buildComprobantesWhere(
 
   if (filters.kind !== null) {
     conditions.push(eq(comprobantes.cbteTipo, kindToCbteTipo(filters.kind)));
+  }
+
+  // The root's CHECK sets exactly one anchor column, so the one that is set
+  // says the kind.
+  if (filters.anchorKind === "choreography") {
+    conditions.push(isNotNull(comprobantes.choreographyId));
+  } else if (filters.anchorKind === "seminar") {
+    conditions.push(isNotNull(comprobantes.seminarId));
   }
 
   return and(...conditions);

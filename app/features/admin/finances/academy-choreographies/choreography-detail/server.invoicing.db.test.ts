@@ -765,3 +765,64 @@ describe("financial detail — comprobante emission axis", () => {
     expect(stored).toHaveLength(0);
   });
 });
+
+describe("financial detail — the comprobantes tab", () => {
+  test("lists no comprobante for a choreography never invoiced", async () => {
+    const seeded = await seedChoreographyWithPaidInscription({
+      academyName: "Academia Sin Comprobantes",
+      choreographyName: "Coreografía sin comprobantes",
+      email: "academia.sin.comprobantes@example.com",
+      paidAmount: 3000,
+    });
+
+    const loaderData = await loadDetail(seeded);
+
+    expect(loaderData.comprobantes).toEqual([]);
+  });
+
+  test("lists every comprobante of the choreography, newest first", async () => {
+    const seeded = await seedChoreographyWithPaidInscription({
+      academyName: "Academia Con Comprobantes",
+      choreographyName: "Coreografía con comprobantes",
+      email: "academia.con.comprobantes@example.com",
+      paidAmount: 3000,
+    });
+    // Same day for both: the credit note is still the newer one.
+    const invoice = await recordValidInvoice({
+      choreographyId: seeded.choreographyId,
+      eventId: seeded.eventId,
+      inscriptionId: seeded.inscriptionId,
+      amount: 3000,
+      cbteNro: 7,
+    });
+    const creditNote = await recordNotaCredito({
+      choreographyId: seeded.choreographyId,
+      eventId: seeded.eventId,
+      inscriptionId: seeded.inscriptionId,
+      amount: 3000,
+      cbteNro: 1,
+      associatedComprobanteId: invoice.id,
+    });
+
+    const loaderData = await loadDetail(seeded);
+
+    expect(loaderData.comprobantes).toEqual([
+      {
+        cbteFch: "20260722",
+        cbteNro: 1,
+        cbteTipo: NOTA_CREDITO_C_CBTE_TIPO,
+        id: creditNote.id,
+        impTotal: 3000,
+        ptoVta: 1,
+      },
+      {
+        cbteFch: "20260722",
+        cbteNro: 7,
+        cbteTipo: FACTURA_C_CBTE_TIPO,
+        id: invoice.id,
+        impTotal: 3000,
+        ptoVta: 1,
+      },
+    ]);
+  });
+});

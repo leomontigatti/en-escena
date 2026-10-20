@@ -56,7 +56,7 @@ export const waivedStatusFilterOption = {
 } as const satisfies { label: string; value: InscriptionFinancialStatus };
 
 /**
- * `Retirada` is a separate derived axis —like `Facturada`—, not a fourth value
+ * `Retirada` is a separate derived axis, not a fourth value
  * of the status enum, so it has its own label and its own variant. Neutral on
  * purpose: a withdrawn inscription is not asking anyone to do anything, it only
  * says that the money sitting on it was retained.
