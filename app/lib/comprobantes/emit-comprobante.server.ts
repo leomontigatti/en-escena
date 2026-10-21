@@ -3,14 +3,16 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { choreographies, events, seminars } from "@/db/schema";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
+import { deriveRetainedAmount } from "@/lib/finances/inscription-financial-status";
 import { readChoreographyUnitFinance } from "@/lib/finances/operational-summary.server";
 import { readSeminarUnitFinance } from "@/lib/finances/seminar-operational-summary.server";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 import { ArcaClient, getArcaClient } from "./arca/client.server";
-import type {
-  ArcaAttemptedVoucher,
-  ArcaContingencySubject,
+import {
+  buildUnverifiedMessage,
+  type ArcaAttemptedVoucher,
+  type ArcaContingencySubject,
 } from "./arca/contingency.server";
 import {
   emitWithContingency,
@@ -43,7 +45,7 @@ import {
   type ComprobanteWithLines,
 } from "./comprobantes.server";
 import {
-  describeEmissionRefusal,
+  emissionRefusalLabel,
   planAnchorEmission,
   type DocumentedComprobante,
   type EmissionPlan,
@@ -51,7 +53,7 @@ import {
   type OwedInscription,
   type PlannedLine,
 } from "./emission-plan";
-import { comprobanteKindCbteTipo } from "./kind";
+import { comprobanteKindCbteTipo, type KnownComprobanteKind } from "./kind";
 
 type ComprobanteRow = Awaited<ReturnType<typeof recordComprobante>>;
 
@@ -79,10 +81,23 @@ export type ComprobanteEmissionInput = {
   eventId: string;
 };
 
+// The document the operator saw and confirmed. The plan made under the lock
+// must still be it: the kind can flip between the preview and the click, and
+// what ARCA authorizes cannot be taken back.
+export type ConfirmedEmission = {
+  kind: KnownComprobanteKind;
+  amount: number;
+};
+
 const seminarNotFoundMessage = "No encontramos ese seminario.";
 
 export type ComprobanteEmissionFailureReason =
-  "not-found" | EmissionRefusal | ArcaEmissionFailureReason;
+  | "not-found"
+  // The plan refuses; `refusals` says why, every reason that applies.
+  | "refused"
+  // The plan under the lock is no longer the document the operator confirmed.
+  | "changed"
+  | ArcaEmissionFailureReason;
 
 export type ComprobanteEmissionOutcome =
   | {
@@ -96,6 +111,8 @@ export type ComprobanteEmissionOutcome =
       ok: false;
       reason: ComprobanteEmissionFailureReason;
       message: string;
+      // Present only on `refused`.
+      refusals?: EmissionRefusal[];
       // Present only on a rejection from ARCA.
       arca?: {
         resultado: string | null;
@@ -140,7 +157,7 @@ type EmissionFailure = Extract<ComprobanteEmissionOutcome, { ok: false }>;
  * nothing is persisted.
  */
 export async function emitAnchorComprobante(
-  input: ComprobanteEmissionInput,
+  input: ComprobanteEmissionInput & { confirmed?: ConfirmedEmission },
   deps: ComprobanteEmissionDeps,
 ): Promise<ComprobanteEmissionOutcome> {
   return await underAnchorLock(input.anchor, async (tx) => {
@@ -148,6 +165,19 @@ export async function emitAnchorComprobante(
 
     if (!resolved.ok) {
       return resolved;
+    }
+
+    if (
+      input.confirmed &&
+      (input.confirmed.kind !== resolved.plan.kind ||
+        input.confirmed.amount !== resolved.plan.amount)
+    ) {
+      return {
+        ok: false,
+        reason: "changed",
+        message:
+          "Lo que se debe cambió desde que abriste el diálogo. Cerralo y volvé a emitir.",
+      };
     }
 
     return toOutcome(await emitWithContingency(resolved.choreography));
@@ -160,10 +190,12 @@ export async function emitAnchorComprobante(
  * anchor — which is where the document's kind and the amount the queried
  * comprobante is validated against come from — so if somebody touched the
  * roster or the money in the meantime, the amount does not match and the
- * result stays `unverified`.
+ * result stays `unverified`. The attempt's series travels with its number: a
+ * plan that now names another kind cannot be the attempt, and asking ARCA in
+ * the plan's series would read some other document at that number.
  */
 export async function recheckAnchorComprobante(
-  input: ComprobanteEmissionInput & { cbteNro: number },
+  input: ComprobanteEmissionInput & { cbteTipo: number; cbteNro: number },
   deps: ComprobanteEmissionDeps,
 ): Promise<ComprobanteEmissionOutcome> {
   return await underAnchorLock(input.anchor, async (tx) => {
@@ -171,6 +203,25 @@ export async function recheckAnchorComprobante(
 
     if (!resolved.ok) {
       return resolved;
+    }
+
+    if (resolved.choreography.cbteTipo !== input.cbteTipo) {
+      const attempt = {
+        ptoVta: deps.ptoVta,
+        cbteTipo: input.cbteTipo,
+        cbteNro: input.cbteNro,
+      };
+
+      return {
+        ok: false,
+        reason: "unverified",
+        message: buildUnverifiedMessage(
+          "comprobante",
+          attempt,
+          "consult-inconclusive",
+        ),
+        attempt,
+      };
     }
 
     return toOutcome(
@@ -182,7 +233,8 @@ export async function recheckAnchorComprobante(
 /**
  * What the anchor owes right now, for the financial detail to preview and to
  * explain a refusal with. It reads outside the lock: the emission plans again
- * under it, so a preview gone stale costs a refusal, never a document.
+ * under it and refuses a plan that is no longer the confirmed one, so a
+ * preview gone stale costs a refusal, never a document.
  */
 export async function readAnchorEmissionPlan(
   input: ComprobanteEmissionInput,
@@ -243,7 +295,11 @@ async function resolveEmissionChoreography(
   deps: ComprobanteEmissionDeps,
   executor: ComprobanteExecutor,
 ): Promise<
-  | { ok: true; choreography: ArcaEmissionChoreography<ComprobanteRow> }
+  | {
+      ok: true;
+      choreography: ArcaEmissionChoreography<ComprobanteRow>;
+      plan: Extract<EmissionPlan<DocumentedRow>, { ok: true }>;
+    }
   | EmissionFailure
 > {
   const context = await resolveAnchorContext(input, executor);
@@ -259,8 +315,9 @@ async function resolveEmissionChoreography(
   if (!plan.ok) {
     return {
       ok: false,
-      reason: plan.reason,
-      message: describeEmissionRefusal(plan.reason).reason,
+      reason: "refused",
+      refusals: plan.reasons,
+      message: plan.reasons.map(emissionRefusalLabel).join(" "),
     };
   }
 
@@ -322,7 +379,7 @@ async function resolveEmissionChoreography(
       ),
   };
 
-  return { ok: true, choreography };
+  return { ok: true, choreography, plan };
 }
 
 type DocumentSeries = {
@@ -457,9 +514,9 @@ async function resolveAnchorContext(
 
 /**
  * The two sides of the delta for one anchor: what each inscription owes —
- * withdrawn ones included, owing what they retained (ADR-0014 §6) — read
- * through the same rollup the finance surfaces show, and every comprobante the
- * anchor already holds.
+ * withdrawn ones included, owing the deposit they retain (ADR-0014 §6, #1065) —
+ * read through the same rollup the finance surfaces show, and every
+ * comprobante the anchor already holds.
  */
 async function readAnchorObligation(
   input: ComprobanteEmissionInput,
@@ -472,10 +529,21 @@ async function readAnchorObligation(
   ]);
 
   return {
-    financialStatus: unit.financialStatus,
+    // With no active inscription left the minimum has nothing to read, and
+    // the anchor is `Señada` vacuously (#657), as a withdrawn choreography
+    // already reads: what its withdrawn rows retain is still owed, and the
+    // zero-total check is what refuses an empty roster.
+    financialStatus: unit.inscriptions.some(
+      (inscription) => !inscription.withdrawn,
+    )
+      ? unit.financialStatus
+      : ("paidInFull" as const),
     inscriptions: unit.inscriptions.map((inscription): OwedInscription => ({
       id: inscription.id,
-      owed: inscription.totalAmount,
+      // A withdrawn row owes the deposit it retains, not whatever it still holds.
+      owed: inscription.withdrawn
+        ? deriveRetainedAmount(inscription)
+        : inscription.totalAmount,
     })),
     comprobantes: comprobantes.map((comprobante) =>
       toDocumented(input.anchor, comprobante),

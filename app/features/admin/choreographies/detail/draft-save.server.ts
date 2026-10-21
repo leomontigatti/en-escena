@@ -1,6 +1,8 @@
 import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
+import { choreographyAnchor } from "@/lib/comprobantes/anchor";
+import { lockComprobanteAnchor } from "@/lib/comprobantes/anchor-lock.server";
 import { choreographies, choreographyDancers } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import {
@@ -97,15 +99,27 @@ export async function saveChoreographyDraft(input: {
     return { message: plan.message, status: "error" };
   }
 
-  const result = await db.transaction((tx) =>
-    writeDraft({
+  const result = await db.transaction(async (tx) => {
+    // A re-synced roster may delete an inscription a comprobante emission is
+    // about to bill (an unpaid one, on a debit note): it waits for the
+    // emission and then finds its line, so it withdraws instead. Taken before
+    // the row locks below, because the emission's insert needs the
+    // choreography row they hold.
+    if (plan.resolution.changes.classification) {
+      await lockComprobanteAnchor(
+        tx,
+        choreographyAnchor(input.choreography.id),
+      );
+    }
+
+    return await writeDraft({
       choreography: input.choreography,
       draft,
       eventId: input.eventId,
       tx,
       write: plan,
-    }),
-  );
+    });
+  });
 
   if (!result.ok) {
     return { message: result.message, status: "error" };

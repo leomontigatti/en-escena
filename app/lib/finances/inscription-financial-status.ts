@@ -267,6 +267,28 @@ function deriveWithdrawnInscriptionFigures(input: {
 }
 
 /**
+ * What a withdrawn inscription **retains**: exactly its deposit, the price of the
+ * `derecho de inscripción` the reglamento's clause says withdrawal never returns
+ * (#674, #1065), or what it holds when that is less. The medical case needs no
+ * branch: the administrator releases the deposit with `Quitar dinero`, the row
+ * holds nothing, and it retains nothing. `null` when no price says what the
+ * deposit is.
+ *
+ * It is what a withdrawal's credit note is measured by, `línea facturada −
+ * retenido`. The row's `Total` above still reads everything it holds, so money
+ * above the deposit shows on the row until it is released; #1065 releases it at
+ * withdrawal, after which the two agree.
+ */
+export function deriveRetainedAmount(input: {
+  allocatedAmount: number;
+  depositAmount: number | null;
+}): number | null {
+  return input.depositAmount === null
+    ? null
+    : Math.min(input.allocatedAmount, input.depositAmount);
+}
+
+/**
  * A waived inscription (`Bonificada`) owes nothing: both thresholds are zero,
  * whatever its price. It holds no money either — waiving is refused while it
  * carries allocations, and nothing can be allocated to it — so any money that

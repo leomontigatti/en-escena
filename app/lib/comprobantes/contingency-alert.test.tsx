@@ -102,9 +102,10 @@ describe("ContingencyAlert", () => {
     await clickReactDomButton("Verificar ahora");
 
     // The amount and the date do NOT travel from the client: the server recomputes
-    // them (ADR-0012 decision 4).
+    // them (ADR-0012 decision 4). The attempt's series does, beside its number.
     expect(onRecheck).toHaveBeenCalledWith({
       intent: "recheck-comprobante",
+      cbteTipo: "11",
       cbteNro: "43",
     });
   });

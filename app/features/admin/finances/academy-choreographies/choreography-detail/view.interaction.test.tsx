@@ -1260,9 +1260,14 @@ function loaderDataFixture(
     invoicing: {
       status: "blocked",
       invoiced: false,
-      reason: "Alguna inscripción todavía no cubrió su seña.",
+      reasons: [
+        {
+          code: "below-deposit",
+          label: "Alguna inscripción todavía no cubrió su seña.",
+        },
+      ],
       remedy:
-        "La factura se emite cuando todas las inscripciones activas cubrieron su seña.",
+        "La factura se emite cuando todas las inscripciones activas tienen precio y cubrieron su seña, y el total es mayor que cero.",
     },
     priceOptions: [
       {

@@ -71,7 +71,8 @@ export type EmissionPlan<
     }
   | {
       ok: false;
-      reason: EmissionRefusal;
+      // Every reason that applies, none ahead of another.
+      reasons: EmissionRefusal[];
       // Whether the unit already holds its invoice: the refusal is then about
       // a note, and a surface names it so.
       invoiced: boolean;
@@ -103,14 +104,14 @@ export function planAnchorEmission<
   }
 
   if (input.inscriptions.some((inscription) => inscription.owed === null)) {
-    return { ok: false, reason: "unpriced", invoiced: true };
+    return { ok: false, reasons: ["unpriced"], invoiced: true };
   }
 
   const documented = documentedByInscription(input.comprobantes);
   const delta = sumOwed(input.inscriptions) - sumDocumented(input.comprobantes);
 
   if (delta === 0) {
-    return { ok: false, reason: "nothing-owed", invoiced: true };
+    return { ok: false, reasons: ["nothing-owed"], invoiced: true };
   }
 
   const direction = Math.sign(delta);
@@ -118,7 +119,7 @@ export function planAnchorEmission<
   const kind = direction > 0 ? "nota_debito_c" : "nota_credito_c";
 
   if (kind === "nota_credito_c" && exceedsCeiling(factura, input, amount)) {
-    return { ok: false, reason: "over-credit", invoiced: true };
+    return { ok: false, reasons: ["over-credit"], invoiced: true };
   }
 
   const owedById = new Map(
@@ -154,15 +155,16 @@ function planFactura(input: {
   // A zero total is said as such before the gate: an empty roster reads
   // `Seña pendiente`, and naming a deposit nobody owes would mislead.
   if (!unpriced && amount <= 0) {
-    return { ok: false, reason: "nothing-to-bill", invoiced: false };
+    return { ok: false, reasons: ["nothing-to-bill"], invoiced: false };
   }
 
-  if (!SENADA.has(input.financialStatus)) {
-    return { ok: false, reason: "below-deposit", invoiced: false };
-  }
+  const reasons: EmissionRefusal[] = [
+    ...(SENADA.has(input.financialStatus) ? [] : ["below-deposit" as const]),
+    ...(unpriced ? ["unpriced" as const] : []),
+  ];
 
-  if (unpriced) {
-    return { ok: false, reason: "unpriced", invoiced: false };
+  if (reasons.length > 0) {
+    return { ok: false, reasons, invoiced: false };
   }
 
   return {
@@ -258,39 +260,22 @@ function documentSign(cbteTipo: number): number {
  * blocked dialog read the same sentences, so the menu cannot say one thing and
  * the server another.
  */
-export function describeEmissionRefusal(reason: EmissionRefusal): {
-  reason: string;
-  remedy: string;
-} {
-  return emissionRefusals[reason];
+export function emissionRefusalLabel(reason: EmissionRefusal): string {
+  return emissionRefusalLabels[reason];
 }
 
-const emissionRefusals: Record<
-  EmissionRefusal,
-  { reason: string; remedy: string }
-> = {
-  "below-deposit": {
-    reason: "Alguna inscripción todavía no cubrió su seña.",
-    remedy:
-      "La factura se emite cuando todas las inscripciones activas cubrieron su seña.",
-  },
-  "nothing-to-bill": {
-    reason: "El total a facturar es $ 0.",
-    remedy: "La factura se emite cuando el total es mayor que cero.",
-  },
-  "nothing-owed": {
-    reason: "Lo facturado coincide con el total.",
-    remedy:
-      "Se emite una nota de débito o de crédito cuando el total cambia después de facturar.",
-  },
-  unpriced: {
-    reason: "Hay inscripciones sin precio.",
-    remedy: "Se puede emitir cuando todas las inscripciones tengan precio.",
-  },
-  "over-credit": {
-    reason:
-      "La nota de crédito acreditaría más de lo que la factura y sus notas de débito facturaron.",
-    remedy:
-      "Una nota de crédito no puede superar lo facturado: revisá los comprobantes de la unidad.",
-  },
+const emissionRefusalLabels: Record<EmissionRefusal, string> = {
+  "below-deposit": "Alguna inscripción todavía no cubrió su seña.",
+  "nothing-to-bill": "El total a facturar es $ 0.",
+  "nothing-owed": "Lo facturado coincide con el total.",
+  unpriced: "Hay inscripciones sin precio.",
+  "over-credit":
+    "La nota de crédito acreditaría más de lo que la factura y sus notas de débito facturaron.",
 };
+
+/** What the next document of the unit waits for, before and after its invoice. */
+export function emissionRemedy(invoiced: boolean): string {
+  return invoiced
+    ? "Se emite una nota de débito o de crédito cuando el total cambia después de facturar, sin acreditar más de lo facturado."
+    : "La factura se emite cuando todas las inscripciones activas tienen precio y cubrieron su seña, y el total es mayor que cero.";
+}

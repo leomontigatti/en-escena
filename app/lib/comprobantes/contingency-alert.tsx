@@ -109,10 +109,11 @@ export function ContingencyAlert({
   contingency: ComprobanteContingency;
   isBusy?: boolean;
   onAcknowledge: () => void;
-  // Receives the payload already assembled: only the `cbteNro` travels from the
-  // client. The amount and the date the queried comprobante is validated against
-  // are recomputed by the server (ADR-0012 decision 4); sending them from the
-  // form would collapse that validation to a single effective field.
+  // Receives the payload already assembled: only the attempt's `cbteTipo` and
+  // `cbteNro` travel from the client. The amount and the date the queried
+  // comprobante is validated against are recomputed by the server (ADR-0012
+  // decision 4); sending them from the form would collapse that validation to
+  // a single effective field.
   onRecheck: (payload: Record<string, string>) => void;
   recheckIntent: string;
 }) {
@@ -156,6 +157,7 @@ export function ContingencyAlert({
                 onClick={() =>
                   onRecheck({
                     intent: recheckIntent,
+                    cbteTipo: String(contingency.cbteTipo),
                     cbteNro: String(contingency.cbteNro),
                   })
                 }

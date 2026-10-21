@@ -964,11 +964,14 @@ two tables.
 **The withdrawal's credit note falls out of that rule.** ADR-0014 §6 makes its
 fiscal consequence `NC = línea facturada − retenido`, and nothing computes it on
 its own: the withdrawn row owes what it retains, so the emitter's delta (see
-"Invoicing") credits the rest of its line. What is retained is whatever the row
-still holds — its deposit under the reglamento's price clause (#674, #1065), or
-nothing in the medical case once the administrator releases it with `Quitar
-dinero` — and a full forfeit leaves the delta at zero, so it produces no credit
-note at all.
+"Invoicing") credits the rest of its line. What it retains is **exactly its
+deposit**, the price of the `derecho de inscripción` the reglamento's clause never
+returns (#674, #1065), or what it holds when that is less; in the medical case
+the administrator releases the deposit with `Quitar dinero` and it retains
+nothing. One function owns the rule (`deriveRetainedAmount`). The row's `Total`
+still reads everything it holds, so money above the deposit shows on the
+withdrawn row until it is released to `Saldo disponible`; #1065 releases it at
+withdrawal, after which the two agree.
 
 > **Specified, not built.** The 15-day clock from `withdrawnAt` on the
 > negative delta (#1711). Historical withdrawals from before the soft withdrawal
@@ -997,8 +1000,8 @@ all of it.
 
 A comprobante is the **document of an obligation**, not a receipt (ADR-0014
 §5). What an anchor owes is its **derived total**: the sum of its inscriptions'
-`Total`s from the same money rollup every finance surface shows, withdrawn rows
-included at what they retained. What it documents is `FC + ΣND − ΣNC` over its
+`Total`s from the same money rollup every finance surface shows, a withdrawn
+row counted at the deposit it retains ("Withdrawal from the roster"). What it documents is `FC + ΣND − ΣNC` over its
 comprobantes' totals. One pure function (`app/lib/comprobantes/emission-plan.ts`)
 compares the two, and every emission follows its answer:
 
@@ -1008,6 +1011,8 @@ compares the two, and every emission follows its answer:
   dancer holds back the whole invoice. Collection unlocks it and is never the
   amount. A zero total is refused as such, which covers an empty roster (it
   reads `Seña pendiente`) and a roster whose every inscription is `Bonificada`.
+  An anchor whose every inscription was withdrawn is `Señada` vacuously, so
+  what they retain still reaches an invoice.
 - **After it, the sign of the delta names the document**: `derived total −
 (FC + ΣND − ΣNC)` positive is a **`Nota de débito C`** (12), negative a
   partial **`Nota de crédito C`** (13), zero nothing. Neither note has a gate:
@@ -1050,7 +1055,9 @@ destructive action.
 Each anchor emits from its own financial detail in the admin panel, from one
 item in the header menu named after the document it owes — `Emitir factura`,
 `Emitir nota de débito`, `Emitir nota de crédito` — which previews the document
-and its amount; the operator cannot choose another. With nothing owed the item
+and its amount; the operator cannot choose another. The confirmation carries
+the previewed kind and amount, and the emitter, planning again under the lock,
+refuses rather than emit a document that changed since. With nothing owed the item
 stays (`Emitir factura` before the invoice, `Emitir nota` after) and opens a
 dialog saying why, in the words the server refuses with. There is no bulk
 action yet (#1712).
@@ -1061,7 +1068,10 @@ action yet (#1712).
   through the authorization and the insert. Two operators pressing `Emitir` at
   once therefore cannot each see the same delta and each obtain a CAE for it;
   the second finds nothing owed. Two academies emitting in the same seminar take
-  different keys and never wait on each other.
+  different keys and never wait on each other. Removing an inscription from the
+  roster takes the same lock first, so it never deletes an unpaid inscription
+  that a debit note in flight is about to name: it waits, finds the line, and
+  withdraws.
 - **Each kind numbers on its own series**, `FECompUltimoAutorizado + 1` per
   `(ptoVta, cbteTipo)`, and the date is today (#1709 makes it choosable and adds
   the correlative reservation).
@@ -1074,8 +1084,9 @@ action yet (#1712).
   recovery when ARCA is unreachable are implemented: a failure is classified by
   phase, timeouts are wrapper-level constants, and authorization ambiguity is
   resolved by consulting ARCA, in the document's own series, rather than by
-  asking the operator. Re-verification re-plans the anchor, so the amount it
-  validates against is the server's. The UI states what was resolved —
+  asking the operator. Re-verification sends the attempt's series and number
+  and re-plans the anchor, so the amount it validates against is the server's;
+  a plan that now names another kind leaves the attempt `unverified`. The UI states what was resolved —
   `rejected` / `not-emitted` / `unverified` — never which call broke.
 
 ### Reading comprobantes

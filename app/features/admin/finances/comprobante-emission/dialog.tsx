@@ -53,6 +53,10 @@ export function EmissionDialog({
       title={`¿Emitir la ${label}?`}
       toastId="comprobante-emission:error"
     >
+      {/* What was previewed travels with the confirmation: the server
+          refuses a plan that moved since, rather than emit it. */}
+      <input type="hidden" name="kind" value={invoicing.kind} />
+      <input type="hidden" name="amount" value={invoicing.amount} />
       <EmissionPreview invoicing={invoicing} label={label} />
     </ArcaConfirmationDialog>
   );

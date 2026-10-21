@@ -1,7 +1,6 @@
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import type {
   CreateVoucherResultDto,
-  LastVoucherResultDto,
   VoucherInfoResultDto,
 } from "@arcasdk/core";
 import { eq } from "drizzle-orm";
@@ -25,7 +24,6 @@ import {
   facturaCAprobada,
   facturaCConsultada,
   notaRechazada10197,
-  ultimoAutorizado,
 } from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import {
@@ -39,6 +37,7 @@ import {
 
 import {
   allocatePayment,
+  approvingNumber,
   connectionLost,
   emissionDeps,
   FAST_TIMEOUTS,
@@ -123,37 +122,6 @@ async function withdraw(inscriptionId: string) {
     .update(choreographyDancers)
     .set({ withdrawnAt: new Date("2026-04-01T12:00:00Z") })
     .where(eq(choreographyDancers.id, inscriptionId));
-}
-
-/**
- * ARCA authorizing number `cbteNro` of whichever series it is asked about, so
- * an invoice and its notes can be emitted in one test without colliding on
- * `(ptoVta, cbteTipo, cbteNro)`.
- */
-function approvingNumber(cbteNro: number, cae = "41124578989845") {
-  return fakeBilling({
-    getLastVoucher: vi.fn(async (): Promise<LastVoucherResultDto> => ({
-      ...ultimoAutorizado,
-      cbteNro: cbteNro - 1,
-    })),
-    createVoucher: vi.fn(async (): Promise<CreateVoucherResultDto> => ({
-      ...facturaCAprobada,
-      cae,
-      response: {
-        ...facturaCAprobada.response,
-        FeDetResp: {
-          FECAEDetResponse: [
-            {
-              ...facturaCAprobada.response.FeDetResp!.FECAEDetResponse![0],
-              CbteDesde: cbteNro,
-              CbteHasta: cbteNro,
-              CAE: cae,
-            },
-          ],
-        },
-      },
-    })),
-  });
 }
 
 function emit(
@@ -281,7 +249,8 @@ describe("emitAnchorComprobante — the invoice", () => {
 
     await expect(outcome).resolves.toMatchObject({
       ok: false,
-      reason: "below-deposit",
+      reason: "refused",
+      refusals: ["below-deposit"],
     });
     expect(deps.billing.getLastVoucher).not.toHaveBeenCalled();
   });
@@ -296,7 +265,8 @@ describe("emitAnchorComprobante — the invoice", () => {
 
     await expect(outcome).resolves.toMatchObject({
       ok: false,
-      reason: "nothing-to-bill",
+      reason: "refused",
+      refusals: ["nothing-to-bill"],
     });
     expect(deps.billing.getLastVoucher).not.toHaveBeenCalled();
   });
@@ -319,7 +289,8 @@ describe("emitAnchorComprobante — the invoice", () => {
 
     await expect(outcome).resolves.toMatchObject({
       ok: false,
-      reason: "nothing-to-bill",
+      reason: "refused",
+      refusals: ["nothing-to-bill"],
     });
     expect(deps.billing.getLastVoucher).not.toHaveBeenCalled();
   });
@@ -427,7 +398,8 @@ describe("emitAnchorComprobante — the delta after the invoice", () => {
 
     await expect(emit(choreography).outcome).resolves.toMatchObject({
       ok: false,
-      reason: "nothing-owed",
+      reason: "refused",
+      refusals: ["nothing-owed"],
     });
   });
 
@@ -465,7 +437,50 @@ describe("emitAnchorComprobante — the delta after the invoice", () => {
 
     await expect(emit(choreography).outcome).resolves.toMatchObject({
       ok: false,
-      reason: "nothing-owed",
+      reason: "refused",
+      refusals: ["nothing-owed"],
+    });
+  });
+
+  // #1065, #674: a withdrawal retains exactly the deposit, whatever the row
+  // still holds above it; the excess is the academy's to release.
+  test("a fully paid withdrawal is credited its line less the deposit, not less what it holds", async () => {
+    const { academy, choreography, inscriptions } =
+      await seedInvoicedChoreography("baja-pagada", 2);
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscriptions[1].id,
+      amount: 7000,
+    });
+    await withdraw(inscriptions[1].id);
+
+    await expect(
+      emit(choreography, approvingNumber(8, "41124599990011")).outcome,
+    ).resolves.toMatchObject({
+      ok: true,
+      comprobante: { cbteTipo: 13, impTotal: 7000 },
+    });
+  });
+
+  test("a withdrawal holding less than its deposit retains what it holds", async () => {
+    const { choreography, inscriptions } = await seedInvoicedChoreography(
+      "baja-parcial",
+      2,
+    );
+    await db
+      .update(paymentAllocations)
+      .set({ amount: 1000 })
+      .where(
+        eq(paymentAllocations.choreographyInscriptionId, inscriptions[1].id),
+      );
+    await withdraw(inscriptions[1].id);
+
+    await expect(
+      emit(choreography, approvingNumber(8, "41124599990011")).outcome,
+    ).resolves.toMatchObject({
+      ok: true,
+      comprobante: { cbteTipo: 13, impTotal: 9000 },
     });
   });
 
@@ -541,6 +556,51 @@ describe("emitAnchorComprobante — the delta after the invoice", () => {
   });
 });
 
+describe("emitAnchorComprobante — what the operator confirmed", () => {
+  // The dialog previewed a credit note; a dancer added in another tab turned
+  // the delta positive before the click. Emitting the debit note nobody saw
+  // would be irreversible.
+  test("refuses a plan that is no longer the document the operator confirmed, before ARCA", async () => {
+    const { academy, choreography } = await seedInvoicedChoreography(
+      "confirmada",
+      1,
+    );
+    await enrol(choreography.id, (await createDancer(academy.id)).id);
+
+    const billing = fakeBilling();
+    const outcome = await emitAnchorComprobante(
+      {
+        anchor: choreographyAnchor(choreography.id),
+        eventId: choreography.eventId,
+        confirmed: { kind: "nota_credito_c", amount: 5000 },
+      },
+      emissionDeps(billing),
+    );
+
+    expect(outcome).toMatchObject({ ok: false, reason: "changed" });
+    expect(billing.getLastVoucher).not.toHaveBeenCalled();
+  });
+
+  test("emits the confirmed plan when it still holds", async () => {
+    const { academy, choreography } = await seedInvoicedChoreography(
+      "confirmada-vigente",
+      1,
+    );
+    await enrol(choreography.id, (await createDancer(academy.id)).id);
+
+    await expect(
+      emitAnchorComprobante(
+        {
+          anchor: choreographyAnchor(choreography.id),
+          eventId: choreography.eventId,
+          confirmed: { kind: "nota_debito_c", amount: 10000 },
+        },
+        emissionDeps(approvingNumber(5, "41124578989850")),
+      ),
+    ).resolves.toMatchObject({ ok: true, comprobante: { cbteTipo: 12 } });
+  });
+});
+
 describe("emitAnchorComprobante — the crediting ceiling", () => {
   // ARCA authorized a credit note larger than its invoice (#686), so the fake
   // is NOT taught to refuse one: if this check fails, nothing else would.
@@ -584,7 +644,8 @@ describe("emitAnchorComprobante — the crediting ceiling", () => {
 
     await expect(outcome).resolves.toMatchObject({
       ok: false,
-      reason: "over-credit",
+      reason: "refused",
+      refusals: ["over-credit"],
     });
     expect(deps.billing.getLastVoucher).not.toHaveBeenCalled();
     expect(deps.billing.createVoucher).not.toHaveBeenCalled();
@@ -666,7 +727,7 @@ describe.skipIf(isPgliteTestBackend())(
 
       expect(outcomes.filter((outcome) => outcome.ok)).toHaveLength(1);
       expect(outcomes.filter((outcome) => !outcome.ok)).toMatchObject([
-        { ok: false, reason: "nothing-owed" },
+        { ok: false, reason: "refused", refusals: ["nothing-owed"] },
       ]);
       expect(billing.createVoucher).toHaveBeenCalledTimes(1);
       await expect(
@@ -807,6 +868,7 @@ describe("emitAnchorComprobante (ARCA does not respond)", () => {
         {
           anchor: choreographyAnchor(choreography.id),
           eventId: choreography.eventId,
+          cbteTipo: 11,
           cbteNro,
         },
         deps,
@@ -829,6 +891,31 @@ describe("emitAnchorComprobante (ARCA does not respond)", () => {
         choreographyAnchor(choreography.id),
       );
       expect(persisted).toMatchObject({ cbteNro: 43, impTotal: 10000 });
+    });
+
+    test("an attempt of another series than the plan now names stays unverified, and ARCA is not asked", async () => {
+      const choreography = await seedSenadaChoreography("recheck-otra-serie");
+      const billing = fakeBilling({
+        getVoucherInfo: vi.fn(async () => consultada()),
+      });
+
+      // The attempt was a credit note; the choreography now owes its invoice.
+      const outcome = await recheckAnchorComprobante(
+        {
+          anchor: choreographyAnchor(choreography.id),
+          eventId: choreography.eventId,
+          cbteTipo: 13,
+          cbteNro: 43,
+        },
+        emissionDeps(billing),
+      );
+
+      expect(outcome).toMatchObject({
+        ok: false,
+        reason: "unverified",
+        attempt: { cbteTipo: 13, cbteNro: 43 },
+      });
+      expect(billing.getVoucherInfo).not.toHaveBeenCalled();
     });
 
     // The amount it is validated against comes from the unit's plan, not from

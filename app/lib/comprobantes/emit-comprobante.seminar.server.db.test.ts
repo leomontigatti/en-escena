@@ -1,7 +1,3 @@
-import type {
-  CreateVoucherResultDto,
-  LastVoucherResultDto,
-} from "@arcasdk/core";
 import { eq } from "drizzle-orm";
 import { describe, expect, test, vi } from "vitest";
 
@@ -15,12 +11,7 @@ import {
   seminars,
 } from "@/db/schema";
 import { createDancer } from "@/lib/choreographies/registration.test-support";
-import { type ArcaBillingPort } from "@/lib/comprobantes/arca/client.server";
 import type { ArcaVoucher } from "@/lib/comprobantes/arca/factura-c";
-import {
-  facturaCAprobada,
-  ultimoAutorizado,
-} from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import { choreographyAnchor, seminarAnchor } from "@/lib/comprobantes/anchor";
 import {
   listAnchorComprobantes,
@@ -29,6 +20,7 @@ import {
 } from "@/lib/comprobantes/comprobantes.server";
 import { emitAnchorComprobante } from "@/lib/comprobantes/emit-comprobante.server";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
+import { removeSeminarInscription } from "@/lib/seminars/inscriptions.server";
 import { deleteSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createIndividualUser } from "@/lib/test-support/individuals";
@@ -36,49 +28,17 @@ import { readComprobanteAnchorContext } from "@/lib/comprobantes/anchor-context.
 import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import {
+  approvingNumber,
   emissionDeps,
   fakeBilling,
 } from "@/lib/comprobantes/comprobante-emission.test-support";
 
-import { installDatabaseTestHooks } from "../../../tests/db/harness";
+import {
+  installDatabaseTestHooks,
+  isPgliteTestBackend,
+} from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
-
-/**
- * ARCA approving the NEXT number of the series, so two emissions can run in one
- * test without colliding on `(ptoVta, cbteTipo, cbteNro)`.
- */
-function approvedAt(cbteNro: number, cae: string): CreateVoucherResultDto {
-  return {
-    ...facturaCAprobada,
-    cae,
-    response: {
-      ...facturaCAprobada.response,
-      FeDetResp: {
-        FECAEDetResponse: [
-          {
-            ...facturaCAprobada.response.FeDetResp!.FECAEDetResponse![0],
-            CbteDesde: cbteNro,
-            CbteHasta: cbteNro,
-            CAE: cae,
-          },
-        ],
-      },
-    },
-  };
-}
-
-function nextInSeries(cbteNro: number, cae: string): ArcaBillingPort {
-  return fakeBilling({
-    createVoucher: vi.fn(async (): Promise<CreateVoucherResultDto> =>
-      approvedAt(cbteNro, cae),
-    ),
-    getLastVoucher: vi.fn(async (): Promise<LastVoucherResultDto> => ({
-      ...ultimoAutorizado,
-      cbteNro: cbteNro - 1,
-    })),
-  });
-}
 
 /**
  * One seminar of one event with two academies registered in it. Everything the
@@ -231,7 +191,11 @@ describe("emitAnchorComprobante on a (seminar, academy) unit", () => {
       deps,
     );
 
-    expect(outcome).toMatchObject({ ok: false, reason: "below-deposit" });
+    expect(outcome).toMatchObject({
+      ok: false,
+      reason: "refused",
+      refusals: ["below-deposit"],
+    });
     expect(deps.billing.getLastVoucher).not.toHaveBeenCalled();
   });
 
@@ -256,7 +220,7 @@ describe("emitAnchorComprobante on a (seminar, academy) unit", () => {
     await expect(
       emitAnchorComprobante(
         { anchor, eventId: event.id },
-        emissionDeps(nextInSeries(2, "41124578989846")),
+        emissionDeps(approvingNumber(2, "41124578989846")),
       ),
     ).resolves.toMatchObject({
       ok: true,
@@ -277,7 +241,7 @@ describe("emitAnchorComprobante on a (seminar, academy) unit", () => {
     await expect(
       emitAnchorComprobante(
         { anchor, eventId: event.id },
-        emissionDeps(nextInSeries(3, "41124578989847")),
+        emissionDeps(approvingNumber(3, "41124578989847")),
       ),
     ).resolves.toMatchObject({
       ok: true,
@@ -291,6 +255,30 @@ describe("emitAnchorComprobante on a (seminar, academy) unit", () => {
     const scope = await listAnchorComprobantes(anchor);
     expect(scope.map((row) => row.cbteTipo)).toEqual([11, 12, 13]);
     expect(scope[0].status).toBe("adjusted");
+  });
+
+  // With every inscription withdrawn the unit's minimum has nothing to read;
+  // what they retain is still owed and must reach a invoice.
+  test("invoices what a unit retains once every inscription was withdrawn", async () => {
+    const { event, first, seminar } = await seedSeminarUnit();
+    await allocate(first, event.id, 10000);
+    await db
+      .update(seminarInscriptions)
+      .set({ withdrawnAt: new Date("2030-05-01T12:00:00Z") })
+      .where(eq(seminarInscriptions.id, first.inscription.id));
+
+    await expect(
+      emitAnchorComprobante(
+        {
+          anchor: seminarAnchor(seminar.id, first.academyId),
+          eventId: event.id,
+        },
+        emissionDeps(fakeBilling()),
+      ),
+    ).resolves.toMatchObject({
+      ok: true,
+      comprobante: { cbteTipo: 11, impTotal: 10000 },
+    });
   });
 
   test("refuses an anchor that does not belong to the named event", async () => {
@@ -313,6 +301,62 @@ describe("emitAnchorComprobante on a (seminar, academy) unit", () => {
     });
   });
 });
+
+/**
+ * An unpaid inscription has no evidence until the debit note's line lands
+ * on it, so a removal deciding while that emission waits on ARCA would delete
+ * the row the authorized document is about to name. The removal takes the
+ * unit's emission lock and waits. Gated to Postgres: PGlite's single
+ * connection serialises the two on its own.
+ */
+describe.skipIf(isPgliteTestBackend())(
+  "removal racing a debit note on the same unit",
+  () => {
+    test("waits for the emission and withdraws the row the note names", async () => {
+      const { event, first, seminar } = await seedSeminarUnit();
+      await allocate(first, event.id, 10000);
+      const anchor = seminarAnchor(seminar.id, first.academyId);
+      await emitAnchorComprobante(
+        { anchor, eventId: event.id },
+        emissionDeps(fakeBilling()),
+      );
+      const dancer = await createDancer(first.academyId, {
+        firstName: "Bea",
+        lastName: "Norte",
+      });
+      const [unpaid] = await db
+        .insert(seminarInscriptions)
+        .values({ dancerId: dancer.id, seminarId: seminar.id })
+        .returning();
+
+      const billing = approvingNumber(2, "41124578989846");
+      const authorize = billing.createVoucher;
+      billing.createVoucher = vi.fn(async (request) => {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        return await authorize(request);
+      });
+      const emission = emitAnchorComprobante(
+        { anchor, eventId: event.id },
+        emissionDeps(billing),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      const removal = removeSeminarInscription({
+        inscriptionId: unpaid.id,
+        seminarId: seminar.id,
+      });
+
+      await expect(emission).resolves.toMatchObject({
+        ok: true,
+        comprobante: { cbteTipo: 12 },
+      });
+      await expect(removal).resolves.toMatchObject({
+        ok: true,
+        withdrawn: true,
+      });
+    });
+  },
+);
 
 describe("the comprobante anchor", () => {
   test("refuses a root naming neither anchor and one naming both", async () => {

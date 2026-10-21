@@ -59,7 +59,26 @@ describe("planAnchorEmission — the first document", () => {
         inscriptions: [{ id: "a", owed: 10000 }],
         comprobantes: [],
       }),
-    ).toMatchObject({ ok: false, reason: "below-deposit" });
+    ).toMatchObject({ ok: false, reasons: ["below-deposit"] });
+  });
+
+  // Every reason that applies is listed, none ahead of another
+  // (docs/agents/form-feedback.md).
+  test("lists both a missing deposit and a missing price", () => {
+    expect(
+      planAnchorEmission({
+        financialStatus: "depositPending",
+        inscriptions: [
+          { id: "a", owed: 10000 },
+          { id: "unpriced", owed: null },
+        ],
+        comprobantes: [],
+      }),
+    ).toEqual({
+      ok: false,
+      reasons: ["below-deposit", "unpriced"],
+      invoiced: false,
+    });
   });
 
   test("is refused at a zero total even when the unit reads `Señada`", () => {
@@ -69,7 +88,7 @@ describe("planAnchorEmission — the first document", () => {
         inscriptions: [{ id: "a", owed: 0 }],
         comprobantes: [],
       }),
-    ).toMatchObject({ ok: false, reason: "nothing-to-bill" });
+    ).toMatchObject({ ok: false, reasons: ["nothing-to-bill"] });
   });
 
   test("is refused at a zero total on an empty roster, which reads `Seña pendiente`", () => {
@@ -79,7 +98,7 @@ describe("planAnchorEmission — the first document", () => {
         inscriptions: [],
         comprobantes: [],
       }),
-    ).toMatchObject({ ok: false, reason: "nothing-to-bill" });
+    ).toMatchObject({ ok: false, reasons: ["nothing-to-bill"] });
   });
 
   test("is refused at a zero total when every inscription is waived", () => {
@@ -89,7 +108,7 @@ describe("planAnchorEmission — the first document", () => {
         inscriptions: [{ id: "a", owed: 0 }],
         comprobantes: [],
       }),
-    ).toMatchObject({ ok: false, reason: "nothing-to-bill" });
+    ).toMatchObject({ ok: false, reasons: ["nothing-to-bill"] });
   });
 
   test("leaves a zero line out of the invoice", () => {
@@ -202,7 +221,7 @@ describe("planAnchorEmission — the delta after the invoice", () => {
           note(13, 3000, [["new", 3000]]),
         ],
       }),
-    ).toMatchObject({ ok: false, reason: "nothing-owed" });
+    ).toMatchObject({ ok: false, reasons: ["nothing-owed"] });
   });
 
   test("is refused while an inscription has no price, since nothing says what it owes", () => {
@@ -215,7 +234,7 @@ describe("planAnchorEmission — the delta after the invoice", () => {
         ],
         comprobantes: [factura(10000, [["a", 10000]])],
       }),
-    ).toMatchObject({ ok: false, reason: "unpriced" });
+    ).toMatchObject({ ok: false, reasons: ["unpriced"] });
   });
 });
 
@@ -233,7 +252,7 @@ describe("planAnchorEmission — the crediting ceiling", () => {
           factura(1000, [["a", 1000]], "fc-2"),
         ],
       }),
-    ).toMatchObject({ ok: false, reason: "over-credit" });
+    ).toMatchObject({ ok: false, reasons: ["over-credit"] });
   });
 
   test("lets ΣNC reach exactly FC + ΣND, which annuls the invoice", () => {

@@ -412,9 +412,14 @@ function loaderDataFixture(
 const blockedInvoicing: Extract<AnchorInvoicing, { status: "blocked" }> = {
   status: "blocked",
   invoiced: false,
-  reason: "Alguna inscripción todavía no cubrió su seña.",
+  reasons: [
+    {
+      code: "below-deposit",
+      label: "Alguna inscripción todavía no cubrió su seña.",
+    },
+  ],
   remedy:
-    "La factura se emite cuando todas las inscripciones activas cubrieron su seña.",
+    "La factura se emite cuando todas las inscripciones activas tienen precio y cubrieron su seña, y el total es mayor que cero.",
 };
 
 function choreographyFixture(
@@ -513,7 +518,7 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
     expect(dialog?.querySelector("h2")?.textContent).toBe(
       "No se puede emitir la factura",
     );
-    expect(dialog?.textContent).toContain(blockedInvoicing.reason);
+    expect(dialog?.textContent).toContain(blockedInvoicing.reasons[0].label);
     expect(dialog?.textContent).toContain(blockedInvoicing.remedy);
   });
 

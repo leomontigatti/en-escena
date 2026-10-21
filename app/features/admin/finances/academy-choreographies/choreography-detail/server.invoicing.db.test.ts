@@ -31,7 +31,6 @@ import {
 } from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
 import type { ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
-import { describeEmissionRefusal } from "@/lib/comprobantes/emission-plan";
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import {
@@ -313,10 +312,10 @@ describe("financial detail — comprobante emission axis", () => {
 
     const loaderData = await loadDetail(seeded);
 
-    expect(loaderData.invoicing).toEqual({
+    expect(loaderData.invoicing).toMatchObject({
       status: "blocked",
       invoiced: false,
-      ...describeEmissionRefusal("below-deposit"),
+      reasons: [{ code: "below-deposit" }],
     });
   });
 
@@ -397,6 +396,8 @@ describe("financial detail — comprobante emission axis", () => {
       formData: {
         intent: emitComprobanteIntent,
         confirm: emitComprobanteConfirmValue,
+        kind: "factura_c",
+        amount: "10000",
       },
     });
 
@@ -444,6 +445,8 @@ describe("financial detail — comprobante emission axis", () => {
       formData: {
         intent: emitComprobanteIntent,
         confirm: emitComprobanteConfirmValue,
+        kind: "factura_c",
+        amount: "3000",
       },
     });
     const redirect = await handleChoreographyFinanceAction({
@@ -477,6 +480,8 @@ describe("financial detail — comprobante emission axis", () => {
       formData: {
         intent: emitComprobanteIntent,
         confirm: emitComprobanteConfirmValue,
+        kind: "factura_c",
+        amount: "10000",
       },
     });
 
@@ -527,6 +532,8 @@ describe("financial detail — comprobante emission axis", () => {
       formData: {
         intent: emitComprobanteIntent,
         confirm: emitComprobanteConfirmValue,
+        kind: "factura_c",
+        amount: "10000",
       },
     });
 
@@ -593,6 +600,7 @@ describe("financial detail — comprobante emission axis", () => {
         ...seeded,
         formData: {
           intent: recheckComprobanteIntent,
+          cbteTipo: "11",
           cbteNro: "43",
         },
       }),
@@ -632,7 +640,11 @@ describe("financial detail — comprobante emission axis", () => {
       },
       request: await buildActionRequest({
         ...seeded,
-        formData: { intent: recheckComprobanteIntent, cbteNro: "999" },
+        formData: {
+          intent: recheckComprobanteIntent,
+          cbteTipo: "11",
+          cbteNro: "999",
+        },
       }),
       resolveEmissionDeps: () =>
         emissionDeps(

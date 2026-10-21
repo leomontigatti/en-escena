@@ -1,4 +1,5 @@
 import type { ComprobanteContingency } from "@/lib/comprobantes/contingency-alert";
+import type { EmissionRefusal } from "@/lib/comprobantes/emission-plan";
 import type { KnownComprobanteKind } from "@/lib/comprobantes/kind";
 
 /*
@@ -38,7 +39,8 @@ export type AnchorInvoicing =
       // Whether the unit already holds its invoice, which decides what the
       // item is called while nothing is owed.
       invoiced: boolean;
-      reason: string;
+      // Every reason that applies, built by the server, which owns the rule.
+      reasons: Array<{ code: EmissionRefusal | "not-found"; label: string }>;
       remedy: string;
     };
 

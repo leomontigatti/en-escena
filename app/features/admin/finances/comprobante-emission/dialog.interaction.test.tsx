@@ -176,7 +176,7 @@ describe("EmissionDialog", () => {
     // Neither the amount nor the date travels from the client (ADR-0012
     // decision 4).
     expect(recheckPayloads).toEqual([
-      { intent: recheckComprobanteIntent, cbteNro: "43" },
+      { intent: recheckComprobanteIntent, cbteTipo: "11", cbteNro: "43" },
     ]);
     expect(document.body.textContent).toContain("quedó registrado");
     // Recovered: the submit is removed, not disabled.

@@ -1,4 +1,5 @@
 import { BlockedActionDialog } from "@/components/shared/blocked-action-dialog";
+import { ReasonList } from "@/components/shared/reason-list";
 
 import type { AnchorInvoicing } from "./shared";
 
@@ -22,7 +23,9 @@ export function EmissionBlockedDialog({
       description={invoicing.remedy}
       onOpenChange={onOpenChange}
       open={open}
-      reasons={invoicing.reason}
+      reasons={
+        <ReasonList reasons={invoicing.reasons.map((reason) => reason.label)} />
+      }
       reasonsTitle="Nada para emitir"
       title={
         invoicing.invoiced

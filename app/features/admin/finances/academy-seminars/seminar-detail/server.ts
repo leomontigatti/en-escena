@@ -178,17 +178,11 @@ export async function handleSeminarFinanceAction(input: {
   };
 
   if (intent === emitComprobanteIntent) {
-    return await handleEmitComprobante({
-      ...emissionContext,
-      confirm: String(formData.get("confirm") ?? ""),
-    });
+    return await handleEmitComprobante({ ...emissionContext, formData });
   }
 
   if (intent === recheckComprobanteIntent) {
-    return await handleRecheckComprobante({
-      ...emissionContext,
-      cbteNro: String(formData.get("cbteNro") ?? ""),
-    });
+    return await handleRecheckComprobante({ ...emissionContext, formData });
   }
 
   const result = await runSeminarInscriptionMoneyIntent({
