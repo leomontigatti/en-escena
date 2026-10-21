@@ -1047,7 +1047,8 @@ settled model:
   emits a mirror **credit note** for the target's full amount, replicating
   its lines and pointing at it. A unique index caps a
   comprobante at **one** amendment ever. The detail offers it only on a
-  `Vigente` invoice, and the emitter refuses an already-annulled one.
+  `Vigente` invoice, and the emitter refuses any other target, a note
+  included, before ARCA is asked for a CAE.
 - **No debit note is emitted** yet: the app reads `Nota de débito C`
   (`CbteTipo` 12) but only emits `Factura C` (11) and `Nota de crédito C` (13).
 - A comprobante is emitted as a **service** (WSFEv1 `Concepto` 2).
