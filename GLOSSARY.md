@@ -361,6 +361,10 @@ _Avoid_: `resultsPublication`, score, award
 The printed entry pass a `professor` wears during the event, carrying their name, their `academy` and a QR code to the `eventProgram`. Administration prints it from the professors list; one per `professor`, with nothing recorded about the printing.
 _Avoid_: credential, credencial, badge, pass
 
+**`certificate`** — ui: "Certificado"
+The document that certifies a `dancer` took part in one choreography of an edition and the `award` it took there, in a single sentence on that edition's design. One per dancer and choreography, for every dancer still inscribed in a choreography whose result is published and is not disqualified; a professor gets none, and an edition with no design has none. The owning academy downloads them from the choreography's evaluation, and an `individual` downloads its own from `Coreografías`, both only for the active event; nothing about a download is recorded.
+_Avoid_: diploma, participation certificate, award certificate
+
 **`academyResults`** — ui: "Resultados de academia"
 The evaluation detail an academy opens from its own presentations list, behind its login, for a presentation whose result is published: the `award` beside the title, the average at the top right, and one card per judge with the judge's name, their score, the `scoreSheet` breakdown when there is one, and their `feedbackAudio`. Judges who never scored are dropped in the loader, so they never reach the browser; a disqualified presentation shows `Descalificada`, no award, no average and no scores, and keeps the audios. A presentation that is not the academy's own, is not published, or belongs to hidden results answers "not found", and that check is the access control on the `feedbackAudio` signed URL.
 _Avoid_: `resultsPublication`, public results, ranking

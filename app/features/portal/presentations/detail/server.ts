@@ -4,6 +4,10 @@ import { db } from "@/db";
 import { choreographies, presentations, schedules } from "@/db/schema";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
+  readChoreographyCertificates,
+  type CertificateRecipient,
+} from "@/lib/certificates/certificates.server";
+import {
   experienceLevelDisplayLabel,
   type ExperienceLevelRequirement,
 } from "@/lib/choreographies/experience-level-requirement";
@@ -50,6 +54,13 @@ export type PortalEvaluationJudge = {
 export type PortalPresentationEvaluationLoaderData = {
   /** Null for a disqualified presentation and when nothing counts. */
   average: number | null;
+  /** What `Descargar certificados` offers; null when it is not offered. */
+  certificates: {
+    choreographyId: string;
+    /** The name alone, as the certificate prints it. */
+    choreographyName: string;
+    recipients: CertificateRecipient[];
+  } | null;
   /** Empty without a sheet and on a disqualified presentation. */
   criteria: SheetCriterion[];
   /** The subtitle: category, group type, level, modality and submodality. */
@@ -116,8 +127,15 @@ export async function loadPortalPresentationEvaluation(input: {
     throw new Response(evaluationNotFoundMessage, { status: 404 });
   }
 
+  const certificates = await readChoreographyCertificates(choreographyId);
+
   return {
     average: view.average,
+    certificates: certificates && {
+      choreographyId,
+      choreographyName: certificates.choreographyName,
+      recipients: certificates.recipients,
+    },
     criteria: view.disqualified ? [] : view.criteria,
     details: formatEvaluationDetails({
       categoryName: view.categoryName,

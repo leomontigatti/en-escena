@@ -10,6 +10,7 @@ import {
   scores,
   user,
 } from "@/db/schema";
+import { loadIndividualCertificate } from "@/features/individual/choreographies/certificate/server";
 import { loadIndividualChoreographies } from "@/features/individual/choreographies/server";
 import {
   createChoreographyRecord,
@@ -20,6 +21,7 @@ import {
 import { loadPortalPresentationEvaluation } from "@/features/portal/presentations/detail/server";
 import { expectThrownResponse } from "@/features/portal/test-support/db";
 import { createAcademyRecord } from "@/features/portal/test-support/db";
+import { countPdfPages } from "@/lib/certificates/certificates.test-support";
 import { confirmIndividualLink } from "@/lib/individuals/link.server";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import { publishResults } from "@/lib/judging/results.server";
@@ -236,6 +238,22 @@ describe("loadIndividualChoreographies", () => {
     ]);
   });
 
+  test("offers a certificate only where it danced in a published choreography that took an award", async () => {
+    await seedCertificateChoreographies();
+    const individual = await seedLinkedIndividual();
+
+    const loaderData = await load(individual.cookie);
+
+    expect(
+      loaderData.choreographies.map((row) => [row.name, row.hasCertificate]),
+    ).toEqual([
+      ["Descalificada", false],
+      ["Enseñada", false],
+      ["Premiada", true],
+      ["Tardía", false],
+    ]);
+  });
+
   test("answers with no event when none is active", async () => {
     const individual = await seedLinkedIndividual();
 
@@ -255,6 +273,101 @@ describe("loadIndividualChoreographies", () => {
     await expectThrownResponse(load(academy.cookie), 403);
   });
 });
+
+describe("loadIndividualCertificate", () => {
+  test("opens its own certificate, a single page named after its roster row", async () => {
+    const { awarded } = await seedCertificateChoreographies();
+    const individual = await seedLinkedIndividual();
+
+    const response = await loadCertificate(individual.cookie, awarded);
+
+    expect(response.headers.get("Content-Type")).toBe("application/pdf");
+    expect(response.headers.get("Content-Disposition")).toBe(
+      'inline; filename="certificado-ana-paz-premiada.pdf"',
+    );
+    expect(countPdfPages(new Uint8Array(await response.arrayBuffer()))).toBe(1);
+  });
+
+  test("answers not found where it only teaches, or with no award", async () => {
+    const { disqualified, taught } = await seedCertificateChoreographies();
+    const individual = await seedLinkedIndividual();
+
+    await expectThrownResponse(loadCertificate(individual.cookie, taught), 404);
+    await expectThrownResponse(
+      loadCertificate(individual.cookie, disqualified),
+      404,
+    );
+  });
+
+  test("answers not found while the link is not confirmed", async () => {
+    const { awarded } = await seedCertificateChoreographies();
+    const unlinked = await createIndividualUser({
+      documentNumber,
+      email: "sin-vincular@example.com",
+    });
+
+    await expectThrownResponse(loadCertificate(unlinked.cookie, awarded), 404);
+  });
+});
+
+/**
+ * Four choreographies the individual's document reaches: `Premiada` it dances
+ * and is published with an award, `Descalificada` it dances and is
+ * disqualified, `Enseñada` it only teaches, and `Tardía` it dances, scored
+ * after the results went out.
+ */
+async function seedCertificateChoreographies() {
+  const fixture = await seedJudgingFixture();
+  const academyId = fixture.academy.academy.id;
+  const add = async (name: string, orderNumber: number) => {
+    const presentation = await fixture.addPresentation({ name, orderNumber });
+    await score(fixture, presentation.presentationId, ["85"]);
+
+    return presentation;
+  };
+  const awarded = await add("Premiada", 1);
+  const dancer = await inscribeDancer(academyId, awarded.choreographyId);
+  const inscribe = async (choreographyId: string) => {
+    await db
+      .insert(choreographyDancers)
+      .values({ ageAtEventStart: 14, choreographyId, dancerId: dancer.id });
+  };
+  const disqualified = await add("Descalificada", 2);
+  await inscribe(disqualified.choreographyId);
+  await db
+    .update(presentations)
+    .set({ disqualifiedAt: new Date() })
+    .where(eq(presentations.id, disqualified.presentationId));
+  const taught = await add("Enseñada", 3);
+  const professor = await createProfessor(academyId, {
+    documentNumber,
+    documentType: "dni",
+  });
+  await db.insert(choreographyProfessors).values({
+    choreographyId: taught.choreographyId,
+    professorId: professor.id,
+  });
+  await publishResults(fixture.event.id);
+  const late = await add("Tardía", 4);
+  await inscribe(late.choreographyId);
+
+  return {
+    awarded: awarded.choreographyId,
+    disqualified: disqualified.choreographyId,
+    fixture,
+    taught: taught.choreographyId,
+  };
+}
+
+async function loadCertificate(cookie: string, choreographyId: string) {
+  return await loadIndividualCertificate({
+    params: { choreographyId },
+    request: new Request(
+      `http://localhost/particular/coreografias/${choreographyId}/certificado`,
+      { headers: { cookie } },
+    ),
+  });
+}
 
 async function load(cookie: string) {
   return await loadIndividualChoreographies(signedInRequest(cookie));

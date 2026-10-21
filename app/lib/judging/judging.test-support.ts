@@ -5,6 +5,7 @@ import {
   judgeAssignments,
   presentations,
   schedules,
+  scores,
   submodalityCriteria,
   user,
 } from "@/db/schema";
@@ -133,6 +134,13 @@ export async function seedJudgingFixture(options: { active?: boolean } = {}) {
     return { judgeAssignmentId: assignment.id, judgeId: userId };
   };
 
+  /** A new judge on the presentation who saved `value`. */
+  const scorePresentation = async (presentationId: string, value: string) => {
+    const { judgeAssignmentId } = await assignJudge(presentationId);
+
+    await db.insert(scores).values({ judgeAssignmentId, value });
+  };
+
   const addCriterion = async (input: {
     /** Absent for a general criterion, on every sheet of the submodality. */
     experienceLevel?: ExperienceLevel;
@@ -164,5 +172,6 @@ export async function seedJudgingFixture(options: { active?: boolean } = {}) {
     assignJudge,
     catalog,
     event,
+    scorePresentation,
   };
 }
