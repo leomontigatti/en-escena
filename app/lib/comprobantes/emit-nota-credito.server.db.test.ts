@@ -337,6 +337,42 @@ describe("annulComprobante", () => {
     expect(rows.filter((row) => row.cbteTipo === 13)).toHaveLength(1);
   });
 
+  // The detail offers `Anular` only on a `valid` invoice; a direct POST against
+  // a note must be refused by the emitter too, before ARCA is asked for a CAE.
+  test("refuses to annul a credit note", async () => {
+    const { academy, choreography, inscription } =
+      await seedChoreographyWithInscription(
+        `nota.${crypto.randomUUID()}@example.com`,
+      );
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscription.id,
+      amount: 3000,
+    });
+    const factura = await recordFactura({
+      choreographyId: choreography.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscription.id,
+      amount: 3000,
+      cbteNro: 46,
+    });
+    const first = await annulComprobante(
+      { comprobanteId: factura.id },
+      emissionDeps(fakeNotaCreditoBilling()),
+    );
+    expectOk(first);
+
+    const billing = fakeNotaCreditoBilling();
+    const second = await annulComprobante(
+      { comprobanteId: first.notaCredito.id },
+      emissionDeps(billing),
+    );
+
+    expect(second).toMatchObject({ ok: false, reason: "not-annullable" });
+    expect(billing.createVoucher).not.toHaveBeenCalled();
+  });
+
   // The previous test's `already-annulled` guard is application-level: it reads
   // derived state and only then makes the round trip to ARCA, which is not
   // transactional. Two concurrent annulments could both get past the guard. The

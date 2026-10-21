@@ -39,6 +39,9 @@ export type NotaCreditoEmissionInput = {
 export type NotaCreditoEmissionFailureReason =
   | "not-found"
   | "already-annulled"
+  // A note, a row of unknown kind, or an invoice another note already
+  // adjusts: the full mirror would credit what is not there to credit.
+  | "not-annullable"
   // ARCA responded and did not authorize.
   | "rejected"
   // ARCA did not respond and it was established that nothing was emitted:
@@ -161,6 +164,17 @@ async function resolveNotaCreditoChoreography(
       ok: false,
       reason: "already-annulled",
       message: "Ese comprobante ya fue anulado por una nota de crédito.",
+    };
+  }
+
+  if (target.status !== "valid") {
+    return {
+      ok: false,
+      reason: "not-annullable",
+      message:
+        target.status === null
+          ? "Solo se puede anular una factura."
+          : "Esa factura ya tiene notas que la ajustan y no se puede anular entera.",
     };
   }
 

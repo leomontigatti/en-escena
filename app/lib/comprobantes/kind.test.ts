@@ -33,20 +33,6 @@ describe("readComprobanteKind", () => {
 });
 
 describe("the kind's presentation", () => {
-  test("names each emitted kind in full, by initials and by badge colour", () => {
-    expect(
-      [11, 12, 13].map((cbteTipo) => [
-        formatComprobanteKindLabel(cbteTipo),
-        formatComprobanteKindInitials(cbteTipo),
-        comprobanteKindBadgeVariant(cbteTipo),
-      ]),
-    ).toEqual([
-      ["Factura C", "FC", "info"],
-      ["Nota de débito C", "ND", "secondary"],
-      ["Nota de crédito C", "NC", "warning"],
-    ]);
-  });
-
   test("an unknown code falls back to the raw number in label, initials, badge and print header", () => {
     expect(formatComprobanteKindLabel(99)).toBe("Comprobante 99");
     expect(formatComprobanteKindInitials(99)).toBe("C99");

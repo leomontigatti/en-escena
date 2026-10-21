@@ -12,8 +12,8 @@ import { createAcademyRecord } from "@/features/portal/test-support/db";
 import { loadComprobanteDetail } from "@/features/admin/comprobantes/detail/server";
 import { loadComprobantesList } from "@/features/admin/comprobantes/list/server";
 import { comprobanteStatusSearchValues } from "@/features/admin/comprobantes/list/shared";
-import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
+import { facturaCInput } from "@/lib/comprobantes/comprobante-emission.test-support";
 import {
   recordComprobante,
   type RecordComprobanteInput,
@@ -55,24 +55,14 @@ async function record(
   eventId: string,
   input: Partial<RecordComprobanteInput> = {},
 ) {
-  return await recordComprobante({
-    anchor: choreographyAnchor(choreographyId),
-    eventId,
-    cbteTipo: 11,
-    ptoVta: 1,
-    cbteNro: nextCbteNro++,
-    cbteFch: "20260722",
-    impTotal: 10000,
-    issuerCuit: "30717611590",
-    issuerIvaCondition: "exento",
-    receptorDocTipo: 99,
-    receptorDocNro: "0",
-    receptorIvaConditionId: 5,
-    cae: "75123456789012",
-    caeVto: "20260801",
-    lines: [],
-    ...input,
-  });
+  return await recordComprobante(
+    facturaCInput({
+      choreographyId,
+      eventId,
+      cbteNro: nextCbteNro++,
+      ...input,
+    }),
+  );
 }
 
 async function adminRequest(search = "") {
