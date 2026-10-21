@@ -7,7 +7,6 @@ import {
   choreographyDancers,
   events,
   presentations,
-  scores,
 } from "@/db/schema";
 import {
   createDancer,
@@ -33,10 +32,7 @@ async function seedScoredPresentation(input: { publish?: boolean } = {}) {
     name: "Río Arriba",
     orderNumber: 1,
   });
-  const judge = await fixture.assignJudge(presentation.presentationId);
-  await db
-    .insert(scores)
-    .values({ judgeAssignmentId: judge.judgeAssignmentId, value: "85.0" });
+  await fixture.scorePresentation(presentation.presentationId, "85.0");
 
   if (input.publish !== false) {
     await publishResults(fixture.event.id);
@@ -102,6 +98,20 @@ describe("readChoreographyCertificates", () => {
       .update(presentations)
       .set({ disqualifiedAt: new Date() })
       .where(eq(presentations.id, presentation.presentationId));
+
+    expect(
+      await readChoreographyCertificates(presentation.choreographyId),
+    ).toBeNull();
+  });
+
+  test("issues none once no dancer is inscribed any more", async () => {
+    const { presentation } = await seedScoredPresentation();
+    await db
+      .update(choreographyDancers)
+      .set({ withdrawnAt: new Date() })
+      .where(
+        eq(choreographyDancers.choreographyId, presentation.choreographyId),
+      );
 
     expect(
       await readChoreographyCertificates(presentation.choreographyId),

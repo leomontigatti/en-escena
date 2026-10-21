@@ -54,9 +54,13 @@ export type PortalEvaluationJudge = {
 export type PortalPresentationEvaluationLoaderData = {
   /** Null for a disqualified presentation and when nothing counts. */
   average: number | null;
-  /** Who `Descargar certificados` offers; empty when it is not offered. */
-  certificateRecipients: CertificateRecipient[];
-  choreographyId: string;
+  /** What `Descargar certificados` offers; null when it is not offered. */
+  certificates: {
+    choreographyId: string;
+    /** The name alone, as the certificate prints it. */
+    choreographyName: string;
+    recipients: CertificateRecipient[];
+  } | null;
   /** Empty without a sheet and on a disqualified presentation. */
   criteria: SheetCriterion[];
   /** The subtitle: category, group type, level, modality and submodality. */
@@ -127,8 +131,11 @@ export async function loadPortalPresentationEvaluation(input: {
 
   return {
     average: view.average,
-    certificateRecipients: certificates?.recipients ?? [],
-    choreographyId,
+    certificates: certificates && {
+      choreographyId,
+      choreographyName: certificates.choreographyName,
+      recipients: certificates.recipients,
+    },
     criteria: view.disqualified ? [] : view.criteria,
     details: formatEvaluationDetails({
       categoryName: view.categoryName,

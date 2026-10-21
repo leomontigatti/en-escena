@@ -166,8 +166,7 @@ function renderView(
 ) {
   const loaderData: PortalPresentationEvaluationLoaderData = {
     average: 90,
-    certificateRecipients: [],
-    choreographyId: "uno",
+    certificates: null,
     criteria: [],
     details: "Infantil · Solo · Jazz",
     disqualified: false,

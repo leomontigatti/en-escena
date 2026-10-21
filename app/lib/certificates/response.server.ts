@@ -32,6 +32,9 @@ export async function certificatesPdfResponse(
 
   return new Response(bytes, {
     headers: {
+      // Dancers' names: kept off shared caches and out of the browser's, as
+      // the other personal downloads are.
+      "Cache-Control": "private, no-store",
       "Content-Disposition": `inline; filename="${fileName}"`,
       "Content-Type": "application/pdf",
     },

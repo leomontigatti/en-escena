@@ -21,9 +21,10 @@ import {
 /**
  * Who a choreography's `certificate`s go to. A choreography has them once its
  * result is published, behind the academies' own gate, when it took an award
- * and its event's year has a template. Every published presentation that is
- * not disqualified has an award, so there is a single sentence. They go to the
- * dancers still inscribed, named as the roster names them. Who may download
+ * and its event's year has a template, and while a dancer is still inscribed.
+ * Every published presentation that is not disqualified has an award, so
+ * there is a single sentence. They go to the dancers still inscribed, named as
+ * the roster names them. Who may download
  * which is the surfaces' to decide: this only says what exists.
  */
 
@@ -88,6 +89,11 @@ export async function readChoreographyCertificates(
       ),
     )
     .orderBy(asc(dancers.lastName), asc(dancers.firstName));
+
+  // A choreography nobody is inscribed in any more has nothing to offer.
+  if (recipients.length === 0) {
+    return null;
+  }
 
   return {
     academyId: choreography.academyId,

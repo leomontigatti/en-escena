@@ -62,22 +62,22 @@ export function PortalPresentationEvaluationView({
       }
       description={loaderData.details}
       action={
-        <div className="flex items-center gap-4">
-          {loaderData.average === null ? null : (
-            <p className="text-xl font-semibold tabular-nums">
-              {loaderData.average}
-              <span className="text-sm font-normal text-muted-foreground">
-                {" "}
-                / 100
-              </span>
-            </p>
-          )}
-          <PortalCertificatesActions
-            choreographyId={loaderData.choreographyId}
-            choreographyName={loaderData.title}
-            recipients={loaderData.certificateRecipients}
-          />
-        </div>
+        loaderData.average === null && !loaderData.certificates ? null : (
+          <div className="flex items-center gap-4">
+            {loaderData.average === null ? null : (
+              <p className="text-xl font-semibold tabular-nums">
+                {loaderData.average}
+                <span className="text-sm font-normal text-muted-foreground">
+                  {" "}
+                  / 100
+                </span>
+              </p>
+            )}
+            {loaderData.certificates ? (
+              <PortalCertificatesActions {...loaderData.certificates} />
+            ) : null}
+          </div>
+        )
       }
     >
       {loaderData.disqualified ? (

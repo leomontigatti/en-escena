@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { presentations, scores } from "@/db/schema";
+import { presentations } from "@/db/schema";
 import {
   createDancer,
   createSelectedPriceInscriptionForTest,
@@ -36,10 +36,7 @@ async function seedPublishedChoreography() {
     choreographyId: presentation.choreographyId,
     dancerId: zoe.id,
   });
-  const judge = await fixture.assignJudge(presentation.presentationId);
-  await db
-    .insert(scores)
-    .values({ judgeAssignmentId: judge.judgeAssignmentId, value: "85.0" });
+  await fixture.scorePresentation(presentation.presentationId, "85.0");
   await publishResults(fixture.event.id);
 
   return { fixture, presentation, zoe };
@@ -69,6 +66,7 @@ describe("an academy's certificates", () => {
     );
 
     expect(response.headers.get("Content-Type")).toBe("application/pdf");
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(response.headers.get("Content-Disposition")).toBe(
       'inline; filename="certificados-rio-arriba.pdf"',
     );

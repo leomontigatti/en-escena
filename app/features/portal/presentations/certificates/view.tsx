@@ -20,7 +20,7 @@ import { portalCertificatesPath } from "./shared";
  * The evaluation detail's `Acciones`: `Descargar certificados` opens a dialog
  * with a row per dancer, each opening that dancer's certificate, and
  * `Descargar todos`, one PDF with a page each in the same order. Every link
- * opens the PDF in a new tab. Absent when the choreography issues none.
+ * opens the PDF in a new tab.
  */
 export function PortalCertificatesActions({
   choreographyId,
@@ -32,10 +32,6 @@ export function PortalCertificatesActions({
   recipients: CertificateRecipient[];
 }) {
   const [open, setOpen] = useState(false);
-
-  if (recipients.length === 0) {
-    return null;
-  }
 
   return (
     <>
