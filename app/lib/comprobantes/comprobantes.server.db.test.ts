@@ -96,7 +96,7 @@ describe("recordComprobante persistence", () => {
     ]);
   });
 
-  test("the status is derived: `valid` by default, `annulled` when an associated credit note exists", async () => {
+  test("the status is derived: `valid` by default, `annulled` when a credit note covers the invoice", async () => {
     const { choreography, inscription } = await seedInscribedChoreography(
       `estado.${crypto.randomUUID()}@example.com`,
     );
@@ -134,16 +134,23 @@ describe("recordComprobante persistence", () => {
     const notaCredito = afterAnnulment.find((row) => row.cbteTipo === 13);
 
     expect(facturaRow?.status).toBe("annulled");
-    expect(notaCredito?.status).toBe("valid");
+    // Only an invoice has a status.
+    expect(notaCredito?.status).toBeNull();
   });
 
-  test("the `valid`/`annulled` status is not persisted as a column", async () => {
+  test("the status is not persisted as a column", async () => {
     const result = await db.execute<{ column_name: string }>(
       sql`select column_name from information_schema.columns where table_name = 'en_escena_comprobante'`,
     );
     const columns = readRows(result).map((row) => row.column_name);
 
-    for (const forbidden of ["status", "estado", "valid", "annulled"]) {
+    for (const forbidden of [
+      "status",
+      "estado",
+      "valid",
+      "adjusted",
+      "annulled",
+    ]) {
       expect(columns).not.toContain(forbidden);
     }
   });

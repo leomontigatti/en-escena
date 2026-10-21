@@ -15,6 +15,9 @@ export const FACTURA_C_CBTE_TIPO = 11;
 // (#328/#449). It is built via `buildNotaCreditoCVoucher` (nota-credito.ts),
 // reusing the class C base plus the `CbtesAsoc` array.
 export const NOTA_CREDITO_C_CBTE_TIPO = 13;
+// `Nota de débito C`: the amendment that bills a positive delta on a `Factura C`
+// (ADR-0014 §5). Nothing emits it yet; the identity module already reads it.
+export const NOTA_DEBITO_C_CBTE_TIPO = 12;
 export const DOC_TIPO_CONSUMIDOR_FINAL = 99;
 export const DOC_NRO_CONSUMIDOR_FINAL = 0;
 // Concepto 2 = Services. An entry to a competition is a service, not a sale of

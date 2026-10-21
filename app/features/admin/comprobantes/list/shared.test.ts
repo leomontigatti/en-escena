@@ -13,7 +13,7 @@ describe("the `estado` filter's URL values", () => {
   });
 
   test("read back every status they write", () => {
-    for (const status of ["valid", "annulled"] as const) {
+    for (const status of ["valid", "adjusted", "annulled"] as const) {
       expect(
         readComprobanteStatusSearchValue(comprobanteStatusSearchValues[status]),
       ).toBe(status);

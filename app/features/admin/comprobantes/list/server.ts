@@ -1,15 +1,4 @@
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  exists,
-  isNotNull,
-  not,
-  sql,
-  type SQL,
-} from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { and, asc, desc, eq, isNotNull, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, choreographies, comprobantes, seminars } from "@/db/schema";
@@ -17,12 +6,16 @@ import { loadEventContext } from "@/lib/admin/event-context.server";
 import type { ComprobanteAnchor } from "@/lib/comprobantes/anchor";
 import { readAnchorFromJoins } from "@/lib/comprobantes/anchor-context.server";
 import type { ComprobanteAnchorReading } from "@/lib/comprobantes/anchor-reading";
-import {
-  FACTURA_C_CBTE_TIPO,
-  NOTA_CREDITO_C_CBTE_TIPO,
-} from "@/lib/comprobantes/arca/factura-c";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
-import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
+import {
+  comprobanteStatusSql,
+  type ComprobanteStatus,
+} from "@/lib/comprobantes/comprobante-status.server";
+import {
+  comprobanteKindCbteTipo,
+  comprobanteKinds,
+  type KnownComprobanteKind,
+} from "@/lib/comprobantes/kind";
 import { adminListPageSize } from "@/lib/admin/admin-list";
 import {
   paginateList,
@@ -54,16 +47,16 @@ export type ComprobantesListRow = {
   cbteFch: string;
   impTotal: number;
   cae: string;
-  status: ComprobanteStatus;
+  // `null` on a note or an unknown kind: only an invoice has a status.
+  status: ComprobanteStatus | null;
   anchor: ComprobanteAnchorReading;
   academyId: string;
   academyName: string;
 };
 
-// Type facet: only `Factura C` (11) and `Nota de crédito C` (13) are emitted. The
-// value travels as a stable slug in the URL, so the filter is not coupled to the
-// label.
-export type ComprobanteKindFacet = "factura_c" | "nota_credito_c";
+// Type facet: one option per known kind. The kind's own name travels as the
+// URL value, so the filter is not coupled to the label.
+export type ComprobanteKindFacet = KnownComprobanteKind;
 
 export type ComprobantesListOrder = {
   columnId: "fecha" | "numero";
@@ -97,11 +90,11 @@ const comprobantesListSpec: ListQuerySpec<ComprobantesListOrder["columnId"]> = {
 /**
  * The global list of comprobantes emitted in the active event, an academy's and
  * an individual's alike (ADR-0019: both own them through the same owner row),
- * paginated, sorted and filtered on the server (it grows over time, #483). The
- * `valid`/`annulled` state is NOT persisted: it is derived in SQL from the
- * existence of a credit note of the same event referencing the invoice via
- * `associatedComprobanteId`, so that the state filter and the pagination
- * operate on the real state and not on the loaded page. It mutates nothing.
+ * paginated, sorted and filtered on the server (it grows over time, #483). A
+ * invoice's status is NOT persisted: it is derived in SQL by
+ * `comprobanteStatusSql`, the twin of the detail's derivation, so that the
+ * state filter and the pagination operate on the real state and not on the
+ * loaded page. It mutates nothing.
  */
 export async function loadComprobantesList(
   request: Request,
@@ -123,8 +116,8 @@ export async function loadComprobantesList(
     };
   }
 
-  const isAnnulled = buildAnnulledExists(selectedEventId);
-  const where = buildComprobantesWhere(selectedEventId, filters, isAnnulled);
+  const status = comprobanteStatusSql();
+  const where = buildComprobantesWhere(selectedEventId, filters, status);
   const [{ count: totalUnfilteredCount }] = await db
     .select({ count: sql<number>`count(*)` })
     .from(comprobantes)
@@ -157,7 +150,7 @@ export async function loadComprobantesList(
       cbteFch: comprobantes.cbteFch,
       impTotal: comprobantes.impTotal,
       cae: comprobantes.cae,
-      status: sql<ComprobanteStatus>`case when ${isAnnulled} then 'annulled' else 'valid' end`,
+      status,
       // The two anchor columns with their joined readings: each row satisfies
       // exactly one of the LEFT joins, and the root's `CHECK` is what makes the
       // branch in `readAnchorFromJoins` total. The academy comes off the root's
@@ -234,24 +227,6 @@ export async function loadComprobantesList(
   };
 }
 
-// Derived `annulled`: a credit note of the same event referencing this row
-// exists. Correlated with the outer row via `associatedComprobanteId`.
-function buildAnnulledExists(selectedEventId: string): SQL {
-  const notaCredito = alias(comprobantes, "nota_credito");
-
-  return exists(
-    db
-      .select({ one: sql`1` })
-      .from(notaCredito)
-      .where(
-        and(
-          eq(notaCredito.associatedComprobanteId, comprobantes.id),
-          eq(notaCredito.eventId, selectedEventId),
-        ),
-      ),
-  );
-}
-
 function readComprobantesListFilters(
   searchParams: URLSearchParams,
 ): ComprobantesListFilters {
@@ -270,13 +245,13 @@ function readComprobantesListFilters(
 }
 
 function readKind(value: string | null): ComprobanteKindFacet | null {
-  return value === "factura_c" || value === "nota_credito_c" ? value : null;
+  return comprobanteKinds.find((kind) => kind === value) ?? null;
 }
 
 function buildComprobantesWhere(
   selectedEventId: string,
   filters: ComprobantesListFilters,
-  isAnnulled: SQL,
+  status: SQL<ComprobanteStatus | null>,
 ) {
   const conditions: SQL[] = [eq(comprobantes.eventId, selectedEventId)];
   // The two anchor readings: a choreography by name, a seminar by its
@@ -294,14 +269,14 @@ function buildComprobantesWhere(
     conditions.push(searchCondition);
   }
 
-  if (filters.status === "annulled") {
-    conditions.push(isAnnulled);
-  } else if (filters.status === "valid") {
-    conditions.push(not(isAnnulled));
+  if (filters.status !== null) {
+    conditions.push(eq(status, filters.status));
   }
 
   if (filters.kind !== null) {
-    conditions.push(eq(comprobantes.cbteTipo, kindToCbteTipo(filters.kind)));
+    conditions.push(
+      eq(comprobantes.cbteTipo, comprobanteKindCbteTipo(filters.kind)),
+    );
   }
 
   // The root's CHECK sets exactly one anchor column, so the one that is set
@@ -313,10 +288,6 @@ function buildComprobantesWhere(
   }
 
   return and(...conditions);
-}
-
-function kindToCbteTipo(kind: ComprobanteKindFacet): number {
-  return kind === "factura_c" ? FACTURA_C_CBTE_TIPO : NOTA_CREDITO_C_CBTE_TIPO;
 }
 
 function buildComprobantesOrderBy(order: ComprobantesListOrder) {

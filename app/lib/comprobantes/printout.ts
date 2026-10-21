@@ -1,8 +1,3 @@
-import {
-  FACTURA_C_CBTE_TIPO,
-  NOTA_CREDITO_C_CBTE_TIPO,
-} from "./arca/factura-c";
-
 // Data and legends for the comprobante printout (#329/#334). The issuer is
 // `Proyecciones Artísticas Asociación Civil`, a civil association EXEMPT from VAT
 // (#426): it is NOT a monotributista. The legend for the issuer's VAT condition
@@ -25,29 +20,3 @@ export const RECIPIENT_VAT_CONDITION_LABEL = "Consumidor Final";
 
 // ARCA's authorization legend accompanying the CAE and the QR (RG 4291).
 export const COMPROBANTE_AUTHORIZED_LABEL = "Comprobante Autorizado";
-
-// The comprobante's header by type: a large letter, a 3-digit ARCA code and a
-// title. Only `Factura C` (011) and `Nota de crédito C` (013) are emitted.
-export type ComprobantePrintHeader = {
-  letter: string;
-  code: string;
-  title: string;
-};
-
-export function comprobantePrintHeader(
-  cbteTipo: number,
-): ComprobantePrintHeader {
-  if (cbteTipo === NOTA_CREDITO_C_CBTE_TIPO) {
-    return {
-      letter: "C",
-      code: String(NOTA_CREDITO_C_CBTE_TIPO).padStart(3, "0"),
-      title: "Nota de Crédito C",
-    };
-  }
-
-  return {
-    letter: "C",
-    code: String(FACTURA_C_CBTE_TIPO).padStart(3, "0"),
-    title: "Factura C",
-  };
-}

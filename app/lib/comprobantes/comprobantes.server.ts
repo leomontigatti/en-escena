@@ -59,7 +59,8 @@ export type RecordComprobanteInput = {
 };
 
 export type ComprobanteWithLines = ComprobanteRow & {
-  status: ComprobanteStatus;
+  // `null` on a note or an unknown kind: only an invoice has a status.
+  status: ComprobanteStatus | null;
   lines: ComprobanteInscriptionRow[];
 };
 
@@ -181,9 +182,9 @@ export async function seminarHasComprobantes(
 
 /**
  * Every comprobante of ONE anchor, with its derived state and its internal
- * lines. The mirror credit note anchors to the same unit, so the set per anchor
- * is self-contained for deriving `valid`/`annulled` — which is what makes a
- * comprobante annullable only by another of its own anchor.
+ * lines. Every note anchors to the same unit as the invoice it amends, so the
+ * set per anchor holds each invoice's whole star and the status derives from
+ * it alone.
  */
 export async function listAnchorComprobantes(
   anchor: ComprobanteAnchor,

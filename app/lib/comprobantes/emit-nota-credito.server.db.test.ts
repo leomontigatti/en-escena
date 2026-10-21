@@ -212,7 +212,8 @@ describe("annulComprobante", () => {
     );
     const facturaRow = rows.find((row) => row.id === factura.id);
     const notaCredito = rows.find((row) => row.cbteTipo === 13);
-    // The original ends up annulled; the credit note, in force and associated.
+    // The original ends up annulled; the credit note, associated and with no
+    // status of its own.
     expect(facturaRow?.status).toBe("annulled");
     expect(notaCredito).toMatchObject({
       cbteTipo: 13,
@@ -220,7 +221,7 @@ describe("annulComprobante", () => {
       impTotal: 7000,
       issuerIvaCondition: "exento",
       associatedComprobanteId: factura.id,
-      status: "valid",
+      status: null,
     });
   });
 

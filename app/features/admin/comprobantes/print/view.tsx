@@ -187,9 +187,11 @@ export function ComprobantePrintDocument({
               <p>
                 <strong>Vto. CAE:</strong> {model.caeVto}
               </p>
-              <p>
-                Estado: <span className="status">{model.statusLabel}</span>
-              </p>
+              {model.statusLabel === null ? null : (
+                <p>
+                  Estado: <span className="status">{model.statusLabel}</span>
+                </p>
+              )}
             </div>
           </div>
         </div>

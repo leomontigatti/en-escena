@@ -8,14 +8,16 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { NOTA_CREDITO_C_CBTE_TIPO } from "@/lib/comprobantes/arca/factura-c";
 import {
-  comprobanteTipoBadgeVariant,
   formatComprobanteArcaDate,
   formatComprobanteNumber,
-  formatComprobanteTipoInitials,
-  formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
+import {
+  comprobanteKindBadgeVariant,
+  formatComprobanteKindInitials,
+  formatComprobanteKindLabel,
+  signedComprobanteAmount,
+} from "@/lib/comprobantes/kind";
 import { formatAmount } from "@/lib/finances/formatters";
 
 import type { AnchorComprobanteRow } from "./server";
@@ -89,10 +91,10 @@ const comprobanteColumns: DataTableColumn<AnchorComprobanteRow>[] = [
     width: 20,
     cell: (row) => (
       <Badge
-        variant={comprobanteTipoBadgeVariant(row.cbteTipo)}
-        title={formatComprobanteTipoLabel(row.cbteTipo)}
+        variant={comprobanteKindBadgeVariant(row.cbteTipo)}
+        title={formatComprobanteKindLabel(row.cbteTipo)}
       >
-        {formatComprobanteTipoInitials(row.cbteTipo)}
+        {formatComprobanteKindInitials(row.cbteTipo)}
       </Badge>
     ),
   },
@@ -111,11 +113,6 @@ const comprobanteColumns: DataTableColumn<AnchorComprobanteRow>[] = [
     headerClassName: "text-right",
     // A credit note takes off what the invoice billed, so it reads negative
     // and the column reads as what the unit is invoiced for.
-    cell: (row) =>
-      formatAmount(
-        row.cbteTipo === NOTA_CREDITO_C_CBTE_TIPO
-          ? -row.impTotal
-          : row.impTotal,
-      ),
+    cell: (row) => formatAmount(signedComprobanteAmount(row)),
   },
 ];

@@ -40,15 +40,15 @@ export type ComprobanteDetail = {
   fchServDesde: string | null;
   fchServHasta: string | null;
   fchVtoPago: string | null;
-  status: ComprobanteStatus;
+  // `null` on a note or an unknown kind: only an invoice has a status.
+  status: ComprobanteStatus | null;
   // What the comprobante belongs to, as the detail reads it: one of two units.
   anchor: ComprobanteAnchorReading;
   academyId: string;
   academyName: string;
   eventName: string;
-  // Only a comprobante in force can be annulled: a credit note already
-  // emitted is not annulled, and an already annulled comprobante is not
-  // re-annulled from the UI.
+  // Only an invoice nothing amends can be annulled: a note carries no status,
+  // and the mirror credit note of an adjusted invoice would over-credit it.
   canAnnul: boolean;
 };
 

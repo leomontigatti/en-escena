@@ -40,6 +40,7 @@ import {
   recordComprobante,
   type ComprobanteLineInput,
 } from "./comprobantes.server";
+import { readComprobanteKind } from "./kind";
 
 type ComprobanteRow = Awaited<ReturnType<typeof recordComprobante>>;
 
@@ -520,9 +521,12 @@ async function sumBilledByInscription(
   const billed = new Map<string, number>();
 
   for (const comprobante of existing) {
+    // A note bills nothing of its own here, and an annulled invoice no
+    // longer covers its lines. An adjusted one still does until #1708 bills by
+    // delta: until then nothing but a fixture reaches that status.
     if (
-      comprobante.cbteTipo !== FACTURA_C_CBTE_TIPO ||
-      comprobante.status !== "valid"
+      readComprobanteKind(comprobante.cbteTipo).kind !== "factura_c" ||
+      comprobante.status === "annulled"
     ) {
       continue;
     }

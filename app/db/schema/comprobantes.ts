@@ -28,11 +28,11 @@ export const comprobanteIssuerIvaCondition = pgEnum(
 );
 
 // `Comprobante` — ARCA electronic fiscal comprobante (`Factura C`, `CbteTipo` 11;
-// `Nota de crédito C`, type 13). It is a DERIVED and IMMUTABLE document
-// (#320/#326): it never governs financial state and, once emitted with a CAE,
-// it is neither edited nor deleted. The `valid`/`annulled` state is NOT
-// persisted: it is derived from the existence of an associated credit note
-// (see comprobante-status.server).
+// `Nota de débito C`, 12; `Nota de crédito C`, 13; see kind.ts). It is a
+// DERIVED and IMMUTABLE document (#320/#326): it never governs financial state
+// and, once emitted with a CAE, it is neither edited nor deleted. An invoice's
+// status is NOT persisted: it is derived by amount from the notes associated
+// with it (see comprobante-status.server).
 export const comprobantes = createTable(
   "comprobante",
   {
@@ -60,7 +60,7 @@ export const comprobantes = createTable(
     // from.
     academyId: varchar("academy_id", { length: 255 }).notNull(),
     eventId: varchar("event_id", { length: 255 }).notNull(),
-    // ARCA comprobante type: 11 = `Factura C`, 13 = `Nota de crédito C`.
+    // ARCA comprobante type, read only through kind.ts.
     cbteTipo: integer("cbte_tipo").notNull(),
     ptoVta: integer("pto_vta").notNull(),
     cbteNro: integer("cbte_nro").notNull(),
@@ -90,9 +90,9 @@ export const comprobantes = createTable(
     cae: text("cae").notNull(),
     // CAE expiry in ARCA's `AAAAMMDD` format.
     caeVto: text("cae_vto").notNull(),
-    // Associated comprobante: a credit note (type 13) points here at the
-    // invoice it annuls (`CbtesAsoc`). Null on an invoice. From the invoice's
-    // side, the existence of a row referencing it is what derives it to `annulled`.
+    // Associated comprobante: a note points here at the invoice it amends
+    // (`CbtesAsoc`). Null on an invoice. From the invoice's side, the notes
+    // referencing it are what its status is derived from.
     associatedComprobanteId: varchar("associated_comprobante_id", {
       length: 255,
     }),

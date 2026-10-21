@@ -9,6 +9,7 @@ import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.se
 export const comprobanteStatusSearchValues: Record<ComprobanteStatus, string> =
   {
     valid: "vigente",
+    adjusted: "ajustada",
     annulled: "anulada",
   };
 
@@ -18,6 +19,8 @@ export function readComprobanteStatusSearchValue(
   switch (value) {
     case comprobanteStatusSearchValues.valid:
       return "valid";
+    case comprobanteStatusSearchValues.adjusted:
+      return "adjusted";
     case comprobanteStatusSearchValues.annulled:
       return "annulled";
     default:
