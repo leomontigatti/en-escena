@@ -3,7 +3,7 @@
  * only the characters its file holds. A name may mix them ("Dvořák" needs
  * `latin-ext` for the ř), so the text is cut into pieces, each in the first
  * subset that covers it, `latin` first. A character no subset covers stays on
- * `latin`.
+ * `latin`, and a combining mark on the piece of the letter it sits on.
  */
 
 export type FontSubset = {
@@ -40,13 +40,24 @@ export function readFontSubsets(
     }));
 }
 
+const combiningMark = /^\p{M}$/u;
+
 export function splitByFontSubset(
   text: string,
   subsets: FontSubset[],
 ): { subset: string; text: string }[] {
   const pieces: { subset: string; text: string }[] = [];
 
-  for (const character of text) {
+  // Composed first, so "e" and a combining acute become one "é"; a mark left
+  // over has no composed form and stays with its letter, which positions it.
+  for (const character of text.normalize("NFC")) {
+    const last = pieces.at(-1);
+
+    if (last && combiningMark.test(character)) {
+      last.text += character;
+      continue;
+    }
+
     const codePoint = character.codePointAt(0)!;
     const subset = (
       subsets.find((candidate) =>
@@ -55,7 +66,6 @@ export function splitByFontSubset(
         ),
       ) ?? subsets[0]
     ).name;
-    const last = pieces.at(-1);
 
     if (last?.subset === subset) {
       last.text += character;

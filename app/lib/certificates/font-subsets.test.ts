@@ -26,6 +26,19 @@ describe("splitByFontSubset", () => {
     ]);
   });
 
+  it("composes a decomposed accent with its letter", () => {
+    expect(splitByFontSubset("Jose\u0301", subsets)).toEqual([
+      { subset: "latin", text: "José" },
+    ]);
+  });
+
+  it("keeps a mark with no composed form on its letter's piece", () => {
+    // x with an acute has no precomposed character: the mark stays with it.
+    expect(splitByFontSubset("x\u0301y", subsets)).toEqual([
+      { subset: "latin", text: "x\u0301y" },
+    ]);
+  });
+
   it("reaches the Cyrillic subset too", () => {
     expect(splitByFontSubset("Иван", subsets)).toEqual([
       { subset: "cyrillic", text: "Иван" },
