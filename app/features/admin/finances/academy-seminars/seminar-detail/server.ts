@@ -9,6 +9,7 @@ import {
 import {
   handleEmitComprobante,
   handleRecheckComprobante,
+  readAnchorInvoicing,
 } from "@/features/admin/finances/comprobante-emission/handlers.server";
 import {
   emitComprobanteIntent,
@@ -18,10 +19,9 @@ import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { seminarAnchor } from "@/lib/comprobantes/anchor";
 import {
-  getFacturaCEmissionDeps,
-  resolveAnchorBillable,
-  type FacturaCEmissionDeps,
-} from "@/lib/comprobantes/emit-factura-c.server";
+  getComprobanteEmissionDeps,
+  type ComprobanteEmissionDeps,
+} from "@/lib/comprobantes/emit-comprobante.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import {
   readSeminarInscriptionPriceOptions,
@@ -66,7 +66,7 @@ export async function loadSeminarFinanceDetail(input: {
       availableBalanceAmount: 0,
       comprobantes: [],
       inscriptions: [],
-      invoicing: { billableAmount: 0, canEmit: false },
+      invoicing: null,
       priceOptionsByInscription: {} as Record<
         string,
         SeminarInscriptionPriceOption[]
@@ -94,7 +94,10 @@ export async function loadSeminarFinanceDetail(input: {
       readSeminarInscriptionFinanceRows({ academyId, eventId, seminarId }),
       readSeminarInscriptionPriceOptions({ eventId, seminarId }),
       getSeminar(seminarId),
-      readSeminarInvoicing(seminarId, academyId),
+      readAnchorInvoicing({
+        anchor: seminarAnchor(seminarId, academyId),
+        eventId,
+      }),
       readAnchorComprobantes(seminarAnchor(seminarId, academyId)),
     ]);
 
@@ -136,29 +139,6 @@ export async function loadSeminarFinanceDetail(input: {
   };
 }
 
-type SeminarInvoicing = {
-  // The collected remainder of this `(seminar, academy)` unit that no
-  // comprobante in force covers yet. Emission bills exactly this.
-  billableAmount: number;
-  canEmit: boolean;
-};
-
-/**
- * The detail's emission axis, read off the same resolver the emitter bills
- * from, so the affordance and the write cannot disagree about whether there is
- * anything to invoice.
- */
-async function readSeminarInvoicing(
-  seminarId: string,
-  academyId: string,
-): Promise<SeminarInvoicing> {
-  const billable = await resolveAnchorBillable(
-    seminarAnchor(seminarId, academyId),
-  );
-
-  return { billableAmount: billable.total, canEmit: billable.total > 0 };
-}
-
 /**
  * The detail's action: the emission and the three money gestures of a seminar
  * inscription. The gestures are the shared seminar ones, keyed by the
@@ -171,7 +151,7 @@ export async function handleSeminarFinanceAction(input: {
   request: Request;
   // Injectable emission inputs: the tests pass a mocked ARCA client; in
   // production they are resolved from the environment (cert+key, sales point).
-  resolveEmissionDeps?: () => FacturaCEmissionDeps;
+  resolveEmissionDeps?: () => ComprobanteEmissionDeps;
 }): Promise<SeminarFinanceActionData | never> {
   await requireAdminPanelWriter(input.request);
 
@@ -193,7 +173,8 @@ export async function handleSeminarFinanceAction(input: {
     anchor: seminarAnchor(seminarId, academyId),
     detailUrl: seminarFinanceDetailUrl(academyId, seminarId, eventId),
     eventId,
-    resolveEmissionDeps: input.resolveEmissionDeps ?? getFacturaCEmissionDeps,
+    resolveEmissionDeps:
+      input.resolveEmissionDeps ?? getComprobanteEmissionDeps,
   };
 
   if (intent === emitComprobanteIntent) {

@@ -30,8 +30,12 @@ import {
 } from "@/lib/finances/inscription-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import { FinancialDetailTabs } from "@/features/admin/finances/anchor-comprobantes/tabs";
-import { NothingToBillDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
+import { EmissionBlockedDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
+import {
+  formatEmitActionLabel,
+  type AnchorInvoicing,
+} from "@/features/admin/finances/comprobante-emission/shared";
 import { InscriptionMoneyDialog } from "@/features/admin/finances/inscription-money/dialog";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -201,8 +205,9 @@ function OverAllocatedAlert() {
  *
  * The menu is always there and its items are never disabled: a button that
  * comes and goes does not teach what can be done in the view, and a blocked
- * item says why when it is clicked (style guide, Detail pages). With nothing
- * left to bill, `Emitir factura` opens `NothingToBillDialog`; money on an
+ * item says why when it is clicked (style guide, Detail pages). The emission
+ * item is named after the document the choreography owes, and with none owed
+ * it opens `EmissionBlockedDialog`, which says why; money on an
  * inscription blocks `Bonificar coreografía` (ADR-0017), whose click lists it.
  * Once every inscription is waived it becomes `Quitar bonificación`.
  */
@@ -210,15 +215,17 @@ function ChoreographyActions({
   loaderData,
 }: ChoreographyFinanceDetailViewProps) {
   const invoicing = loaderData.invoicing;
-  const canEmit = invoicing?.canEmit ?? false;
-  // The billable is frozen on open and the dialog unmounts when it is CLOSED, not
-  // when it loses the affordance: an emission recovered via "Verificar ahora"
-  // persists the comprobante and revalidates the detail, which stops being
-  // billable. Unmounting there would take the `recovered` state with it (#577).
-  const [emission, setEmission] = useState<typeof invoicing | null>(null);
+  // The plan is frozen on open and the dialog unmounts when it is CLOSED, not
+  // when the choreography stops owing it: an emission recovered via "Verificar
+  // ahora" persists the comprobante and revalidates the detail, which then owes
+  // nothing. Unmounting there would take the `recovered` state with it (#577).
+  const [emission, setEmission] = useState<Extract<
+    AnchorInvoicing,
+    { status: "ready" }
+  > | null>(null);
   const waiver = readChoreographyWaiver(loaderData.inscriptions);
   const [isWaiverBlocked, setIsWaiverBlocked] = useState(false);
-  const [isNothingToBillOpen, setIsNothingToBillOpen] = useState(false);
+  const [isEmissionBlockedOpen, setIsEmissionBlockedOpen] = useState(false);
   const [isNothingToWaiveOpen, setIsNothingToWaiveOpen] = useState(false);
   const waiverConfirmation = useWaiverConfirmation();
   const waiverFetcher = useWaiverFetcher();
@@ -226,17 +233,19 @@ function ChoreographyActions({
   return (
     <>
       <ResourceActionsMenu contentClassName="w-56">
-        <DropdownMenuItem
-          onSelect={() => {
-            if (canEmit && invoicing) {
-              setEmission(invoicing);
-            } else {
-              setIsNothingToBillOpen(true);
-            }
-          }}
-        >
-          Emitir factura
-        </DropdownMenuItem>
+        {invoicing ? (
+          <DropdownMenuItem
+            onSelect={() => {
+              if (invoicing.status === "ready") {
+                setEmission(invoicing);
+              } else {
+                setIsEmissionBlockedOpen(true);
+              }
+            }}
+          >
+            {formatEmitActionLabel(invoicing)}
+          </DropdownMenuItem>
+        ) : null}
         {waiver.allWaived ? (
           <>
             {/* It reverses the waiver: destructive, so last and apart. */}
@@ -285,10 +294,13 @@ function ChoreographyActions({
           onClose={waiverConfirmation.close}
         />
       ) : null}
-      <NothingToBillDialog
-        onOpenChange={setIsNothingToBillOpen}
-        open={isNothingToBillOpen}
-      />
+      {invoicing?.status === "blocked" ? (
+        <EmissionBlockedDialog
+          invoicing={invoicing}
+          onOpenChange={setIsEmissionBlockedOpen}
+          open={isEmissionBlockedOpen}
+        />
+      ) : null}
       <BlockedActionDialog
         description="Se puede bonificar cuando tenga inscripciones en su elenco."
         onOpenChange={setIsNothingToWaiveOpen}
@@ -299,7 +311,7 @@ function ChoreographyActions({
       />
       {emission ? (
         <EmissionDialog
-          billableAmount={emission.billableAmount}
+          invoicing={emission}
           open
           onOpenChange={(next) => setEmission(next ? emission : null)}
         />

@@ -14,8 +14,9 @@ import { comprobantes } from "@/db/schema";
  * every pre-existing row's value was backfilled from. A seminar names several,
  * so there it is an input.
  *
- * Every rule that used to read "the same choreography" — annulment, the
- * anti-double-billing derivation, the deletion block — reads "the same anchor".
+ * Every rule that used to read "the same choreography" — the delta, the
+ * amendment star, the emission lock, the deletion block — reads "the same
+ * anchor".
  */
 export type ComprobanteAnchor =
   | { kind: "choreography"; choreographyId: string }

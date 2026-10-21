@@ -152,10 +152,12 @@ export async function recoverAuthorization(
 }
 
 // How the document is named in the messages shown to the operator.
-export type ArcaContingencySubject = "comprobante" | "nota de crédito";
+export type ArcaContingencySubject =
+  "comprobante" | "nota de débito" | "nota de crédito";
 
 const ARTICLE: Record<ArcaContingencySubject, string> = {
   comprobante: "el comprobante",
+  "nota de débito": "la nota de débito",
   "nota de crédito": "la nota de crédito",
 };
 

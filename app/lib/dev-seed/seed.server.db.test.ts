@@ -418,7 +418,7 @@ describe("dev seed", () => {
     expect(locked.size).toBe(1);
   });
 
-  test("invoices what one choreography paid, so the comprobante screens have a row", async () => {
+  test("invoices one `Señada` choreography for its full price, so the comprobante screens have a row", async () => {
     await seedDevData({ now });
 
     const invoiced = await db.query.choreographies.findFirst({
@@ -427,7 +427,8 @@ describe("dev seed", () => {
     await expect(
       listAnchorComprobantes(choreographyAnchor(invoiced?.id ?? "")),
     ).resolves.toMatchObject([
-      { cbteTipo: 11, cbteNro: 1, impTotal: 10000, status: "valid" },
+      // The invoice bills what the choreography owes, not the 10000 it paid.
+      { cbteTipo: 11, cbteNro: 1, impTotal: 25000, status: "valid" },
     ]);
     await expect(db.$count(comprobantes)).resolves.toBe(1);
   });

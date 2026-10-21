@@ -1,12 +1,10 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  handleComprobanteDetailAction,
   loadComprobanteDetail,
   type ComprobanteDetailLoaderData,
 } from "@/features/admin/comprobantes/detail/server";
 import { ComprobanteDetailRouteView } from "@/features/admin/comprobantes/detail/view";
 import { formatComprobanteNumber } from "@/lib/comprobantes/format";
-import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.comprobantes_.$comprobanteId";
 
@@ -34,17 +32,6 @@ export const handle = {
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   return await loadComprobanteDetail(request, params.comprobanteId ?? "");
-}
-
-export async function action({ request, params }: Route.ActionArgs) {
-  return await handleComprobanteDetailAction({
-    request,
-    comprobanteId: params.comprobanteId ?? "",
-  });
-}
-
-export async function clientAction({ serverAction }: Route.ClientActionArgs) {
-  return await recoverableClientAction(serverAction);
 }
 
 export default function ComprobanteDetailRoute({

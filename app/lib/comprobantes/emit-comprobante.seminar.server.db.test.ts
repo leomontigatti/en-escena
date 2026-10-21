@@ -19,7 +19,6 @@ import { type ArcaBillingPort } from "@/lib/comprobantes/arca/client.server";
 import type { ArcaVoucher } from "@/lib/comprobantes/arca/factura-c";
 import {
   facturaCAprobada,
-  notaCreditoCAprobada,
   ultimoAutorizado,
 } from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import { choreographyAnchor, seminarAnchor } from "@/lib/comprobantes/anchor";
@@ -28,8 +27,7 @@ import {
   recordComprobante,
   seminarHasComprobantes,
 } from "@/lib/comprobantes/comprobantes.server";
-import { emitFacturaC } from "@/lib/comprobantes/emit-factura-c.server";
-import { annulComprobante } from "@/lib/comprobantes/emit-nota-credito.server";
+import { emitAnchorComprobante } from "@/lib/comprobantes/emit-comprobante.server";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { deleteSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
@@ -176,48 +174,16 @@ async function allocate(
   });
 }
 
-/**
- * A second collection on the same inscription. It needs its own `Pago`: one
- * allocation row per `(payment, target)` is exactly what the unique constraint
- * says, and the summing upsert is the writer's job, not the fixture's.
- */
-async function allocateMore(
-  unit: { academyId: string; inscription: { id: string } },
-  eventId: string,
-  amount: number,
-) {
-  paymentNumber += 1;
-  const [payment] = await db
-    .insert(payments)
-    .values({
-      academyId: unit.academyId,
-      amount,
-      eventId,
-      paymentDate: "2030-05-01",
-      paymentMethod: "transferencia",
-      paymentNumber,
-    })
-    .returning();
-
-  await db.insert(paymentAllocations).values({
-    academyId: unit.academyId,
-    amount,
-    eventId,
-    paymentId: payment.id,
-    seminarInscriptionId: unit.inscription.id,
-  });
-}
-
-describe("emitFacturaC on a (seminar, academy) unit", () => {
-  test("bills what that academy collected in that seminar, anchored on the pair", async () => {
+describe("emitAnchorComprobante on a (seminar, academy) unit", () => {
+  test("bills the pair's full price once it is `Señada`, anchored on the pair", async () => {
     const { event, first, seminar, second } = await seedSeminarUnit();
-    await allocate(first, event.id, 6000);
+    await allocate(first, event.id, 10000);
     // The other academy's money in the same seminar is another unit's: it must
     // not reach this comprobante.
-    await allocate(second, event.id, 9000);
+    await allocate(second, event.id, 20000);
 
     const deps = emissionDeps(fakeBilling());
-    const outcome = await emitFacturaC(
+    const outcome = await emitAnchorComprobante(
       { anchor: seminarAnchor(seminar.id, first.academyId), eventId: event.id },
       deps,
     );
@@ -225,7 +191,7 @@ describe("emitFacturaC on a (seminar, academy) unit", () => {
     expect(outcome).toMatchObject({ ok: true, recovered: false });
     const sent = vi.mocked(deps.billing.createVoucher).mock
       .calls[0][0] as ArcaVoucher;
-    expect(sent.ImpTotal).toBe(6000);
+    expect(sent.ImpTotal).toBe(20000);
     // A seminar is taught on one day, so both ends of the service period are it.
     expect(sent.FchServDesde).toBe("20301010");
     expect(sent.FchServHasta).toBe("20301010");
@@ -237,72 +203,94 @@ describe("emitFacturaC on a (seminar, academy) unit", () => {
     expect(persisted).toMatchObject({
       academyId: first.academyId,
       choreographyId: null,
-      impTotal: 6000,
+      impTotal: 20000,
       seminarId: seminar.id,
       status: "valid",
     });
-    expect(persisted.lines).toHaveLength(1);
-    expect(persisted.lines[0]).toMatchObject({
-      choreographyInscriptionId: null,
-      amount: 6000,
-      seminarInscriptionId: first.inscription.id,
-    });
+    expect(persisted.lines).toEqual([
+      expect.objectContaining({
+        choreographyInscriptionId: null,
+        amount: 20000,
+        seminarInscriptionId: first.inscription.id,
+      }),
+    ]);
 
-    // The other academy's unit is untouched and still owes its whole collection.
+    // The other academy's unit is untouched.
     expect(
       await listAnchorComprobantes(seminarAnchor(seminar.id, second.academyId)),
     ).toHaveLength(0);
   });
 
-  test("a second emission bills only the delta, and refuses when there is none", async () => {
+  test("is refused below `Señada`", async () => {
     const { event, first, seminar } = await seedSeminarUnit();
     await allocate(first, event.id, 6000);
-    const anchor = seminarAnchor(seminar.id, first.academyId);
-
-    await emitFacturaC(
-      { anchor, eventId: event.id },
-      emissionDeps(fakeBilling()),
-    );
-
-    const refused = await emitFacturaC(
-      { anchor, eventId: event.id },
-      emissionDeps(fakeBilling()),
-    );
-    expect(refused).toMatchObject({
-      ok: false,
-      reason: "nothing-to-bill",
-      message:
-        "No hay un monto cobrado pendiente de facturar en este seminario.",
-    });
-
-    await allocateMore(first, event.id, 2500);
-    const deps = emissionDeps(nextInSeries(44, "41124578989846"));
-    const second = await emitFacturaC({ anchor, eventId: event.id }, deps);
-
-    expect(second).toMatchObject({ ok: true });
-    const sent = vi.mocked(deps.billing.createVoucher).mock
-      .calls[0][0] as ArcaVoucher;
-    expect(sent.ImpTotal).toBe(2500);
-  });
-
-  test("bills a withdrawn inscription as evidence of what it retained", async () => {
-    const { event, first, seminar } = await seedSeminarUnit();
-    await allocate(first, event.id, 6000);
-    await db
-      .update(seminarInscriptions)
-      .set({ withdrawnAt: new Date("2030-05-01T12:00:00Z") })
-      .where(eq(seminarInscriptions.id, first.inscription.id));
 
     const deps = emissionDeps(fakeBilling());
-    const outcome = await emitFacturaC(
+    const outcome = await emitAnchorComprobante(
       { anchor: seminarAnchor(seminar.id, first.academyId), eventId: event.id },
       deps,
     );
 
-    expect(outcome).toMatchObject({ ok: true });
-    const sent = vi.mocked(deps.billing.createVoucher).mock
-      .calls[0][0] as ArcaVoucher;
-    expect(sent.ImpTotal).toBe(6000);
+    expect(outcome).toMatchObject({ ok: false, reason: "below-deposit" });
+    expect(deps.billing.getLastVoucher).not.toHaveBeenCalled();
+  });
+
+  test("an addition emits a debit note and a withdrawal a credit note, both at the pair's invoice", async () => {
+    const { event, first, seminar } = await seedSeminarUnit();
+    await allocate(first, event.id, 10000);
+    const anchor = seminarAnchor(seminar.id, first.academyId);
+    const invoiced = await emitAnchorComprobante(
+      { anchor, eventId: event.id },
+      emissionDeps(fakeBilling()),
+    );
+    const factura = invoiced.ok ? invoiced.comprobante : null;
+
+    const dancer = await createDancer(first.academyId, {
+      firstName: "Bea",
+      lastName: "Norte",
+    });
+    const [added] = await db
+      .insert(seminarInscriptions)
+      .values({ dancerId: dancer.id, seminarId: seminar.id })
+      .returning();
+    await expect(
+      emitAnchorComprobante(
+        { anchor, eventId: event.id },
+        emissionDeps(nextInSeries(2, "41124578989846")),
+      ),
+    ).resolves.toMatchObject({
+      ok: true,
+      comprobante: {
+        cbteTipo: 12,
+        impTotal: 20000,
+        associatedComprobanteId: factura?.id,
+      },
+    });
+
+    // The first dancer leaves keeping their 10000 deposit; the added one leaves
+    // with nothing on them.
+    await db
+      .update(seminarInscriptions)
+      .set({ withdrawnAt: new Date("2030-05-01T12:00:00Z") })
+      .where(eq(seminarInscriptions.seminarId, seminar.id));
+    expect(added.id).not.toBe(first.inscription.id);
+    await expect(
+      emitAnchorComprobante(
+        { anchor, eventId: event.id },
+        emissionDeps(nextInSeries(3, "41124578989847")),
+      ),
+    ).resolves.toMatchObject({
+      ok: true,
+      comprobante: {
+        cbteTipo: 13,
+        impTotal: 30000,
+        associatedComprobanteId: factura?.id,
+      },
+    });
+
+    const scope = await listAnchorComprobantes(anchor);
+    expect(scope.map((row) => row.cbteTipo)).toEqual([11, 12, 13]);
+    expect(scope[0].status).toBe("adjusted");
   });
 
   test("refuses an anchor that does not belong to the named event", async () => {
@@ -313,7 +301,7 @@ describe("emitFacturaC on a (seminar, academy) unit", () => {
       ...eventDates(2030),
     });
 
-    const outcome = await emitFacturaC(
+    const outcome = await emitAnchorComprobante(
       { anchor: seminarAnchor(seminar.id, first.academyId), eventId: other.id },
       emissionDeps(fakeBilling()),
     );
@@ -327,59 +315,6 @@ describe("emitFacturaC on a (seminar, academy) unit", () => {
 });
 
 describe("the comprobante anchor", () => {
-  test("annulment and re-billing stay inside the anchor", async () => {
-    const { event, first, seminar, second } = await seedSeminarUnit();
-    await allocate(first, event.id, 6000);
-    await allocate(second, event.id, 9000);
-    const anchor = seminarAnchor(seminar.id, first.academyId);
-
-    const emitted = await emitFacturaC(
-      { anchor, eventId: event.id },
-      emissionDeps(fakeBilling()),
-    );
-    expect(emitted.ok).toBe(true);
-    const factura = emitted.ok ? emitted.comprobante : null;
-
-    // The other academy's comprobante points at nothing of this one, so it
-    // cannot annul it.
-    await emitFacturaC(
-      {
-        anchor: seminarAnchor(seminar.id, second.academyId),
-        eventId: event.id,
-      },
-      emissionDeps(nextInSeries(44, "41124578989846")),
-    );
-
-    const [stillValid] = await listAnchorComprobantes(anchor);
-    expect(stillValid.status).toBe("valid");
-
-    const annulled = await annulComprobante(
-      { comprobanteId: factura!.id },
-      emissionDeps(
-        fakeBilling({
-          createVoucher: vi.fn(
-            async (): Promise<CreateVoucherResultDto> => notaCreditoCAprobada,
-          ),
-        }),
-      ),
-    );
-    expect(annulled.ok).toBe(true);
-
-    const scope = await listAnchorComprobantes(anchor);
-    // The mirror credit note anchors on the same pair, which is what derives
-    // the invoice to `annulled` — and what keeps it out of the other unit.
-    expect(scope).toHaveLength(2);
-    expect(scope[0].status).toBe("annulled");
-    expect(scope[1]).toMatchObject({
-      academyId: first.academyId,
-      cbteTipo: 13,
-      seminarId: seminar.id,
-    });
-    expect(
-      await listAnchorComprobantes(seminarAnchor(seminar.id, second.academyId)),
-    ).toHaveLength(1);
-  });
-
   test("refuses a root naming neither anchor and one naming both", async () => {
     const { event, first, seminar } = await seedSeminarUnit();
     const root = {
@@ -454,8 +389,8 @@ describe("the comprobante anchor", () => {
 describe("seminar deletion with fiscal history", () => {
   test("is refused permanently once the seminar carries a comprobante", async () => {
     const { event, first, seminar } = await seedSeminarUnit();
-    await allocate(first, event.id, 6000);
-    await emitFacturaC(
+    await allocate(first, event.id, 10000);
+    await emitAnchorComprobante(
       { anchor: seminarAnchor(seminar.id, first.academyId), eventId: event.id },
       emissionDeps(fakeBilling()),
     );
@@ -478,8 +413,8 @@ describe("seminar deletion with fiscal history", () => {
 
 // ADR-0019: an individual's money is its own, so its `(seminar, owner)` unit
 // is billed like an academy's, and the comprobante carries the person's name.
-describe("emitFacturaC on an individual's seminar unit", () => {
-  test("bills what the individual collected and carries its name", async () => {
+describe("emitAnchorComprobante on an individual's seminar unit", () => {
+  test("bills the individual's full price and carries its name", async () => {
     const { event, seminar, first } = await seedSeminarUnit();
     const individual = await createIndividualUser({
       documentNumber: "30123456",
@@ -507,13 +442,13 @@ describe("emitFacturaC on an individual's seminar unit", () => {
     await allocate(
       { academyId: individual.ownerId, inscription, payment },
       event.id,
-      7000,
+      10000,
     );
     // An academy's money in the same seminar is another unit's.
-    await allocate(first, event.id, 9000);
+    await allocate(first, event.id, 10000);
 
     const deps = emissionDeps(fakeBilling());
-    const outcome = await emitFacturaC(
+    const outcome = await emitAnchorComprobante(
       {
         anchor: seminarAnchor(seminar.id, individual.ownerId),
         eventId: event.id,
@@ -524,7 +459,7 @@ describe("emitFacturaC on an individual's seminar unit", () => {
     expect(outcome).toMatchObject({ ok: true });
     const sent = vi.mocked(deps.billing.createVoucher).mock
       .calls[0][0] as ArcaVoucher;
-    expect(sent.ImpTotal).toBe(7000);
+    expect(sent.ImpTotal).toBe(20000);
 
     if (!outcome.ok) {
       throw new Error("Expected the emission to succeed.");
@@ -535,7 +470,7 @@ describe("emitFacturaC on an individual's seminar unit", () => {
     );
     expect(persisted?.lines).toEqual([
       expect.objectContaining({
-        amount: 7000,
+        amount: 20000,
         seminarInscriptionId: inscription.id,
       }),
     ]);

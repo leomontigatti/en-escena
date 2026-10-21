@@ -1258,8 +1258,11 @@ function loaderDataFixture(
     },
     inscriptions: [inscriptionFixture()],
     invoicing: {
-      billableAmount: 0,
-      canEmit: false,
+      status: "blocked",
+      invoiced: false,
+      reason: "Alguna inscripción todavía no cubrió su seña.",
+      remedy:
+        "La factura se emite cuando todas las inscripciones activas cubrieron su seña.",
     },
     priceOptions: [
       {

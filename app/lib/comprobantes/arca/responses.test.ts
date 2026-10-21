@@ -4,6 +4,7 @@ import {
   facturaCAprobada,
   facturaCAprobadaConObservaciones,
   facturaCRechazada,
+  notaRechazada10197,
   ultimoAutorizado,
   ultimoAutorizadoVacio,
 } from "./wsfe-responses.test-support";
@@ -28,6 +29,21 @@ describe("formatArcaMessage", () => {
 });
 
 describe("parseCreateVoucherResult", () => {
+  // #686: a note without `CbtesAsoc` comes back with its reason in
+  // `Observaciones` and no `Errors` at all. `Resultado` is what says it was
+  // refused.
+  test("reads a 10197 refusal with no Errors node as a rejection", () => {
+    const parsed = parseCreateVoucherResult(notaRechazada10197);
+
+    expect(parsed).toMatchObject({
+      approved: false,
+      cae: null,
+      resultado: "R",
+      errors: [],
+      observaciones: [{ code: 10197 }],
+    });
+  });
+
   test("extracts CAE, expiry and sequence number from an approved comprobante", () => {
     const parsed = parseCreateVoucherResult(facturaCAprobada);
 

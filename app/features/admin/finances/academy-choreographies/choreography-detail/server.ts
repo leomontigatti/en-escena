@@ -10,10 +10,9 @@ import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import {
-  getFacturaCEmissionDeps,
-  resolveAnchorBillable,
-  type FacturaCEmissionDeps,
-} from "@/lib/comprobantes/emit-factura-c.server";
+  getComprobanteEmissionDeps,
+  type ComprobanteEmissionDeps,
+} from "@/lib/comprobantes/emit-comprobante.server";
 import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
 import {
   allocateToInscription,
@@ -31,6 +30,7 @@ import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operati
 import {
   handleEmitComprobante,
   handleRecheckComprobante,
+  readAnchorInvoicing,
 } from "@/features/admin/finances/comprobante-emission/handlers.server";
 import {
   emitComprobanteIntent,
@@ -108,7 +108,10 @@ export async function loadChoreographyFinanceDetail(input: {
     }),
     readInscriptionEffectivePrices({ choreographyId, eventId }),
     readInscriptionPriceOptions({ choreographyId, eventId }),
-    readChoreographyInvoicing(choreographyId),
+    readAnchorInvoicing({
+      anchor: choreographyAnchor(choreographyId),
+      eventId,
+    }),
     readAnchorComprobantes(choreographyAnchor(choreographyId)),
   ]);
   // One price travels with the row: the **effective** one, what the inscription
@@ -154,41 +157,12 @@ export async function loadChoreographyFinanceDetail(input: {
   };
 }
 
-export type ChoreographyInvoicing = {
-  // The collected remainder not yet covered by a comprobante in force. Emission
-  // bills exactly this (#446); the UX previews it.
-  billableAmount: number;
-  // There is something to bill: the emission affordance is only enabled with a
-  // remainder.
-  canEmit: boolean;
-};
-
-/**
- * The detail's emission axis: what is left to bill. Mirrors the server's own
- * emission precondition (`emitFacturaC`), which is now the single test
- * `total > 0` — with `porcion` gone there is no second derivable input the
- * button could disagree with.
- */
-async function readChoreographyInvoicing(
-  choreographyId: string,
-): Promise<ChoreographyInvoicing> {
-  const billable = await resolveAnchorBillable({
-    kind: "choreography",
-    choreographyId,
-  });
-
-  return {
-    billableAmount: billable.total,
-    canEmit: billable.total > 0,
-  };
-}
-
 export async function handleChoreographyFinanceAction(input: {
   params: { academyId?: string; choreographyId?: string };
   request: Request;
   // Injectable emission inputs: the tests pass a mocked ARCA client; in
   // production they are resolved from the environment (cert+key, sales point).
-  resolveEmissionDeps?: () => FacturaCEmissionDeps;
+  resolveEmissionDeps?: () => ComprobanteEmissionDeps;
 }): Promise<ChoreographyFinanceActionData | never> {
   await requireAdminPanelWriter(input.request);
 
@@ -241,7 +215,8 @@ export async function handleChoreographyFinanceAction(input: {
     anchor: { kind: "choreography", choreographyId } as const,
     detailUrl: choreographyDetailUrl(academyId, choreographyId, eventId),
     eventId,
-    resolveEmissionDeps: input.resolveEmissionDeps ?? getFacturaCEmissionDeps,
+    resolveEmissionDeps:
+      input.resolveEmissionDeps ?? getComprobanteEmissionDeps,
   };
 
   if (intent === emitComprobanteIntent) {

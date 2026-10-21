@@ -50,7 +50,7 @@ type ComprobantesListRouteViewProps = {
 // Only `N.°` (the number) and `Fecha` are sortable (`sortValue` enables
 // the header). The number links to the comprobante detail and the anchor to its
 // financial detail — the choreography's or the `(seminar, academy)` unit's;
-// there is no CAE column and no inline actions (print/annul live in the detail).
+// there is no CAE column and no inline actions (print lives in the detail).
 const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "numero",

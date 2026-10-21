@@ -15,8 +15,12 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FinancialDetailTabs } from "@/features/admin/finances/anchor-comprobantes/tabs";
-import { NothingToBillDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
+import { EmissionBlockedDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
+import {
+  formatEmitActionLabel,
+  type AnchorInvoicing,
+} from "@/features/admin/finances/comprobante-emission/shared";
 import { IndividualPersonBadge } from "@/features/admin/finances/individual-person-badge";
 import { InscriptionMoneyDialog } from "@/features/admin/finances/inscription-money/dialog";
 import { formatDate } from "@/features/admin/schedules/view-shared";
@@ -110,40 +114,50 @@ export function SeminarFinanceDetailView({
 
 /**
  * The header's single actions menu (`...`, ADR-0011), the choreography detail's
- * twin: `Emitir factura` as a menu item opening its own dialog, mounted as a
- * sibling of the menu so the dropdown closing does not take it away. With
- * nothing left to bill the item stays and opens `NothingToBillDialog`, for the
- * same reason it is there.
+ * twin: the emission as a menu item named after the document the unit owes,
+ * opening its own dialog, mounted as a sibling of the menu so the dropdown
+ * closing does not take it away. With nothing owed the item stays and opens
+ * `EmissionBlockedDialog`, which says why.
  */
 function SeminarActions({ loaderData }: SeminarFinanceDetailViewProps) {
   const invoicing = loaderData.invoicing;
   // Frozen on open and unmounted when the dialog CLOSES, not when the unit
-  // stops being billable: an emission recovered via "Verificar ahora" persists
-  // the comprobante and revalidates the detail, and unmounting there would take
+  // stops owing it: an emission recovered via "Verificar ahora" persists the
+  // comprobante and revalidates the detail, and unmounting there would take
   // the `recovered` state with it (#577).
-  const [emission, setEmission] = useState<typeof invoicing | null>(null);
-  const [isNothingToBillOpen, setIsNothingToBillOpen] = useState(false);
+  const [emission, setEmission] = useState<Extract<
+    AnchorInvoicing,
+    { status: "ready" }
+  > | null>(null);
+  const [isEmissionBlockedOpen, setIsEmissionBlockedOpen] = useState(false);
+
+  if (!invoicing) {
+    return null;
+  }
 
   return (
     <>
       <ResourceActionsMenu contentClassName="w-48">
         <DropdownMenuItem
           onSelect={() =>
-            invoicing.canEmit
+            invoicing.status === "ready"
               ? setEmission(invoicing)
-              : setIsNothingToBillOpen(true)
+              : setIsEmissionBlockedOpen(true)
           }
         >
-          Emitir factura
+          {formatEmitActionLabel(invoicing)}
         </DropdownMenuItem>
       </ResourceActionsMenu>
-      <NothingToBillDialog
-        onOpenChange={setIsNothingToBillOpen}
-        open={isNothingToBillOpen}
-      />
+      {invoicing.status === "blocked" ? (
+        <EmissionBlockedDialog
+          invoicing={invoicing}
+          onOpenChange={setIsEmissionBlockedOpen}
+          open={isEmissionBlockedOpen}
+        />
+      ) : null}
       {emission ? (
         <EmissionDialog
-          billableAmount={emission.billableAmount}
+          invoicing={emission}
           open
           onOpenChange={(next) => setEmission(next ? emission : null)}
         />

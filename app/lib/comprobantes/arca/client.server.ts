@@ -9,12 +9,14 @@ import {
   buildFacturaCVoucher,
   FACTURA_C_CBTE_TIPO,
   NOTA_CREDITO_C_CBTE_TIPO,
+  NOTA_DEBITO_C_CBTE_TIPO,
   type ArcaVoucher,
   type FacturaCVoucherInput,
 } from "./factura-c";
 import {
   buildNotaCreditoCVoucher,
-  type NotaCreditoCVoucherInput,
+  buildNotaDebitoCVoucher,
+  type ClassCNoteVoucherInput,
 } from "./nota-credito";
 import {
   parseCreateVoucherResult,
@@ -45,7 +47,7 @@ export type ArcaBillingPort = {
 // Per-call timeouts, in milliseconds (ADR-0012 decision 2). They are code
 // constants, not environment variables: a required one would break the
 // existing deploys, and an optional one is a knob nobody has needed yet.
-export const ARCA_TIMEOUTS = {
+const ARCA_TIMEOUTS = {
   // Lookup: giving up early is free, and a fast failure gets the operator
   // retrying sooner.
   lookup: 15_000,
@@ -135,14 +137,7 @@ export class ArcaClient {
   async emitFacturaC(
     input: FacturaCVoucherInput,
   ): Promise<FacturaCEmissionResult> {
-    const voucher = buildFacturaCVoucher(input);
-    const result = await withTimeout(
-      this.timeouts.authorization,
-      "FECAESolicitar",
-      () => this.billing.createVoucher(voucher),
-    );
-
-    return parseCreateVoucherResult(result);
+    return await this.authorize(buildFacturaCVoucher(input));
   }
 
   // `FECompUltimoAutorizado` for `Nota de crédito C` (type 13): its sequence runs
@@ -157,13 +152,37 @@ export class ArcaClient {
     return parseLastVoucher(result);
   }
 
-  // `FECAESolicitar` for a `Nota de crédito C`: builds the mirror payload with
+  // `FECAESolicitar` for a `Nota de crédito C`: builds the payload with
   // `CbtesAsoc`, authorizes it and returns CAE/expiry along with
   // errors/observations.
   async emitNotaCreditoC(
-    input: NotaCreditoCVoucherInput,
+    input: ClassCNoteVoucherInput,
   ): Promise<FacturaCEmissionResult> {
-    const voucher = buildNotaCreditoCVoucher(input);
+    return await this.authorize(buildNotaCreditoCVoucher(input));
+  }
+
+  // `FECompUltimoAutorizado` for `Nota de débito C` (type 12): a third series,
+  // ratcheting independently of the other two (#686).
+  async getLastNotaDebitoCNumber(ptoVta: number): Promise<LastVoucherResult> {
+    const result = await withTimeout(
+      this.timeouts.lookup,
+      "FECompUltimoAutorizado",
+      () => this.billing.getLastVoucher(ptoVta, NOTA_DEBITO_C_CBTE_TIPO),
+    );
+
+    return parseLastVoucher(result);
+  }
+
+  // `FECAESolicitar` for a `Nota de débito C`, the credit note's twin.
+  async emitNotaDebitoC(
+    input: ClassCNoteVoucherInput,
+  ): Promise<FacturaCEmissionResult> {
+    return await this.authorize(buildNotaDebitoCVoucher(input));
+  }
+
+  private async authorize(
+    voucher: ArcaVoucher,
+  ): Promise<FacturaCEmissionResult> {
     const result = await withTimeout(
       this.timeouts.authorization,
       "FECAESolicitar",
@@ -260,7 +279,7 @@ export function readArcaClientConfig(
 }
 
 // Builds a real `ArcaClient` from a config, with the in-process TA cache.
-export function createArcaClient(config: ArcaClientConfig): ArcaClient {
+function createArcaClient(config: ArcaClientConfig): ArcaClient {
   const arca = new Arca({
     production: config.production,
     cert: config.cert,

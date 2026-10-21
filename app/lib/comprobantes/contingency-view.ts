@@ -2,10 +2,10 @@ import type { ArcaEmissionFailureReason } from "./arca/emission.server";
 import { formatArcaMessage, type ArcaMessage } from "./arca/responses";
 import type { ComprobanteContingency } from "./contingency-alert";
 
-// The minimal shape of an emission or annulment failure. Both routes produce it
-// identically, so the mapping to the UI surface is written once. The `reason`
-// admits any string because each route adds its own — `not-found`,
-// `nothing-to-bill`, `already-annulled` — but the three that do map are compared
+// The minimal shape of an emission failure, for both financial details, so the
+// mapping to the UI surface is written once. The `reason` admits any string
+// because the emitter adds its own — `not-found`, `below-deposit`,
+// `over-credit` — but the three that do map are compared
 // against `ArcaEmissionFailureReason`: renaming one over there breaks here
 // instead of silently degrading to a generic error.
 export type ContingencyFailure = {
@@ -22,7 +22,7 @@ export type ContingencyFailure = {
 /**
  * Translates a failure from the server into what the operator sees (ADR-0012
  * decision 6). It returns `null` for failures that are not ARCA contingencies —
- * a non-existent choreography, nothing to bill, an already annulled comprobante:
+ * a non-existent choreography, a unit below `Señada`, a credit past its ceiling:
  * those are generic errors and neither enable nor block any retry.
  *
  * The `message` travels exactly as the server wrote it: it is aware of the
@@ -71,9 +71,9 @@ export type ContingencyActionData =
   | { status: "warning"; contingency: ComprobanteContingency };
 
 /**
- * Wraps `toComprobanteContingency` in the `actionData` the two dialogs consume.
- * It lives here rather than in each feature so the failure → UI state
- * translation cannot diverge between emission and annulment: the `unverified`
+ * Wraps `toComprobanteContingency` in the `actionData` the emission dialog
+ * consumes. It lives here rather than in a feature so the failure → UI state
+ * translation cannot diverge between the two financial details: the `unverified`
  * state blocks a destructive submit, and the consequence of that drift is a
  * second fiscal comprobante.
  */

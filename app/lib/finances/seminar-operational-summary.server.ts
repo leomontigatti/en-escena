@@ -120,6 +120,49 @@ export async function readAcademySeminarFinance(input: {
   return rowsByAcademy;
 }
 
+/**
+ * One `(seminar, academy)` unit's status and its inscriptions, withdrawn ones
+ * included: the unit `readAcademySeminarFinance` rolls up, at the grain an
+ * emission bills by. A unit with no inscription reads like the empty rollup.
+ */
+export async function readSeminarUnitFinance(input: {
+  academyId: string;
+  eventId: string;
+  seminarId: string;
+  executor?: Executor;
+}): Promise<{
+  financialStatus: SeminarOperationalFinanceRow["financialStatus"];
+  inscriptions: ResolvedSeminarInscription[];
+}> {
+  const executor = input.executor ?? db;
+  const unitRows = (
+    await readSeminarUnitRows({
+      academyIds: [input.academyId],
+      eventId: input.eventId,
+      executor,
+    })
+  ).filter((row) => row.seminarId === input.seminarId);
+  const resolutions = await resolveSeminarInscriptions(executor, {
+    eventId: input.eventId,
+    rows: unitRows,
+  });
+  const inscriptions = unitRows.flatMap((row) => {
+    const resolution = resolutions.get(row.id);
+
+    return resolution ? [resolution] : [];
+  });
+
+  return {
+    financialStatus: rollUpInscriptionFinanceFigures(
+      inscriptions.map((inscription) => ({
+        ...inscription,
+        basePriceAmount: inscription.priceRow?.amount ?? null,
+      })),
+    ).financialStatus,
+    inscriptions,
+  };
+}
+
 function buildSeminarOperationalFinanceRow(
   facts: SeminarUnitRow,
   inscriptions: ResolvedSeminarInscription[],

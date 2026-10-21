@@ -86,8 +86,8 @@ export function contingencyCancelLabel(state: ContingencySubmitState): string {
 }
 
 /**
- * The single surface for ARCA contingencies, shared by the emission dialog and
- * the annulment one.
+ * The single surface for ARCA contingencies, in the emission dialog of both
+ * financial details.
  *
  * `unverified` offers the only two ways out the operator has: query ARCA again
  * for that comprobante without leaving the dialog, or declare that they have

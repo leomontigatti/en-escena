@@ -18,7 +18,7 @@ import {
   ultimoAutorizado,
 } from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import type { RecordComprobanteInput } from "@/lib/comprobantes/comprobantes.server";
-import type { FacturaCEmissionDeps } from "@/lib/comprobantes/emit-factura-c.server";
+import type { ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
 
 /**
  * ARCA approving a `Factura C` that follows `ultimoAutorizado`. The lookup is
@@ -47,7 +47,7 @@ export function fakeBilling(
 export function emissionDeps(
   billing: ArcaBillingPort,
   timeouts?: ArcaTimeouts,
-): FacturaCEmissionDeps & { billing: ArcaBillingPort } {
+): ComprobanteEmissionDeps & { billing: ArcaBillingPort } {
   return {
     billing,
     client: new ArcaClient(billing, timeouts),

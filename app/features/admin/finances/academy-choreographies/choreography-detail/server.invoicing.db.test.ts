@@ -30,7 +30,9 @@ import {
   ultimoAutorizado,
 } from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
-import type { FacturaCEmissionDeps } from "@/lib/comprobantes/emit-factura-c.server";
+import type { ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
+import { describeEmissionRefusal } from "@/lib/comprobantes/emission-plan";
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import {
   emitComprobanteConfirmValue,
@@ -71,7 +73,7 @@ function fakeBilling(
   };
 }
 
-function emissionDeps(billing: ArcaBillingPort): FacturaCEmissionDeps {
+function emissionDeps(billing: ArcaBillingPort): ComprobanteEmissionDeps {
   return {
     client: new ArcaClient(billing),
     ptoVta: 1,
@@ -95,6 +97,17 @@ async function seedChoreographyWithPaidInscription(input: {
       email: input.email,
       event,
     });
+  // The catalogue's `solo` row expired in May; this one prices every
+  // inscription at 10000 today, with a 3000 deposit.
+  await insertTestPrices([
+    {
+      eventId: event.id,
+      name: "Precio Solo vigente",
+      groupType: "solo",
+      amount: 10000,
+      paymentDeadline: "2099-12-31",
+    },
+  ]);
   const dancer = await createDancer(academy.academy.id, {
     firstName: "Ana",
     lastName: "López",
@@ -273,7 +286,7 @@ function detailUrl(input: {
 }
 
 describe("financial detail — comprobante emission axis", () => {
-  test("has the whole collected amount billable when no comprobante covers it yet", async () => {
+  test("offers the invoice for the full price once the choreography is `Señada`", async () => {
     const seeded = await seedChoreographyWithPaidInscription({
       academyName: "Academia Sin Factura",
       choreographyName: "Coreografía sin factura",
@@ -284,12 +297,30 @@ describe("financial detail — comprobante emission axis", () => {
     const loaderData = await loadDetail(seeded);
 
     expect(loaderData.invoicing).toEqual({
-      billableAmount: 3000,
-      canEmit: true,
+      status: "ready",
+      kind: "factura_c",
+      amount: 10000,
     });
   });
 
-  test("leaves nothing billable once a valid invoice covers the whole collected amount", async () => {
+  test("explains why a choreography below `Señada` cannot be invoiced", async () => {
+    const seeded = await seedChoreographyWithPaidInscription({
+      academyName: "Academia Sin Seña",
+      choreographyName: "Coreografía sin seña",
+      email: "academia.sin.sena@example.com",
+      paidAmount: 1000,
+    });
+
+    const loaderData = await loadDetail(seeded);
+
+    expect(loaderData.invoicing).toEqual({
+      status: "blocked",
+      invoiced: false,
+      ...describeEmissionRefusal("below-deposit"),
+    });
+  });
+
+  test("owes nothing once the invoice documents the whole total", async () => {
     const seeded = await seedChoreographyWithPaidInscription({
       academyName: "Academia Vigente",
       choreographyName: "Coreografía vigente",
@@ -300,32 +331,10 @@ describe("financial detail — comprobante emission axis", () => {
       choreographyId: seeded.choreographyId,
       eventId: seeded.eventId,
       inscriptionId: seeded.inscriptionId,
-      amount: 3000,
+      amount: 10000,
       cbteNro: 7,
     });
-
-    const loaderData = await loadDetail(seeded);
-
-    expect(loaderData.invoicing).toEqual({
-      billableAmount: 0,
-      canEmit: false,
-    });
-  });
-
-  test("makes money collected after an invoice billable again", async () => {
-    const seeded = await seedChoreographyWithPaidInscription({
-      academyName: "Academia Remanente",
-      choreographyName: "Coreografía remanente",
-      email: "academia.remanente@example.com",
-      paidAmount: 3000,
-    });
-    await recordValidInvoice({
-      choreographyId: seeded.choreographyId,
-      eventId: seeded.eventId,
-      inscriptionId: seeded.inscriptionId,
-      amount: 3000,
-      cbteNro: 7,
-    });
+    // Money collected after the invoice bills nothing: it was never the amount.
     await seedAllocation({
       academyId: seeded.academyId,
       amount: 2000,
@@ -335,124 +344,43 @@ describe("financial detail — comprobante emission axis", () => {
 
     const loaderData = await loadDetail(seeded);
 
-    expect(loaderData.invoicing).toEqual({
-      billableAmount: 2000,
-      canEmit: true,
+    expect(loaderData.invoicing).toMatchObject({
+      status: "blocked",
+      invoiced: true,
     });
   });
 
-  test("makes the annulled invoice's amount billable again", async () => {
+  test("offers a debit note for a dancer added after the invoice", async () => {
     const seeded = await seedChoreographyWithPaidInscription({
-      academyName: "Academia Anulada",
-      choreographyName: "Coreografía anulada",
-      email: "academia.anulada@example.com",
+      academyName: "Academia Alta",
+      choreographyName: "Coreografía alta",
+      email: "academia.alta@example.com",
       paidAmount: 3000,
     });
-    const factura = await recordValidInvoice({
+    await recordValidInvoice({
       choreographyId: seeded.choreographyId,
       eventId: seeded.eventId,
       inscriptionId: seeded.inscriptionId,
-      amount: 3000,
+      amount: 10000,
       cbteNro: 7,
     });
-    await recordNotaCredito({
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 15,
       choreographyId: seeded.choreographyId,
-      eventId: seeded.eventId,
-      inscriptionId: seeded.inscriptionId,
-      amount: 3000,
-      cbteNro: 8,
-      associatedComprobanteId: factura.id,
+      dancerId: (
+        await createDancer(seeded.academyId, {
+          firstName: "Bruno",
+          lastName: "Díaz",
+        })
+      ).id,
     });
 
     const loaderData = await loadDetail(seeded);
 
     expect(loaderData.invoicing).toEqual({
-      billableAmount: 3000,
-      canEmit: true,
-    });
-  });
-
-  test("keeps canEmit aligned with the server gate when a billed line is orphaned", async () => {
-    // An orphaned billed line — its allocation was deleted after emission —
-    // leaves the aggregate billed above the aggregate collected while another
-    // inscription still has a remainder. The remainder is resolved per
-    // inscription, so B's is still billable and the button enables. That the
-    // server accepts exactly that emission is asserted in
-    // `emit-factura-c.server.db.test.ts`, which emits from this same state and
-    // checks the `ImpTotal`; without it this test would only be restating the
-    // loader. Under `porcion` the case was blocked on both sides, because the
-    // aggregate portion was not derivable.
-    const event = await createSavedEvent({ requiredDepositPercentage: 30 });
-    const { academy, choreography } =
-      await createAcademyFinanceChoreographyFixture({
-        academyName: "Academia Huérfana",
-        choreographyName: "Coreografía huérfana",
-        email: "academia.huerfana@example.com",
-        event,
-      });
-    const [dancerA, dancerB] = await Promise.all([
-      createDancer(academy.academy.id, {
-        firstName: "Ana",
-        lastName: "López",
-      }),
-      createDancer(academy.academy.id, {
-        firstName: "Bruno",
-        lastName: "Díaz",
-      }),
-    ]);
-    const [inscriptionA] = await db
-      .insert(choreographyDancers)
-      .values({
-        ageAtEventStart: 14,
-        choreographyId: choreography.id,
-        dancerId: dancerA.id,
-      })
-      .returning();
-    const [inscriptionB] = await db
-      .insert(choreographyDancers)
-      .values({
-        ageAtEventStart: 15,
-        choreographyId: choreography.id,
-        dancerId: dancerB.id,
-      })
-      .returning();
-
-    // A collects 3000 and is billed in full (a billed line of 3000).
-    await seedAllocation({
-      academyId: academy.academy.id,
-      amount: 3000,
-      eventId: event.id,
-      inscriptionId: inscriptionA.id,
-    });
-    await recordValidInvoice({
-      choreographyId: choreography.id,
-      eventId: event.id,
-      inscriptionId: inscriptionA.id,
-      amount: 3000,
-      cbteNro: 7,
-    });
-    // B collects only 1000 (less than A's billed line).
-    await seedAllocation({
-      academyId: academy.academy.id,
-      amount: 1000,
-      eventId: event.id,
-      inscriptionId: inscriptionB.id,
-    });
-    // A's allocation is deleted: its billed line is orphaned and the billed
-    // aggregate (3000) exceeds the collected one (1000).
-    await db
-      .delete(paymentAllocations)
-      .where(eq(paymentAllocations.choreographyInscriptionId, inscriptionA.id));
-
-    const loaderData = await loadDetail({
-      academyId: academy.academy.id,
-      choreographyId: choreography.id,
-      eventId: event.id,
-    });
-
-    expect(loaderData.invoicing).toEqual({
-      billableAmount: 1000,
-      canEmit: true,
+      status: "ready",
+      kind: "nota_debito_c",
+      amount: 10000,
     });
   });
 
@@ -489,12 +417,12 @@ describe("financial detail — comprobante emission axis", () => {
       .from(comprobantes)
       .where(eq(comprobantes.choreographyId, seeded.choreographyId));
     expect(stored).toHaveLength(1);
-    expect(stored[0]).toMatchObject({ impTotal: 3000, cbteTipo: 11 });
+    expect(stored[0]).toMatchObject({ impTotal: 10000, cbteTipo: 11 });
   });
 
   // Invoicing what a withdrawn choreography still holds is the reason it
-  // survives at all, so the emission axis does not read the withdrawal.
-  test("emits for a withdrawn choreography, whose retained money is still billable", async () => {
+  // survives at all: its inscriptions owe what they retained.
+  test("emits for a withdrawn choreography, for the money it retained", async () => {
     const seeded = await seedChoreographyWithPaidInscription({
       academyName: "Academia Retirada",
       choreographyName: "Coreografía retirada",
@@ -616,7 +544,7 @@ describe("financial detail — comprobante emission axis", () => {
             ),
             getVoucherInfo: vi.fn(async (): Promise<VoucherInfoResultDto> => ({
               ...facturaCConsultada,
-              impTotal: 3000,
+              impTotal: 10000,
               cbteFch: "20260722",
             })),
           }),
@@ -651,7 +579,7 @@ describe("financial detail — comprobante emission axis", () => {
         ...facturaCConsultada,
         cbteDesde: 43,
         cbteHasta: 43,
-        impTotal: 3000,
+        impTotal: 10000,
         cbteFch: "20260722",
       })),
     });
@@ -686,7 +614,7 @@ describe("financial detail — comprobante emission axis", () => {
     expect(stored).toHaveLength(1);
   });
 
-  // The amount is recomputed by the server from the billable: a tampered
+  // The amount is re-planned by the server: a tampered
   // sequence number cannot force somebody else's CAE to be persisted
   // (decision 4).
   test("re-verifying someone else's sequence number stays unverified", async () => {

@@ -44,10 +44,18 @@ describe("SeminarFinanceDetailView actions menu", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 
-  // With nothing left to bill the option stays enabled and the click says
-  // why, as it does on the choreography detail.
-  test("answers the emission with nothing left to bill with the blocked acknowledgment", async () => {
-    await mount({ invoicing: { billableAmount: 0, canEmit: false } });
+  // With nothing owed the option stays enabled and the click says why, as it
+  // does on the choreography detail.
+  test("answers the emission with nothing owed with the blocked acknowledgment", async () => {
+    await mount({
+      invoicing: {
+        status: "blocked",
+        invoiced: false,
+        reason: "Alguna inscripción todavía no cubrió su seña.",
+        remedy:
+          "La factura se emite cuando todas las inscripciones activas cubrieron su seña.",
+      },
+    });
 
     await openActionsMenu();
 
@@ -112,7 +120,7 @@ function loaderDataFixture(
     availableBalanceAmount: 7000,
     comprobantes: [],
     inscriptions: [],
-    invoicing: { billableAmount: 4000, canEmit: true },
+    invoicing: { status: "ready", kind: "factura_c", amount: 4000 },
     priceOptionsByInscription: {},
     seminar: {
       allocatedAmount: 5000,

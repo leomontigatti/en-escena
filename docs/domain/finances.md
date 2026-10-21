@@ -817,7 +817,8 @@ nothing the second time.
   the owed figure exceeds `Saldo disponible`; the server's checks stay the
   last word for a state that moved after the dialog opened.
 
-Invoicing stays `Emitir factura` on each `(seminar, academy)` detail.
+Invoicing stays the header's emission item on each `(seminar, academy)` detail
+("Invoicing").
 
 ## Anomalies
 
@@ -898,7 +899,8 @@ consumed by the **four finance surfaces** (`operational-summary.server.ts`), the
 choreography roster the two financial details render with the `Retirada` badge
 (`choreography-inscriptions.server.ts`), the threshold read that keeps a
 withdrawn row's deposit figure alive (`inscription-thresholds.server.ts`), the
-comprobante emitter (`emit-factura-c.server.ts`), and the inscriptions and
+comprobante emitter, which reads that same rollup (`emit-comprobante.server.ts`),
+and the inscriptions and
 seminars tabs of a roster person's detail, which list the row unbadged with
 what remains allocated as its `Total` (`dancers/inscriptions.server.ts`,
 `roster/inscriptions.server.ts`).
@@ -937,8 +939,8 @@ A withdrawn choreography is cut like a withdrawn inscription: its retained money
 **stays in** its own and its academy's rollup, and it is **out of** the status
 rollup and out of every count, with `Retirada` replacing the financial status
 badge (see "Choreography financial status"). Its inscriptions are ordinary
-withdrawn inscriptions, so de-allocating, `Emitir factura` and the eventual
-partial NC all keep working on them — handling that money is the reason the
+withdrawn inscriptions, so de-allocating, the invoice and the partial credit
+note their withdrawal owes all keep working on them — handling that money is the reason the
 choreography survives. The only hard lock on either outcome is an evaluated
 presentation; a comprobante is a reason to withdraw, never a reason to refuse.
 
@@ -959,17 +961,23 @@ Reads filter withdrawn seminar rows behind the `activeSeminarInscription()` twin
 of the predicate above, with its own raw-SQL twin and no generic predicate over
 two tables.
 
-> **Specified, not built.**
-> ADR-0014 §6 makes the withdrawal's fiscal consequence
-> `NC = línea facturada − retenido`, with the administrator choosing the retained amount in the
-> de-allocation dialog, a full forfeit producing **no credit note at all**,
-> and the 15-day clock running from `withdrawnAt`. None of it is computed today.
-> Historical withdrawals from before the soft withdrawal **cannot be
-> reconstructed and are not backfillable**: the old path hard-deleted the row and
-> cascaded its allocations, destroying the evidence by the very act that required
-> it. How much that costs depends on how many comprobantes were emitted before
-> the soft withdrawal landed, which is a question about the production database
-> and cannot be answered from this repository.
+**The withdrawal's credit note falls out of that rule.** ADR-0014 §6 makes its
+fiscal consequence `NC = línea facturada − retenido`, and nothing computes it on
+its own: the withdrawn row owes what it retains, so the emitter's delta (see
+"Invoicing") credits the rest of its line. What is retained is whatever the row
+still holds — its deposit under the reglamento's price clause (#674, #1065), or
+nothing in the medical case once the administrator releases it with `Quitar
+dinero` — and a full forfeit leaves the delta at zero, so it produces no credit
+note at all.
+
+> **Specified, not built.** The 15-day clock from `withdrawnAt` on the
+> negative delta (#1711). Historical withdrawals from before the soft withdrawal
+> **cannot be reconstructed and are not backfillable**: the old path
+> hard-deleted the row and cascaded its allocations, destroying the evidence by
+> the very act that required it. How much that costs depends on how many
+> comprobantes were emitted before the soft withdrawal landed, which is a
+> question about the production database and cannot be answered from this
+> repository.
 
 ## Invoicing
 
@@ -982,145 +990,152 @@ the exact twin of "one per choreography" for a thing sold to many academies at
 once. `academyId` is a not-null column of the root on both kinds, derived from
 the choreography for a choreography comprobante — which is where every row
 predating the column was backfilled from — and taken from the emission input for
-a seminar one. Each is emitted from its own financial detail in the admin panel,
-from a single `Emitir factura` in the header menu; there is no bulk action for
-either kind.
+a seminar one. **Every rule below reads "the same anchor"**, and both kinds get
+all of it.
 
-**Every rule below that reads "the same choreography" reads "the same
-anchor"**: the anti-double-billing derivation, annulment by another comprobante
-of the same anchor, and the deletion block.
+### The comprobante documents what is owed
 
-**Emission is frozen in production** until #1708 (#657 S2) is merged. Nobody
-emits a comprobante in production before then, by agreement rather than by a
-code guard. A comprobante emitted under the collection-driven model below bills
-what was collected instead of what is owed, and the first one would turn
-#657's clean schema drops into a data migration. #1708 removes this paragraph.
+A comprobante is the **document of an obligation**, not a receipt (ADR-0014
+§5). What an anchor owes is its **derived total**: the sum of its inscriptions'
+`Total`s from the same money rollup every finance surface shows, withdrawn rows
+included at what they retained. What it documents is `FC + ΣND − ΣNC` over its
+comprobantes' totals. One pure function (`app/lib/comprobantes/emission-plan.ts`)
+compares the two, and every emission follows its answer:
 
-What is implemented today is **collection-driven emission**, and it is not the
-settled model:
+- **The first document is the `Factura C`, for the full price.** It is refused
+  until the anchor is **`Señada`** — the minimum status of its active
+  inscriptions — **and** its total is above zero, all or nothing: one unpaid
+  dancer holds back the whole invoice. Collection unlocks it and is never the
+  amount. A zero total is refused as such, which covers an empty roster (it
+  reads `Seña pendiente`) and a roster whose every inscription is `Bonificada`.
+- **After it, the sign of the delta names the document**: `derived total −
+(FC + ΣND − ΣNC)` positive is a **`Nota de débito C`** (12), negative a
+  partial **`Nota de crédito C`** (13), zero nothing. Neither note has a gate:
+  an added unpaid dancer pulls the anchor below `Señada` and still gets its
+  debit note. No direction is assumed from the roster change: a withdrawal that
+  leaves a dancer dearer elsewhere — out of the `Descuento por bailarín` — is a
+  debit note on that other anchor.
+- **Every note anchors at the invoice** (the star, depth 1), names it in
+  `CbtesAsoc` — ARCA refuses a note without one (10197) — and mirrors its
+  service period, with `FchVtoPago` its own date. An invoice therefore gathers
+  any number of notes; the one-amendment unique index is gone.
+- **The crediting ceiling `ΣNC ≤ FC + ΣND` is checked before ARCA is called**,
+  under the anchor's lock, counting the note about to be emitted. It is the only
+  enforcement: ARCA's homologation authorized a credit note larger than its
+  invoice (#686), so nothing downstream may lean on it.
+- **An inscription with no price blocks every document**, since its share of the
+  total is unknown.
+- **Refunds never enter the comparison.** A refund moves money; only a roster or
+  price change moves what is owed.
 
-- **Emission bills what was collected**, not the price. The only gate is that
-  there is a positive amount collected and not yet billed; there is no `Señada`
-  gate. Per inscription it bills `collected − already billed` where that is
-  positive, so emission is **incremental and repeatable** rather than
-  all-or-nothing.
-- Internal lines are one row per inscription (`comprobante_inscription`), holding
-  an amount and no text, and naming an inscription of either kind. If the
-  inscription is later hard-deleted the line's target goes null and the line
-  survives. A **withdrawn** seminar inscription is billed like any other: it kept
-  its money, and the comprobante is the evidence of what it retained.
-- **The printed document carries exactly one line**, whose description reads
-  `Inscripción` and nothing else, at the comprobante's total. There is no
-  per-dancer line and no discount line. The description is a constant: it names
-  the service sold, because with `porción` gone a comprobante covers an arbitrary
-  amount and is neither a deposit nor a balance. It carries no right-hand side because
-  the receptor block already prints `{academy} — {choreography}` and there is no
-  dancer to name until #657 renders one line per inscription.
+After any emission the delta is zero, which is the **reconciliation invariant**:
+`FC + ΣND − ΣNC` equals the derived total, and a roster change that never got its
+document is detectable instead of drifting.
+
+**Each line is one inscription** (`comprobante_inscription`), holding an amount
+and no text, and naming an inscription of either kind; Σ lines is the
+comprobante's total. An invoice's line is the inscription's `Total`. A note's
+line is how much that inscription's owed moved against what its earlier lines
+documented, signed in the note's own direction, so a debit note that also
+covers a withdrawal carries that row as a negative line. If an inscription is
+later hard-deleted the line's target goes null and the line survives.
+
+**There is no `Anular` anywhere.** A manual annul would leave a positive delta
+demanding a debit note for the amount just credited; annulment is the limit case
+of the delta, reached by withdrawing the roster. The comprobante detail has no
+destructive action.
+
+### Emission
+
+Each anchor emits from its own financial detail in the admin panel, from one
+item in the header menu named after the document it owes — `Emitir factura`,
+`Emitir nota de débito`, `Emitir nota de crédito` — which previews the document
+and its amount; the operator cannot choose another. With nothing owed the item
+stays (`Emitir factura` before the invoice, `Emitir nota` after) and opens a
+dialog saying why, in the words the server refuses with. There is no bulk
+action yet (#1712).
+
+- **Emission is serialised per anchor.** Before it reads anything it plans by,
+  an emission takes a transaction-scoped Postgres advisory lock keyed on the
+  anchor — the choreography, or the `(seminar, academy)` pair — and holds it
+  through the authorization and the insert. Two operators pressing `Emitir` at
+  once therefore cannot each see the same delta and each obtain a CAE for it;
+  the second finds nothing owed. Two academies emitting in the same seminar take
+  different keys and never wait on each other.
+- **Each kind numbers on its own series**, `FECompUltimoAutorizado + 1` per
+  `(ptoVta, cbteTipo)`, and the date is today (#1709 makes it choosable and adds
+  the correlative reservation).
+- A comprobante is emitted as a **service** (WSFEv1 `Concepto` 2). The service
+  period is the unit's own: a choreography bills the event's span; a seminar is
+  taught on one day, so both ends read the seminar's date. `FchVtoPago` is the
+  comprobante's own date (ADR-0014 §8).
+- **A rejection persists nothing**, and is read from `Resultado`: ARCA returns
+  10197 in `Observaciones` with no `Errors` node (#686). Contingency and
+  recovery when ARCA is unreachable are implemented: a failure is classified by
+  phase, timeouts are wrapper-level constants, and authorization ambiguity is
+  resolved by consulting ARCA, in the document's own series, rather than by
+  asking the operator. Re-verification re-plans the anchor, so the amount it
+  validates against is the server's. The UI states what was resolved —
+  `rejected` / `not-emitted` / `unverified` — never which call broke.
+
+### Reading comprobantes
+
 - **The kind is read in one place.** `app/lib/comprobantes/kind.ts` maps the
   stored `cbteTipo` to `Factura C` (11), `Nota de débito C` (12) or
   `Nota de crédito C` (13), and any other code to an unknown kind that keeps
   the raw number. Label, initials, badge colour, print header and the sign of
   the amount all read it; only the ARCA adapter and the emitters' own type
-  constant name a code elsewhere.
+  constant name a code elsewhere. An unknown kind documents nothing in the delta.
 - Status is derived, never stored, and is a property of the **invoice alone**:
   a note, and a row of unknown kind, has none. It is derived **by amount** over
   the star of notes pointing at the invoice: `valid` (`Vigente`) when nothing
   amends it, `annulled` (`Anulada`) when `ΣNC ≥ FC + ΣND`, `adjusted`
   (`Ajustada`) otherwise. The list derives it in SQL and every other surface in
   TypeScript, with no event condition on either; a parity test holds the two to
-  one answer. Until #1708 emits partial notes, `Ajustada` is reachable only from
-  test fixtures: the one-amendment unique index still caps an invoice at one
-  amendment, and the only one emitted is the full mirror credit note.
-- **`Vigente` / `Ajustada` / `Anulada` is the only comprobante badge**, and it
-  is the derived status above, shown on the global comprobante list, its
-  `Estado` facet and the detail; a note's row shows no status. The financial
-  detail's `Seña` and `Saldo` metric cards carry **no** badge and **no** link to
-  a comprobante: the `Vigente` / `Desactualizada` pair they used to carry read a
-  `porción` — which valid invoice covered it and whether new money had landed
-  inside it — and went with the field. Each financial detail, the
+  one answer.
+- **`Vigente` / `Ajustada` / `Anulada` is the only comprobante badge**, shown on
+  the global comprobante list, its `Estado` facet and the detail; a note's row
+  shows no status. The financial detail's `Seña` and `Saldo` metric cards carry
+  **no** badge and **no** link to a comprobante. Each financial detail, the
   choreography's and the `(seminar, academy)` one, names its comprobantes on a
   `Comprobantes (n)` tab beside `Inscripciones`, newest first, with no status:
   number (linking to the comprobante), type, date and amount, a credit note
-  reading negative. The count is what shows that something was issued once
-  nothing is left to invoice and the header menu is gone.
-- **`Anular comprobante` exists** as an action on the comprobante detail. It
-  emits a mirror **credit note** for the target's full amount, replicating
-  its lines and pointing at it. A unique index caps a
-  comprobante at **one** amendment ever. The detail offers it only on a
-  `Vigente` invoice, and the emitter refuses any other target, a note
-  included, before ARCA is asked for a CAE.
-- **No debit note is emitted** yet: the app reads `Nota de débito C`
-  (`CbteTipo` 12) but only emits `Factura C` (11) and `Nota de crédito C` (13).
-- A comprobante is emitted as a **service** (WSFEv1 `Concepto` 2).
-- Contingency and recovery when ARCA is unreachable are implemented: a failure is
-  classified by phase, timeouts are wrapper-level constants, and authorization
-  ambiguity is resolved by consulting ARCA rather than by asking the operator.
-  The UI states what was resolved — `rejected` / `not-emitted` / `unverified` —
-  never which call broke.
-- **Any comprobante of an anchor blocks its physical deletion**, in any state,
-  including a credit note. The block is never released: a choreography — or a
-  seminar — that was ever invoiced becomes permanently undeletable. It blocks
-  deletion only, not roster editing. The seminar reference on the root carries no
-  cascade for exactly this reason: the block is the application's to state, in
-  Spanish, not the database's to resolve by destroying the evidence.
-- **Emission is serialised per unit.** Before it reads `cobrado − ya facturado`,
-  an emission takes a transaction-scoped Postgres advisory lock keyed on the
-  anchor — the choreography, or the `(seminar, academy)` pair — and holds it
-  through the authorization and the insert. Two operators pressing `Emitir` at
-  once therefore cannot each see the same unbilled delta and each obtain a CAE
-  for it; the second one finds nothing left to bill. Two academies emitting in
-  the same seminar take different keys and never wait on each other.
-- **The service period is the unit's own.** A choreography bills the event's
-  span; a seminar is taught on one day, so both ends read the seminar's date.
-  `FchVtoPago` is the comprobante's own date on both, because what is billed was
-  already collected.
+  reading negative.
+- **The printed document carries exactly one line**, whose description reads
+  `Inscripción` and nothing else, at the comprobante's total; there is no
+  per-dancer line and no discount line until #1710 prints one line per
+  inscription. The receptor block prints `{academy} — {unit}`.
 - **The anchor reads as one of two units on every surface.** A
   choreography reads as its name; a seminar reads
   `Seminario {instructor}, {fecha}`, because a seminar has no name of its own.
-  The printed receptor block is `{academia} — {unidad}` and the single detail
-  line stays the constant `Inscripción` on both kinds, since the receptor block
-  already names what was sold. The global comprobante list holds both kinds in
-  one list, because ARCA numbers them in one sequence an auditor reads unbroken:
-  one `Origen` column, each reading linking to its unit's financial detail, an
-  `Origen` facet (`Coreografía` / `Seminario`) narrowing it to one kind, and a
-  search matching the academy's name, the choreography's name, the
-  **instructor's** name and the fiscal number. The portal
-  shows no comprobante for either kind. The ADR-0014 §5 model stays the target
-  for **both** kinds under
-  [#657](https://github.com/leomontigatti/en-escena/issues/657).
+  The global comprobante list holds both kinds in one list, because ARCA numbers
+  them in one sequence an auditor reads unbroken: one `Origen` column, each
+  reading linking to its unit's financial detail, an `Origen` facet
+  (`Coreografía` / `Seminario`) narrowing it to one kind, and a search matching
+  the academy's name, the choreography's name, the **instructor's** name and the
+  fiscal number. The portal shows no comprobante for either kind.
+- **Any comprobante of a seminar blocks its physical deletion**, in any state.
+  A choreography with a comprobante is withdrawn instead of deleted ("Withdrawal
+  from the roster"). The seminar reference on the root carries no cascade for
+  that reason: the block is the application's to state, in Spanish, not the
+  database's to resolve by destroying the evidence.
 
-> **Specified, not built.** This is the largest gap in the document, and it is
-> the whole of ADR-0014 §5, §6 and §7 **minus the pieces already built**: the
-> deletion of `porcion` — column, enum, derivation and every reader — landed
-> ahead of the rest, because the field asserted something untrue the moment the
-> ladder was replaced with two thresholds; and the kind module and the
-> amount-based status above (#1707). What is still specified only:
+> **Specified, not built.** The rest of ADR-0014 §5 and §7, owned by the slices
+> of [#657](https://github.com/leomontigatti/en-escena/issues/657):
 >
-> - An invoice is emitted once the choreography is **`Señada` and `total > 0`**,
->   per choreography, **all-or-nothing**, and it bills the **full price** rather
->   than what was collected. Collection unlocks emission; it is never the amount.
-> - Every emitter computes the same subtraction, `delta = derived total −
-(FC + ΣND − ΣNC)`, and **the sign names the document**: positive → a debit
->   note, negative → a credit note, zero → nothing. One function serves all
->   three, and the invariant `FC + ΣND − ΣNC = derived total` makes a roster
->   change that never got its document _detectable_.
-> - Amendments form a **star anchored at the invoice**, depth permanently 1, which
->   requires dropping the one-amendment unique index. `Señada` gates the first
->   document only; ND and NC have no gate at all.
-> - The printed document carries **one line per inscription**, reading
->   `Inscripción — {dancer}` at the **net** amount. The discount is **never** a
->   line item — rendering `Precio / Descuento` would forfeit the fiscal argument
->   that makes the live discount lawful.
-> - **`Anular comprobante` is deleted**, not rewritten: keeping it would
->   manufacture a positive delta demanding an ND for the amount just credited.
->   The comprobante detail is left with no destructive actions.
-> - Refunds are **never netted into** `FC + ΣND − ΣNC`.
-> - Two races get two mechanisms: an advisory lock per choreography for the
->   delta, and a correlative reservation in its own table for the series.
+> - the correlative **reservation** in its own table, an admin-chosen `CbteFch`
+>   within ARCA's window, and the 10016 message (#1709);
+> - the printed document's **one line per inscription**, reading
+>   `Inscripción — {dancer}` at the **net** amount — the discount is **never** a
+>   line item, since rendering `Precio / Descuento` would forfeit the fiscal
+>   argument that makes the live discount lawful — and the associated
+>   comprobante in both directions (#1710);
+> - the delta as an anchor-level **anomaly** split by sign, `Sin facturar` rows
+>   and the 15-day clock (#1711);
+> - **bulk emission** (#1712).
 >
-> Owner: [#657](https://github.com/leomontigatti/en-escena/issues/657).
-> `Nota de crédito C` and `Nota de débito C` are already verified against ARCA's
-> homologation environment.
+> `Nota de crédito C` and `Nota de débito C` are verified against ARCA's
+> homologation environment (#686).
 
 ## Roster editing and deletion
 
@@ -1246,9 +1261,10 @@ disponible` never moves, each tab keeps its own selection and the owed pair
   sides read the same derivation, so they cannot disagree about an academy's
   seminar money.
 
-The admin `(seminar, academy)` detail carries `Emitir factura` in its header
-menu, over the fiscal anchor above: it bills every inscription that academy
-holds in that seminar, and it is the only entry point to seminar invoicing.
+The admin `(seminar, academy)` detail carries the emission item in its header
+menu, over the fiscal anchor above: it documents what every inscription that
+academy holds in that seminar owes, and it is the only entry point to seminar
+invoicing.
 
 An **individual** (`Particular`) holds money the way an academy does
 (ADR-0019): its payments, allocations, comprobantes and `Saldo disponible` key
