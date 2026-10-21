@@ -992,9 +992,9 @@ of the same anchor, and the deletion block.
 
 **Emission is frozen in production** until #1708 (#657 S2) is merged. Nobody
 emits a comprobante in production before then, by agreement rather than by a
-code guard. A comprobante emitted under the model below bills the wrong amount
-under the wrong rule, and the first one would turn #657's clean schema drops
-into a data migration.
+code guard. A comprobante emitted under the collection-driven model below bills
+what was collected instead of what is owed, and the first one would turn
+#657's clean schema drops into a data migration. #1708 removes this paragraph.
 
 What is implemented today is **collection-driven emission**, and it is not the
 settled model:
