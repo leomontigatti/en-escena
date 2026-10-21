@@ -968,7 +968,7 @@ its own: the withdrawn row owes what it retains, so the emitter's delta (see
 deposit**, the price of the `derecho de inscripción` the reglamento's clause never
 returns (#674, #1065), or what it holds when that is less; in the medical case
 the administrator releases the deposit with `Quitar dinero` and it retains
-nothing. One function owns the rule (`deriveRetainedAmount`). The row's `Total`
+nothing. A row no price resolves for any more retains what it holds. One function owns the rule (`deriveRetainedAmount`). The row's `Total`
 still reads everything it holds, so money above the deposit shows on the
 withdrawn row until it is released to `Saldo disponible`; #1065 releases it at
 withdrawal, after which the two agree.
