@@ -24,8 +24,8 @@ export const DOC_NRO_CONSUMIDOR_FINAL = 0;
 // goods (ADR-0011): it is billed as a service and the payload carries the
 // service period (`FchServDesde`/`FchServHasta`) and the payment due date
 // (`FchVtoPago`), as ARCA requires for Concepto 2 (Annex II, RG 1415).
-export const CONCEPTO_SERVICIOS = 2;
-export const MONEDA_PESOS = "PES";
+const CONCEPTO_SERVICIOS = 2;
+const MONEDA_PESOS = "PES";
 
 // ARCA date format `AAAAMMDD`, for both `CbteFch` and `CAEFchVto`.
 const ARCA_DATE_RE = /^\d{8}$/;
@@ -55,13 +55,13 @@ export type FacturaCVoucherInput = {
   condicionIvaReceptorId: number;
 } & Partial<ServiceDates>;
 
-export function assertPositiveInteger(value: number, field: string): void {
+function assertPositiveInteger(value: number, field: string): void {
   if (!Number.isInteger(value) || value <= 0) {
     throw new Error(`${field} must be a positive integer (received ${value}).`);
   }
 }
 
-export function assertArcaDate(value: string, field = "CbteFch"): void {
+function assertArcaDate(value: string, field = "CbteFch"): void {
   if (!ARCA_DATE_RE.test(value)) {
     throw new Error(
       `${field} must use the ARCA AAAAMMDD format (received "${value}").`,
