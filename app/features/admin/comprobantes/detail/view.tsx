@@ -1,5 +1,3 @@
-import { Ban } from "lucide-react";
-import { useState } from "react";
 import { Link } from "react-router";
 
 import {
@@ -7,14 +5,10 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { BackButton } from "@/components/shared/action-buttons";
-import { ArcaConfirmationDialog } from "@/components/shared/arca-confirmation-dialog";
 import { PinnedActions } from "@/components/shared/pinned-actions";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import {
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
 import { formatAmount } from "@/lib/finances/formatters";
 import {
@@ -26,105 +20,62 @@ import {
   formatComprobanteNumber,
 } from "@/lib/comprobantes/format";
 import { formatComprobanteKindLabel } from "@/lib/comprobantes/kind";
-import { lowercaseFirst } from "@/lib/shared/utils";
 
 import { ComprobanteStatusBadge } from "@/components/shared/comprobante-status-badge";
 import type { ComprobanteDetail, ComprobanteDetailLoaderData } from "./server";
-import {
-  annulComprobanteConfirmValue,
-  annulComprobanteIntent,
-  recheckNotaCreditoIntent,
-} from "./shared";
 
 type ComprobanteDetailRouteViewProps = {
-  // Lets the tests mount the annulment dialog already open without depending on
-  // opening the actions menu (which lives in a portal), just like the payment
-  // detail with its delete dialog.
-  initialAnnulDialogOpen?: boolean;
   loaderData: ComprobanteDetailLoaderData;
 };
 
 /**
  * Detail view of a comprobante (ADR-0011): it hosts the fiscal snapshot's data
- * and the actions menu (the invoiced unit, print, annul). It is reached by its
+ * and the actions menu (the invoiced unit, print). It is reached by its
  * number, on the global list and on the `Comprobantes` tab of its unit's
- * financial detail. Annulment lives here, next to the
- * comprobante it affects, and is confirmed with an `AlertDialog` whose copy
- * tells the truth: the real way out is a credit note.
+ * financial detail. It has no destructive action: a comprobante is never
+ * annulled by hand, only credited by the credit note its unit's delta
+ * owes (ADR-0014 §5).
  */
 export function ComprobanteDetailRouteView({
-  initialAnnulDialogOpen = false,
   loaderData,
 }: ComprobanteDetailRouteViewProps) {
   const comprobante = loaderData.comprobante;
-  // The dialog only opens over an annullable comprobante — the menu item is the
-  // only affordance — but once open it survives it ceasing to be one.
-  const [isAnnulDialogOpen, setIsAnnulDialogOpen] = useState(
-    initialAnnulDialogOpen && comprobante.canAnnul,
-  );
-
   const printHref = `/administracion/comprobantes/${comprobante.id}/imprimir`;
 
   return (
-    <>
-      <AdminResourceLayout
-        requireSelectedEvent={false}
-        title={`Comprobante ${formatComprobanteNumber(comprobante)}`}
-        titleBadge={
-          comprobante.status === null ? undefined : (
-            <ComprobanteStatusBadge status={comprobante.status} />
-          )
-        }
-        description="Consultá los datos del comprobante y ejecutá sus acciones."
-        headerAction={
-          <ResourceActionsMenu>
-            <DropdownMenuItem asChild>
-              <Link
-                to={comprobanteAnchorHref({
-                  academyId: comprobante.academyId,
-                  reading: comprobante.anchor,
-                })}
-              >
-                {comprobante.anchor.kind === "choreography"
-                  ? "Ver la coreografía"
-                  : "Ver el seminario"}
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <a href={printHref} target="_blank" rel="noreferrer">
-                Imprimir
-              </a>
-            </DropdownMenuItem>
-            {comprobante.canAnnul ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={() => setIsAnnulDialogOpen(true)}
-                >
-                  Anular
-                </DropdownMenuItem>
-              </>
-            ) : null}
-          </ResourceActionsMenu>
-        }
-      >
-        <ComprobanteDetailCard comprobante={comprobante} />
-      </AdminResourceLayout>
-
-      {/* It unmounts when it is CLOSED, not when it loses the affordance: an
-          annulment recovered via "Verificar ahora" persists the credit note
-          and revalidates the detail, which stops being annullable. Unmounting
-          there would take the `recovered` state the dialog exists to show with
-          it (#577). */}
-      {comprobante.canAnnul || isAnnulDialogOpen ? (
-        <AnnulDialog
-          comprobante={comprobante}
-          open={isAnnulDialogOpen}
-          onOpenChange={setIsAnnulDialogOpen}
-        />
-      ) : null}
-    </>
+    <AdminResourceLayout
+      requireSelectedEvent={false}
+      title={`Comprobante ${formatComprobanteNumber(comprobante)}`}
+      titleBadge={
+        comprobante.status === null ? undefined : (
+          <ComprobanteStatusBadge status={comprobante.status} />
+        )
+      }
+      description="Consultá los datos del comprobante y ejecutá sus acciones."
+      headerAction={
+        <ResourceActionsMenu>
+          <DropdownMenuItem asChild>
+            <Link
+              to={comprobanteAnchorHref({
+                academyId: comprobante.academyId,
+                reading: comprobante.anchor,
+              })}
+            >
+              {comprobante.anchor.kind === "choreography"
+                ? "Ver la coreografía"
+                : "Ver el seminario"}
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <a href={printHref} target="_blank" rel="noreferrer">
+              Imprimir
+            </a>
+          </DropdownMenuItem>
+        </ResourceActionsMenu>
+      }
+    >
+      <ComprobanteDetailCard comprobante={comprobante} />
+    </AdminResourceLayout>
   );
 }
 
@@ -182,43 +133,4 @@ function ComprobanteDetailCard({
 
 function anchorKindLabel(anchor: ComprobanteDetail["anchor"]) {
   return anchor.kind === "choreography" ? "Coreografía" : "Seminario";
-}
-
-/**
- * Annulment confirmation (ADR-0011). The copy says what is being annulled,
- * for how much, and that the annulment materializes by emitting a mirror
- * credit note.
- */
-function AnnulDialog({
-  comprobante,
-  open,
-  onOpenChange,
-}: {
-  comprobante: ComprobanteDetail;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  return (
-    <ArcaConfirmationDialog
-      confirmIcon={Ban}
-      confirmLabel="Anular"
-      confirmValue={annulComprobanteConfirmValue}
-      description={
-        <>
-          Vas a anular la{" "}
-          {lowercaseFirst(formatComprobanteKindLabel(comprobante.cbteTipo))}{" "}
-          {formatComprobanteNumber(comprobante)} por{" "}
-          {formatAmount(comprobante.impTotal)}. La anulación se materializa
-          emitiendo una nota de crédito espejo.
-        </>
-      }
-      destructive
-      intent={annulComprobanteIntent}
-      onOpenChange={onOpenChange}
-      open={open}
-      recheckIntent={recheckNotaCreditoIntent}
-      title="¿Anular el comprobante?"
-      toastId="comprobante-annul:error"
-    />
-  );
 }

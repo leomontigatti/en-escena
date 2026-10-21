@@ -44,8 +44,8 @@ export const comprobantes = createTable(
     // comprobante bills one choreography; a seminar comprobante bills what one
     // academy holds in one seminar, and the pair `(seminar, academy)` is the
     // obligation unit there — the exact twin of "one per choreography". Every
-    // rule that used to read "same choreography" reads "same anchor": annulment
-    // by another comprobante of the same anchor, and the deletion block.
+    // rule that used to read "same choreography" reads "same anchor": the
+    // delta, the amendment star, the emission lock and the deletion block.
     //
     // Neither reference cascades: an anchor with fiscal history cannot be
     // physically deleted (hard invariant of #340, extended to the seminar), so
@@ -90,9 +90,10 @@ export const comprobantes = createTable(
     cae: text("cae").notNull(),
     // CAE expiry in ARCA's `AAAAMMDD` format.
     caeVto: text("cae_vto").notNull(),
-    // Associated comprobante: a note points here at the invoice it amends
-    // (`CbtesAsoc`). Null on an invoice. From the invoice's side, the notes
-    // referencing it are what its status is derived from.
+    // Associated comprobante: a note points here at its unit's invoice
+    // (`CbtesAsoc`), never at another note. Null on an invoice. From the
+    // invoice's side, the notes referencing it are what its status is derived
+    // from.
     associatedComprobanteId: varchar("associated_comprobante_id", {
       length: 255,
     }),
@@ -153,17 +154,10 @@ export const comprobantes = createTable(
       table.createdAt,
     ),
     index("comprobante_event_idx").on(table.eventId, table.createdAt),
-    // Unique, not a plain index: it guarantees at the database level that a
-    // comprobante has at most ONE associated credit note. The column is
-    // nullable and Postgres treats NULLs as distinct, so the comprobantes in
-    // force (all NULL) do not collide with each other. It closes the race
-    // between two concurrent annulments of the same comprobante: without it,
-    // `annulComprobante`'s `already-annulled` check reads derived state and makes
-    // a non-transactional round trip to ARCA before persisting, so both could
-    // insert their mirror credit note and leave the derived state ambiguous.
-    uniqueIndex("comprobante_associated_unique").on(
-      table.associatedComprobanteId,
-    ),
+    // Every note anchors at its unit's invoice (the star, ADR-0014 §5), so an
+    // invoice gathers any number of them: what bounds them is the crediting
+    // ceiling the emitter checks under the anchor's lock, not an index.
+    index("comprobante_associated_idx").on(table.associatedComprobanteId),
   ],
 ).enableRLS();
 

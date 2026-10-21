@@ -180,7 +180,7 @@ function loaderDataFixture(
     availableBalanceAmount: 7000,
     comprobantes: [],
     inscriptions: [inscriptionFixture()],
-    invoicing: { billableAmount: 4000, canEmit: true },
+    invoicing: { status: "ready", kind: "factura_c", amount: 4000 },
     priceOptionsByInscription: {
       seminar_inscription_1: [
         {

@@ -1,10 +1,10 @@
 import { describe, expect, test } from "vitest";
 
-import { readFacturaCEmissionConfig } from "@/lib/comprobantes/emit-factura-c.server";
+import { readComprobanteEmissionConfig } from "@/lib/comprobantes/emit-comprobante.server";
 
-describe("readFacturaCEmissionConfig", () => {
+describe("readComprobanteEmissionConfig", () => {
   test("reads the point of sale, the issuer CUIT and the recipient's VAT condition", () => {
-    const config = readFacturaCEmissionConfig({
+    const config = readComprobanteEmissionConfig({
       ARCA_PTOVTA: "1",
       ARCA_CUIT: "30717611590",
       ARCA_CONDICION_IVA_RECEPTOR_ID: "5",
@@ -19,7 +19,7 @@ describe("readFacturaCEmissionConfig", () => {
 
   test("rejects a point of sale that is not a positive integer", () => {
     expect(() =>
-      readFacturaCEmissionConfig({
+      readComprobanteEmissionConfig({
         ARCA_PTOVTA: "0",
         ARCA_CUIT: "30717611590",
         ARCA_CONDICION_IVA_RECEPTOR_ID: "5",
@@ -29,7 +29,7 @@ describe("readFacturaCEmissionConfig", () => {
 
   test("requires the issuer's CUIT", () => {
     expect(() =>
-      readFacturaCEmissionConfig({
+      readComprobanteEmissionConfig({
         ARCA_PTOVTA: "1",
         ARCA_CONDICION_IVA_RECEPTOR_ID: "5",
       }),

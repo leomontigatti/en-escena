@@ -1258,8 +1258,16 @@ function loaderDataFixture(
     },
     inscriptions: [inscriptionFixture()],
     invoicing: {
-      billableAmount: 0,
-      canEmit: false,
+      status: "blocked",
+      invoiced: false,
+      reasons: [
+        {
+          code: "below-deposit",
+          label: "Alguna inscripción todavía no cubrió su seña.",
+        },
+      ],
+      remedy:
+        "La factura se emite cuando todas las inscripciones activas tienen precio y cubrieron su seña, y el total es mayor que cero.",
     },
     priceOptions: [
       {

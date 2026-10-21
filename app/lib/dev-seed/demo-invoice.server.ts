@@ -8,7 +8,7 @@ import {
   type ArcaBillingPort,
 } from "@/lib/comprobantes/arca/client.server";
 import { FACTURA_C_CBTE_TIPO } from "@/lib/comprobantes/arca/factura-c";
-import { emitFacturaC } from "@/lib/comprobantes/emit-factura-c.server";
+import { emitAnchorComprobante } from "@/lib/comprobantes/emit-comprobante.server";
 
 // The dev seed's comprobante, `9999-00000001` (docs/local-auth.md).
 
@@ -64,8 +64,8 @@ const demoBilling: ArcaBillingPort = {
 };
 
 /**
- * Emits a `Factura C` for what the choreography has paid, through the real
- * emission: the comprobante, its lines and its snapshot are the ones the UI
+ * Emits the choreography's `Factura C` for its full price — it has to be
+ * `Señada` — through the real emission: the comprobante, its lines and its snapshot are the ones the UI
  * would have produced. Only the authorization is a stand-in, so the CAE and
  * the QR it prints are not a fiscal document.
  */
@@ -73,7 +73,7 @@ export async function invoiceChoreography(input: {
   choreographyId: string;
   eventId: string;
 }) {
-  const result = await emitFacturaC(
+  const result = await emitAnchorComprobante(
     {
       anchor: choreographyAnchor(input.choreographyId),
       eventId: input.eventId,

@@ -1,33 +1,12 @@
-import { redirect } from "react-router";
-
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { readComprobanteAnchorContext } from "@/lib/comprobantes/anchor-context.server";
 import type { ComprobanteAnchorReading } from "@/lib/comprobantes/anchor-reading";
 import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
 import { listAnchorComprobantes } from "@/lib/comprobantes/comprobantes.server";
-import { toContingencyActionData } from "@/lib/comprobantes/contingency-view";
-import {
-  getFacturaCEmissionDeps,
-  type FacturaCEmissionDeps,
-} from "@/lib/comprobantes/emit-factura-c.server";
-import {
-  annulComprobante,
-  recheckComprobanteAnnulment,
-} from "@/lib/comprobantes/emit-nota-credito.server";
-import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
-import { readFormData } from "@/lib/shared/read-form-data";
-
-import {
-  annulComprobanteConfirmValue,
-  annulComprobanteIntent,
-  recheckNotaCreditoIntent,
-  type ComprobanteDetailActionData,
-} from "./shared";
 
 // The comprobante's fiscal snapshot, enriched with its anchor context (the
-// anchor's reading, the academy and the event) and its derived state. It is read-only: the row
-// is immutable; the only mutable thing from here is annulling it by emitting its
-// mirror credit note.
+// anchor's reading, the academy and the event) and its derived state. It is
+// read-only, like the row: nothing on this screen emits or changes anything.
 export type ComprobanteDetail = {
   id: string;
   cbteTipo: number;
@@ -47,9 +26,6 @@ export type ComprobanteDetail = {
   academyId: string;
   academyName: string;
   eventName: string;
-  // Only an invoice nothing amends can be annulled: a note carries no status,
-  // and the mirror credit note of an adjusted invoice would over-credit it.
-  canAnnul: boolean;
 };
 
 export type ComprobanteDetailLoaderData = {
@@ -57,8 +33,8 @@ export type ComprobanteDetailLoaderData = {
 };
 
 // Loads a comprobante by id with its anchor context and its derived state. The
-// state is derived over the set of its anchor, which is self-contained (the
-// mirror credit note anchors to the same unit). 404 if it does not exist.
+// state is derived over the set of its anchor, which is self-contained: every
+// note anchors at its unit's invoice. 404 if it does not exist.
 export async function loadComprobanteDetail(
   request: Request,
   comprobanteId: string,
@@ -96,112 +72,6 @@ export async function loadComprobanteDetail(
       academyId: context.academyId,
       academyName: context.academyName,
       eventName: context.eventName,
-      canAnnul: comprobante.status === "valid",
     },
   };
-}
-
-export async function handleComprobanteDetailAction(input: {
-  request: Request;
-  comprobanteId: string;
-  // Injectable emission inputs: the tests pass a mocked ARCA client; in
-  // production they are resolved from the environment (cert+key, sales point).
-  resolveEmissionDeps?: () => FacturaCEmissionDeps;
-}): Promise<ComprobanteDetailActionData | never> {
-  await requireAdminPanelWriter(input.request);
-
-  const formData = await readFormData(input.request);
-  const intent = String(formData.get("intent") ?? "");
-
-  if (intent === annulComprobanteIntent) {
-    return await handleAnnulComprobante({
-      comprobanteId: input.comprobanteId,
-      confirm: String(formData.get("confirm") ?? ""),
-      resolveEmissionDeps: input.resolveEmissionDeps ?? getFacturaCEmissionDeps,
-    });
-  }
-
-  if (intent === recheckNotaCreditoIntent) {
-    return await handleRecheckNotaCredito({
-      comprobanteId: input.comprobanteId,
-      cbteNro: String(formData.get("cbteNro") ?? ""),
-      resolveEmissionDeps: input.resolveEmissionDeps ?? getFacturaCEmissionDeps,
-    });
-  }
-
-  return { status: "error", message: "No pudimos procesar esa acción." };
-}
-
-/**
- * Annuls the comprobante by emitting its mirror credit note after the
- * AlertDialog is confirmed. An approved CAE reloads the detail (now annulled); a
- * rejection or contingency from ARCA comes back as `annul-error` with the raw
- * state, without persisting anything or leaving the UI inconsistent (the reload
- * only happens on the happy path).
- */
-async function handleAnnulComprobante(input: {
-  comprobanteId: string;
-  confirm: string;
-  resolveEmissionDeps: () => FacturaCEmissionDeps;
-}): Promise<ComprobanteDetailActionData | never> {
-  if (input.confirm !== annulComprobanteConfirmValue) {
-    return {
-      status: "error",
-      message: "Confirmá la anulación para continuar.",
-    };
-  }
-
-  const outcome = await annulComprobante(
-    { comprobanteId: input.comprobanteId },
-    input.resolveEmissionDeps(),
-  );
-
-  const url = `/administracion/comprobantes/${input.comprobanteId}`;
-
-  if (outcome.ok) {
-    // A recovered annulment redirects like any other, so the notice travels by
-    // flash session (docs/agents/form-feedback.md). It deliberately does not look
-    // like the dialog's `recovered`: that way the operator can tell "it recovered
-    // on its own" from "I recovered it myself".
-    throw outcome.recovered
-      ? await redirectWithFlashNotification(url, "comprobante-recovered")
-      : redirect(url);
-  }
-
-  return toContingencyActionData(outcome);
-}
-
-/**
- * Queries ARCA again for the credit note left unresolved, without leaving
- * the dialog (#577). Only the sequence number is read from the form: the amount
- * and the date the queried comprobante is validated against are recomputed by
- * `recheckComprobanteAnnulment` from the comprobante being annulled (ADR-0012
- * decision 4).
- */
-async function handleRecheckNotaCredito(input: {
-  comprobanteId: string;
-  cbteNro: string;
-  resolveEmissionDeps: () => FacturaCEmissionDeps;
-}): Promise<ComprobanteDetailActionData> {
-  const cbteNro = Number(input.cbteNro);
-
-  if (!Number.isInteger(cbteNro) || cbteNro <= 0) {
-    return {
-      status: "error",
-      message: "No pudimos identificar el comprobante a verificar.",
-    };
-  }
-
-  const outcome = await recheckComprobanteAnnulment(
-    { comprobanteId: input.comprobanteId, cbteNro },
-    input.resolveEmissionDeps(),
-  );
-
-  // Recovery by re-verification stays in the dialog: it does not cross a
-  // redirect, so it arrives as alert state and not as a toast.
-  if (outcome.ok) {
-    return { status: "warning", contingency: { status: "recovered" } };
-  }
-
-  return toContingencyActionData(outcome);
 }
