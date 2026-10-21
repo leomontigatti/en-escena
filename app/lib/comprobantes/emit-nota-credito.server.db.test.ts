@@ -373,6 +373,48 @@ describe("annulComprobante", () => {
     expect(billing.createVoucher).not.toHaveBeenCalled();
   });
 
+  // A full mirror on an invoice a partial note already credits would credit
+  // more than it billed.
+  test("refuses to annul an adjusted invoice", async () => {
+    const { choreography, inscription } = await seedChoreographyWithInscription(
+      `ajustada.${crypto.randomUUID()}@example.com`,
+    );
+    const factura = await recordFactura({
+      choreographyId: choreography.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscription.id,
+      amount: 3000,
+      cbteNro: 47,
+    });
+    await recordComprobante({
+      anchor: choreographyAnchor(choreography.id),
+      eventId: choreography.eventId,
+      cbteTipo: 13,
+      ptoVta: 1,
+      cbteNro: 47,
+      cbteFch: "20260702",
+      impTotal: 1000,
+      issuerCuit: "30717611590",
+      issuerIvaCondition: "exento",
+      receptorDocTipo: 99,
+      receptorDocNro: "0",
+      receptorIvaConditionId: 5,
+      cae: "40000000000001",
+      caeVto: "20260712",
+      associatedComprobanteId: factura.id,
+      lines: [],
+    });
+
+    const billing = fakeNotaCreditoBilling();
+    const outcome = await annulComprobante(
+      { comprobanteId: factura.id },
+      emissionDeps(billing),
+    );
+
+    expect(outcome).toMatchObject({ ok: false, reason: "not-annullable" });
+    expect(billing.createVoucher).not.toHaveBeenCalled();
+  });
+
   // The previous test's `already-annulled` guard is application-level: it reads
   // derived state and only then makes the round trip to ARCA, which is not
   // transactional. Two concurrent annulments could both get past the guard. The
