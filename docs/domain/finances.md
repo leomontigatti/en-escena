@@ -1016,13 +1016,24 @@ settled model:
   amount and is neither a deposit nor a balance. It carries no right-hand side because
   the receptor block already prints `{academy} — {choreography}` and there is no
   dancer to name until #657 renders one line per inscription.
-- Status is derived, never stored, and has **two** values: `valid` and
-  `annulled`. It is derived by **existence** — a comprobante is `annulled` when
-  some other comprobante **of the same anchor** points at it. The one-amendment
-  unique index is untouched by the second anchor: it caps a comprobante at one
-  amendment whatever it is anchored on.
-- **`Vigente` / `Anulada` is the only comprobante badge**, and it is the derived
-  status above, shown on the global comprobante list and detail. The financial
+- **The kind is read in one place.** `app/lib/comprobantes/kind.ts` maps the
+  stored `cbteTipo` to `Factura C` (11), `Nota de débito C` (12) or
+  `Nota de crédito C` (13), and any other code to an unknown kind that keeps
+  the raw number. Label, initials, badge colour, print header and the sign of
+  the amount all read it; only the ARCA adapter and the emitters' own type
+  constant name a code elsewhere.
+- Status is derived, never stored, and is a property of the **invoice alone**:
+  a note, and a row of unknown kind, has none. It is derived **by amount** over
+  the star of notes pointing at the invoice: `valid` (`Vigente`) when nothing
+  amends it, `annulled` (`Anulada`) when `ΣNC ≥ FC + ΣND`, `adjusted`
+  (`Ajustada`) otherwise. The list derives it in SQL and every other surface in
+  TypeScript, with no event condition on either; a parity test holds the two to
+  one answer. Until #1708 emits partial notes, `Ajustada` is reachable only from
+  test fixtures: the one-amendment unique index still caps an invoice at one
+  amendment, and the only one emitted is the full mirror credit note.
+- **`Vigente` / `Ajustada` / `Anulada` is the only comprobante badge**, and it
+  is the derived status above, shown on the global comprobante list, its
+  `Estado` facet and the detail; a note's row shows no status. The financial
   detail's `Seña` and `Saldo` metric cards carry **no** badge and **no** link to
   a comprobante: the `Vigente` / `Desactualizada` pair they used to carry read a
   `porción` — which valid invoice covered it and whether new money had landed
@@ -1035,10 +1046,11 @@ settled model:
 - **`Anular comprobante` exists** as an action on the comprobante detail. It
   emits a mirror **credit note** for the target's full amount, replicating
   its lines and pointing at it. A unique index caps a
-  comprobante at **one** amendment ever, and annulling an already-annulled
-  comprobante is refused.
-- There is **no debit note**: only `Factura C` (`CbteTipo` 11) and
-  `Nota de crédito C` (`CbteTipo` 13) exist.
+  comprobante at **one** amendment ever. The detail offers it only on a
+  `Vigente` invoice, and the emitter refuses any other target, a note
+  included, before ARCA is asked for a CAE.
+- **No debit note is emitted** yet: the app reads `Nota de débito C`
+  (`CbteTipo` 12) but only emits `Factura C` (11) and `Nota de crédito C` (13).
 - A comprobante is emitted as a **service** (WSFEv1 `Concepto` 2).
 - Contingency and recovery when ARCA is unreachable are implemented: a failure is
   classified by phase, timeouts are wrapper-level constants, and authorization
@@ -1078,10 +1090,11 @@ settled model:
   [#657](https://github.com/leomontigatti/en-escena/issues/657).
 
 > **Specified, not built.** This is the largest gap in the document, and it is
-> the whole of ADR-0014 §5, §6 and §7 **minus the one piece already built**: the
+> the whole of ADR-0014 §5, §6 and §7 **minus the pieces already built**: the
 > deletion of `porcion` — column, enum, derivation and every reader — landed
 > ahead of the rest, because the field asserted something untrue the moment the
-> ladder was replaced with two thresholds. What is still specified only:
+> ladder was replaced with two thresholds; and the kind module and the
+> amount-based status above (#1707). What is still specified only:
 >
 > - An invoice is emitted once the choreography is **`Señada` and `total > 0`**,
 >   per choreography, **all-or-nothing**, and it bills the **full price** rather
@@ -1094,9 +1107,6 @@ settled model:
 > - Amendments form a **star anchored at the invoice**, depth permanently 1, which
 >   requires dropping the one-amendment unique index. `Señada` gates the first
 >   document only; ND and NC have no gate at all.
-> - Status becomes `vigente` / `ajustada` / `anulada`, derived **by amount** and a
->   property of the **invoice alone**; total annulment is the limit case
->   `ΣNC == FC`.
 > - The printed document carries **one line per inscription**, reading
 >   `Inscripción — {dancer}` at the **net** amount. The discount is **never** a
 >   line item — rendering `Precio / Descuento` would forfeit the fiscal argument

@@ -18,17 +18,19 @@ import {
   comprobanteAnchorHref,
   formatComprobanteAnchorLabel,
 } from "@/lib/comprobantes/anchor-reading";
+import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
 import {
-  FACTURA_C_CBTE_TIPO,
-  NOTA_CREDITO_C_CBTE_TIPO,
-} from "@/lib/comprobantes/arca/factura-c";
-import {
-  comprobanteTipoBadgeVariant,
   formatComprobanteArcaDate,
   formatComprobanteNumber,
-  formatComprobanteTipoInitials,
-  formatComprobanteTipoLabel,
+  formatComprobanteStatusLabel,
 } from "@/lib/comprobantes/format";
+import {
+  comprobanteKindBadgeVariant,
+  comprobanteKindCbteTipo,
+  comprobanteKinds,
+  formatComprobanteKindInitials,
+  formatComprobanteKindLabel,
+} from "@/lib/comprobantes/kind";
 import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { ComprobanteStatusBadge } from "@/components/shared/comprobante-status-badge";
@@ -68,10 +70,10 @@ const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
     width: 6,
     cell: (row) => (
       <Badge
-        variant={comprobanteTipoBadgeVariant(row.cbteTipo)}
-        title={formatComprobanteTipoLabel(row.cbteTipo)}
+        variant={comprobanteKindBadgeVariant(row.cbteTipo)}
+        title={formatComprobanteKindLabel(row.cbteTipo)}
       >
-        {formatComprobanteTipoInitials(row.cbteTipo)}
+        {formatComprobanteKindInitials(row.cbteTipo)}
       </Badge>
     ),
   },
@@ -131,20 +133,23 @@ const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   },
 ];
 
+// Only an invoice has a status; a note's row matches none of these.
+const statusFacetOrder: ComprobanteStatus[] = ["valid", "adjusted", "annulled"];
+
 const comprobanteFacetedFilters: DataTableFacetedFilter[] = [
   {
     id: "estado",
     label: "Estado",
-    options: [
-      { label: "Vigente", value: comprobanteStatusSearchValues.valid },
-      { label: "Anulada", value: comprobanteStatusSearchValues.annulled },
-    ],
+    options: statusFacetOrder.map((status) => ({
+      label: formatComprobanteStatusLabel(status),
+      value: comprobanteStatusSearchValues[status],
+    })),
     renderValue: (option) => (
       <ComprobanteStatusBadge
         status={
-          option.value === comprobanteStatusSearchValues.valid
-            ? "valid"
-            : "annulled"
+          statusFacetOrder.find(
+            (status) => comprobanteStatusSearchValues[status] === option.value,
+          ) ?? null
         }
       />
     ),
@@ -152,29 +157,29 @@ const comprobanteFacetedFilters: DataTableFacetedFilter[] = [
   {
     id: "tipo",
     label: "Tipo",
-    options: [
-      {
-        label: formatComprobanteTipoLabel(FACTURA_C_CBTE_TIPO),
-        value: "factura_c",
-      },
-      {
-        label: formatComprobanteTipoLabel(NOTA_CREDITO_C_CBTE_TIPO),
-        value: "nota_credito_c",
-      },
-    ],
+    options: comprobanteKinds.map((kind) => ({
+      label: formatComprobanteKindLabel(comprobanteKindCbteTipo(kind)),
+      value: kind,
+    })),
     // The full name and not the initials the column shows: the column has the
     // width of two letters, and here the value has room to say what it is.
-    renderValue: (option) => (
-      <Badge
-        variant={comprobanteTipoBadgeVariant(
-          option.value === "nota_credito_c"
-            ? NOTA_CREDITO_C_CBTE_TIPO
-            : FACTURA_C_CBTE_TIPO,
-        )}
-      >
-        {option.label}
-      </Badge>
-    ),
+    renderValue: (option) => {
+      const kind = comprobanteKinds.find(
+        (candidate) => candidate === option.value,
+      );
+
+      return (
+        <Badge
+          variant={
+            kind === undefined
+              ? "outline"
+              : comprobanteKindBadgeVariant(comprobanteKindCbteTipo(kind))
+          }
+        >
+          {option.label}
+        </Badge>
+      );
+    },
   },
   {
     id: "origen",

@@ -1,8 +1,3 @@
-import {
-  FACTURA_C_CBTE_TIPO,
-  NOTA_CREDITO_C_CBTE_TIPO,
-} from "@/lib/comprobantes/arca/factura-c";
-
 import type { ComprobanteStatus } from "./comprobante-status.server";
 
 // Fiscal numbering format `PPPP-NNNNNNNN`: a 4-digit sales point and an 8-digit
@@ -16,56 +11,9 @@ export function formatComprobanteNumber(comprobante: {
   return `${ptoVta}-${cbteNro}`;
 }
 
-// Readable label for the ARCA comprobante type. Only `Factura C` (type 11) and
-// `Nota de crédito C` (type 13) are emitted; any other value falls back to the raw
-// code, so as not to hide unexpected data.
-export function formatComprobanteTipoLabel(cbteTipo: number): string {
-  if (cbteTipo === FACTURA_C_CBTE_TIPO) {
-    return "Factura C";
-  }
-
-  if (cbteTipo === NOTA_CREDITO_C_CBTE_TIPO) {
-    return "Nota de crédito C";
-  }
-
-  return `Comprobante ${cbteTipo}`;
-}
-
-// Initials of the comprobante type for the list's type column: `FC` (`Factura C`)
-// or `NC` (`Nota de crédito C`). The full label stays as the `title`, so the data
-// is not lost when the badge is shrunk.
-export function formatComprobanteTipoInitials(cbteTipo: number): string {
-  if (cbteTipo === FACTURA_C_CBTE_TIPO) {
-    return "FC";
-  }
-
-  if (cbteTipo === NOTA_CREDITO_C_CBTE_TIPO) {
-    return "NC";
-  }
-
-  return `C${cbteTipo}`;
-}
-
-// The type badge's variant (the list's type column and the detail): `Factura C` is
-// `info` (blue) and `Nota de crédito C` is `warning` (yellow), to tell the original
-// comprobante from its annulment at a glance. The literal matches the Badge
-// component's variants without coupling the lib to the UI layer.
-export function comprobanteTipoBadgeVariant(
-  cbteTipo: number,
-): "info" | "warning" | "outline" {
-  if (cbteTipo === FACTURA_C_CBTE_TIPO) {
-    return "info";
-  }
-
-  if (cbteTipo === NOTA_CREDITO_C_CBTE_TIPO) {
-    return "warning";
-  }
-
-  return "outline";
-}
-
 const comprobanteStatusLabels: Record<ComprobanteStatus, string> = {
   valid: "Vigente",
+  adjusted: "Ajustada",
   annulled: "Anulada",
 };
 

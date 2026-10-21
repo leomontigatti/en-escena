@@ -1,7 +1,5 @@
-import {
-  formatComprobanteNumber,
-  formatComprobanteTipoLabel,
-} from "@/lib/comprobantes/format";
+import { formatComprobanteNumber } from "@/lib/comprobantes/format";
+import { formatComprobanteKindLabel } from "@/lib/comprobantes/kind";
 
 import { ArcaTimeoutError, type ArcaClient } from "./client.server";
 
@@ -201,5 +199,5 @@ export function buildUnverifiedMessage(
  * the invoice, the credit note and whatever type comes next inherit it.
  */
 function formatAttemptedVoucher(attempt: ArcaAttemptedVoucher): string {
-  return `${formatComprobanteTipoLabel(attempt.cbteTipo)} ${formatComprobanteNumber(attempt)}`;
+  return `${formatComprobanteKindLabel(attempt.cbteTipo)} ${formatComprobanteNumber(attempt)}`;
 }

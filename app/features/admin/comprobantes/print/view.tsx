@@ -82,7 +82,7 @@ const printScript = `document.getElementById('print-button')?.addEventListener('
 // (#329/#334). Every text arrives already formatted in the model. The RG 4291 QR
 // is injected as SVG. There is no emission logic: it is a read-only projection
 // of the immutable snapshot.
-export function ComprobantePrintDocument({
+function ComprobantePrintDocument({
   model,
   qrCodeSvg,
 }: ComprobantePrintDocumentProps) {
@@ -187,9 +187,11 @@ export function ComprobantePrintDocument({
               <p>
                 <strong>Vto. CAE:</strong> {model.caeVto}
               </p>
-              <p>
-                Estado: <span className="status">{model.statusLabel}</span>
-              </p>
+              {model.statusLabel === null ? null : (
+                <p>
+                  Estado: <span className="status">{model.statusLabel}</span>
+                </p>
+              )}
             </div>
           </div>
         </div>

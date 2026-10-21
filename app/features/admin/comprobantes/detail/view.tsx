@@ -24,8 +24,8 @@ import {
 import {
   formatComprobanteArcaDate,
   formatComprobanteNumber,
-  formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
+import { formatComprobanteKindLabel } from "@/lib/comprobantes/kind";
 import { lowercaseFirst } from "@/lib/shared/utils";
 
 import { ComprobanteStatusBadge } from "@/components/shared/comprobante-status-badge";
@@ -70,7 +70,11 @@ export function ComprobanteDetailRouteView({
       <AdminResourceLayout
         requireSelectedEvent={false}
         title={`Comprobante ${formatComprobanteNumber(comprobante)}`}
-        titleBadge={<ComprobanteStatusBadge status={comprobante.status} />}
+        titleBadge={
+          comprobante.status === null ? undefined : (
+            <ComprobanteStatusBadge status={comprobante.status} />
+          )
+        }
         description="Consultá los datos del comprobante y ejecutá sus acciones."
         headerAction={
           <ResourceActionsMenu>
@@ -140,7 +144,7 @@ function ComprobanteDetailCard({
       <FieldGroup className="grid gap-5 md:grid-cols-2">
         <ReadOnlyField
           label="Tipo"
-          value={formatComprobanteTipoLabel(comprobante.cbteTipo)}
+          value={formatComprobanteKindLabel(comprobante.cbteTipo)}
         />
         <ReadOnlyField label="Academia" value={comprobante.academyName} />
         <ReadOnlyField
@@ -202,7 +206,7 @@ function AnnulDialog({
       description={
         <>
           Vas a anular la{" "}
-          {lowercaseFirst(formatComprobanteTipoLabel(comprobante.cbteTipo))}{" "}
+          {lowercaseFirst(formatComprobanteKindLabel(comprobante.cbteTipo))}{" "}
           {formatComprobanteNumber(comprobante)} por{" "}
           {formatAmount(comprobante.impTotal)}. La anulación se materializa
           emitiendo una nota de crédito espejo.

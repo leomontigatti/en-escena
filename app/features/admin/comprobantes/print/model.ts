@@ -11,12 +11,14 @@ import {
   formatComprobanteStatusLabel,
 } from "@/lib/comprobantes/format";
 import {
-  COMPROBANTE_AUTHORIZED_LABEL,
   comprobantePrintHeader,
+  type ComprobantePrintHeader,
+} from "@/lib/comprobantes/kind";
+import {
+  COMPROBANTE_AUTHORIZED_LABEL,
   ISSUER_VAT_CONDITION_LABEL,
   ISSUER_LEGAL_NAME,
   RECIPIENT_VAT_CONDITION_LABEL,
-  type ComprobantePrintHeader,
 } from "@/lib/comprobantes/printout";
 
 // The anchor/academy/event context anchoring the comprobante in the printout.
@@ -68,7 +70,8 @@ export type ComprobantePrintViewModel = {
   paymentDueDate: string | null;
   cae: string;
   caeVto: string;
-  statusLabel: string;
+  // `null` on a note: only an invoice has a status.
+  statusLabel: string | null;
   authorizedLabel: string;
   qrUrl: string;
 };
@@ -126,7 +129,10 @@ export function buildComprobantePrintViewModel(
     paymentDueDate: formatArcaDateOrNull(record.fchVtoPago),
     cae: record.cae,
     caeVto: formatComprobanteArcaDate(record.caeVto),
-    statusLabel: formatComprobanteStatusLabel(record.status),
+    statusLabel:
+      record.status === null
+        ? null
+        : formatComprobanteStatusLabel(record.status),
     authorizedLabel: COMPROBANTE_AUTHORIZED_LABEL,
     qrUrl: buildComprobanteQrUrl(record),
   };

@@ -207,6 +207,7 @@ describe("loadComprobantesList", () => {
         cbteTipo: 13,
         ptoVta: 3,
         cbteNro: 9,
+        impTotal: 25000,
         associatedComprobanteId: facturaAlfa.id,
       }),
     );
@@ -232,8 +233,9 @@ describe("loadComprobantesList", () => {
       choreographyName: "Coreografía Alfa",
     });
 
+    // Only an invoice has a status.
     const notaCreditoRow = data.rows.find((row) => row.cbteTipo === 13);
-    expect(notaCreditoRow?.status).toBe("valid");
+    expect(notaCreditoRow?.status).toBeNull();
 
     const facturaBetaRow = data.rows.find(
       (row) => row.cbteTipo === 11 && row.id !== facturaAlfa.id,
@@ -242,7 +244,7 @@ describe("loadComprobantesList", () => {
     expect(facturaBetaRow?.academyName).toBe("Academia Beta");
   });
 
-  test("filters by derived status: `anulada` returns the invoice with a credit note; `vigente`, the rest", async () => {
+  test("filters by derived status: each value returns the invoices in that status and never a note", async () => {
     const event = await createEventRecord({ active: true });
     const catalog = await createEventCatalog(event.id);
     const alfa = await seedChoreography({
@@ -267,13 +269,30 @@ describe("loadComprobantesList", () => {
         cbteNro: 2,
       }),
     );
-    const notaCredito = await recordComprobante(
+    const adjustedInvoice = await recordComprobante(
+      facturaCInput({
+        choreographyId: alfa.choreography.id,
+        eventId: event.id,
+        cbteNro: 4,
+      }),
+    );
+    await recordComprobante(
       facturaCInput({
         choreographyId: alfa.choreography.id,
         eventId: event.id,
         cbteTipo: 13,
         cbteNro: 3,
         associatedComprobanteId: annulledInvoice.id,
+      }),
+    );
+    await recordComprobante(
+      facturaCInput({
+        choreographyId: alfa.choreography.id,
+        eventId: event.id,
+        cbteTipo: 13,
+        cbteNro: 5,
+        impTotal: 4000,
+        associatedComprobanteId: adjustedInvoice.id,
       }),
     );
 
@@ -288,10 +307,15 @@ describe("loadComprobantesList", () => {
     const validList = await loadComprobantesList(
       await signedInAdminRequest("?estado=vigente"),
     );
-    expect(new Set(validList.rows.map((row) => row.id))).toEqual(
-      new Set([validInvoice.id, notaCredito.id]),
+    expect(validList.rows.map((row) => row.id)).toEqual([validInvoice.id]);
+    expect(validList.totalCount).toBe(1);
+
+    const adjustedList = await loadComprobantesList(
+      await signedInAdminRequest("?estado=ajustada"),
     );
-    expect(validList.totalCount).toBe(2);
+    expect(adjustedList.rows.map((row) => row.id)).toEqual([
+      adjustedInvoice.id,
+    ]);
   });
 
   test("filters by comprobante type", async () => {

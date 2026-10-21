@@ -15,14 +15,17 @@ export const FACTURA_C_CBTE_TIPO = 11;
 // (#328/#449). It is built via `buildNotaCreditoCVoucher` (nota-credito.ts),
 // reusing the class C base plus the `CbtesAsoc` array.
 export const NOTA_CREDITO_C_CBTE_TIPO = 13;
+// `Nota de débito C`: the amendment that bills a positive delta on a `Factura C`
+// (ADR-0014 §5). Nothing emits it yet; the identity module already reads it.
+export const NOTA_DEBITO_C_CBTE_TIPO = 12;
 export const DOC_TIPO_CONSUMIDOR_FINAL = 99;
 export const DOC_NRO_CONSUMIDOR_FINAL = 0;
 // Concepto 2 = Services. An entry to a competition is a service, not a sale of
 // goods (ADR-0011): it is billed as a service and the payload carries the
 // service period (`FchServDesde`/`FchServHasta`) and the payment due date
 // (`FchVtoPago`), as ARCA requires for Concepto 2 (Annex II, RG 1415).
-export const CONCEPTO_SERVICIOS = 2;
-export const MONEDA_PESOS = "PES";
+const CONCEPTO_SERVICIOS = 2;
+const MONEDA_PESOS = "PES";
 
 // ARCA date format `AAAAMMDD`, for both `CbteFch` and `CAEFchVto`.
 const ARCA_DATE_RE = /^\d{8}$/;
@@ -52,13 +55,13 @@ export type FacturaCVoucherInput = {
   condicionIvaReceptorId: number;
 } & Partial<ServiceDates>;
 
-export function assertPositiveInteger(value: number, field: string): void {
+function assertPositiveInteger(value: number, field: string): void {
   if (!Number.isInteger(value) || value <= 0) {
     throw new Error(`${field} must be a positive integer (received ${value}).`);
   }
 }
 
-export function assertArcaDate(value: string, field = "CbteFch"): void {
+function assertArcaDate(value: string, field = "CbteFch"): void {
   if (!ARCA_DATE_RE.test(value)) {
     throw new Error(
       `${field} must use the ARCA AAAAMMDD format (received "${value}").`,

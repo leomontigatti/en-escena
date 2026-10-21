@@ -179,13 +179,14 @@ describe("buildComprobantePrintViewModel", () => {
     expect(model.paymentDueDate).toBe(model.issueDate);
   });
 
-  test("uses the credit note heading for type 13", () => {
+  test("uses the credit note heading for type 13, and prints no status for a note", () => {
     const model = buildComprobantePrintViewModel(
-      printRecord({ cbteTipo: 13, status: "annulled" }),
+      printRecord({ cbteTipo: 13, status: null }),
     );
 
     expect(model.header.title).toBe("Nota de Crédito C");
     expect(model.header.code).toBe("013");
+    expect(model.statusLabel).toBeNull();
   });
 });
 

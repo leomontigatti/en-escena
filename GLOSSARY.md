@@ -470,7 +470,7 @@ The money an event received over a period: its `payment`s by payment date, read 
 _Avoid_: income, sales, billing, `comprobante` totals, `availableBalanceAmount`
 
 **`comprobante`** — ui: "Factura (comprobante fiscal ARCA)"
-Electronic tax receipt —a `Factura C`, issued against ARCA/WSFEv1— derived from inscriptions, payments and allocations, and never governing financial state. It belongs to one **anchor**, of two kinds with a `CHECK` requiring exactly one: a `choreography`, or a `(seminar, academy)` unit (`seminarId` plus the root's own not-null `academyId`, derived from the choreography on a choreography row and taken from the emission input on a seminar one). It is immutable once it carries a CAE, and amended only by another comprobante **of the same anchor**; an anchor that was ever invoiced is permanently undeletable. `comprobante` is **the only reserved Spanish term inside code**; adding another requires an ADR, and `factura` is not one of them — in prose it is an invoice. What the emission and amendment rules are today, and where they are still the ADR-0014 target rather than the code, is in [docs/domain/finances.md](docs/domain/finances.md).
+Electronic tax receipt —a `Factura C`, or a `Nota de débito C` or `Nota de crédito C` amending one, issued against ARCA/WSFEv1— derived from inscriptions, payments and allocations, and never governing financial state. It belongs to one **anchor**, of two kinds with a `CHECK` requiring exactly one: a `choreography`, or a `(seminar, academy)` unit (`seminarId` plus the root's own not-null `academyId`, derived from the choreography on a choreography row and taken from the emission input on a seminar one). It is immutable once it carries a CAE, and amended only by another comprobante **of the same anchor**; an anchor that was ever invoiced is permanently undeletable. `comprobante` is **the only reserved Spanish term inside code**; adding another requires an ADR, and `factura` is not one of them — in prose it is an invoice. What the emission and amendment rules are today, and where they are still the ADR-0014 target rather than the code, is in [docs/domain/finances.md](docs/domain/finances.md).
 _Avoid_: `payment`, `paymentAllocation`, choreography invoice (retired), voucher
 
 **`anchor`** — ui: "Origen"
@@ -478,11 +478,15 @@ What a **`comprobante`** belongs to and bills: one choreography, or one academy'
 _Avoid_: `origin`, `Coreografía o seminario`, owner (the academy is the owner)
 
 **`valid`** — ui: "Vigente"
-Derived status of a **`comprobante`** that no credit note of its anchor references.
+Derived status of an invoice **`comprobante`** that no note amends. Only an invoice has a status; its notes have none.
 _Avoid_: `vigente`, active, current
 
+**`adjusted`** — ui: "Ajustada"
+Derived status of an invoice **`comprobante`** that debit or credit notes amend without crediting everything it and its debit notes billed.
+_Avoid_: `ajustada`, amended, modified, partially annulled
+
 **`annulled`** — ui: "Anulada"
-Derived status of a **`comprobante`** that a credit note of the same anchor references.
+Derived status of an invoice **`comprobante`** whose credit notes cover everything it and its debit notes billed.
 _Avoid_: `anulada`, cancelled, voided
 
 **`Porción`** _(retired term)_ — no code identifier

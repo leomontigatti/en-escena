@@ -212,7 +212,8 @@ describe("annulComprobante", () => {
     );
     const facturaRow = rows.find((row) => row.id === factura.id);
     const notaCredito = rows.find((row) => row.cbteTipo === 13);
-    // The original ends up annulled; the credit note, in force and associated.
+    // The original ends up annulled; the credit note, associated and with no
+    // status of its own.
     expect(facturaRow?.status).toBe("annulled");
     expect(notaCredito).toMatchObject({
       cbteTipo: 13,
@@ -220,7 +221,7 @@ describe("annulComprobante", () => {
       impTotal: 7000,
       issuerIvaCondition: "exento",
       associatedComprobanteId: factura.id,
-      status: "valid",
+      status: null,
     });
   });
 
@@ -334,6 +335,84 @@ describe("annulComprobante", () => {
       choreographyAnchor(choreography.id),
     );
     expect(rows.filter((row) => row.cbteTipo === 13)).toHaveLength(1);
+  });
+
+  // The detail offers `Anular` only on a `valid` invoice; a direct POST against
+  // a note must be refused by the emitter too, before ARCA is asked for a CAE.
+  test("refuses to annul a credit note", async () => {
+    const { academy, choreography, inscription } =
+      await seedChoreographyWithInscription(
+        `nota.${crypto.randomUUID()}@example.com`,
+      );
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscription.id,
+      amount: 3000,
+    });
+    const factura = await recordFactura({
+      choreographyId: choreography.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscription.id,
+      amount: 3000,
+      cbteNro: 46,
+    });
+    const first = await annulComprobante(
+      { comprobanteId: factura.id },
+      emissionDeps(fakeNotaCreditoBilling()),
+    );
+    expectOk(first);
+
+    const billing = fakeNotaCreditoBilling();
+    const second = await annulComprobante(
+      { comprobanteId: first.notaCredito.id },
+      emissionDeps(billing),
+    );
+
+    expect(second).toMatchObject({ ok: false, reason: "not-annullable" });
+    expect(billing.createVoucher).not.toHaveBeenCalled();
+  });
+
+  // A full mirror on an invoice a partial note already credits would credit
+  // more than it billed.
+  test("refuses to annul an adjusted invoice", async () => {
+    const { choreography, inscription } = await seedChoreographyWithInscription(
+      `ajustada.${crypto.randomUUID()}@example.com`,
+    );
+    const factura = await recordFactura({
+      choreographyId: choreography.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscription.id,
+      amount: 3000,
+      cbteNro: 47,
+    });
+    await recordComprobante({
+      anchor: choreographyAnchor(choreography.id),
+      eventId: choreography.eventId,
+      cbteTipo: 13,
+      ptoVta: 1,
+      cbteNro: 47,
+      cbteFch: "20260702",
+      impTotal: 1000,
+      issuerCuit: "30717611590",
+      issuerIvaCondition: "exento",
+      receptorDocTipo: 99,
+      receptorDocNro: "0",
+      receptorIvaConditionId: 5,
+      cae: "40000000000001",
+      caeVto: "20260712",
+      associatedComprobanteId: factura.id,
+      lines: [],
+    });
+
+    const billing = fakeNotaCreditoBilling();
+    const outcome = await annulComprobante(
+      { comprobanteId: factura.id },
+      emissionDeps(billing),
+    );
+
+    expect(outcome).toMatchObject({ ok: false, reason: "not-annullable" });
+    expect(billing.createVoucher).not.toHaveBeenCalled();
   });
 
   // The previous test's `already-annulled` guard is application-level: it reads
