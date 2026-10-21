@@ -66,7 +66,7 @@ overwrite is unsafe.
 | `badge`, `alert`                             | extra `success` / `info` / `warning` variants, and borders upstream dropped                                      |
 | `avatar`                                     | `data-layout="overlap"` for avatar groups; `shape="square"` (see below)                                          |
 | `select`                                     | defaults to `position="popper"`, `align="start"`, explicit `side`                                                |
-| `sidebar`                                    | wraps its tree in `TooltipProvider`                                                                              |
+| `sidebar`                                    | wraps its tree in `TooltipProvider`; the active menu button fills with `sidebar-primary`, not the hover `accent` |
 | `alert-dialog`                               | `forceMount` passthrough to Portal / Overlay / Content; unprefixed default width — see below                     |
 | `combobox`                                   | `showChevron`, `dismissableLayerBranch`, `positionerClassName`, `portalContainer`; `outline-none` on the trigger |
 | `dialog`                                     | `useLayerAbovePress` — see below; the overlay dims and blurs exactly as `alert-dialog`'s does                    |
