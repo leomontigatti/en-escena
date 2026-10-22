@@ -121,6 +121,7 @@ export function ChoreographyMusicEditorForm({
               label="Arrastrá o hacé click para cargar la música"
               uploadedLabel="Archivo de música cargado"
               downloadLabel="Descargar música"
+              downloadFileName={choreography.musicDownloadFileName}
               downloadUrl={choreography.musicDownloadUrl}
               existingPreviewUrl={choreography.musicDownloadUrl}
               {...getAssetUploadFieldProps("choreographyMusic")}

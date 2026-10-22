@@ -2,7 +2,7 @@ import { Pause, Play } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { TooltipIconButton } from "@/components/shared/tooltip-icon-button";
 import { Slider } from "@/components/ui/slider";
 import { formatDuration } from "@/lib/shared/format-duration";
 
@@ -133,15 +133,12 @@ export function AudioPlayback({
       >
         <track kind="captions" />
       </audio>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        aria-label={isPlaying ? "Pausar" : "Escuchar"}
+      <TooltipIconButton
+        label={isPlaying ? "Pausar" : "Escuchar"}
         onClick={togglePlay}
       >
         {isPlaying ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
-      </Button>
+      </TooltipIconButton>
       <MediaTime>
         {formatDuration(positionMs)} / {formatDuration(durationMs)}
       </MediaTime>

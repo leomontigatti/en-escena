@@ -20,6 +20,7 @@ import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
+import { readChoreographyMusicFileName } from "@/lib/presentations/music-file-name.server";
 import { findPresentationOrderNumber } from "@/lib/presentations/presentation-queries.server";
 
 import {
@@ -120,6 +121,7 @@ export type ChoreographyDetail = {
   id: string;
   modalityId: string;
   modalityName: string;
+  musicDownloadFileName: string | null;
   musicDownloadUrl: string | null;
   musicStorageKey: string | null;
   name: string;
@@ -219,6 +221,13 @@ export async function findChoreographyDetail(input: {
     hasEvaluatedPresentation(input.choreographyId),
     findPresentationOrderNumber(input.choreographyId),
   ]);
+  // Administration sees the number before any day is published.
+  const musicDownloadFileName = await readChoreographyMusicFileName({
+    academyName: row.academyName,
+    choreography: row,
+    eventId: input.selectedEventId,
+    orderNumber: presentationOrderNumber,
+  });
 
   return {
     academyId: row.academyId,
@@ -239,6 +248,7 @@ export async function findChoreographyDetail(input: {
     id: row.id,
     modalityId: row.modalityId,
     modalityName: row.modalityName,
+    musicDownloadFileName,
     musicDownloadUrl,
     musicStorageKey: row.musicStorageKey,
     name: row.name,

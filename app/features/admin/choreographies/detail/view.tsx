@@ -287,6 +287,7 @@ function ChoreographyMusicField({
       control={form.control}
       disabled
       downloadLabel="Descargar música"
+      downloadFileName={choreography.musicDownloadFileName}
       downloadUrl={choreography.musicDownloadUrl}
       existingPreviewUrl={choreography.musicDownloadUrl}
       fieldLabel="Archivo de música"

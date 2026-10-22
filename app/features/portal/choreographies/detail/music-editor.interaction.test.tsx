@@ -45,6 +45,7 @@ function loaderData(): PortalChoreographyMusicLoaderData {
       isWithdrawn: false,
       modalityName: "Jazz",
       // A replacement keeps the key: the new song is stored at the same path.
+      musicDownloadFileName: "Coreografía - Academia.mp3",
       musicDownloadUrl: storedMusicUrl,
       musicStorageKey: "music/choreo_1.mp3",
       professionalEvaluation: false,
@@ -54,6 +55,7 @@ function loaderData(): PortalChoreographyMusicLoaderData {
       experienceLevelRequirement: "notApplicable",
       scheduleCapacityId: "schedule_1",
       scheduleLabel: "2026-11-26 · 10:00",
+      scheduledDate: "2026-11-26",
       scheduleName: "Bloque mañana",
       submodalityName: null,
     },

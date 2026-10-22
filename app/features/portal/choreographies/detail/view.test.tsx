@@ -178,10 +178,12 @@ function choreographyDetailRow(
     },
     musicStorageKey: "music/choreo_1.mp3",
     professionalEvaluation: false,
+    musicDownloadFileName: null,
     musicDownloadUrl: null,
     scheduleCapacityId: "schedule_1",
     scheduleName: "Bloque mañana",
     scheduleLabel: "2026-05-01 · 10:00",
+    scheduledDate: "2026-05-01",
     dancers: [
       {
         id: "dancer_1",

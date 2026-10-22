@@ -12,6 +12,9 @@ import {
   createDefaultChoreographyMusicStorage,
   loadChoreographyMusicDownloadUrl,
 } from "@/lib/storage/choreography-music.server";
+import { readChoreographyMusicFileName } from "@/lib/presentations/music-file-name.server";
+import { findPresentationOrderNumber } from "@/lib/presentations/presentation-queries.server";
+import { readVisibleProgramDays } from "@/lib/presentations/program-visibility.server";
 import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { readFormData } from "@/lib/shared/read-form-data";
@@ -60,14 +63,29 @@ export async function loadPortalChoreographyDetail({
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  const musicDownloadUrl = await loadChoreographyMusicDownloadUrl({
-    storage: createDefaultChoreographyMusicStorage(),
-    storageKey: choreography.musicStorageKey,
+  const [musicDownloadUrl, orderNumber, visibleDays] = await Promise.all([
+    loadChoreographyMusicDownloadUrl({
+      storage: createDefaultChoreographyMusicStorage(),
+      storageKey: choreography.musicStorageKey,
+    }),
+    findPresentationOrderNumber(choreography.id),
+    readVisibleProgramDays(selectedEventId),
+  ]);
+  const musicDownloadFileName = await readChoreographyMusicFileName({
+    academyName: academy.name,
+    choreography,
+    eventId: selectedEventId,
+    // The academy's number, as its presentations page shows it: only once its
+    // day's program is published (`readAcademyPresentations`).
+    orderNumber: visibleDays.includes(choreography.scheduledDate)
+      ? orderNumber
+      : null,
   });
 
   return {
     choreography: {
       ...choreography,
+      musicDownloadFileName,
       musicDownloadUrl,
     },
     eventContext,

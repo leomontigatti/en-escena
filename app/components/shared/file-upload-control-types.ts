@@ -9,6 +9,8 @@ export type FileUploadControlProps = Omit<ComponentProps<"input">, "type"> & {
   // policy itself belongs to the asset kind, never to this generic component:
   // see `getAssetUploadFieldProps` in `@/lib/storage/asset-kinds`.
   allowedMimeTypes?: string[];
+  /** The name the download saves under; without it the browser picks one. */
+  downloadFileName?: string | null;
   downloadLabel?: string;
   downloadUrl?: string | null;
   error?: boolean;
@@ -60,6 +62,7 @@ export type FileUploadControlConfig = {
   allowedMimeTypes?: string[];
   className?: string;
   disabled: boolean;
+  downloadFileName?: string | null;
   downloadLabel: string;
   downloadUrl?: string | null;
   error: boolean;
