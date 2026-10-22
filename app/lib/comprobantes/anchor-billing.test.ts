@@ -218,16 +218,23 @@ describe("deriveAnchorBilling", () => {
     });
   });
 
-  test("a row added after invoicing that owes nothing has nothing to invoice", () => {
-    // A waived dancer's next note would carry no line for it, so an `FC
-    // pendiente` there would never clear.
+  test("a row added after invoicing that owes nothing waits for no note, even while one is owed", () => {
+    // The debit note for the paying row carries no line for the waived one, so
+    // a pending status on it would never clear.
     expect(
       deriveAnchorBilling({
-        inscriptions: [active("a", 10000), active("waived", 0)],
+        inscriptions: [
+          active("a", 10000),
+          active("new", 8000),
+          active("waived", 0),
+        ],
         comprobantes: [factura(10000, [["a", 10000]])],
         today,
       }),
-    ).toMatchObject({ anomaly: null, uninvoicedInscriptionIds: [] });
+    ).toMatchObject({
+      anomaly: "pendingDebitNote",
+      uninvoicedInscriptionIds: ["new"],
+    });
   });
 
   test("a row that nets against a withdrawal to a zero delta waits for no note: none will ever name it", () => {

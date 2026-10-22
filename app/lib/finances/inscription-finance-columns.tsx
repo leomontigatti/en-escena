@@ -3,8 +3,7 @@ import {
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import type { DataTableFacetedFilterOption } from "@/components/shared/data-table.shared";
-import { BillingStatusBadge } from "@/components/shared/billing-status-badge";
-import { FinancialStatusBadge } from "@/components/shared/financial-status-badge";
+import { PaymentAndBillingBadges } from "@/components/shared/billing-status-badge";
 import { Badge } from "@/components/ui/badge";
 import {
   formatInscriptionStatusBadge,
@@ -197,10 +196,10 @@ function InscriptionStatusCell({
   // The comprobante badge sits beside the payment one, never in its place;
   // the portal's rows carry none.
   return (
-    <span className="flex items-center gap-2">
-      <FinancialStatusBadge status={resolveInscriptionStatus(inscription)} />
-      <BillingStatusBadge status={inscription.billingStatus} />
-    </span>
+    <PaymentAndBillingBadges
+      billingStatus={inscription.billingStatus}
+      status={resolveInscriptionStatus(inscription)}
+    />
   );
 }
 

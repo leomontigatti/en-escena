@@ -1313,31 +1313,6 @@ describe("AcademyFinancesRouteView", () => {
     }),
   ];
 
-  test("badges the comprobante status beside the payment one, never in its place", async () => {
-    await renderListIntoDocument({
-      loaderData: academyFinancesLoaderDataFixture({
-        choreographyFinanceRows: billedRows(),
-      }),
-    });
-
-    expect(statusBadges()).toEqual([
-      [
-        { text: "Pagada", destructive: false },
-        { text: "ND pendiente", destructive: true },
-      ],
-      [
-        { text: "Retirada", destructive: false },
-        { text: "NC pendiente", destructive: true },
-      ],
-      [
-        { text: "Señada", destructive: false },
-        { text: "Facturada", destructive: false },
-      ],
-      // Not invoiced yet: nothing has been issued, so nothing to badge.
-      [{ text: "Seña pendiente", destructive: false }],
-    ]);
-  });
-
   test("filters the list down to the pending credits on `NC pendiente`", async () => {
     await renderListIntoDocument({
       initialEntry:

@@ -64,12 +64,7 @@ export function deriveAnchorBilling(input: {
   }
 
   const { delta, documentedByInscription } = anchorDelta;
-  const anomaly =
-    delta === null || delta === 0
-      ? null
-      : delta > 0
-        ? "pendingDebitNote"
-        : "pendingCreditNote";
+  const anomaly = readAnomaly(delta);
 
   return {
     anomaly,
@@ -100,6 +95,16 @@ export function deriveAnchorBilling(input: {
             )
             .map((inscription) => inscription.id),
   };
+}
+
+// The delta's sign names the note; zero, or unknown for want of a price,
+// names none.
+function readAnomaly(delta: number | null): AnchorBillingAnomaly | null {
+  if (delta === null || delta === 0) {
+    return null;
+  }
+
+  return delta > 0 ? "pendingDebitNote" : "pendingCreditNote";
 }
 
 // A withdrawal is unresolved while its row is documented above what it

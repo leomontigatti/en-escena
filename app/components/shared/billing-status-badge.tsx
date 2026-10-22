@@ -1,6 +1,8 @@
 import type { DataTableFacetedFilter } from "@/components/shared/data-table.shared";
+import { FinancialStatusBadge } from "@/components/shared/financial-status-badge";
 import { Badge } from "@/components/ui/badge";
 import type { BillingStatus } from "@/lib/comprobantes/anchor-billing";
+import type { InscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 
 // The comprobante axis of an `Estado` (ADR-0014 §5, #657), the second badge
 // beside the payment one and never in its place: a unit can be `Pagada` and
@@ -21,7 +23,7 @@ const billingStatusVariants = {
   pendingCreditNote: "destructive",
 } as const satisfies Record<BillingStatus, string>;
 
-export function BillingStatusBadge({
+function BillingStatusBadge({
   status,
 }: {
   status: BillingStatus | null | undefined;
@@ -34,6 +36,25 @@ export function BillingStatusBadge({
     <Badge variant={billingStatusVariants[status]}>
       {billingStatusLabels[status]}
     </Badge>
+  );
+}
+
+/**
+ * An `Estado`'s two axes side by side, payment first: the one owner of their
+ * order and spacing on the lists, the detail headers and the inscription rows.
+ */
+export function PaymentAndBillingBadges({
+  billingStatus,
+  status,
+}: {
+  billingStatus: BillingStatus | null | undefined;
+  status: InscriptionStatusBadge;
+}) {
+  return (
+    <span className="flex items-center gap-2">
+      <FinancialStatusBadge status={status} />
+      <BillingStatusBadge status={billingStatus} />
+    </span>
   );
 }
 

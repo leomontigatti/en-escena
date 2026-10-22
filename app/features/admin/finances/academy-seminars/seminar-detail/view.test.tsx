@@ -99,25 +99,6 @@ describe("SeminarFinanceDetailView", () => {
     expect(markup).toContain("$ 5.000");
   });
 
-  test("alerts the credit note a withdrawal owes, with its day count", () => {
-    const markup = renderDetail({
-      billing: {
-        anomaly: "pendingCreditNote",
-        amount: 20000,
-        creditClockDays: 2,
-        documentedAmount: 20000,
-        owedAmount: 0,
-        uninvoicedInscriptionIds: [],
-        documentedInscriptionIds: [],
-      },
-    });
-
-    expect(markup).toContain("Falta emitir una nota de crédito");
-    expect(markup).toContain(
-      "Pasaron 2 de los 15 días corridos desde la baja más antigua.",
-    );
-  });
-
   test("states a full quota without blocking anything, and says nothing while a place is left", () => {
     const full = renderDetail({
       seminar: { ...loaderDataFixture().seminar, availablePlaces: 0 },

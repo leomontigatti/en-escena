@@ -10,15 +10,13 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import {
   billingFacet,
-  BillingStatusBadge,
   billingFacetId,
+  PaymentAndBillingBadges,
 } from "@/components/shared/billing-status-badge";
-import { FinancialStatusBadge } from "@/components/shared/financial-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate } from "@/features/admin/schedules/view-shared";
-import type { BillingStatus } from "@/lib/comprobantes/anchor-billing";
 import {
   choreographyStatusFilterOptions,
   formatInscriptionStatusBadge,
@@ -300,7 +298,7 @@ function buildSeminarFinanceColumns(
       id: "financialStatus",
       header: "Estado",
       cell: (row) => (
-        <UnitStatusBadges
+        <PaymentAndBillingBadges
           billingStatus={row.billingStatus}
           status={resolveSeminarStatus(row)}
         />
@@ -368,7 +366,7 @@ function buildChoreographyFinanceColumns(
       id: "financialStatus",
       header: "Estado",
       cell: (row) => (
-        <UnitStatusBadges
+        <PaymentAndBillingBadges
           billingStatus={row.billingStatus}
           status={resolveChoreographyStatus(row)}
         />
@@ -403,24 +401,4 @@ function resolveChoreographyStatus(row: ChoreographyFinanceRow) {
     financialStatus: row.financialStatus,
     withdrawn: row.withdrawn,
   });
-}
-
-/**
- * The unit's two axes side by side: what its money reads, and what its
- * comprobantes still owe ARCA. Neither replaces the other — a unit can be
- * `Pagada` and still owe a note.
- */
-function UnitStatusBadges({
-  billingStatus,
-  status,
-}: {
-  billingStatus: BillingStatus | null;
-  status: ReturnType<typeof resolveInscriptionStatusBadge>;
-}) {
-  return (
-    <span className="flex items-center gap-2">
-      <FinancialStatusBadge status={status} />
-      <BillingStatusBadge status={billingStatus} />
-    </span>
-  );
 }

@@ -18,10 +18,11 @@ import { FinancialDetailTabs } from "@/features/admin/finances/anchor-comprobant
 import { EmissionBlockedDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
 import {
-  BillingStatusBadge,
   billingFacet,
+  PaymentAndBillingBadges,
 } from "@/components/shared/billing-status-badge";
 import { deriveUnitBillingStatus } from "@/lib/comprobantes/anchor-billing";
+import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { PendingDocumentAlert } from "@/features/admin/finances/comprobante-emission/pending-document-alert";
 import {
   formatEmitActionLabel,
@@ -69,11 +70,13 @@ export function SeminarFinanceDetailView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title={seminar ? seminar.instructorName : "Seminario no encontrado"}
-      // The unit's comprobante status, as the academy's list draws it.
+      // The badges the academy's list draws for this unit: its payment status,
+      // anomaly included, and its comprobante status.
       titleBadge={
         seminar ? (
-          <BillingStatusBadge
-            status={deriveUnitBillingStatus(loaderData.billing)}
+          <PaymentAndBillingBadges
+            billingStatus={deriveUnitBillingStatus(loaderData.billing)}
+            status={resolveInscriptionStatusBadge(seminar)}
           />
         ) : undefined
       }

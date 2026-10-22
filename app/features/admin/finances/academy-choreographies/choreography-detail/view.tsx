@@ -20,7 +20,6 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
-import { FinancialStatusBadge } from "@/components/shared/financial-status-badge";
 import { formatDancerName } from "@/lib/finances/formatters";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 
@@ -33,8 +32,8 @@ import { FinancialDetailTabs } from "@/features/admin/finances/anchor-comprobant
 import { EmissionBlockedDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
 import {
-  BillingStatusBadge,
   billingFacet,
+  PaymentAndBillingBadges,
 } from "@/components/shared/billing-status-badge";
 import { deriveUnitBillingStatus } from "@/lib/comprobantes/anchor-billing";
 import { PendingDocumentAlert } from "@/features/admin/finances/comprobante-emission/pending-document-alert";
@@ -89,14 +88,10 @@ export function ChoreographyFinanceDetailView({
       // anomaly included, and its comprobante status.
       titleBadge={
         choreography ? (
-          <span className="flex items-center gap-2">
-            <FinancialStatusBadge
-              status={resolveInscriptionStatusBadge(choreography)}
-            />
-            <BillingStatusBadge
-              status={deriveUnitBillingStatus(loaderData.billing)}
-            />
-          </span>
+          <PaymentAndBillingBadges
+            billingStatus={deriveUnitBillingStatus(loaderData.billing)}
+            status={resolveInscriptionStatusBadge(choreography)}
+          />
         ) : undefined
       }
       description={

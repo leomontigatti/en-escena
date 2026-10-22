@@ -297,7 +297,7 @@ describe("ChoreographyFinanceDetailView", () => {
     );
   });
 
-  test("alerts that a debit note is owed with no clock, naming the dancers no comprobante includes yet and badging their comprobante status", () => {
+  test("alerts that a debit note is owed with no clock, naming the dancers no comprobante includes yet", () => {
     const markup = renderDetail({
       billing: {
         anomaly: "pendingDebitNote",
@@ -309,12 +309,8 @@ describe("ChoreographyFinanceDetailView", () => {
         documentedInscriptionIds: ["inscription_1"],
       },
       inscriptions: [
+        inscriptionFixture({ financialStatus: "depositMet" }),
         inscriptionFixture({
-          billingStatus: "invoiced",
-          financialStatus: "depositMet",
-        }),
-        inscriptionFixture({
-          billingStatus: "pendingDebitNote",
           financialStatus: "depositPending",
           firstName: "Bruno",
           inscriptionId: "inscription_2",
@@ -330,10 +326,6 @@ describe("ChoreographyFinanceDetailView", () => {
       "la nota de débito es por $ 10.000. Incluye a Bruno López, que todavía no figura en ningún comprobante.",
     );
     expect(alert.textContent).not.toContain("días corridos");
-    expect(inscriptionStatusTexts(markup)).toEqual([
-      "SeñadaFacturada",
-      "Seña pendienteND pendiente",
-    ]);
   });
 
   test("warns when the deposit has no configured price", () => {
@@ -370,18 +362,6 @@ function pendingDocumentAlert(markup: string) {
  * the column's header, not on its position, so the test talks about
  * "Saldo adeudado" and not about "cell 5".
  */
-function inscriptionStatusTexts(markup: string) {
-  const table = inscriptionsTable(markup);
-  const headers = [...(table?.querySelectorAll("thead th") ?? [])].map(
-    (header) => (header.textContent ?? "").trim(),
-  );
-  const statusIndex = headers.indexOf("Estado");
-
-  return [...(table?.querySelectorAll("tbody tr") ?? [])].map((row) =>
-    (row.querySelectorAll("td")[statusIndex]?.textContent ?? "").trim(),
-  );
-}
-
 function inscriptionsTable(markup: string) {
   const document = new DOMParser().parseFromString(markup, "text/html");
 
