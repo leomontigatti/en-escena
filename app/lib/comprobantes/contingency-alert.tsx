@@ -33,32 +33,39 @@ export type ComprobanteContingency =
   // looking up the sequence number and the authorization the lookup resolved in
   // the negative: different phases, the same thing to say.
   | { status: "not-emitted"; message: string }
-  // The genuinely ambiguous one: the emission may or may not have been
-  // authorized. The submit is blocked, because retrying blindly is exactly how a
-  // duplicate fiscal comprobante gets emitted.
-  | {
-      status: "unverified";
-      message: string;
-      ptoVta: number;
-      cbteTipo: number;
-      cbteNro: number;
-    }
+  // The genuinely ambiguous one: nobody knows whether ARCA authorized the
+  // reserved number. The reservation stays live and blocks its series, and so
+  // does the submit, because retrying blindly is exactly how a duplicate fiscal
+  // comprobante gets emitted. It is also what an emission meets on a series
+  // another attempt still holds.
+  | ({ status: "unverified"; message: string } & ReservedAttempt)
+  // ARCA holds another comprobante at the reserved number: re-checking cannot
+  // clear it, abandoning the attempt does (ADR-0014 §7).
+  | ({ status: "number-taken"; message: string } & ReservedAttempt)
   // A re-verification found the comprobante and it was recorded. Terminal.
-  | { status: "recovered" };
+  | { status: "recovered" }
+  // The attempt was abandoned and its series is free: emitting is safe again.
+  | { status: "released" };
+
+type ReservedAttempt = { ptoVta: number; cbteTipo: number; cbteNro: number };
 
 const contingencyTitles = {
   "not-emitted": "No se emitió",
   rejected: "Rechazado por ARCA",
   unverified: "Sin confirmar en ARCA",
+  "number-taken": "ARCA tiene otro comprobante en este número",
 } as const;
 
 const contingencyRecoveredMessage =
   "El comprobante ya estaba autorizado en ARCA. Lo recuperamos y quedó registrado.";
 
+const contingencyReleasedMessage =
+  "Abandonamos el intento y su serie quedó libre: ya podés volver a emitir.";
+
 // What to do with the button that triggers the destructive operation.
 export type ContingencySubmitState =
   | "enabled"
-  // `unverified` without verification: retrying could duplicate.
+  // A live reservation: retrying could duplicate, and the series is held.
   | "blocked"
   // `recovered`: the operation is over. It is removed, not disabled — a disabled
   // button reads as "hold on a moment" and invites a retry, and here retrying
@@ -67,13 +74,15 @@ export type ContingencySubmitState =
 
 export function resolveContingencySubmitState(
   contingency: ComprobanteContingency | null,
-  acknowledged: boolean,
 ): ContingencySubmitState {
   if (contingency?.status === "recovered") {
     return "removed";
   }
 
-  if (contingency?.status === "unverified" && !acknowledged) {
+  if (
+    contingency?.status === "unverified" ||
+    contingency?.status === "number-taken"
+  ) {
     return "blocked";
   }
 
@@ -89,43 +98,56 @@ export function contingencyCancelLabel(state: ContingencySubmitState): string {
  * The single surface for ARCA contingencies, in the emission dialog of both
  * financial details.
  *
- * `unverified` offers the only two ways out the operator has: query ARCA again
- * for that comprobante without leaving the dialog, or declare that they have
- * already verified it themselves and unblock the retry. The first is the only
- * one that **persists** a recovered comprobante; the second cannot, because the
- * app does not have the CAE.
+ * A live reservation offers the only two ways out the operator has: query ARCA
+ * again for that number without leaving the dialog, which is the only one that
+ * **persists** a recovered comprobante, or abandon the attempt, which frees its
+ * series. On `unverified` abandoning is the operator's declaration that they
+ * checked ARCA's portal; on `number-taken` it follows the evidence the message
+ * lays out.
  *
- * The re-verification intent comes in as a prop: each feature posts its own.
+ * The intents come in as props: each feature posts its own.
  */
 export function ContingencyAlert({
-  acknowledged,
+  abandonIntent,
   contingency,
   isBusy = false,
-  onAcknowledge,
-  onRecheck,
+  onSubmit,
   recheckIntent,
 }: {
-  acknowledged: boolean;
+  abandonIntent: string;
   contingency: ComprobanteContingency;
   isBusy?: boolean;
-  onAcknowledge: () => void;
   // Receives the payload already assembled: only the attempt's `cbteTipo` and
-  // `cbteNro` travel from the client. The amount and the date the queried
-  // comprobante is validated against are recomputed by the server (ADR-0012
-  // decision 4); sending them from the form would collapse that validation to
-  // a single effective field.
-  onRecheck: (payload: Record<string, string>) => void;
+  // `cbteNro` travel from the client. What the comprobante found there is
+  // checked against is the reservation the server keeps.
+  onSubmit: (payload: Record<string, string>) => void;
   recheckIntent: string;
 }) {
-  if (contingency.status === "recovered") {
+  if (contingency.status === "recovered" || contingency.status === "released") {
     return (
       <Alert variant="success">
         <CircleCheck aria-hidden="true" />
-        <AlertTitle>Comprobante recuperado</AlertTitle>
-        <AlertDescription>{contingencyRecoveredMessage}</AlertDescription>
+        <AlertTitle>
+          {contingency.status === "recovered"
+            ? "Comprobante recuperado"
+            : "Intento abandonado"}
+        </AlertTitle>
+        <AlertDescription>
+          {contingency.status === "recovered"
+            ? contingencyRecoveredMessage
+            : contingencyReleasedMessage}
+        </AlertDescription>
       </Alert>
     );
   }
+
+  const attempt =
+    contingency.status === "unverified" || contingency.status === "number-taken"
+      ? {
+          cbteTipo: String(contingency.cbteTipo),
+          cbteNro: String(contingency.cbteNro),
+        }
+      : null;
 
   return (
     <Alert variant="destructive">
@@ -147,20 +169,14 @@ export function ContingencyAlert({
             ) : null}
           </div>
 
-          {contingency.status === "unverified" ? (
+          {attempt ? (
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 disabled={isBusy}
-                onClick={() =>
-                  onRecheck({
-                    intent: recheckIntent,
-                    cbteTipo: String(contingency.cbteTipo),
-                    cbteNro: String(contingency.cbteNro),
-                  })
-                }
+                onClick={() => onSubmit({ intent: recheckIntent, ...attempt })}
               >
                 Verificar ahora
               </Button>
@@ -168,10 +184,12 @@ export function ContingencyAlert({
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={isBusy || acknowledged}
-                onClick={onAcknowledge}
+                disabled={isBusy}
+                onClick={() => onSubmit({ intent: abandonIntent, ...attempt })}
               >
-                Ya verifiqué en ARCA
+                {contingency.status === "number-taken"
+                  ? "Abandonar este intento"
+                  : "Ya verifiqué en ARCA"}
               </Button>
             </div>
           ) : null}

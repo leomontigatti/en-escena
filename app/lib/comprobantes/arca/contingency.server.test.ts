@@ -227,9 +227,10 @@ describe("recoverAuthorization", () => {
     });
   });
 
-  // Sequence numbers are not reserved: the number we attempted may belong to a
-  // different comprobante (ADR-0012 decision 4).
-  test("a different amount under the same number is not our comprobante", async () => {
+  // The number was reserved, so nothing else of ours went out at it: a
+  // comprobante there that disagrees with what we sent is someone else's, and
+  // re-checking cannot change that (ADR-0014 §7).
+  test("a different amount under the same number is someone else's: number-taken, with what ARCA holds", async () => {
     const recovery = await recoverAuthorization(
       clientConsulting(
         vi.fn(async () => ({ ...facturaCConsultada, impTotal: 9999 })),
@@ -239,12 +240,12 @@ describe("recoverAuthorization", () => {
     );
 
     expect(recovery).toEqual({
-      status: "unverified",
-      reason: "consult-inconclusive",
+      status: "number-taken",
+      taken: { impTotal: 9999, cbteFch: "20260722" },
     });
   });
 
-  test("a different date under the same number is not either", async () => {
+  test("a different date under the same number is number-taken too", async () => {
     const recovery = await recoverAuthorization(
       clientConsulting(
         vi.fn(async () => ({ ...facturaCConsultada, cbteFch: "20260101" })),
@@ -254,8 +255,8 @@ describe("recoverAuthorization", () => {
     );
 
     expect(recovery).toEqual({
-      status: "unverified",
-      reason: "consult-inconclusive",
+      status: "number-taken",
+      taken: { impTotal: 1000, cbteFch: "20260101" },
     });
   });
 

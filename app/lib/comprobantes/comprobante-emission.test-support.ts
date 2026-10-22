@@ -76,8 +76,8 @@ export function approvingNumber(
   });
 }
 
-// Emission deps with a mocked ARCA client (zero network) and a fixed `cbteFch`,
-// so as not to depend on the clock.
+// Emission deps with a mocked ARCA client (zero network) and a fixed business
+// date, so as not to depend on the clock: comprobantes go out dated 2026-07-22.
 export function emissionDeps(
   billing: ArcaBillingPort,
   timeouts?: ArcaTimeouts,
@@ -88,7 +88,7 @@ export function emissionDeps(
     ptoVta: 1,
     issuerCuit: "30717611590",
     receptorIvaConditionId: 5,
-    cbteFch: "20260722",
+    today: "2026-07-22",
   };
 }
 

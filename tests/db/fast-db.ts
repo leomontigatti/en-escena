@@ -32,6 +32,20 @@ function wrapPgliteClient<T extends object>(clientToWrap: T): T {
         return wrapTransactionMethod(target, value as PgliteMethod);
       }
 
+      // `postgres`' reserved connection, for the session locks the emission
+      // takes. PGlite has one session only, which is already "reserved".
+      if (property === "reserve") {
+        return async () => ({
+          unsafe: async (query: string, params: unknown[] = []) =>
+            (
+              (await (target as unknown as PGlite).query(query, params)) as {
+                rows: unknown[];
+              }
+            ).rows,
+          release: () => {},
+        });
+      }
+
       return value;
     },
   });

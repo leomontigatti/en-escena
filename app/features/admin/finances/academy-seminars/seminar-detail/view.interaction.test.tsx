@@ -8,6 +8,7 @@ import {
   createReactDomTestRenderer,
   findButton,
 } from "@/lib/test-support/react-dom";
+import { readyInvoicing } from "@/features/admin/finances/comprobante-emission/shared.test-support";
 
 import type { loadSeminarFinanceDetail } from "./server";
 import { SeminarFinanceDetailView } from "./view";
@@ -125,7 +126,7 @@ function loaderDataFixture(
     availableBalanceAmount: 7000,
     comprobantes: [],
     inscriptions: [],
-    invoicing: { status: "ready", kind: "factura_c", amount: 4000 },
+    invoicing: readyInvoicing("factura_c", 4000),
     priceOptionsByInscription: {},
     seminar: {
       allocatedAmount: 5000,

@@ -7,24 +7,26 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { ArcaClient, type ArcaBillingPort } from "./client.server";
 import {
+  abandonReservedAttempt,
   emitWithContingency,
-  recheckWithContingency,
+  recheckReservedAttempt,
   toArcaDate,
   type ArcaEmissionChoreography,
+  type ArcaEmissionFailure,
   type ArcaEmissionRequest,
+  type ArcaReservedAttempt,
 } from "./emission.server";
 import type { ArcaVoucher } from "./factura-c";
 import {
   facturaCAprobada,
   facturaCConsultada,
   facturaCRechazada,
+  notaRechazada10197,
   ultimoAutorizado,
 } from "./wsfe-responses.test-support";
 import {
   parseCreateVoucherResult,
-  parseLastVoucher,
   type FacturaCEmissionResult,
-  type LastVoucherResult,
 } from "./responses";
 
 // The comprobante persisted in the test: the choreography does not know what it
@@ -55,30 +57,61 @@ function fakeBilling(
   };
 }
 
-// The default choreography: it looks up the sequence number, emits approved and
-// persists. Each test overrides the part it exercises.
+// What happens to the reservation, observed: the emission decides which of the
+// moves runs, and each test asserts the one it expects.
+function reservationMoves() {
+  return {
+    persist: vi.fn(
+      async (
+        authorized: Omit<PersistedVoucher, "requestedCbteFch">,
+        request: ArcaEmissionRequest,
+      ): Promise<PersistedVoucher> => ({
+        ...authorized,
+        requestedCbteFch: request.cbteFch,
+      }),
+    ),
+    release: vi.fn(async () => {}),
+    markNumberTaken: vi.fn(async () => {}),
+  };
+}
+
+// The default choreography: it reserves, emits approved and persists. Each test
+// overrides the part it exercises.
 function choreography(
   overrides: Partial<ArcaEmissionChoreography<PersistedVoucher>> = {},
   billing: ArcaBillingPort = fakeBilling(),
-): ArcaEmissionChoreography<PersistedVoucher> {
+) {
   return {
     client: new ArcaClient(billing),
-    subject: "comprobante",
+    subject: "comprobante" as const,
     ptoVta: 1,
     cbteTipo: 11,
     cbteFch: "20260722",
     impTotal: 1000,
-    getLastNumber: async (): Promise<LastVoucherResult> =>
-      parseLastVoucher(ultimoAutorizado),
-    emit: async (): Promise<FacturaCEmissionResult> =>
+    emit: vi.fn(async (): Promise<FacturaCEmissionResult> =>
       parseCreateVoucherResult(facturaCAprobada),
-    persist: async (
-      authorized,
-      request: ArcaEmissionRequest,
-    ): Promise<PersistedVoucher> => ({
-      ...authorized,
-      requestedCbteFch: request.cbteFch,
-    }),
+    ),
+    reserve: vi.fn(async (): Promise<ArcaEmissionFailure | null> => null),
+    ...reservationMoves(),
+    ...overrides,
+  };
+}
+
+// Reservation 43 of `Factura C`, left live with what was submitted at it.
+function reserved(
+  overrides: Partial<ArcaReservedAttempt<PersistedVoucher>> = {},
+  billing: ArcaBillingPort = fakeBilling(),
+) {
+  return {
+    client: new ArcaClient(billing),
+    subject: "comprobante" as const,
+    ptoVta: 1,
+    cbteTipo: 11,
+    cbteNro: 43,
+    impTotal: 1000,
+    cbteFch: "20260722",
+    state: "unverified" as const,
+    ...reservationMoves(),
     ...overrides,
   };
 }
@@ -87,8 +120,25 @@ function connectionLost(): Promise<never> {
   return Promise.reject(new Error("socket hang up"));
 }
 
+function rejection(
+  emission: Partial<FacturaCEmissionResult>,
+): () => Promise<FacturaCEmissionResult> {
+  return async () => ({
+    approved: false,
+    cae: null,
+    caeVto: null,
+    cbteNro: null,
+    cbteFch: null,
+    resultado: "R",
+    errors: [],
+    observaciones: [],
+    ...emission,
+  });
+}
+
 beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -96,8 +146,10 @@ afterEach(() => {
 });
 
 describe("emitWithContingency", () => {
-  test("authorized by ARCA: persists the CAE and does not mark it as recovered", async () => {
-    const outcome = await emitWithContingency(choreography());
+  test("authorized by ARCA: persists the CAE, which retires the reservation, and is not marked recovered", async () => {
+    const emission = choreography();
+
+    const outcome = await emitWithContingency(emission);
 
     expect(outcome).toEqual({
       ok: true,
@@ -110,26 +162,42 @@ describe("emitWithContingency", () => {
         requestedCbteFch: "20260722",
       },
     });
+    expect(emission.release).not.toHaveBeenCalled();
   });
 
-  test("the sequence number to emit comes from the last-authorized lookup", async () => {
-    const emit = vi.fn(async (): Promise<FacturaCEmissionResult> =>
-      parseCreateVoucherResult(facturaCAprobada),
-    );
+  test("reserves the series' next number before asking ARCA to authorize it", async () => {
+    const emission = choreography();
 
-    await emitWithContingency(choreography({ emit }));
+    await emitWithContingency(emission);
 
-    expect(emit).toHaveBeenCalledWith({ cbteNro: 43, cbteFch: "20260722" });
+    const request = { cbteNro: 43, cbteFch: "20260722" };
+    expect(emission.reserve).toHaveBeenCalledWith(request);
+    expect(emission.emit).toHaveBeenCalledWith(request);
+    expect(
+      vi.mocked(emission.reserve).mock.invocationCallOrder[0],
+    ).toBeLessThan(vi.mocked(emission.emit).mock.invocationCallOrder[0]);
   });
 
-  test("with the sequence lookup cut off, nothing was emitted and nothing is authorized", async () => {
-    const emit = vi.fn(async (): Promise<FacturaCEmissionResult> =>
-      parseCreateVoucherResult(facturaCAprobada),
+  test("a series held by another reservation stops before ARCA authorizes anything", async () => {
+    const held: ArcaEmissionFailure = {
+      ok: false,
+      reason: "unverified",
+      message: "Hay otra emisión sin resolver.",
+      attempt: { ptoVta: 1, cbteTipo: 11, cbteNro: 40 },
+    };
+    const emission = choreography({ reserve: vi.fn(async () => held) });
+
+    await expect(emitWithContingency(emission)).resolves.toBe(held);
+    expect(emission.emit).not.toHaveBeenCalled();
+  });
+
+  test("with the sequence lookup cut off, nothing is reserved and nothing is authorized", async () => {
+    const emission = choreography(
+      {},
+      fakeBilling({ getLastVoucher: vi.fn(connectionLost) }),
     );
 
-    const outcome = await emitWithContingency(
-      choreography({ getLastNumber: connectionLost, emit }),
-    );
+    const outcome = await emitWithContingency(emission);
 
     expect(outcome).toEqual({
       ok: false,
@@ -138,49 +206,46 @@ describe("emitWithContingency", () => {
         "No pudimos comunicarnos con ARCA: no se emitió el comprobante. " +
         "Reintentá en unos minutos.",
     });
-    expect(emit).not.toHaveBeenCalled();
+    expect(emission.reserve).not.toHaveBeenCalled();
+    expect(emission.emit).not.toHaveBeenCalled();
   });
 
-  test("ARCA rejects: it persists nothing and returns the rejection detail", async () => {
-    const persist = vi.fn();
+  // A rejected `FECAESolicitar` consumes no number (#686).
+  test("ARCA rejects: it persists nothing, retires the reservation and returns the rejection detail", async () => {
+    const emission = choreography({
+      emit: vi.fn(async () => parseCreateVoucherResult(facturaCRechazada)),
+    });
 
-    const outcome = await emitWithContingency(
-      choreography({
-        emit: async () => parseCreateVoucherResult(facturaCRechazada),
-        persist,
-      }),
-    );
+    const outcome = await emitWithContingency(emission);
 
     expect(outcome).toMatchObject({
       ok: false,
       reason: "rejected",
       arca: { resultado: "R" },
     });
-    expect(persist).not.toHaveBeenCalled();
+    expect(emission.persist).not.toHaveBeenCalled();
+    expect(emission.release).toHaveBeenCalledOnce();
   });
 
   // With the authorization cut off at the transport level, the follow-up lookup
-  // is final: if ARCA does not have it, nothing was emitted (ADR-0012
-  // decision 5).
-  test("authorization cut off and ARCA does not have it: nothing was emitted", async () => {
-    const persist = vi.fn();
+  // is final: if ARCA does not have it, nothing was emitted.
+  test("authorization cut off and ARCA does not have it: nothing was emitted and the number is released", async () => {
+    const emission = choreography({ emit: vi.fn(connectionLost) });
 
-    const outcome = await emitWithContingency(
-      choreography({ emit: connectionLost, persist }),
-    );
+    const outcome = await emitWithContingency(emission);
 
     expect(outcome).toMatchObject({ ok: false, reason: "not-emitted" });
-    expect(persist).not.toHaveBeenCalled();
+    expect(emission.persist).not.toHaveBeenCalled();
+    expect(emission.release).toHaveBeenCalledOnce();
   });
 
   test("authorization cut off and ARCA does have it: persists the recovered CAE", async () => {
-    const billing = fakeBilling({
-      getVoucherInfo: vi.fn(async () => facturaCConsultada),
-    });
-
-    const outcome = await emitWithContingency(
-      choreography({ emit: connectionLost }, billing),
+    const emission = choreography(
+      { emit: vi.fn(connectionLost) },
+      fakeBilling({ getVoucherInfo: vi.fn(async () => facturaCConsultada) }),
     );
+
+    const outcome = await emitWithContingency(emission);
 
     expect(outcome).toEqual({
       ok: true,
@@ -193,32 +258,64 @@ describe("emitWithContingency", () => {
         requestedCbteFch: "20260722",
       },
     });
+    expect(emission.release).not.toHaveBeenCalled();
   });
 
-  test("authorization cut off and the lookup does not resolve either: it stays unverified", async () => {
-    const persist = vi.fn();
-    const billing = fakeBilling({ getVoucherInfo: connectionLost });
-
-    const outcome = await emitWithContingency(
-      choreography({ emit: connectionLost, persist }, billing),
+  test("authorization cut off and ARCA holds another comprobante at the number: number-taken, and the reservation keeps the evidence", async () => {
+    const emission = choreography(
+      { emit: vi.fn(connectionLost) },
+      fakeBilling({
+        getVoucherInfo: vi.fn(async () => ({
+          ...facturaCConsultada,
+          impTotal: 99999,
+          cbteFch: "20260720",
+        })),
+      }),
     );
+
+    const outcome = await emitWithContingency(emission);
+
+    expect(outcome).toEqual({
+      ok: false,
+      reason: "number-taken",
+      message: expect.stringMatching(
+        /Factura C 0001-00000043 existe en ARCA por \$\s?99\.999 con fecha 20\/07\/2026, y no coincide con lo que se envió \(\$\s?1\.000, 22\/07\/2026\)/,
+      ),
+      attempt: { ptoVta: 1, cbteTipo: 11, cbteNro: 43 },
+    });
+    expect(emission.markNumberTaken).toHaveBeenCalledWith({
+      impTotal: 99999,
+      cbteFch: "20260720",
+    });
+    expect(emission.persist).not.toHaveBeenCalled();
+    expect(emission.release).not.toHaveBeenCalled();
+  });
+
+  test("authorization cut off and the lookup does not resolve either: it stays unverified and the reservation stays live", async () => {
+    const emission = choreography(
+      { emit: vi.fn(connectionLost) },
+      fakeBilling({ getVoucherInfo: vi.fn(connectionLost) }),
+    );
+
+    const outcome = await emitWithContingency(emission);
 
     expect(outcome).toMatchObject({
       ok: false,
       reason: "unverified",
       attempt: { ptoVta: 1, cbteTipo: 11, cbteNro: 43 },
     });
-    expect(persist).not.toHaveBeenCalled();
+    expect(emission.persist).not.toHaveBeenCalled();
+    expect(emission.release).not.toHaveBeenCalled();
   });
 
   // The subject only picks how the document is named in the message to the
   // operator.
   test("the subject names the document in the contingency message", async () => {
     const outcome = await emitWithContingency(
-      choreography({
-        subject: "nota de crédito",
-        getLastNumber: connectionLost,
-      }),
+      choreography(
+        { subject: "nota de crédito" },
+        fakeBilling({ getLastVoucher: vi.fn(connectionLost) }),
+      ),
     );
 
     expect(outcome).toMatchObject({
@@ -229,105 +326,134 @@ describe("emitWithContingency", () => {
     });
   });
 
-  // Without an explicit `cbteFch` (in production only the tests inject one) the
-  // date comes from the business time zone, not the server's.
-  test("with no explicit date, the comprobante goes out with the business date", async () => {
-    vi.useFakeTimers();
-    // 01:30 UTC on the 23rd → still the 22nd in Córdoba (UTC-3).
-    vi.setSystemTime(new Date("2026-07-23T01:30:00Z"));
-
-    const emit = vi.fn(async (): Promise<FacturaCEmissionResult> =>
-      parseCreateVoucherResult(facturaCAprobada),
-    );
-
-    const outcome = await emitWithContingency(
-      choreography({ cbteFch: undefined, emit }),
-    );
-
-    expect(emit).toHaveBeenCalledWith({ cbteNro: 43, cbteFch: "20260722" });
-    expect(outcome).toMatchObject({
-      ok: true,
-      voucher: { requestedCbteFch: "20260722" },
-    });
-
-    vi.useRealTimers();
-  });
-
   // The reason for the rejection is read from the first error, and failing that
   // it falls back to the observation and to the raw `Resultado`.
   test.each([
     {
       caso: "error",
       emission: {
-        errors: [{ code: 10016, msg: "Correlativo fuera de orden" }],
+        errors: [{ code: 10015, msg: "Documento inválido" }],
         observaciones: [{ code: 10049, msg: "Faltan fechas" }],
-        resultado: "R",
       },
-      esperado: "ARCA no autorizó el comprobante (Correlativo fuera de orden).",
+      esperado: "ARCA no autorizó el comprobante (Documento inválido).",
     },
     {
       caso: "observación",
-      emission: {
-        errors: [],
-        observaciones: [{ code: 10049, msg: "Faltan fechas" }],
-        resultado: "R",
-      },
+      emission: { observaciones: [{ code: 10049, msg: "Faltan fechas" }] },
       esperado: "ARCA no autorizó el comprobante (Faltan fechas).",
     },
     {
       caso: "resultado crudo",
-      emission: { errors: [], observaciones: [], resultado: "R" },
+      emission: {},
       esperado: "ARCA no autorizó el comprobante (R).",
     },
     {
       caso: "nada",
-      emission: { errors: [], observaciones: [], resultado: null },
+      emission: { resultado: null },
       esperado: "ARCA no autorizó el comprobante (sin detalle).",
     },
   ])(
     "a rejection with $caso explains the reason",
     async ({ emission, esperado }) => {
       const outcome = await emitWithContingency(
-        choreography({
-          emit: async (): Promise<FacturaCEmissionResult> => ({
-            approved: false,
-            cae: null,
-            caeVto: null,
-            cbteNro: null,
-            cbteFch: null,
-            ...emission,
-          }),
-        }),
+        choreography({ emit: vi.fn(rejection(emission)) }),
       );
 
-      expect(outcome).toMatchObject({ ok: false, reason: "rejected" });
-      expect(outcome).toMatchObject({ message: esperado });
+      expect(outcome).toMatchObject({
+        ok: false,
+        reason: "rejected",
+        message: esperado,
+      });
     },
   );
+
+  // 10016 holds two rules under one code (#612). If ARCA's last number is still
+  // the one before ours, our number was right, so the date was not.
+  test("a 10016 rejection whose number was still the next one says it is about the date, and of which series", async () => {
+    const outcome = await emitWithContingency(
+      choreography({
+        cbteTipo: 13,
+        subject: "nota de crédito",
+        emit: vi.fn(async () => parseCreateVoucherResult(facturaCRechazada)),
+      }),
+    );
+
+    expect(outcome).toMatchObject({
+      ok: false,
+      reason: "rejected",
+      message:
+        "ARCA no aceptó la fecha 22/07/2026 para la nota de crédito: en la serie " +
+        "Nota de crédito C, punto de venta 0001 la fecha no puede ser anterior a " +
+        "la del último comprobante autorizado ni de más de 10 días atrás " +
+        "(código 10016). Elegí otra fecha y volvé a emitir.",
+    });
+  });
+
+  test("a 10016 rejection after another comprobante took the number says it is about the number", async () => {
+    const getLastVoucher = vi
+      .fn(async (): Promise<LastVoucherResultDto> => ultimoAutorizado)
+      .mockResolvedValueOnce(ultimoAutorizado)
+      .mockResolvedValueOnce({ ...ultimoAutorizado, cbteNro: 43 });
+
+    const outcome = await emitWithContingency(
+      choreography(
+        {
+          emit: vi.fn(async () => parseCreateVoucherResult(facturaCRechazada)),
+        },
+        fakeBilling({ getLastVoucher }),
+      ),
+    );
+
+    expect(outcome).toMatchObject({
+      ok: false,
+      reason: "rejected",
+      message: expect.stringContaining(
+        "ARCA no aceptó el número 43 para el comprobante: en la serie Factura C, punto de venta 0001 se autorizó otro comprobante",
+      ),
+    });
+  });
+
+  // #686: ARCA sends 10197 in `Observaciones` with no `Errors` node at all.
+  test("a 10197 refusal with only Observaciones is a rejection that names the missing associated comprobante", async () => {
+    const emission = choreography({
+      subject: "nota de débito",
+      cbteTipo: 12,
+      emit: vi.fn(async () => parseCreateVoucherResult(notaRechazada10197)),
+    });
+
+    const outcome = await emitWithContingency(emission);
+
+    expect(outcome).toMatchObject({
+      ok: false,
+      reason: "rejected",
+      message: expect.stringContaining(
+        "ARCA no autorizó la nota de débito: una nota tiene que indicar el comprobante que ajusta (código 10197",
+      ),
+      arca: { resultado: "R", errors: [], observaciones: [{ code: 10197 }] },
+    });
+    expect(emission.persist).not.toHaveBeenCalled();
+  });
 
   // An "approved" without a CAE does not count as authorized (ADR-0012): nothing
   // is persisted.
   test("approved with no CAE: it persists nothing and counts as a rejection", async () => {
-    const persist = vi.fn();
+    const emission = choreography({
+      emit: vi.fn(async (): Promise<FacturaCEmissionResult> => ({
+        approved: true,
+        cae: null,
+        caeVto: null,
+        cbteNro: 43,
+        cbteFch: "20260722",
+        resultado: "A",
+        errors: [],
+        observaciones: [],
+      })),
+    });
 
-    const outcome = await emitWithContingency(
-      choreography({
-        emit: async (): Promise<FacturaCEmissionResult> => ({
-          approved: true,
-          cae: null,
-          caeVto: null,
-          cbteNro: 43,
-          cbteFch: "20260722",
-          resultado: "A",
-          errors: [],
-          observaciones: [],
-        }),
-        persist,
-      }),
-    );
+    const outcome = await emitWithContingency(emission);
 
     expect(outcome).toMatchObject({ ok: false, reason: "rejected" });
-    expect(persist).not.toHaveBeenCalled();
+    expect(emission.persist).not.toHaveBeenCalled();
   });
 });
 
@@ -337,31 +463,17 @@ describe("toArcaDate", () => {
   });
 });
 
-describe("recheckWithContingency", () => {
-  test("queries the requested sequence number, with the server's amount and date", async () => {
-    const getVoucherInfo = vi.fn(
-      async (): Promise<VoucherInfoResultDto | null> => facturaCConsultada,
-    );
+describe("recheckReservedAttempt", () => {
+  test("the reserved number shows up matching what was submitted: it is persisted with the reservation's date, without authorizing again", async () => {
+    const billing = fakeBilling({
+      getVoucherInfo: vi.fn(async () => facturaCConsultada),
+    });
+    const attempt = reserved({}, billing);
 
-    await recheckWithContingency(
-      choreography({}, fakeBilling({ getVoucherInfo })),
-      43,
-    );
+    const outcome = await recheckReservedAttempt(attempt);
 
-    expect(getVoucherInfo).toHaveBeenCalledWith(43, 1, 11);
-  });
-
-  test("the comprobante shows up and matches: it is persisted and marked recovered", async () => {
-    const outcome = await recheckWithContingency(
-      choreography(
-        {},
-        fakeBilling({
-          getVoucherInfo: vi.fn(async () => facturaCConsultada),
-        }),
-      ),
-      43,
-    );
-
+    expect(billing.getVoucherInfo).toHaveBeenCalledWith(43, 1, 11);
+    expect(billing.createVoucher).not.toHaveBeenCalled();
     expect(outcome).toEqual({
       ok: true,
       recovered: true,
@@ -375,90 +487,112 @@ describe("recheckWithContingency", () => {
     });
   });
 
-  // It authorizes nothing: re-verification is only `FECompConsultar`.
-  test("does not retry authorization", async () => {
-    const createVoucher = vi.fn(
-      async (): Promise<CreateVoucherResultDto> => facturaCAprobada,
+  test("a different amount at the reserved number is number-taken, not unverified", async () => {
+    const attempt = reserved(
+      { impTotal: 9999 },
+      fakeBilling({ getVoucherInfo: vi.fn(async () => facturaCConsultada) }),
     );
 
-    await recheckWithContingency(
-      choreography(
-        {},
-        fakeBilling({
-          createVoucher,
-          getVoucherInfo: vi.fn(async () => facturaCConsultada),
-        }),
-      ),
-      43,
-    );
+    const outcome = await recheckReservedAttempt(attempt);
 
-    expect(createVoucher).not.toHaveBeenCalled();
-  });
-
-  // A tampered or stale `cbteNro` makes the recomputed amount fail to match: the
-  // result stays `unverified`, which is the safe direction.
-  test("amount that does not match: it does not persist and stays unverified", async () => {
-    const persist = vi.fn();
-    const outcome = await recheckWithContingency(
-      choreography(
-        { impTotal: 9999, persist },
-        fakeBilling({
-          getVoucherInfo: vi.fn(async () => facturaCConsultada),
-        }),
-      ),
-      43,
-    );
-
-    expect(persist).not.toHaveBeenCalled();
-    expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
-  });
-
-  test("date that does not match: it does not persist and stays unverified", async () => {
-    const outcome = await recheckWithContingency(
-      choreography(
-        { cbteFch: "20260723" },
-        fakeBilling({
-          getVoucherInfo: vi.fn(async () => facturaCConsultada),
-        }),
-      ),
-      43,
-    );
-
-    expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
+    expect(outcome).toMatchObject({ ok: false, reason: "number-taken" });
+    expect(attempt.markNumberTaken).toHaveBeenCalledWith({
+      impTotal: 1000,
+      cbteFch: "20260722",
+    });
+    expect(attempt.persist).not.toHaveBeenCalled();
   });
 
   /**
    * It can only prove the positive: nobody has measured how long a request can
-   * live on ARCA's side, so a `null` never gets promoted to `not-emitted`, no
-   * matter how much time has passed since the attempt (ADR-0012 decision 2).
+   * live on ARCA's side, so a `null` never releases the number, no matter how
+   * much time has passed since the attempt (ADR-0012 decision 2).
    */
-  test("ARCA still does not have it: it stays unverified, never not emitted", async () => {
-    const outcome = await recheckWithContingency(
-      choreography(
-        {},
-        fakeBilling({ getVoucherInfo: vi.fn(async () => null) }),
-      ),
-      43,
-    );
+  test("ARCA still does not have it: it stays unverified and the reservation stays live", async () => {
+    const attempt = reserved();
+
+    const outcome = await recheckReservedAttempt(attempt);
 
     expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
-    expect(outcome).not.toMatchObject({ reason: "not-emitted" });
+    expect(attempt.release).not.toHaveBeenCalled();
   });
 
   test("the lookup fails: it stays unverified and does not persist", async () => {
-    const persist = vi.fn();
-    const outcome = await recheckWithContingency(
-      choreography(
-        { persist },
-        fakeBilling({ getVoucherInfo: vi.fn(connectionLost) }),
-      ),
-      43,
+    const attempt = reserved(
+      {},
+      fakeBilling({ getVoucherInfo: vi.fn(connectionLost) }),
     );
 
-    expect(persist).not.toHaveBeenCalled();
-    expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
-    if (!outcome.ok) {
-      expect(outcome.attempt).toEqual({ ptoVta: 1, cbteTipo: 11, cbteNro: 43 });
-    }
+    const outcome = await recheckReservedAttempt(attempt);
+
+    expect(attempt.persist).not.toHaveBeenCalled();
+    expect(outcome).toMatchObject({
+      ok: false,
+      reason: "unverified",
+      attempt: { ptoVta: 1, cbteTipo: 11, cbteNro: 43 },
+    });
+  });
+});
+
+describe("abandonReservedAttempt", () => {
+  test("a number-taken reservation is released without asking ARCA anything", async () => {
+    const billing = fakeBilling();
+    const attempt = reserved({ state: "number-taken" }, billing);
+
+    await expect(abandonReservedAttempt(attempt)).resolves.toEqual({
+      ok: true,
+      released: true,
+    });
+    expect(attempt.release).toHaveBeenCalledOnce();
+    expect(billing.getLastVoucher).not.toHaveBeenCalled();
+  });
+
+  test("an unverified reservation ARCA has not reached yet is released, and the log keeps what was given up", async () => {
+    const attempt = reserved();
+
+    await expect(abandonReservedAttempt(attempt)).resolves.toEqual({
+      ok: true,
+      released: true,
+    });
+    expect(attempt.release).toHaveBeenCalledOnce();
+    expect(console.warn).toHaveBeenCalledWith("[arca:attempt-abandoned]", {
+      ptoVta: 1,
+      cbteTipo: 11,
+      cbteNro: 43,
+      state: "unverified",
+      submitted: { impTotal: 1000, cbteFch: "20260722" },
+    });
+  });
+
+  test("once ARCA has reached the number, it is resolved by what ARCA holds there, not released", async () => {
+    const attempt = reserved(
+      {},
+      fakeBilling({
+        getLastVoucher: vi.fn(async () => ({
+          ...ultimoAutorizado,
+          cbteNro: 43,
+        })),
+        getVoucherInfo: vi.fn(async () => facturaCConsultada),
+      }),
+    );
+
+    await expect(abandonReservedAttempt(attempt)).resolves.toMatchObject({
+      ok: true,
+      recovered: true,
+    });
+    expect(attempt.release).not.toHaveBeenCalled();
+  });
+
+  test("with ARCA unreachable nothing is released", async () => {
+    const attempt = reserved(
+      {},
+      fakeBilling({ getLastVoucher: vi.fn(connectionLost) }),
+    );
+
+    await expect(abandonReservedAttempt(attempt)).resolves.toMatchObject({
+      ok: false,
+      reason: "unverified",
+    });
+    expect(attempt.release).not.toHaveBeenCalled();
   });
 });

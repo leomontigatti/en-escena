@@ -26,10 +26,11 @@ import {
   notaRechazada10197,
 } from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
+import { emitAnchorComprobante } from "@/lib/comprobantes/emit-comprobante.server";
 import {
-  emitAnchorComprobante,
-  recheckAnchorComprobante,
-} from "@/lib/comprobantes/emit-comprobante.server";
+  abandonComprobanteReservation,
+  recheckComprobanteReservation,
+} from "@/lib/comprobantes/reserved-attempt.server";
 import {
   listAnchorComprobantes,
   recordComprobante,
@@ -114,7 +115,31 @@ async function seedChoreographyWithInscriptions(
     inscriptions.push(await enrol(choreography.id, dancer.id));
   }
 
-  return { event, academy, choreography, inscriptions };
+  return { event, academy, choreography, createChoreography, inscriptions };
+}
+
+// A second unit in the same event — only one event is active at a time — with
+// its one dancer's deposit covered, owing its 10000 invoice.
+async function addSenadaChoreography(
+  seeded: Pick<
+    Awaited<ReturnType<typeof seedChoreographyWithInscriptions>>,
+    "academy" | "createChoreography"
+  >,
+  name: string,
+) {
+  const choreography = await seeded.createChoreography(name);
+  const inscription = await enrol(
+    choreography.id,
+    (await createDancer(seeded.academy.id)).id,
+  );
+  await allocatePayment({
+    academyId: seeded.academy.id,
+    eventId: choreography.eventId,
+    inscriptionId: inscription.id,
+    amount: 5000,
+  });
+
+  return choreography;
 }
 
 async function withdraw(inscriptionId: string) {
@@ -124,14 +149,16 @@ async function withdraw(inscriptionId: string) {
     .where(eq(choreographyDancers.id, inscriptionId));
 }
 
+// `today` moves the business date the emission runs on; `cbteFch` is the date
+// the operator chose, today when absent.
 function emit(
   choreography: { id: string; eventId: string },
   billing: ArcaBillingPort = fakeBilling(),
-  overrides: { cbteFch?: string; timeouts?: ArcaTimeouts } = {},
+  overrides: { cbteFch?: string; today?: string; timeouts?: ArcaTimeouts } = {},
 ) {
   const deps = {
     ...emissionDeps(billing, overrides.timeouts),
-    ...(overrides.cbteFch ? { cbteFch: overrides.cbteFch } : {}),
+    ...(overrides.today ? { today: overrides.today } : {}),
   };
 
   return {
@@ -140,6 +167,7 @@ function emit(
       {
         anchor: choreographyAnchor(choreography.id),
         eventId: choreography.eventId,
+        ...(overrides.cbteFch ? { cbteFch: overrides.cbteFch } : {}),
       },
       deps,
     ),
@@ -322,6 +350,11 @@ describe("emitAnchorComprobante — the invoice", () => {
     await expect(
       listAnchorComprobantes(choreographyAnchor(choreography.id)),
     ).resolves.toHaveLength(0);
+    // A rejected `FECAESolicitar` consumes no number (#686): the reservation is
+    // gone and the series is free for the retry.
+    await expect(
+      emit(choreography, approvingNumber(43)).outcome,
+    ).resolves.toMatchObject({ ok: true, comprobante: { cbteNro: 43 } });
   });
 
   test("rejects a choreography that belongs to another event", async () => {
@@ -357,7 +390,7 @@ describe("emitAnchorComprobante — the delta after the invoice", () => {
     );
 
     const billing = approvingNumber(5, "41124578989850");
-    const { outcome } = emit(choreography, billing, { cbteFch: "20260725" });
+    const { outcome } = emit(choreography, billing, { today: "2026-07-25" });
 
     await expect(outcome).resolves.toMatchObject({ ok: true });
     expect(billing.getLastVoucher).toHaveBeenCalledWith(1, 12);
@@ -856,85 +889,293 @@ describe("emitAnchorComprobante (ARCA does not respond)", () => {
       listAnchorComprobantes(choreographyAnchor(choreography.id)),
     ).resolves.toHaveLength(0);
   });
+});
 
-  describe("re-verification (#577)", () => {
-    async function recheckWith(
-      choreography: { id: string; eventId: string },
-      billing: ArcaBillingPort,
-      cbteNro = 43,
-    ) {
-      const deps = emissionDeps(billing);
-      const outcome = await recheckAnchorComprobante(
-        {
-          anchor: choreographyAnchor(choreography.id),
-          eventId: choreography.eventId,
-          cbteTipo: 11,
-          cbteNro,
-        },
-        deps,
-      );
-      return { deps, outcome };
-    }
+/**
+ * The correlative reservation (ADR-0014 §7, #578): the next number of a series
+ * is committed before `FECAESolicitar`, a live one blocks its series, and it
+ * goes once ARCA settles it — recorded, released, or abandoned.
+ */
+describe("the correlative reservation", () => {
+  async function seedSenadaChoreography(prefix: string) {
+    const seeded = await seedChoreographyWithInscriptions(
+      `${prefix}.${crypto.randomUUID()}@example.com`,
+      1,
+    );
+    await allocatePayment({
+      academyId: seeded.academy.id,
+      eventId: seeded.choreography.eventId,
+      inscriptionId: seeded.inscriptions[0].id,
+      amount: 5000,
+    });
+    return seeded;
+  }
 
-    test("the comprobante shows up in ARCA: it is persisted with that CAE and without authorizing again", async () => {
-      const choreography = await seedSenadaChoreography("recheck-recuperado");
+  // An invoice whose authorization timed out and that ARCA does not have yet:
+  // `Factura C` 43 stays reserved, unverified.
+  async function leaveUnverified(choreography: {
+    id: string;
+    eventId: string;
+  }) {
+    const outcome = await emit(
+      choreography,
+      fakeBilling({
+        createVoucher: vi.fn(neverAnswers),
+        getVoucherInfo: vi.fn(async () => null),
+      }),
+      { timeouts: FAST_TIMEOUTS },
+    ).outcome;
 
-      const { deps, outcome } = await recheckWith(
-        choreography,
-        fakeBilling({ getVoucherInfo: vi.fn(async () => consultada()) }),
-      );
+    expect(outcome).toMatchObject({
+      ok: false,
+      reason: "unverified",
+      attempt: { ptoVta: 1, cbteTipo: 11, cbteNro: 43 },
+    });
+  }
 
-      expect(deps.billing.getVoucherInfo).toHaveBeenCalledWith(43, 1, 11);
-      expect(outcome).toMatchObject({ ok: true, recovered: true });
-      expect(deps.billing.createVoucher).not.toHaveBeenCalled();
-      const [persisted] = await listAnchorComprobantes(
-        choreographyAnchor(choreography.id),
-      );
-      expect(persisted).toMatchObject({ cbteNro: 43, impTotal: 10000 });
+  // `FECompConsultar` for invoice 43 as ARCA recorded it.
+  function consultada(
+    overrides: Partial<VoucherInfoResultDto> = {},
+  ): VoucherInfoResultDto {
+    return {
+      ...facturaCConsultada,
+      cbteDesde: 43,
+      cbteHasta: 43,
+      impTotal: 10000,
+      cbteFch: "20260722",
+      ...overrides,
+    };
+  }
+
+  const invoice43 = { cbteTipo: 11, cbteNro: 43 };
+
+  test("a live reservation blocks its series: another unit's invoice is refused before ARCA is asked anything, naming the attempt", async () => {
+    const seeded = await seedSenadaChoreography("bloqueo");
+    await leaveUnverified(seeded.choreography);
+    const other = await addSenadaChoreography(seeded, "Otra coreografía");
+
+    const { deps, outcome } = emit(other);
+
+    await expect(outcome).resolves.toMatchObject({
+      ok: false,
+      reason: "unverified",
+      message: expect.stringMatching(
+        /^Factura C 0001-00000043 de la coreografía «Coreografía a facturar», por \$\s?10\.000, quedó sin confirmar con ARCA\. No se puede emitir otro comprobante de la serie Factura C, punto de venta 0001 hasta resolverlo\.$/,
+      ),
+      attempt: { ptoVta: 1, cbteTipo: 11, cbteNro: 43 },
+    });
+    expect(deps.billing.getLastVoucher).not.toHaveBeenCalled();
+    expect(deps.billing.createVoucher).not.toHaveBeenCalled();
+  });
+
+  // Its document may already be at ARCA, and the plan cannot see it: a note
+  // in another series planned now would be computed against a stale delta.
+  test("a live reservation of a unit blocks that unit in every series", async () => {
+    const { academy, choreography, inscriptions } =
+      await seedInvoicedChoreography("ancla-bloqueada", 2);
+    await withdraw(inscriptions[1].id);
+    const creditNote = await emit(
+      choreography,
+      fakeBilling({
+        createVoucher: vi.fn(neverAnswers),
+        getVoucherInfo: vi.fn(async () => null),
+      }),
+      { timeouts: FAST_TIMEOUTS },
+    ).outcome;
+    expect(creditNote).toMatchObject({
+      ok: false,
+      reason: "unverified",
+      attempt: { cbteTipo: 13 },
+    });
+    // Two more dancers make the unit owe a debit note, in series 12.
+    await enrol(choreography.id, (await createDancer(academy.id)).id);
+    await enrol(choreography.id, (await createDancer(academy.id)).id);
+
+    const { deps, outcome } = emit(choreography, approvingNumber(5));
+
+    await expect(outcome).resolves.toMatchObject({
+      ok: false,
+      reason: "unverified",
+      attempt: { cbteTipo: 13, cbteNro: 43 },
+    });
+    expect(deps.billing.createVoucher).not.toHaveBeenCalled();
+  });
+
+  test("a date below the series' floor is refused before ARCA, naming the series", async () => {
+    // Invoice 43 went out on 2026-07-22, which is now the series' floor.
+    const seeded = await seedInvoicedChoreography("piso", 1);
+    const choreography = await addSenadaChoreography(
+      seeded,
+      "Otra coreografía",
+    );
+
+    const { deps, outcome } = emit(choreography, approvingNumber(44), {
+      today: "2026-07-25",
+      cbteFch: "2026-07-21",
     });
 
-    test("an attempt of another series than the plan now names stays unverified, and ARCA is not asked", async () => {
-      const choreography = await seedSenadaChoreography("recheck-otra-serie");
+    await expect(outcome).resolves.toEqual({
+      ok: false,
+      reason: "invalid-date",
+      message:
+        "La fecha no puede ser anterior al 22/07/2026, la del último comprobante autorizado en la serie Factura C, punto de venta 0001: ARCA no acepta fechas anteriores en esa serie.",
+    });
+    expect(deps.billing.getLastVoucher).not.toHaveBeenCalled();
+  });
+
+  test("a back-dated date within the floor goes out as chosen", async () => {
+    const seeded = await seedInvoicedChoreography("retrofechado", 1);
+    const choreography = await addSenadaChoreography(
+      seeded,
+      "Otra coreografía",
+    );
+    const billing = approvingNumber(44);
+
+    const { outcome } = emit(choreography, billing, {
+      today: "2026-07-25",
+      cbteFch: "2026-07-23",
+    });
+
+    await expect(outcome).resolves.toMatchObject({ ok: true });
+    expect(sentVoucher(billing)).toMatchObject({
+      CbteFch: "20260723",
+      FchVtoPago: "20260723",
+    });
+  });
+
+  describe("re-verification (#577)", () => {
+    test("the attempt shows up in ARCA: what was submitted is recorded, without authorizing again, and the series is free", async () => {
+      const seeded = await seedSenadaChoreography("recheck-recuperado");
+      const { academy, choreography } = seeded;
+      await leaveUnverified(choreography);
+      // The roster moves after the attempt: what ARCA authorized is recorded
+      // all the same, and the delta it leaves is the next note's (#578).
+      await enrol(choreography.id, (await createDancer(academy.id)).id);
       const billing = fakeBilling({
         getVoucherInfo: vi.fn(async () => consultada()),
       });
 
-      // The attempt was a credit note; the choreography now owes its invoice.
-      const outcome = await recheckAnchorComprobante(
-        {
-          anchor: choreographyAnchor(choreography.id),
-          eventId: choreography.eventId,
-          cbteTipo: 13,
-          cbteNro: 43,
-        },
+      const outcome = await recheckComprobanteReservation(
+        invoice43,
         emissionDeps(billing),
       );
 
-      expect(outcome).toMatchObject({
-        ok: false,
-        reason: "unverified",
-        attempt: { cbteTipo: 13, cbteNro: 43 },
-      });
-      expect(billing.getVoucherInfo).not.toHaveBeenCalled();
+      expect(billing.getVoucherInfo).toHaveBeenCalledWith(43, 1, 11);
+      expect(billing.createVoucher).not.toHaveBeenCalled();
+      expect(outcome).toMatchObject({ ok: true, recovered: true });
+      const [persisted] = await listAnchorComprobantes(
+        choreographyAnchor(choreography.id),
+      );
+      expect(persisted).toMatchObject({ cbteNro: 43, impTotal: 10000 });
+      expect(persisted.lines).toHaveLength(1);
+
+      const other = await addSenadaChoreography(seeded, "Otra coreografía");
+      await expect(
+        emit(other, approvingNumber(44)).outcome,
+      ).resolves.toMatchObject({ ok: true });
     });
 
-    // The amount it is validated against comes from the unit's plan, not from
-    // the form: a tampered or stale `cbteNro` cannot force somebody else's CAE
-    // to be persisted (ADR-0012 decision 4).
-    test("the server re-plans the amount: if the queried one does not match, it stays unverified", async () => {
-      const choreography = await seedSenadaChoreography("recheck-otro-importe");
+    test("ARCA holds another comprobante at the number: number-taken, the series stays blocked until the attempt is abandoned", async () => {
+      const seeded = await seedSenadaChoreography("numero-tomado");
+      const { choreography } = seeded;
+      await leaveUnverified(choreography);
+      const billing = fakeBilling({
+        getVoucherInfo: vi.fn(async () => consultada({ impTotal: 9999 })),
+      });
 
-      const { outcome } = await recheckWith(
-        choreography,
-        fakeBilling({
-          getVoucherInfo: vi.fn(async () => consultada({ impTotal: 9999 })),
-        }),
-      );
-
-      expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
+      await expect(
+        recheckComprobanteReservation(invoice43, emissionDeps(billing)),
+      ).resolves.toMatchObject({
+        ok: false,
+        reason: "number-taken",
+        attempt: { cbteTipo: 11, cbteNro: 43 },
+      });
       await expect(
         listAnchorComprobantes(choreographyAnchor(choreography.id)),
       ).resolves.toHaveLength(0);
+
+      const other = await addSenadaChoreography(seeded, "Otra coreografía");
+      await expect(emit(other).outcome).resolves.toMatchObject({
+        ok: false,
+        reason: "number-taken",
+        message: expect.stringContaining("Verificá en el portal de ARCA"),
+      });
+
+      await expect(
+        abandonComprobanteReservation(invoice43, emissionDeps(fakeBilling())),
+      ).resolves.toEqual({ ok: true, released: true });
+      await expect(
+        emit(other, approvingNumber(44)).outcome,
+      ).resolves.toMatchObject({ ok: true, comprobante: { cbteNro: 44 } });
+    });
+
+    test("the operator's verification releases an attempt ARCA has not reached, and the unit can emit again", async () => {
+      const { choreography } = await seedSenadaChoreography("verificado");
+      await leaveUnverified(choreography);
+
+      await expect(
+        abandonComprobanteReservation(invoice43, emissionDeps(fakeBilling())),
+      ).resolves.toEqual({ ok: true, released: true });
+      await expect(
+        emit(choreography, approvingNumber(43)).outcome,
+      ).resolves.toMatchObject({ ok: true, comprobante: { cbteNro: 43 } });
+    });
+
+    test("an attempt already resolved answers what became of it", async () => {
+      const { choreography } = await seedSenadaChoreography("ya-resuelto");
+      await emit(choreography, approvingNumber(43)).outcome;
+
+      await expect(
+        recheckComprobanteReservation(invoice43, emissionDeps(fakeBilling())),
+      ).resolves.toMatchObject({
+        ok: true,
+        recovered: true,
+        comprobante: { cbteNro: 43 },
+      });
+      await expect(
+        recheckComprobanteReservation(
+          { cbteTipo: 11, cbteNro: 44 },
+          emissionDeps(fakeBilling()),
+        ),
+      ).resolves.toMatchObject({ ok: false, reason: "not-emitted" });
     });
   });
 });
+
+/**
+ * Two units emitting at once in one series both read the same last number.
+ * The reservation's unique index is what stops them from submitting it twice:
+ * the loser's insert conflicts and it stops before ARCA. Postgres only, for the
+ * reason the contention test above gives.
+ */
+describe.skipIf(isPgliteTestBackend())(
+  "the correlative reservation under real contention",
+  () => {
+    test("two concurrent emissions in one series cannot take the same number", async () => {
+      const seeded = await seedChoreographyWithInscriptions(
+        `serie.${crypto.randomUUID()}@example.com`,
+        0,
+      );
+      const first = await addSenadaChoreography(seeded, "Primera");
+      const second = await addSenadaChoreography(seeded, "Segunda");
+      const billing = fakeBilling({
+        createVoucher: vi.fn(async (): Promise<CreateVoucherResultDto> => {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+
+          return facturaCAprobada;
+        }),
+      });
+
+      const outcomes = await Promise.all([
+        emit(first, billing).outcome,
+        emit(second, billing).outcome,
+      ]);
+
+      expect(outcomes.filter((outcome) => outcome.ok)).toHaveLength(1);
+      expect(outcomes.filter((outcome) => !outcome.ok)).toMatchObject([
+        { ok: false, reason: "unverified", attempt: { cbteNro: 43 } },
+      ]);
+      expect(billing.createVoucher).toHaveBeenCalledTimes(1);
+    });
+  },
+);

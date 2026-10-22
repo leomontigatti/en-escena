@@ -9,10 +9,8 @@ import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
-import {
-  getComprobanteEmissionDeps,
-  type ComprobanteEmissionDeps,
-} from "@/lib/comprobantes/emit-comprobante.server";
+import { type ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
+import { getComprobanteEmissionDeps } from "@/lib/comprobantes/emission-config.server";
 import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
 import {
   allocateToInscription,
@@ -28,11 +26,13 @@ import {
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 
 import {
+  handleAbandonReservation,
   handleEmitComprobante,
   handleRecheckComprobante,
   readAnchorInvoicing,
 } from "@/features/admin/finances/comprobante-emission/handlers.server";
 import {
+  abandonReservationIntent,
   emitComprobanteIntent,
   recheckComprobanteIntent,
 } from "@/features/admin/finances/comprobante-emission/shared";
@@ -225,6 +225,10 @@ export async function handleChoreographyFinanceAction(input: {
 
   if (intent === recheckComprobanteIntent) {
     return await handleRecheckComprobante({ ...emissionContext, formData });
+  }
+
+  if (intent === abandonReservationIntent) {
+    return await handleAbandonReservation({ ...emissionContext, formData });
   }
 
   return { status: "error", message: "No pudimos procesar esa acción." };

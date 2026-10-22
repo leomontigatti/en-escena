@@ -1,24 +1,27 @@
-import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
+import { formatComprobanteArcaDate } from "@/lib/comprobantes/format";
+import { formatComprobanteSeriesLabel } from "@/lib/comprobantes/kind";
 
 import type { ArcaClient } from "./client.server";
 import {
   attemptArca,
   buildNotEmittedMessage,
+  buildNumberTakenMessage,
   buildUnverifiedMessage,
+  nameContingencySubject,
   recoverAuthorization,
   type ArcaAttemptedVoucher,
   type ArcaContingencySubject,
+  type ArcaTakenVoucher,
 } from "./contingency.server";
-import type {
-  ArcaMessage,
-  FacturaCEmissionResult,
-  LastVoucherResult,
+import {
+  hasArcaCode,
+  type ArcaMessage,
+  type FacturaCEmissionResult,
 } from "./responses";
 
-// The comprobante exactly as it was requested from ARCA: sequence number
-// derived from the last authorized one, and the resolved date. Both emission
-// and persistence receive it, because there is frozen data (the service dates)
-// that depends on it.
+// The comprobante exactly as it was requested from ARCA: the reserved sequence
+// number and the date. Both emission and persistence receive it, because there
+// is frozen data (the service dates) that depends on it.
 export type ArcaEmissionRequest = {
   cbteNro: number;
   cbteFch: string;
@@ -35,28 +38,43 @@ export type ArcaAuthorizedVoucher = {
 };
 
 /**
- * The parts that change from one comprobante type to another: which sequence
- * series is queried, what gets authorized, how the document is named in the
- * messages shown to the operator, and how the authorized result is persisted.
- * Everything else — the order of the calls and the classification of failures —
- * is decided by `emitWithContingency`.
+ * What one emission needs besides the calls to ARCA: the series it numbers
+ * on, what it submits, how the document is named to the operator, and the four
+ * moves of its reservation. Everything else — the order of the calls and the
+ * classification of failures — is decided by `emitWithContingency`.
  */
 export type ArcaEmissionChoreography<TVoucher> = {
   client: ArcaClient;
   subject: ArcaContingencySubject;
   ptoVta: number;
   cbteTipo: number;
-  // Comprobante date in ARCA format. Defaults to the business date.
-  cbteFch?: string;
-  // Amount sent to ARCA: a comprobante recovered by lookup is validated against
-  // this one (ADR-0012 decision 4).
+  // Comprobante date in ARCA format, already checked against its series.
+  cbteFch: string;
+  // Amount sent to ARCA: a comprobante found at the reserved number is checked
+  // against it.
   impTotal: number;
-  getLastNumber: () => Promise<LastVoucherResult>;
   emit: (request: ArcaEmissionRequest) => Promise<FacturaCEmissionResult>;
+  // Commits the reservation of `request.cbteNro` before ARCA is asked to
+  // authorize it, or answers the failure that holds the series instead.
+  reserve: (
+    request: ArcaEmissionRequest,
+  ) => Promise<ArcaEmissionFailure | null>;
+} & ArcaReservationMoves<TVoucher>;
+
+/**
+ * What can happen to a reservation once ARCA has spoken, shared by the emission
+ * and by the re-check of an attempt left live.
+ */
+export type ArcaReservationMoves<TVoucher> = {
+  // Records the authorized comprobante and retires its reservation, at once.
   persist: (
     authorized: ArcaAuthorizedVoucher,
     request: ArcaEmissionRequest,
   ) => Promise<TVoucher>;
+  // Retires the reservation: ARCA settled that the number was not consumed.
+  release: () => Promise<void>;
+  // Keeps it live, recording what ARCA holds at the number instead.
+  markNumberTaken: (taken: ArcaTakenVoucher) => Promise<void>;
 };
 
 export type ArcaEmissionFailureReason =
@@ -65,8 +83,12 @@ export type ArcaEmissionFailureReason =
   // ARCA did not respond and it was established that nothing was emitted:
   // retrying is safe (ADR-0012 decision 6).
   | "not-emitted"
-  // ARCA did not respond and the follow-up lookup did not resolve what happened.
-  | "unverified";
+  // Nobody knows yet whether ARCA authorized the reserved number: the
+  // reservation stays live and blocks its series.
+  | "unverified"
+  // ARCA holds another comprobante at the reserved number. Re-checking cannot
+  // change it; abandoning the reservation does (ADR-0014 §7).
+  | "number-taken";
 
 export type ArcaEmissionFailure = {
   ok: false;
@@ -78,7 +100,7 @@ export type ArcaEmissionFailure = {
     errors: ArcaMessage[];
     observaciones: ArcaMessage[];
   };
-  // Present only on `unverified`: the comprobante that could not be resolved.
+  // Present on `unverified` and `number-taken`: the reservation left live.
   attempt?: ArcaAttemptedVoucher;
 };
 
@@ -95,54 +117,60 @@ export type ArcaEmissionOutcome<TVoucher> =
   | ArcaEmissionFailure;
 
 /**
- * Runs the emission choreography against WSFEv1: it looks up the sequence
- * number, authorizes, and persists only if ARCA granted a CAE.
+ * Runs the emission against WSFEv1 (ADR-0014 §7): it looks up the series'
+ * last number, commits the reservation of the next one, authorizes it, and
+ * persists only if ARCA granted a CAE. The reservation is committed before
+ * `FECAESolicitar`, so a concurrent emission in the series sees it and stops,
+ * and no database transaction is open while ARCA answers.
  *
- * The `CbteNro` is derived from `FECompUltimoAutorizado + 1`. A rejection from
- * ARCA persists nothing.
+ * Every answer settles the reservation. An authorization records the
+ * comprobante and retires it. A rejection retires it, since a rejected
+ * `FECAESolicitar` consumes no number (#686); so does an authorization that
+ * failed in transport and that ARCA does not have.
  *
  * If ARCA does not respond, the failure is classified by phase (ADR-0012). If
- * the sequence-number lookup was cut off, nothing was authorized. If the
- * authorization was cut off, ARCA is queried for the exact comprobante that was
- * attempted: if it shows up and matches what was sent, it HAD been authorized
- * and is persisted with that CAE — the one exception to the invariant that a
- * contingency persists nothing, and it exists because the row corresponds to a
- * fiscal document that is demonstrably in ARCA. If it does not show up and the
- * authorization had failed at the transport level, nothing was emitted. If the
- * lookup fails, returns a different comprobante, or does not find it but the
- * authorization timed out — and so is still in flight, and could still be
- * authorized later — the result is `unverified` and nothing is persisted.
+ * the lookup was cut off, nothing was reserved or authorized. If the
+ * authorization was cut off, ARCA is queried for the reserved number: what
+ * shows up there matching what was sent is ours and is persisted with its CAE;
+ * what shows up not matching is `number-taken`. When the query fails, or ARCA
+ * does not have the number but the authorization timed out — and so may still
+ * be in flight — the result is `unverified` and the reservation stays live.
  */
 export async function emitWithContingency<TVoucher>(
   choreography: ArcaEmissionChoreography<TVoucher>,
 ): Promise<ArcaEmissionOutcome<TVoucher>> {
   const lookup = await attemptArca("lookup", () =>
-    choreography.getLastNumber(),
+    choreography.client.getLastComprobanteNumber(
+      choreography.ptoVta,
+      choreography.cbteTipo,
+    ),
   );
 
   if (!lookup.ok) {
-    return {
-      ok: false,
-      reason: "not-emitted",
-      message: buildNotEmittedMessage(choreography.subject),
-    };
+    return notEmitted(choreography.subject);
   }
 
   const request: ArcaEmissionRequest = {
     cbteNro: lookup.value.nextCbteNro,
-    cbteFch: choreography.cbteFch ?? toArcaDate(getBusinessDateOnly()),
+    cbteFch: choreography.cbteFch,
   };
+  const attempt: ArcaAttemptedVoucher = {
+    ptoVta: choreography.ptoVta,
+    cbteTipo: choreography.cbteTipo,
+    cbteNro: request.cbteNro,
+  };
+
+  const held = await choreography.reserve(request);
+
+  if (held) {
+    return held;
+  }
 
   const authorization = await attemptArca("authorization", () =>
     choreography.emit(request),
   );
 
   if (!authorization.ok) {
-    const attempt: ArcaAttemptedVoucher = {
-      ptoVta: choreography.ptoVta,
-      cbteTipo: choreography.cbteTipo,
-      cbteNro: request.cbteNro,
-    };
     const recovery = await recoverAuthorization(
       choreography.client,
       { ...attempt, impTotal: choreography.impTotal, cbteFch: request.cbteFch },
@@ -150,46 +178,28 @@ export async function emitWithContingency<TVoucher>(
     );
 
     if (recovery.status === "not-emitted") {
-      return {
-        ok: false,
-        reason: "not-emitted",
-        message: buildNotEmittedMessage(choreography.subject),
-      };
+      await choreography.release();
+
+      return notEmitted(choreography.subject);
     }
 
-    if (recovery.status === "unverified") {
-      return {
-        ok: false,
-        reason: "unverified",
-        message: buildUnverifiedMessage(
-          choreography.subject,
-          attempt,
-          recovery.reason,
-        ),
-        attempt,
-      };
-    }
-
-    const voucher = await choreography.persist(
-      {
-        cae: recovery.cae,
-        caeVto: recovery.caeVto,
-        cbteNro: attempt.cbteNro,
-        cbteFch: recovery.cbteFch,
-      },
+    return await settleRecovery(choreography, {
+      attempt,
+      recovery,
       request,
-    );
-
-    return { ok: true, voucher, recovered: true };
+      submitted: { impTotal: choreography.impTotal, cbteFch: request.cbteFch },
+    });
   }
 
   const emission = authorization.value;
 
   if (!emission.approved || !emission.cae || !emission.caeVto) {
+    await choreography.release();
+
     return {
       ok: false,
       reason: "rejected",
-      message: buildRejectionMessage(emission),
+      message: await buildRejectionMessage(choreography, request, emission),
       arca: {
         resultado: emission.resultado,
         errors: emission.errors,
@@ -212,45 +222,40 @@ export async function emitWithContingency<TVoucher>(
 }
 
 /**
- * Queries ARCA again for a comprobante left `unverified`, without retrying the
- * authorization (#577). It is the only exit that **persists** a recovered
- * comprobante: if the operator checks by hand in the portal and the comprobante
- * is there, there is nothing they can do with that fact — they cannot retry and
- * the app has nowhere to record the CAE.
- *
- * Only the `cbteNro` travels from the client. The amount and the date — the two
- * fields that decide whether the comprobante occupying that sequence number is
- * ours (ADR-0012 decision 4) — are recomputed on the server from the
- * choreography. Sending them from the form would collapse decision 4 to a
- * single effective field: in this app the same amount repeats all the time.
- *
- * A tampered or stale `cbteNro` forces nothing: it makes the recomputed amount
- * fail to match, and the result stays `unverified`, which is the safe direction.
+ * A reservation left live, as the re-check and the abandonment find it: the
+ * number it holds and what was submitted at it, which is what a comprobante
+ * ARCA holds there must match.
+ */
+export type ArcaReservedAttempt<TVoucher> = ArcaAttemptedVoucher & {
+  client: ArcaClient;
+  subject: ArcaContingencySubject;
+  impTotal: number;
+  cbteFch: string;
+  state: "unverified" | "number-taken";
+} & ArcaReservationMoves<TVoucher>;
+
+/**
+ * Queries ARCA again for a reservation left live (#577), without retrying the
+ * authorization. It persists what was submitted — the reservation's own
+ * snapshot — rather than anything re-derived, since what ARCA authorized is a
+ * fact whatever the anchor owes now (#578).
  *
  * Re-verification **can only prove the positive**. It runs as if the original
  * authorization had timed out, so a `null` never gets promoted to `not-emitted`
  * no matter how much time has passed: nobody has measured how long a request
  * can live on ARCA's side, and any threshold would be an invented number
- * (ADR-0012 decision 2). Erring towards `not-emitted` costs a second fiscal
- * comprobante that then has to be voided; erring towards `unverified` costs the
- * operator one click.
+ * (ADR-0012 decision 2). The way out of a `null` is the operator's: abandoning
+ * the attempt, by `abandonReservedAttempt`.
  */
-export async function recheckWithContingency<TVoucher>(
-  choreography: ArcaEmissionChoreography<TVoucher>,
-  cbteNro: number,
+export async function recheckReservedAttempt<TVoucher>(
+  reserved: ArcaReservedAttempt<TVoucher>,
 ): Promise<ArcaEmissionOutcome<TVoucher>> {
-  const attempt: ArcaAttemptedVoucher = {
-    ptoVta: choreography.ptoVta,
-    cbteTipo: choreography.cbteTipo,
-    cbteNro,
-  };
-  const cbteFch = choreography.cbteFch ?? toArcaDate(getBusinessDateOnly());
-
+  const attempt = attemptOf(reserved);
   const recovery = await recoverAuthorization(
-    choreography.client,
-    { ...attempt, impTotal: choreography.impTotal, cbteFch },
+    reserved.client,
+    { ...attempt, impTotal: reserved.impTotal, cbteFch: reserved.cbteFch },
     // The original authorization is gone: it is treated as in flight so that a
-    // `null` stays `unverified` instead of enabling the retry.
+    // `null` stays `unverified` instead of releasing the number.
     {
       phase: "authorization",
       timedOut: true,
@@ -258,45 +263,228 @@ export async function recheckWithContingency<TVoucher>(
     },
   );
 
-  if (recovery.status !== "recovered") {
+  return await settleRecovery(reserved, {
+    attempt,
+    recovery:
+      recovery.status === "not-emitted"
+        ? { status: "unverified", reason: "authorization-in-flight" }
+        : recovery,
+    request: { cbteNro: attempt.cbteNro, cbteFch: reserved.cbteFch },
+    submitted: { impTotal: reserved.impTotal, cbteFch: reserved.cbteFch },
+  });
+}
+
+export type ArcaAbandonOutcome<TVoucher> =
+  { ok: true; released: true } | ArcaEmissionOutcome<TVoucher>;
+
+/**
+ * The operator gives up on a reservation, which frees its series. On
+ * `number-taken` the number belongs to somebody else, so nothing of ours can
+ * appear there and the reservation goes. On `unverified` the operator declares
+ * they checked ARCA's portal: it goes only while ARCA has not reached the
+ * number, and once ARCA has, the number is resolved by asking ARCA what it
+ * holds there rather than by being let go — it is either ours or someone
+ * else's, and the operator's word is not needed for either.
+ */
+export async function abandonReservedAttempt<TVoucher>(
+  reserved: ArcaReservedAttempt<TVoucher>,
+): Promise<ArcaAbandonOutcome<TVoucher>> {
+  const attempt = attemptOf(reserved);
+
+  if (reserved.state === "number-taken") {
+    return await releaseAbandoned(reserved);
+  }
+
+  const lookup = await attemptArca("lookup", () =>
+    reserved.client.getLastComprobanteNumber(
+      reserved.ptoVta,
+      reserved.cbteTipo,
+    ),
+  );
+
+  if (!lookup.ok) {
     return {
       ok: false,
       reason: "unverified",
       message: buildUnverifiedMessage(
-        choreography.subject,
+        reserved.subject,
         attempt,
-        recovery.status === "unverified"
-          ? recovery.reason
-          : "authorization-in-flight",
+        "consult-inconclusive",
       ),
       attempt,
     };
   }
 
-  const voucher = await choreography.persist(
+  if (lookup.value.lastCbteNro < attempt.cbteNro) {
+    return await releaseAbandoned(reserved);
+  }
+
+  return await recheckReservedAttempt(reserved);
+}
+
+// An abandoned attempt leaves no row behind, so the log is the only trace of
+// what was given up and on what evidence (#578).
+async function releaseAbandoned<TVoucher>(
+  reserved: ArcaReservedAttempt<TVoucher>,
+): Promise<{ ok: true; released: true }> {
+  console.warn("[arca:attempt-abandoned]", {
+    ...attemptOf(reserved),
+    state: reserved.state,
+    submitted: { impTotal: reserved.impTotal, cbteFch: reserved.cbteFch },
+  });
+  await reserved.release();
+
+  return { ok: true, released: true };
+}
+
+type SettledRecovery = Exclude<
+  Awaited<ReturnType<typeof recoverAuthorization>>,
+  { status: "not-emitted" }
+>;
+
+// What a query of the reserved number settles, the same for an emission and a
+// re-check: ours is recorded, someone else's marks the reservation, and
+// anything else leaves it live and unverified.
+async function settleRecovery<TVoucher>(
+  moves: ArcaReservationMoves<TVoucher> & { subject: ArcaContingencySubject },
+  input: {
+    attempt: ArcaAttemptedVoucher;
+    recovery: SettledRecovery;
+    request: ArcaEmissionRequest;
+    submitted: { impTotal: number; cbteFch: string };
+  },
+): Promise<ArcaEmissionOutcome<TVoucher>> {
+  const { attempt, recovery } = input;
+
+  if (recovery.status === "unverified") {
+    return {
+      ok: false,
+      reason: "unverified",
+      message: buildUnverifiedMessage(moves.subject, attempt, recovery.reason),
+      attempt,
+    };
+  }
+
+  if (recovery.status === "number-taken") {
+    // The one case whose evidence would otherwise be lost (#578): the log
+    // keeps what ARCA holds against what was reserved.
+    console.error("[arca:number-taken]", {
+      ...attempt,
+      submitted: input.submitted,
+      taken: recovery.taken,
+    });
+    await moves.markNumberTaken(recovery.taken);
+
+    return {
+      ok: false,
+      reason: "number-taken",
+      message: buildNumberTakenMessage({
+        attempt,
+        submitted: input.submitted,
+        taken: recovery.taken,
+      }),
+      attempt,
+    };
+  }
+
+  const voucher = await moves.persist(
     {
       cae: recovery.cae,
       caeVto: recovery.caeVto,
       cbteNro: attempt.cbteNro,
       cbteFch: recovery.cbteFch,
     },
-    { cbteNro: attempt.cbteNro, cbteFch },
+    input.request,
   );
 
   return { ok: true, voucher, recovered: true };
 }
 
-// The reason for the rejection, in the order ARCA explains it: first the error
-// that prevented it, then the observation, and as a last resort the raw
-// `Resultado`.
-function buildRejectionMessage(emission: FacturaCEmissionResult): string {
-  const detail =
+function attemptOf(reserved: ArcaAttemptedVoucher): ArcaAttemptedVoucher {
+  return {
+    ptoVta: reserved.ptoVta,
+    cbteTipo: reserved.cbteTipo,
+    cbteNro: reserved.cbteNro,
+  };
+}
+
+function notEmitted(subject: ArcaContingencySubject): ArcaEmissionFailure {
+  return {
+    ok: false,
+    reason: "not-emitted",
+    message: buildNotEmittedMessage(subject),
+  };
+}
+
+/**
+ * The reason for a rejection. Two codes get their own words because the
+ * operator's remedy depends on them, and both are looked for in `Errors` and
+ * `Observaciones` alike: ARCA returns 10197 in `Observaciones` with `Errors`
+ * absent (#686).
+ *
+ * - 10016 covers two axes under one code (#612): the number must be the
+ *   series' next, and the date no earlier than the series' last. Which one
+ *   failed is settled by asking ARCA for the series' last number again: if ours
+ *   is still the next, it was the date.
+ * - 10197 is a note sent without the comprobante it adjusts.
+ *
+ * Anything else reads as ARCA explains it: first the error, then the
+ * observation, and as a last resort the raw `Resultado`.
+ */
+async function buildRejectionMessage(
+  choreography: Pick<
+    ArcaEmissionChoreography<unknown>,
+    "client" | "subject" | "ptoVta" | "cbteTipo"
+  >,
+  request: ArcaEmissionRequest,
+  emission: FacturaCEmissionResult,
+): Promise<string> {
+  const subject = nameContingencySubject(choreography.subject);
+  const series = formatComprobanteSeriesLabel(choreography);
+
+  if (hasArcaCode(emission, 10016)) {
+    const lookup = await attemptArca("lookup", () =>
+      choreography.client.getLastComprobanteNumber(
+        choreography.ptoVta,
+        choreography.cbteTipo,
+      ),
+    );
+
+    if (!lookup.ok) {
+      return (
+        `ARCA no autorizó ${subject}: el número o la fecha no son los que siguen ` +
+        `en la serie ${series} (código 10016), y no pudimos consultar cuál de los dos. ` +
+        `Revisá la fecha y volvé a emitir.`
+      );
+    }
+
+    return lookup.value.nextCbteNro === request.cbteNro
+      ? `ARCA no aceptó la fecha ${formatComprobanteArcaDate(request.cbteFch)} para ` +
+          `${subject}: en la serie ${series} la fecha no puede ser anterior a la del ` +
+          `último comprobante autorizado ni de más de 10 días atrás (código 10016). ` +
+          `Elegí otra fecha y volvé a emitir.`
+      : `ARCA no aceptó el número ${request.cbteNro} para ${subject}: en la serie ` +
+          `${series} se autorizó otro comprobante mientras emitíamos (código 10016). ` +
+          `Volvé a emitir para tomar el número siguiente.`;
+  }
+
+  if (hasArcaCode(emission, 10197)) {
+    return (
+      `ARCA no autorizó ${subject}: una nota tiene que indicar el comprobante ` +
+      `que ajusta (código 10197, ${detailOf(emission)}).`
+    );
+  }
+
+  return `ARCA no autorizó el comprobante (${detailOf(emission)}).`;
+}
+
+function detailOf(emission: FacturaCEmissionResult): string {
+  return (
     emission.errors[0]?.msg ??
     emission.observaciones[0]?.msg ??
     emission.resultado ??
-    "sin detalle";
-
-  return `ARCA no autorizó el comprobante (${detail}).`;
+    "sin detalle"
+  );
 }
 
 // Business date `AAAA-MM-DD` → ARCA format `AAAAMMDD`.

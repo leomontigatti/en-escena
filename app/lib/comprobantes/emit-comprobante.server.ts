@@ -8,17 +8,10 @@ import { readChoreographyUnitFinance } from "@/lib/finances/operational-summary.
 import { readSeminarUnitFinance } from "@/lib/finances/seminar-operational-summary.server";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
-import { ArcaClient, getArcaClient } from "./arca/client.server";
-import {
-  buildUnverifiedMessage,
-  type ArcaAttemptedVoucher,
-  type ArcaContingencySubject,
-} from "./arca/contingency.server";
+import type { ArcaClient } from "./arca/client.server";
 import {
   emitWithContingency,
-  recheckWithContingency,
   toArcaDate,
-  type ArcaEmissionChoreography,
   type ArcaEmissionFailureReason,
   type ArcaEmissionOutcome,
   type ArcaEmissionRequest,
@@ -28,16 +21,17 @@ import {
   DOC_TIPO_CONSUMIDOR_FINAL,
   type ClassCVoucherBase,
 } from "./arca/factura-c";
-import type {
-  ArcaMessage,
-  FacturaCEmissionResult,
-  LastVoucherResult,
-} from "./arca/responses";
+import type { ArcaMessage, FacturaCEmissionResult } from "./arca/responses";
 import type { ComprobanteAnchor } from "./anchor";
 import {
-  lockComprobanteAnchor,
+  withComprobanteAnchorLock,
   type ComprobanteExecutor,
 } from "./anchor-lock.server";
+import {
+  checkCbteFch,
+  deriveCbteFchBounds,
+  type CbteFchBounds,
+} from "./cbte-fch";
 import {
   listAnchorComprobantes,
   recordComprobante,
@@ -54,6 +48,17 @@ import {
   type PlannedLine,
 } from "./emission-plan";
 import { comprobanteKindCbteTipo, type KnownComprobanteKind } from "./kind";
+import {
+  blockedBy,
+  findBlockingReservation,
+  markReservationNumberTaken,
+  readLastAuthorizedCbteFch,
+  recordReservedComprobante,
+  releaseReservation,
+  reserveCorrelative,
+  subjectOf,
+  type ComprobanteReservation,
+} from "./reservation.server";
 
 type ComprobanteRow = Awaited<ReturnType<typeof recordComprobante>>;
 
@@ -62,15 +67,15 @@ type ComprobanteRow = Awaited<ReturnType<typeof recordComprobante>>;
 const ISSUER_IVA_CONDITION = "exento" as const;
 
 // Injectable emission inputs: the ARCA client (mockable in tests) and the sales
-// point and recipient config. `cbteFch` is optional; it defaults to Córdoba's
-// business date in ARCA format.
+// point and recipient config. `today` is the business date, `AAAA-MM-DD`; it
+// defaults to Córdoba's, and the tests pin it.
 export type ComprobanteEmissionDeps = {
   client: ArcaClient;
   ptoVta: number;
   issuerCuit: string;
   // The final consumer recipient's VAT condition, resolved against ARCA (#324).
   receptorIvaConditionId: number;
-  cbteFch?: string;
+  today?: string;
 };
 
 // The unit being billed and the event it belongs to. The anchor decides
@@ -97,6 +102,8 @@ export type ComprobanteEmissionFailureReason =
   | "refused"
   // The plan under the lock is no longer the document the operator confirmed.
   | "changed"
+  // The chosen `CbteFch` falls outside what ARCA accepts in its series.
+  | "invalid-date"
   | ArcaEmissionFailureReason;
 
 export type ComprobanteEmissionOutcome =
@@ -119,8 +126,8 @@ export type ComprobanteEmissionOutcome =
         errors: ArcaMessage[];
         observaciones: ArcaMessage[];
       };
-      // Present only on `unverified`: the comprobante that could not be resolved.
-      attempt?: ArcaAttemptedVoucher;
+      // Present on `unverified` and `number-taken`: the reservation left live.
+      attempt?: { ptoVta: number; cbteTipo: number; cbteNro: number };
     };
 
 type EmissionFailure = Extract<ComprobanteEmissionOutcome, { ok: false }>;
@@ -141,137 +148,179 @@ type EmissionFailure = Extract<ComprobanteEmissionOutcome, { ok: false }>;
  * stand when the note goes out. Nothing else enforces it: #686 saw ARCA
  * authorize a credit note larger than its invoice.
  *
- * The `CbteNro` is derived from `FECompUltimoAutorizado + 1` in the document's
- * own series. Only an approved CAE persists the comprobante with its snapshot;
- * a rejection from ARCA — 10197 included, which arrives in `Observaciones`
- * with `Resultado` "R" and no `Errors` — persists nothing.
+ * Two races, two mechanisms (ADR-0014 §7). The anchor's lock closes the delta
+ * race. The correlative race is per series and closed by the reservation:
+ * the number is `FECompUltimoAutorizado + 1` in the document's own series and
+ * is committed as a reservation before `FECAESolicitar`, so the lock is a
+ * session one and no transaction stays open across ARCA. A live reservation
+ * blocks its series, and one of the same anchor blocks it in every series,
+ * since its document may exist without the plan knowing.
  *
- * When ARCA does not answer, the failure is classified by phase (ADR-0012). If
- * the correlative query was cut, nothing was authorized. If the authorization
- * was cut, ARCA is queried for the exact comprobante that was attempted: when it
- * comes back and matches what was sent, it HAD been authorized and is persisted
- * with that CAE; when it does not come back and the authorization had failed in
- * transport, nothing was emitted. When the query fails, returns a different
- * comprobante, or does not find it but the authorization timed out — so it is
- * still in flight and may be authorized later — the result is `unverified` and
- * nothing is persisted.
+ * `cbteFch` is the operator's, `AAAA-MM-DD`, today when absent, and is refused
+ * before ARCA below its series' floor or after today (`cbte-fch.ts`).
  */
 export async function emitAnchorComprobante(
-  input: ComprobanteEmissionInput & { confirmed?: ConfirmedEmission },
+  input: ComprobanteEmissionInput & {
+    confirmed?: ConfirmedEmission;
+    cbteFch?: string;
+  },
   deps: ComprobanteEmissionDeps,
 ): Promise<ComprobanteEmissionOutcome> {
-  return await underAnchorLock(input.anchor, async (tx) => {
-    const resolved = await resolveEmissionChoreography(input, deps, tx);
+  return await withComprobanteAnchorLock(input.anchor, async () => {
+    const planned = await planConfirmedEmission(input);
 
-    if (!resolved.ok) {
-      return resolved;
+    if (!planned.ok) {
+      return planned;
     }
 
-    if (
-      input.confirmed &&
-      (input.confirmed.kind !== resolved.plan.kind ||
-        input.confirmed.amount !== resolved.plan.amount)
-    ) {
-      return {
-        ok: false,
-        reason: "changed",
-        message:
-          "Lo que se debe cambió desde que abriste el diálogo. Cerralo y volvé a emitir.",
-      };
-    }
+    const cleared = await clearSeriesAndDate(input, deps, planned.plan);
 
-    return toOutcome(await emitWithContingency(resolved.choreography));
-  });
-}
-
-/**
- * Re-verifies against ARCA an emission left unresolved (#577), for the sequence
- * number the dialog carries over from the previous attempt. It re-plans the
- * anchor — which is where the document's kind and the amount the queried
- * comprobante is validated against come from — so if somebody touched the
- * roster or the money in the meantime, the amount does not match and the
- * result stays `unverified`. The attempt's series travels with its number: a
- * plan that now names another kind cannot be the attempt, and asking ARCA in
- * the plan's series would read some other document at that number.
- */
-export async function recheckAnchorComprobante(
-  input: ComprobanteEmissionInput & { cbteTipo: number; cbteNro: number },
-  deps: ComprobanteEmissionDeps,
-): Promise<ComprobanteEmissionOutcome> {
-  return await underAnchorLock(input.anchor, async (tx) => {
-    const resolved = await resolveEmissionChoreography(input, deps, tx);
-
-    if (!resolved.ok) {
-      return resolved;
-    }
-
-    if (resolved.choreography.cbteTipo !== input.cbteTipo) {
-      const attempt = {
-        ptoVta: deps.ptoVta,
-        cbteTipo: input.cbteTipo,
-        cbteNro: input.cbteNro,
-      };
-
-      return {
-        ok: false,
-        reason: "unverified",
-        message: buildUnverifiedMessage(
-          "comprobante",
-          attempt,
-          "consult-inconclusive",
-        ),
-        attempt,
-      };
+    if (!cleared.ok) {
+      return cleared;
     }
 
     return toOutcome(
-      await recheckWithContingency(resolved.choreography, input.cbteNro),
+      await emitWithContingency(
+        emissionChoreography({
+          input,
+          deps,
+          context: planned.context,
+          plan: planned.plan,
+          cbteFch: toArcaDate(cleared.cbteFch),
+        }),
+      ),
     );
   });
 }
 
-/**
- * What the anchor owes right now, for the financial detail to preview and to
- * explain a refusal with. It reads outside the lock: the emission plans again
- * under it and refuses a plan that is no longer the confirmed one, so a
- * preview gone stale costs a refusal, never a document.
- */
-export async function readAnchorEmissionPlan(
-  input: ComprobanteEmissionInput,
-): Promise<EmissionPlan<DocumentedRow> | EmissionFailure> {
+// What the anchor owes under the lock, refused when it owes nothing or no
+// longer what the operator confirmed.
+async function planConfirmedEmission(
+  input: ComprobanteEmissionInput & { confirmed?: ConfirmedEmission },
+): Promise<
+  | {
+      ok: true;
+      context: AnchorContext;
+      plan: Extract<EmissionPlan<DocumentedRow>, { ok: true }>;
+    }
+  | EmissionFailure
+> {
   const context = await resolveAnchorContext(input, db);
 
   if (!context.ok) {
     return context;
   }
 
-  return planAnchorEmission(await readAnchorObligation(input, context, db));
+  const plan = planAnchorEmission(
+    await readAnchorObligation(input, context, db),
+  );
+
+  if (!plan.ok) {
+    return refusal(plan.reasons);
+  }
+
+  if (
+    input.confirmed &&
+    (input.confirmed.kind !== plan.kind ||
+      input.confirmed.amount !== plan.amount)
+  ) {
+    return {
+      ok: false,
+      reason: "changed",
+      message:
+        "Lo que se debe cambió desde que abriste el diálogo. Cerralo y volvé a emitir.",
+    };
+  }
+
+  return { ok: true, context, plan };
+}
+
+// The two refusals that come before ARCA once the document is known: a live
+// reservation holding its series or its anchor, and a date the series cannot
+// take. Answers the date to emit with otherwise.
+async function clearSeriesAndDate(
+  input: ComprobanteEmissionInput & { cbteFch?: string },
+  deps: ComprobanteEmissionDeps,
+  plan: Extract<EmissionPlan<DocumentedRow>, { ok: true }>,
+): Promise<{ ok: true; cbteFch: string } | EmissionFailure> {
+  const series = {
+    ptoVta: deps.ptoVta,
+    cbteTipo: comprobanteKindCbteTipo(plan.kind),
+  };
+  const blocking = await findBlockingReservation({
+    ...series,
+    anchor: input.anchor,
+  });
+
+  if (blocking) {
+    return await blockedBy(blocking);
+  }
+
+  const today = deps.today ?? getBusinessDateOnly();
+  const cbteFch = input.cbteFch ?? today;
+  const dateRefusal = checkCbteFch(
+    cbteFch,
+    await readCbteFchBounds(series, today),
+  );
+
+  return dateRefusal
+    ? { ok: false, reason: "invalid-date", message: dateRefusal }
+    : { ok: true, cbteFch };
 }
 
 /**
- * Runs one emission with the unit serialised: a transaction that takes the
- * anchor's advisory lock before anything reads what is owed or documented, so
- * the plan and the insert that follows it are one indivisible decision about
- * the same delta (`anchor-lock.server.ts`).
- *
- * ARCA is called from inside the transaction, which is the price of the lock
- * covering the authorization too: the alternative is holding the lock only
- * around the read, which lets a second emission authorize the same delta while
- * the first is still waiting on ARCA. The client's own timeouts bound how long
- * the transaction can stay open.
+ * What the anchor owes right now, for the financial detail to preview and to
+ * explain a refusal with, and the dates its document may carry. It reads
+ * outside the lock: the emission plans again under it and refuses a plan that
+ * is no longer the confirmed one, so a preview gone stale costs a refusal,
+ * never a document.
  */
-async function underAnchorLock(
-  anchor: ComprobanteAnchor,
-  run: (tx: ComprobanteExecutor) => Promise<ComprobanteEmissionOutcome>,
-): Promise<ComprobanteEmissionOutcome> {
-  return await db.transaction(async (tx) => {
-    await lockComprobanteAnchor(tx, anchor);
+export async function readAnchorEmissionPlan(
+  input: ComprobanteEmissionInput & { ptoVta: number | null },
+): Promise<
+  | (Extract<EmissionPlan<DocumentedRow>, { ok: true }> & {
+      cbteFch: CbteFchBounds & { today: string };
+    })
+  | Extract<EmissionPlan<DocumentedRow>, { ok: false }>
+  | EmissionFailure
+> {
+  const context = await resolveAnchorContext(input, db);
 
-    return await run(tx);
+  if (!context.ok) {
+    return context;
+  }
+
+  const plan = planAnchorEmission(
+    await readAnchorObligation(input, context, db),
+  );
+
+  if (!plan.ok) {
+    return plan;
+  }
+
+  const today = getBusinessDateOnly();
+  const bounds = await readCbteFchBounds(
+    { ptoVta: input.ptoVta, cbteTipo: comprobanteKindCbteTipo(plan.kind) },
+    today,
+  );
+
+  return { ...plan, cbteFch: { ...bounds, today } };
+}
+
+async function readCbteFchBounds(
+  series: { ptoVta: number | null; cbteTipo: number },
+  today: string,
+): Promise<CbteFchBounds> {
+  return deriveCbteFchBounds({
+    // Without a configured sales point the floor is shown for the kind's
+    // series at every point, which is only ever stricter.
+    series: { ptoVta: series.ptoVta ?? 1, cbteTipo: series.cbteTipo },
+    today,
+    lastAuthorizedCbteFch: await readLastAuthorizedCbteFch(series),
   });
 }
 
-function toOutcome(
+export function toOutcome(
   emission: ArcaEmissionOutcome<ComprobanteRow>,
 ): ComprobanteEmissionOutcome {
   return emission.ok
@@ -283,130 +332,126 @@ function toOutcome(
     : emission;
 }
 
+function refusal(reasons: EmissionRefusal[]): EmissionFailure {
+  return {
+    ok: false,
+    reason: "refused",
+    refusals: reasons,
+    message: reasons.map(emissionRefusalLabel).join(" "),
+  };
+}
+
 /**
- * Plans the anchor and assembles the ARCA choreography of the document it
- * owes. Emission and re-verification share it, since re-verification needs
- * exactly the same inputs — the kind, the amount and the date a recovered
- * comprobante is validated against (ADR-0012 decision 4) — computed on the
- * server rather than taken from the form.
+ * The ARCA side of the document the plan names, and the reservation it goes
+ * out under. The reservation carries the comprobante's whole snapshot, so a
+ * re-check that finds it authorized later records exactly what was submitted.
  */
-async function resolveEmissionChoreography(
-  input: ComprobanteEmissionInput,
-  deps: ComprobanteEmissionDeps,
-  executor: ComprobanteExecutor,
-): Promise<
-  | {
-      ok: true;
-      choreography: ArcaEmissionChoreography<ComprobanteRow>;
-      plan: Extract<EmissionPlan<DocumentedRow>, { ok: true }>;
-    }
-  | EmissionFailure
-> {
-  const context = await resolveAnchorContext(input, executor);
-
-  if (!context.ok) {
-    return context;
-  }
-
-  const plan = planAnchorEmission(
-    await readAnchorObligation(input, context, executor),
-  );
-
-  if (!plan.ok) {
-    return {
-      ok: false,
-      reason: "refused",
-      refusals: plan.reasons,
-      message: plan.reasons.map(emissionRefusalLabel).join(" "),
-    };
-  }
-
-  const document = documentSeries(plan, deps);
+function emissionChoreography(input: {
+  input: ComprobanteEmissionInput;
+  deps: ComprobanteEmissionDeps;
+  context: AnchorContext;
+  plan: Extract<EmissionPlan<DocumentedRow>, { ok: true }>;
+  cbteFch: string;
+}) {
+  const { context, deps, plan } = input;
+  const cbteTipo = comprobanteKindCbteTipo(plan.kind);
   // The note mirrors the invoice's service period, which is the unit's and
   // stable across its documents; the invoice takes the unit's own.
   const factura = plan.kind === "factura_c" ? null : plan.factura;
-  const serviceDates = (cbteFch: string) => ({
+  const serviceDates = {
     fchServDesde: factura?.fchServDesde ?? context.serviceFrom,
     fchServHasta: factura?.fchServHasta ?? context.serviceTo,
     // Each comprobante's own date (ADR-0014 §8): WSFEv1 wants it no earlier
     // than `CbteFch`, so a note cannot copy the invoice's.
-    fchVtoPago: cbteFch,
-  });
+    fchVtoPago: input.cbteFch,
+  };
+  const series = { ptoVta: deps.ptoVta, cbteTipo };
+  let reservation: ComprobanteReservation | null = null;
+  const held = () => {
+    if (!reservation) {
+      throw new Error("The emission settled a reservation it never took.");
+    }
 
-  const choreography: ArcaEmissionChoreography<ComprobanteRow> = {
+    return reservation;
+  };
+
+  return {
     client: deps.client,
-    subject: document.subject,
-    ptoVta: deps.ptoVta,
-    cbteTipo: document.cbteTipo,
-    cbteFch: deps.cbteFch,
+    subject: subjectOf(cbteTipo),
+    ...series,
+    cbteFch: input.cbteFch,
     impTotal: plan.amount,
-    getLastNumber: document.getLastNumber,
     emit: (request: ArcaEmissionRequest) =>
-      document.emit({
+      emitVoucher(plan, deps, {
         ptoVta: deps.ptoVta,
         cbteNro: request.cbteNro,
         cbteFch: request.cbteFch,
         importe: plan.amount,
         condicionIvaReceptorId: deps.receptorIvaConditionId,
-        ...serviceDates(request.cbteFch),
+        ...serviceDates,
       }),
-    persist: (authorized, request): Promise<ComprobanteRow> =>
-      recordComprobante(
-        {
-          anchor: input.anchor,
-          eventId: input.eventId,
-          cbteTipo: document.cbteTipo,
-          ptoVta: deps.ptoVta,
-          cbteNro: authorized.cbteNro,
-          cbteFch: authorized.cbteFch,
-          // Frozen: a later change to the roster or the money does not alter
-          // what this comprobante says (ADR-0011, #479).
-          ...serviceDates(request.cbteFch),
-          impTotal: plan.amount,
-          issuerCuit: deps.issuerCuit,
-          issuerIvaCondition: ISSUER_IVA_CONDITION,
-          receptorDocTipo: DOC_TIPO_CONSUMIDOR_FINAL,
-          receptorDocNro: String(DOC_NRO_CONSUMIDOR_FINAL),
-          receptorIvaConditionId: deps.receptorIvaConditionId,
-          cae: authorized.cae,
-          caeVto: authorized.caeVto,
-          associatedComprobanteId: factura?.id ?? null,
-          lines: plan.lines.map((line) => toLineInput(input.anchor, line)),
-        },
-        // Inside the lock's transaction: a row inserted outside it would exist
-        // after the lock that protects its plan was already released.
-        executor,
-      ),
-  };
+    reserve: async (request: ArcaEmissionRequest) => {
+      reservation = await reserveCorrelative({
+        anchor: input.input.anchor,
+        academyId: context.academyId,
+        eventId: input.input.eventId,
+        ...series,
+        cbteNro: request.cbteNro,
+        cbteFch: request.cbteFch,
+        // Frozen: a later change to the roster or the money does not alter
+        // what this comprobante says (ADR-0011, #479).
+        ...serviceDates,
+        impTotal: plan.amount,
+        issuerCuit: deps.issuerCuit,
+        issuerIvaCondition: ISSUER_IVA_CONDITION,
+        receptorDocTipo: DOC_TIPO_CONSUMIDOR_FINAL,
+        receptorDocNro: String(DOC_NRO_CONSUMIDOR_FINAL),
+        receptorIvaConditionId: deps.receptorIvaConditionId,
+        associatedComprobanteId: factura?.id ?? null,
+        lines: plan.lines.map((line) => toLineInput(input.input.anchor, line)),
+      });
 
-  return { ok: true, choreography, plan };
+      if (reservation) {
+        return null;
+      }
+
+      // Another emission of the series reserved between the check and the
+      // insert.
+      const blocking = await findBlockingReservation({
+        ...series,
+        anchor: input.input.anchor,
+      });
+
+      return blocking
+        ? await blockedBy(blocking)
+        : {
+            ok: false as const,
+            reason: "not-emitted" as const,
+            message:
+              "Otra emisión de la misma serie estaba en curso y no se emitió nada. Volvé a intentar.",
+          };
+    },
+    persist: (authorized: Parameters<typeof recordReservedComprobante>[1]) =>
+      recordReservedComprobante(held(), authorized),
+    release: () => releaseReservation(held()),
+    markNumberTaken: (
+      taken: Parameters<typeof markReservationNumberTaken>[1],
+    ) => markReservationNumberTaken(held(), taken),
+  };
 }
 
-type DocumentSeries = {
-  cbteTipo: number;
-  subject: ArcaContingencySubject;
-  getLastNumber: () => Promise<LastVoucherResult>;
-  emit: (voucher: ClassCVoucherBase) => Promise<FacturaCEmissionResult>;
-};
-
-// Each kind numbers on its own series, names itself in a contingency message,
-// and a note carries the invoice it amends in `CbtesAsoc`.
-function documentSeries(
+// The authorization each kind asks for: a note carries the invoice it amends
+// in `CbtesAsoc`.
+async function emitVoucher(
   plan: Extract<EmissionPlan<DocumentedRow>, { ok: true }>,
   deps: ComprobanteEmissionDeps,
-): DocumentSeries {
-  const cbteTipo = comprobanteKindCbteTipo(plan.kind);
-
+  voucher: ClassCVoucherBase,
+): Promise<FacturaCEmissionResult> {
   if (plan.kind === "factura_c") {
-    return {
-      cbteTipo,
-      subject: "comprobante",
-      getLastNumber: () => deps.client.getLastFacturaCNumber(deps.ptoVta),
-      emit: (voucher) => deps.client.emitFacturaC(voucher),
-    };
+    return await deps.client.emitFacturaC(voucher);
   }
 
-  const note = (voucher: ClassCVoucherBase) => ({
+  const note = {
     ...voucher,
     emisorCuit: deps.issuerCuit,
     asociado: {
@@ -415,21 +460,11 @@ function documentSeries(
       cbteNro: plan.factura.cbteNro,
       cbteFch: plan.factura.cbteFch,
     },
-  });
+  };
 
   return plan.kind === "nota_debito_c"
-    ? {
-        cbteTipo,
-        subject: "nota de débito",
-        getLastNumber: () => deps.client.getLastNotaDebitoCNumber(deps.ptoVta),
-        emit: (voucher) => deps.client.emitNotaDebitoC(note(voucher)),
-      }
-    : {
-        cbteTipo,
-        subject: "nota de crédito",
-        getLastNumber: () => deps.client.getLastNotaCreditoCNumber(deps.ptoVta),
-        emit: (voucher) => deps.client.emitNotaCreditoC(note(voucher)),
-      };
+    ? await deps.client.emitNotaDebitoC(note)
+    : await deps.client.emitNotaCreditoC(note);
 }
 
 function toLineInput(
@@ -594,51 +629,4 @@ function toDocumented(
           : line.seminarInscriptionId,
     })),
   };
-}
-
-/**
- * Resolves the production emission inputs from the environment: the shared ARCA
- * client (with its TA cache) plus the sales point and the recipient's VAT
- * condition. The tests inject a mocked client and do not come through here.
- */
-export function getComprobanteEmissionDeps(
-  env: NodeJS.ProcessEnv = process.env,
-): ComprobanteEmissionDeps {
-  return {
-    client: getArcaClient(env),
-    ...readComprobanteEmissionConfig(env),
-  };
-}
-
-export function readComprobanteEmissionConfig(
-  env: NodeJS.ProcessEnv = process.env,
-): Pick<
-  ComprobanteEmissionDeps,
-  "ptoVta" | "issuerCuit" | "receptorIvaConditionId"
-> {
-  return {
-    ptoVta: requirePositiveIntEnv(env, "ARCA_PTOVTA"),
-    issuerCuit: requireEnv(env, "ARCA_CUIT"),
-    receptorIvaConditionId: requirePositiveIntEnv(
-      env,
-      "ARCA_CONDICION_IVA_RECEPTOR_ID",
-    ),
-  };
-}
-
-function requireEnv(env: NodeJS.ProcessEnv, name: string): string {
-  const value = env[name];
-  if (!value || value.trim() === "") {
-    throw new Error(`Missing environment variable ${name}.`);
-  }
-  return value;
-}
-
-function requirePositiveIntEnv(env: NodeJS.ProcessEnv, name: string): number {
-  const raw = requireEnv(env, name);
-  const value = Number(raw);
-  if (!Number.isInteger(value) || value <= 0) {
-    throw new Error(`${name}="${raw}" is not a positive integer.`);
-  }
-  return value;
 }

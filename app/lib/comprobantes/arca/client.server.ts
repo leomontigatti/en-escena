@@ -7,9 +7,6 @@ import {
 
 import {
   buildFacturaCVoucher,
-  FACTURA_C_CBTE_TIPO,
-  NOTA_CREDITO_C_CBTE_TIPO,
-  NOTA_DEBITO_C_CBTE_TIPO,
   type ArcaVoucher,
   type FacturaCVoucherInput,
 } from "./factura-c";
@@ -120,13 +117,17 @@ export class ArcaClient {
     private readonly timeouts: ArcaTimeouts = ARCA_TIMEOUTS,
   ) {}
 
-  // `FECompUltimoAutorizado` for `Factura C` (type 11): the last authorized
-  // sequence number and the next one to request.
-  async getLastFacturaCNumber(ptoVta: number): Promise<LastVoucherResult> {
+  // `FECompUltimoAutorizado` for one series, `(ptoVta, cbteTipo)`: the last
+  // authorized number and the next one to request. Each document kind numbers
+  // on its own series, ratcheting independently of the others (#686).
+  async getLastComprobanteNumber(
+    ptoVta: number,
+    cbteTipo: number,
+  ): Promise<LastVoucherResult> {
     const result = await withTimeout(
       this.timeouts.lookup,
       "FECompUltimoAutorizado",
-      () => this.billing.getLastVoucher(ptoVta, FACTURA_C_CBTE_TIPO),
+      () => this.billing.getLastVoucher(ptoVta, cbteTipo),
     );
 
     return parseLastVoucher(result);
@@ -140,18 +141,6 @@ export class ArcaClient {
     return await this.authorize(buildFacturaCVoucher(input));
   }
 
-  // `FECompUltimoAutorizado` for `Nota de crédito C` (type 13): its sequence runs
-  // on a series of its own, separate from `Factura C`'s.
-  async getLastNotaCreditoCNumber(ptoVta: number): Promise<LastVoucherResult> {
-    const result = await withTimeout(
-      this.timeouts.lookup,
-      "FECompUltimoAutorizado",
-      () => this.billing.getLastVoucher(ptoVta, NOTA_CREDITO_C_CBTE_TIPO),
-    );
-
-    return parseLastVoucher(result);
-  }
-
   // `FECAESolicitar` for a `Nota de crédito C`: builds the payload with
   // `CbtesAsoc`, authorizes it and returns CAE/expiry along with
   // errors/observations.
@@ -159,18 +148,6 @@ export class ArcaClient {
     input: ClassCNoteVoucherInput,
   ): Promise<FacturaCEmissionResult> {
     return await this.authorize(buildNotaCreditoCVoucher(input));
-  }
-
-  // `FECompUltimoAutorizado` for `Nota de débito C` (type 12): a third series,
-  // ratcheting independently of the other two (#686).
-  async getLastNotaDebitoCNumber(ptoVta: number): Promise<LastVoucherResult> {
-    const result = await withTimeout(
-      this.timeouts.lookup,
-      "FECompUltimoAutorizado",
-      () => this.billing.getLastVoucher(ptoVta, NOTA_DEBITO_C_CBTE_TIPO),
-    );
-
-    return parseLastVoucher(result);
   }
 
   // `FECAESolicitar` for a `Nota de débito C`, the credit note's twin.

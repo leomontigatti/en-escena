@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 
-import { db } from "@/db";
+import { client, db } from "@/db";
 
 import type { ComprobanteAnchor } from "./anchor";
 
@@ -24,6 +24,40 @@ export function comprobanteAnchorLockKey(anchor: ComprobanteAnchor): string {
 }
 
 /**
+ * Runs `run` holding the unit's lock as a **session** lock, on a connection
+ * reserved for it, so that nothing else has to stay inside a transaction while
+ * ARCA answers (ADR-0014 §7). Emission takes it: its writes commit one by one —
+ * the reservation before `FECAESolicitar`, the comprobante after — and the lock
+ * has to span all of them and the round-trip between. It waits rather than
+ * failing fast, as the transaction lock does, so a second emission of the unit
+ * starts once the first is over and plans against what the first recorded.
+ *
+ * The session and the transaction locks share one key space, so the roster
+ * writes that take `lockComprobanteAnchor` wait on an emission in flight and an
+ * emission waits on them. If the unlock itself fails the connection is the
+ * likely casualty, and the lock ends with its session.
+ */
+export async function withComprobanteAnchorLock<T>(
+  anchor: ComprobanteAnchor,
+  run: () => Promise<T>,
+): Promise<T> {
+  const key = comprobanteAnchorLockKey(anchor);
+  const session = await client.reserve();
+
+  try {
+    await session.unsafe("select pg_advisory_lock(hashtext($1))", [key]);
+
+    try {
+      return await run();
+    } finally {
+      await session.unsafe("select pg_advisory_unlock(hashtext($1))", [key]);
+    }
+  } finally {
+    session.release();
+  }
+}
+
+/**
  * Serialises emission per unit. What is emitted is `derived total −
  * documented`, a read-then-write over rows the reader does not lock: two
  * emissions running at once would each see the same delta and each authorize a
@@ -31,11 +65,10 @@ export function comprobanteAnchorLockKey(anchor: ComprobanteAnchor): string {
  * It also keeps the crediting ceiling honest: the check runs against the notes
  * as they stand while the lock is held.
  *
- * The lock is transaction-scoped, so it is released by the commit or the
- * rollback and never by a caller that forgot. It must therefore be taken inside
- * the same transaction that reads the delta and inserts the comprobante — which
- * is why the emission runs in one transaction even though ARCA is called from
- * inside it.
+ * This is the transaction-scoped form, for the roster writes that must not
+ * move what an emission in flight is about to document: it is released by the
+ * commit or the rollback and never by a caller that forgot. Emission itself
+ * holds the session form, `withComprobanteAnchorLock`.
  *
  * `hashtext` collapses the key into the `bigint` the lock function takes. A
  * collision between two different units costs one of them a wait, and never

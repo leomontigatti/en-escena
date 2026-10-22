@@ -9,6 +9,7 @@ export * from "./schema/prices";
 export * from "./schema/choreographies";
 export * from "./schema/finances";
 export * from "./schema/comprobantes";
+export * from "./schema/comprobante-reservations";
 export * from "./schema/presentations";
 export * from "./schema/judging";
 export * from "./schema/grand-final";

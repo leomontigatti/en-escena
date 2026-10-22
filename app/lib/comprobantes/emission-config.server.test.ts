@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { readComprobanteEmissionConfig } from "@/lib/comprobantes/emit-comprobante.server";
+import { readComprobanteEmissionConfig } from "@/lib/comprobantes/emission-config.server";
 
 describe("readComprobanteEmissionConfig", () => {
   test("reads the point of sale, the issuer CUIT and the recipient's VAT condition", () => {
