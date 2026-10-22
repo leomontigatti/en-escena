@@ -155,8 +155,10 @@ How a seminar inscription is priced from those rows:
   `(seminar, academy)` financial detail, and by the **`Pagar seña` /
   `Pagar saldo` presets** over the selected seminars of an academy's finance
   page — never at creation and never refreshed. The dialog stores the row
-  picked; a preset stores the row that applies today, and only on an inscription
-  that holds none, never replacing one (`finances.md`, "Per seminar"). An
+  picked; a preset stores the row that applies today on an inscription that
+  holds none, and in place of a held row of the other participant cell below
+  the deposit, never replacing a row of the person's current cell
+  (`finances.md`, "Per seminar"). An
   inscription nobody has charged therefore stores nothing and resolves against
   the row that applies today, which is exactly what makes the price follow the
   deadline until somebody says otherwise.

@@ -777,12 +777,18 @@ nothing the second time.
 - **No price picker.** An inscription that holds no price is stored the
   `seminarPrice` that applies to the person today — the seminar's kind, falling
   back to `regular`, the person's `forParticipants` cell, open dated rows before
-  the deadline-less one. One that already holds a price keeps it, and **is
-  charged by it**: below its deposit the held row may differ from the row that
-  applies today, and the owed figure, the deposit it crosses (and so the place
-  it takes) and the price the dialog names all come from the held row, so the
-  charge neither stops short of the held deposit nor carries the inscription
-  past the held total. Funding a balance that crosses the deposit goes up to
+  the deadline-less one. One that already holds a price of the person's current
+  participant cell keeps it, and **is charged by it**: below its deposit the
+  held row may differ from the row that applies today, and the owed figure, the
+  deposit it crosses (and so the place it takes) and the price the dialog names
+  all come from the held row, so the charge neither stops short of the held
+  deposit nor carries the inscription past the held total. A held row of the
+  **other** cell, stored before the person started or stopped dancing, is
+  nobody's pick for them as they are today (the allocation dialog offers only
+  the current cell's rows): below the deposit the preset replaces it with
+  today's row and charges by that. When the money already allocated covers the
+  new row's deposit, `Pagar seña` lists the person at zero and the write only
+  stores the row, which takes the place. Funding a balance that crosses the deposit goes up to
   the deposit first and then the rest, because the pool's over-allocation
   check reads the effective row, which is the held one only from the crossing
   on.
@@ -798,8 +804,10 @@ nothing the second time.
   how many places. A `Pagar saldo` that crosses a deposit takes a place exactly
   like a `Pagar seña`.
 - **All or nothing**, as on the choreography side: a seminar short of places, a
-  pool that cannot cover the charge or an inscription nothing prices rolls the
-  whole charge back. Money comes from the pool, oldest payment first, and no
+  pool that cannot cover the charge, an inscription nothing prices, or one the
+  charge would store a row on that is cheaper than the money already on it
+  (the person moved to the other cell, or money came before any price) rolls
+  the whole charge back. Money comes from the pool, oldest payment first, and no
   payment is created.
 - The client posts the stage and the seminar ids alone; the server recomputes
   who is charged, at which price and how much (`seminar-cobro-presets.server.ts`).
@@ -813,8 +821,9 @@ nothing the second time.
   amounts summed. The loader reads it from the same plan the write runs
   (`readSeminarCobroPreviews`), so preview and write cannot disagree on who,
   at which price or how many places. `Asignar` is disabled, with the reason
-  stated, when a seminar is short of places (named, with the shortfall) or
-  the owed figure exceeds `Saldo disponible`; the server's checks stay the
+  stated, when a seminar is short of places (named, with the shortfall), the
+  owed figure exceeds `Saldo disponible`, or a person holds more than the row
+  the charge would store (named, with the excess); the server's checks stay the
   last word for a state that moved after the dialog opened.
 
 Invoicing stays the header's emission item on each `(seminar, academy)` detail

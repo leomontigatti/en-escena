@@ -8,8 +8,10 @@
  * differences the seminar side forces:
  *
  * - **There is no price picker.** An inscription that holds no price is stored
- *   the row that applies to the person today; one that holds a price keeps it,
- *   and is charged by it.
+ *   the row that applies to the person today; one that holds a price of the
+ *   person's current participant cell keeps it, and is charged by it. Below the
+ *   deposit, a held price of the other cell is replaced by today's row
+ *   (`chargedPriceRow`).
  * - **Covering the deposit takes a place.** Every selected seminar is locked
  *   before anything is read, and the charge is refused whole when any of them
  *   is short of the places its crossings need.
@@ -30,6 +32,7 @@ import {
   deriveInscriptionFinancialFigures,
   hasCrossedDepositThreshold,
 } from "@/lib/finances/inscription-financial-status";
+import { seminarOverAllocatedMessage } from "@/lib/finances/seminar-cobro-refusals";
 import { deriveSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-price";
 import {
   resolveSeminarInscriptions,
@@ -55,7 +58,6 @@ import {
   type Executor,
 } from "./choreography-cobro-support.server";
 import {
-  applyCurrentSeminarPrices,
   assertSeminarPlacesForCrossings,
   lockSeminars,
   type LockedSeminar,
@@ -86,20 +88,24 @@ type SeminarCobroInscriptions = {
 };
 
 /**
- * One inscription the charge reaches: it owes something for the stage.
+ * One inscription the charge reaches: it owes something for the stage, or
+ * storing its price carries it across its deposit.
  *
  * `priceRow` is **the one row the charge prices with**: the row the inscription
- * holds once the write is done — the one it already held, or, when it held
- * none, the one the write stores. Its owed figures, the deposit it may cross
- * and the name the preview shows all come from it, never from the row that
- * applies today, so the charge can neither stop short of the deposit it holds
- * nor carry it past the total it holds.
+ * holds once the write is done (`chargedPriceRow`) — the one it already held,
+ * or the one the write stores. Its owed figures, the deposit it may cross and
+ * the name the preview shows all come from it, so the charge can neither stop
+ * short of the deposit it holds nor carry it past the total it holds.
  *
  * `owedAmount` is `null` only when no row prices it at all, which refuses the
  * charge. `owedDepositAmount` is what is left of that row's deposit.
+ * `overAllocatedAmount` is what the inscription holds past that row's total,
+ * which only a row cheaper than the money already on it leaves; storing such a
+ * row refuses the charge.
  */
 type SeminarCobroLine = ActiveSeminarInscription & {
   crossesDeposit: boolean;
+  overAllocatedAmount: number;
   owedAmount: number | null;
   owedDepositAmount: number | null;
   priceRow: SeminarFinancePriceRow | null;
@@ -266,10 +272,10 @@ async function readActiveSeminarInscriptions(
  * stage.
  *
  * Everything is derived from the row the inscription **stores** once the write
- * is done: the row it holds, or, when it holds none, today's row, which is the
- * one the write stores (`applyCurrentSeminarPrices` picks it by the same rule
- * the effective row does). Below the deposit a held row may differ from
- * today's, and the preset keeps it, so it is the one the charge is owed by.
+ * is done (`chargedPriceRow`). A line owing nothing is kept only when storing
+ * that row carries the inscription across its deposit: the money it holds
+ * already covers the new row's deposit, and the write still has to take the
+ * place.
  */
 function planLine(input: {
   requiredDepositPercentage: number;
@@ -278,10 +284,7 @@ function planLine(input: {
   stage: CobroStage;
 }): SeminarCobroLine | null {
   const { resolution, row } = input;
-  const priceRow =
-    row.selectedPriceId === null
-      ? resolution.priceRow
-      : resolution.storedPriceRow;
+  const priceRow = chargedPriceRow(resolution);
   const thresholds = deriveSeminarInscriptionThresholds({
     priceAmount: priceRow?.amount ?? null,
     requiredDepositPercentage: input.requiredDepositPercentage,
@@ -294,11 +297,6 @@ function planLine(input: {
     input.stage === "deposit"
       ? figures.owedDepositAmount
       : figures.owedBalanceAmount;
-
-  if (owedAmount === 0) {
-    return null;
-  }
-
   const crossesDeposit =
     owedAmount !== null &&
     !resolution.covered &&
@@ -307,13 +305,85 @@ function planLine(input: {
       depositAmount: thresholds.depositAmount,
     });
 
+  if (owedAmount === 0 && !crossesDeposit) {
+    return null;
+  }
+
   return {
     ...row,
     crossesDeposit,
+    overAllocatedAmount: figures.overAllocatedAmount ?? 0,
     owedAmount,
     owedDepositAmount: figures.owedDepositAmount,
     priceRow,
   };
+}
+
+/**
+ * The row the charge prices an inscription with, and stores on it.
+ *
+ * A held row of the person's current participant cell is kept, below the
+ * deposit too: somebody picked it on purpose in the allocation dialog, which
+ * offers that cell's rows only. A held row of the **other** cell was nobody's
+ * choice for this person as they are today: it was stored before they started
+ * or stopped dancing, and below the deposit nothing froze that fact, so it is
+ * replaced by today's row of their cell — the effective row every other surface
+ * already reads. With no row held, today's row is the one stored.
+ */
+function chargedPriceRow(
+  resolution: ResolvedSeminarInscription,
+): SeminarFinancePriceRow | null {
+  const held = resolution.storedPriceRow;
+  const today = resolution.priceRow;
+
+  return held !== null &&
+    (today === null || held.forParticipants === today.forParticipants)
+    ? held
+    : today;
+}
+
+/**
+ * Stores on each line the row it is charged by, where it holds another or none.
+ * A line nothing prices refuses the whole write rather than leaving the
+ * inscription unpriced. A seminar opens only when both participant cells have a
+ * deadline-less `regular` row, so that is a guard, not a path.
+ *
+ * A line whose new row is cheaper than the money already on it refuses the
+ * write too: storing it would fix a price the inscription is over-allocated
+ * against, and take a place with no money moving to check it.
+ */
+async function storeChargedPrices(
+  tx: Executor,
+  lines: readonly SeminarCobroLine[],
+): Promise<CobroResult> {
+  for (const line of lines) {
+    if (line.priceRow === null) {
+      return {
+        ok: false,
+        message:
+          "No hay un precio de seminario configurado para alguna de las inscripciones.",
+      };
+    }
+
+    if (line.overAllocatedAmount > 0) {
+      return {
+        ok: false,
+        message: `${seminarOverAllocatedMessage({
+          overAllocatedAmount: line.overAllocatedAmount,
+          personName: formatDancerName(line),
+        })} Quitale la diferencia desde su detalle antes de asignar.`,
+      };
+    }
+
+    if (line.priceRow.id !== line.selectedPriceId) {
+      await tx
+        .update(seminarInscriptions)
+        .set({ selectedPriceId: line.priceRow.id })
+        .where(eq(seminarInscriptions.id, line.id));
+    }
+  }
+
+  return { ok: true };
 }
 
 function collectCrossingsBySeminar(
@@ -339,6 +409,9 @@ type SeminarCobroPreviewPerson = {
    * the write refuses. */
   amount: number | null;
   inscriptionId: string;
+  /** What they hold past the price the charge would store; above zero, the
+   * write refuses. */
+  overAllocatedAmount: number;
   personName: string;
   /** The row they hold once the charge is written, which is the row the
    * amount is owed by. */
@@ -454,6 +527,7 @@ function previewStage(
       .map((line) => ({
         amount: line.owedAmount,
         inscriptionId: line.id,
+        overAllocatedAmount: line.overAllocatedAmount,
         personName: formatDancerName(line),
         priceName: line.priceRow?.name ?? null,
       })),
@@ -518,11 +592,7 @@ export async function paySeminarsPreset(input: {
       return places;
     }
 
-    const priced = await applyCurrentSeminarPrices(tx, {
-      eventId: input.eventId,
-      inscriptions: plan.lines,
-      seminars: locked,
-    });
+    const priced = await storeChargedPrices(tx, plan.lines);
 
     if (!priced.ok) {
       return priced;
@@ -563,7 +633,9 @@ async function fundPlanLines(
       };
     }
 
-    for (const amount of fundingMoves(line, line.owedAmount)) {
+    for (const amount of fundingMoves(line, line.owedAmount).filter(
+      (move) => move > 0,
+    )) {
       const funded = await spreadFromPool(tx, {
         academyId: input.academyId,
         amount,

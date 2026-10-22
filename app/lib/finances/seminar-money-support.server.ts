@@ -1,24 +1,17 @@
 /**
- * The three pieces of the seminar money path that a write over **many**
+ * The two pieces of the seminar money path that a write over **many**
  * inscriptions, across several seminars, shares with the per-inscription money
- * dialog: the lock on the seminars, the place check, and the price an
- * inscription is charged at when nobody picks one.
+ * dialog: the lock on the seminars and the place check.
  *
  * The per-inscription writer (`seminar-inscription-allocation.server.ts`) takes
- * the lock and the price through here too, so one seminar or seven are
+ * the lock through here too, so one seminar or seven are
  * serialised by the same lock taken the same way.
  */
 
-import { asc, eq, inArray } from "drizzle-orm";
+import { asc, inArray } from "drizzle-orm";
 
-import { seminarInscriptions, seminarPrices, seminars } from "@/db/schema";
-import { selectCurrentSeminarPriceRow } from "@/lib/finances/seminar-inscription-price";
+import { seminars } from "@/db/schema";
 import type { SeminarFinancePriceRow } from "@/lib/finances/seminar-inscription-thresholds.server";
-import {
-  isParticipating,
-  readSeminarParticipation,
-  type SeminarInscriptionPersonIds,
-} from "@/lib/finances/seminar-participation.server";
 import {
   countReservedByOthers,
   readSeminarPlaces,
@@ -136,75 +129,4 @@ export async function assertSeminarPlacesForCrossings(
   return shortfalls.length === 0
     ? { ok: true }
     : { ok: false, message: seminarPlacesShortMessage(shortfalls) };
-}
-
-/** A seminar inscription as the price application reads it. */
-export type SeminarInscriptionToPrice = SeminarInscriptionPersonIds & {
-  id: string;
-  selectedPriceId: string | null;
-  seminarId: string;
-};
-
-/**
- * Stores, on every inscription that holds **no** price, the row that applies to
- * the person today (`selectCurrentSeminarPriceRow`): the seminar's kind, the
- * person's participant cell, the dated rows before the deadline-less one. An
- * inscription that already holds a price keeps it, covered or not: a price
- * somebody set on purpose is never replaced by one nobody chose.
- *
- * A cell with no row refuses the whole write rather than leaving the
- * inscription unpriced. A seminar opens only when both cells have a
- * deadline-less `regular` row, so this is a guard, not a path.
- */
-export async function applyCurrentSeminarPrices(
-  tx: Transaction,
-  input: {
-    eventId: string;
-    inscriptions: readonly SeminarInscriptionToPrice[];
-    seminars: readonly LockedSeminar[];
-  },
-): Promise<CobroResult> {
-  const unpriced = input.inscriptions.filter(
-    (inscription) => inscription.selectedPriceId === null,
-  );
-
-  if (unpriced.length === 0) {
-    return { ok: true };
-  }
-
-  const seminarsById = new Map(
-    input.seminars.map((seminar) => [seminar.id, seminar]),
-  );
-  const [priceRows, participation] = await Promise.all([
-    tx.query.seminarPrices.findMany({
-      where: eq(seminarPrices.eventId, input.eventId),
-    }),
-    readSeminarParticipation(tx, { eventId: input.eventId, rows: unpriced }),
-  ]);
-
-  for (const inscription of unpriced) {
-    const seminar = seminarsById.get(inscription.seminarId);
-    const price = seminar
-      ? selectCurrentSeminarPriceRow({
-          forParticipants: isParticipating(inscription, participation),
-          priceRows,
-          seminarKind: seminar.kind,
-        })
-      : null;
-
-    if (!price) {
-      return {
-        ok: false,
-        message:
-          "No hay un precio de seminario configurado para alguna de las inscripciones.",
-      };
-    }
-
-    await tx
-      .update(seminarInscriptions)
-      .set({ selectedPriceId: price.id })
-      .where(eq(seminarInscriptions.id, inscription.id));
-  }
-
-  return { ok: true };
 }

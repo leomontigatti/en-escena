@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import {
+  choreographyDancers,
   paymentAllocations,
   seminarInscriptions,
   seminarPrices,
@@ -421,6 +422,139 @@ describe("an inscription holding a price that is not today's, below its deposit"
   });
 });
 
+describe("an inscription priced from the other participant cell, below its deposit", () => {
+  // The outsider is priced as a non-participant, pays short of that row's
+  // deposit and only then starts dancing. Below the deposit nothing froze the
+  // participant fact, so the preset charges by today's row of their new cell
+  // and stores it in place of the stale one.
+  async function startDancing(fixture: Fixture, dancerId: string) {
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: fixture.choreographyId,
+      dancerId,
+    });
+  }
+
+  async function payShortOfOutsiderDeposit(fixture: Fixture, amount: number) {
+    const { specialOutsider } = fixture.inscriptions;
+
+    expect(
+      await allocateToSeminarInscription({
+        academyId: fixture.academyId,
+        amount,
+        eventId: fixture.eventId,
+        inscriptionId: specialOutsider.id,
+        // 50.000, deposit 25.000.
+        priceId: fixture.priceId("special", false),
+        seminarId: fixture.special.id,
+      }),
+    ).toEqual({ ok: true });
+    await startDancing(fixture, specialOutsider.dancerId!);
+  }
+
+  test("`Pagar saldo` charges the rest of the participant row and stores it", async () => {
+    const fixture = await seedSeminarPresetFixture({ paymentAmount: 200000 });
+    const { specialOutsider } = fixture.inscriptions;
+
+    await payShortOfOutsiderDeposit(fixture, 10000);
+
+    expect(
+      (await loadPreviews(fixture))[
+        fixture.special.id
+      ]!.stages.balance.people.find(
+        (person) => person.inscriptionId === specialOutsider.id,
+      ),
+    ).toMatchObject({ amount: 30000, priceName: "special participante" });
+
+    expect(
+      await postPreset(fixture, {
+        intent: "pay-seminar-balance-preset",
+        seminarIds: [fixture.special.id],
+      }),
+    ).toMatchObject({ status: "success" });
+
+    expect(
+      (await readAllocatedByInscription(fixture)).get(specialOutsider.id),
+    ).toBe(40000);
+    expect((await readStoredPriceIds(fixture)).get(specialOutsider.id)).toBe(
+      fixture.priceId("special", true),
+    );
+  });
+
+  test("`Pagar seña` takes the place of a deposit the participant row already counts as paid, moving no money", async () => {
+    const fixture = await seedSeminarPresetFixture({ paymentAmount: 100000 });
+    const { specialOutsider } = fixture.inscriptions;
+
+    // The participant row's whole deposit (40.000 at 50 %), short of the
+    // stored row's 25.000.
+    await payShortOfOutsiderDeposit(fixture, 20000);
+
+    const deposit = (await loadPreviews(fixture))[fixture.special.id]!.stages
+      .deposit;
+
+    expect(
+      deposit.people.find(
+        (person) => person.inscriptionId === specialOutsider.id,
+      ),
+    ).toMatchObject({ amount: 0, priceName: "special participante" });
+    expect(deposit.neededCount).toBe(2);
+
+    expect(
+      await postPreset(fixture, {
+        intent: "pay-seminar-deposit-preset",
+        seminarIds: [fixture.special.id],
+      }),
+    ).toMatchObject({ status: "success" });
+
+    expect(
+      (await readAllocatedByInscription(fixture)).get(specialOutsider.id),
+    ).toBe(20000);
+    expect((await readStoredPriceIds(fixture)).get(specialOutsider.id)).toBe(
+      fixture.priceId("special", true),
+    );
+    expect(
+      (await loadPreviews(fixture))[fixture.special.id]!.coveredCount,
+    ).toBe(2);
+  });
+  test("refuses a charge that would leave the person holding more than the participant row's total", async () => {
+    const fixture = await seedSeminarPresetFixture({ paymentAmount: 100000 });
+    const { specialOutsider } = fixture.inscriptions;
+
+    // At a 99 % deposit, 43.000 is short of the held row's 49.500 deposit,
+    // within today's non-participant row (44.000) and past the whole
+    // participant row, 40.000.
+    await db
+      .update(seminars)
+      .set({ requiredDepositPercentage: 99 })
+      .where(eq(seminars.id, fixture.special.id));
+    await payShortOfOutsiderDeposit(fixture, 43000);
+
+    expect(
+      (await loadPreviews(fixture))[
+        fixture.special.id
+      ]!.stages.deposit.people.find(
+        (person) => person.inscriptionId === specialOutsider.id,
+      ),
+    ).toMatchObject({ amount: 0, overAllocatedAmount: 3000 });
+
+    const result = await postPreset(fixture, {
+      intent: "pay-seminar-deposit-preset",
+      seminarIds: [fixture.special.id],
+    });
+
+    expect(result).toMatchObject({
+      status: "error",
+      message: expect.stringContaining("Bruno Mirando"),
+    });
+    expect(
+      (await readAllocatedByInscription(fixture)).get(specialOutsider.id),
+    ).toBe(43000);
+    expect((await readStoredPriceIds(fixture)).get(specialOutsider.id)).toBe(
+      fixture.priceId("special", false),
+    );
+  });
+});
+
 describe("the seminar preset preview in the academy's finance loader", () => {
   test("`Pagar seña`: the people, prices and amounts it lists are what the action then writes", async () => {
     const fixture = await seedSeminarPresetFixture({ paymentAmount: 100000 });
@@ -447,12 +581,14 @@ describe("the seminar preset preview in the academy's finance loader", () => {
         {
           amount: 20000,
           inscriptionId: inscriptions.specialParticipant.id,
+          overAllocatedAmount: 0,
           personName: "Ana Bailando",
           priceName: "special participante",
         },
         {
           amount: 22000,
           inscriptionId: inscriptions.specialOutsider.id,
+          overAllocatedAmount: 0,
           personName: "Bruno Mirando",
           priceName: "Preventa exclusiva",
         },
@@ -530,12 +666,14 @@ describe("the seminar preset preview in the academy's finance loader", () => {
         {
           amount: 40000,
           inscriptionId: inscriptions.specialParticipant.id,
+          overAllocatedAmount: 0,
           personName: "Ana Bailando",
           priceName: "special participante",
         },
         {
           amount: 25000,
           inscriptionId: inscriptions.specialOutsider.id,
+          overAllocatedAmount: 0,
           personName: "Bruno Mirando",
           priceName: "special no participante",
         },
