@@ -117,26 +117,6 @@ describe("SeminarFinanceDetailView", () => {
     );
   });
 
-  test("badges a person registered after the invoice `Sin facturar`", () => {
-    const markup = renderDetail({
-      inscriptions: [
-        inscriptionFixture({
-          firstName: "Olga",
-          inscriptionId: "seminar_inscription_2",
-          uninvoiced: true,
-        }),
-      ],
-    });
-    const table = inscriptionsTable(markup);
-    const statusIndex = [...(table?.querySelectorAll("thead th") ?? [])]
-      .map((header) => header.textContent?.trim())
-      .indexOf("Estado");
-
-    expect(
-      table?.querySelectorAll("tbody tr td")[statusIndex]?.textContent,
-    ).toBe("Sin facturar");
-  });
-
   test("states a full quota without blocking anything, and says nothing while a place is left", () => {
     const full = renderDetail({
       seminar: { ...loaderDataFixture().seminar, availablePlaces: 0 },

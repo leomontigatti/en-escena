@@ -5,6 +5,7 @@ import { comprobanteInscriptions, comprobantes } from "@/db/schema";
 import type { InscriptionAnomaly } from "@/lib/finances/inscription-financial-status";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
+import { comprobanteAnchorFilter, type ComprobanteAnchor } from "./anchor";
 import {
   deriveAnchorBilling,
   type AnchorBilling,
@@ -36,8 +37,9 @@ export type AcademyAnchorBilling = {
  * What the academy's documents leave pending, for its finance list and its
  * financial details. The inscriptions are the ones the academy's rollup
  * already resolved, the same figures the emitter bills by; this read adds the
- * academy's comprobantes and their lines, two queries whatever the number of
- * units, and hands each unit to `deriveAnchorBilling`.
+ * academy's comprobantes and their lines (one anchor's, on a detail), two
+ * queries whatever the number of units, and hands each unit to
+ * `deriveAnchorBilling`.
  *
  * Administration only: the academy is told nothing when its bill moves
  * (ADR-0014 §10).
@@ -45,6 +47,8 @@ export type AcademyAnchorBilling = {
 export async function readAcademyAnchorBilling(input: {
   academyId: string;
   eventId: string;
+  // A financial detail reads its own anchor alone; the list reads them all.
+  anchor?: ComprobanteAnchor;
   choreographyInscriptions: ReadonlyArray<
     ResolvedUnitInscription & { choreographyId: string }
   >;
@@ -54,36 +58,45 @@ export async function readAcademyAnchorBilling(input: {
   // The business date, `AAAA-MM-DD`; Córdoba's today when absent.
   today?: string;
 }): Promise<AcademyAnchorBilling> {
-  const billing: AcademyAnchorBilling = {
-    choreographies: new Map(),
-    seminars: new Map(),
-  };
+  // Only what the delta reads: the kind, the total, the star and the lines.
   const rows = await db
-    .select()
+    .select({
+      associatedComprobanteId: comprobantes.associatedComprobanteId,
+      cbteTipo: comprobantes.cbteTipo,
+      choreographyId: comprobantes.choreographyId,
+      id: comprobantes.id,
+      impTotal: comprobantes.impTotal,
+      seminarId: comprobantes.seminarId,
+    })
     .from(comprobantes)
     .where(
       and(
         eq(comprobantes.academyId, input.academyId),
         eq(comprobantes.eventId, input.eventId),
+        input.anchor ? comprobanteAnchorFilter(input.anchor) : undefined,
       ),
     )
     // Emission order, as the emitter reads it: the first invoice is the one
     // the star anchors at.
     .orderBy(asc(comprobantes.createdAt));
-
-  if (rows.length === 0) {
-    return billing;
-  }
-
-  const lineRows = await db
-    .select()
-    .from(comprobanteInscriptions)
-    .where(
-      inArray(
-        comprobanteInscriptions.comprobanteId,
-        rows.map((row) => row.id),
-      ),
-    );
+  const lineRows =
+    rows.length === 0
+      ? []
+      : await db
+          .select({
+            amount: comprobanteInscriptions.amount,
+            choreographyInscriptionId:
+              comprobanteInscriptions.choreographyInscriptionId,
+            comprobanteId: comprobanteInscriptions.comprobanteId,
+            seminarInscriptionId: comprobanteInscriptions.seminarInscriptionId,
+          })
+          .from(comprobanteInscriptions)
+          .where(
+            inArray(
+              comprobanteInscriptions.comprobanteId,
+              rows.map((row) => row.id),
+            ),
+          );
   const documentsByUnit = {
     choreographies: new Map<string, DocumentedComprobante[]>(),
     seminars: new Map<string, DocumentedComprobante[]>(),
@@ -116,35 +129,47 @@ export async function readAcademyAnchorBilling(input: {
 
   const today = input.today ?? getBusinessDateOnly();
 
-  for (const [choreographyId, documents] of documentsByUnit.choreographies) {
+  return {
+    choreographies: readUnits(
+      documentsByUnit.choreographies,
+      input.choreographyInscriptions,
+      (inscription) => inscription.choreographyId,
+      today,
+    ),
+    seminars: readUnits(
+      documentsByUnit.seminars,
+      input.seminarInscriptions,
+      (inscription) => inscription.seminarId,
+      today,
+    ),
+  };
+}
+
+// Each invoiced unit's reading, keyed by the unit; a unit with no invoice reads
+// `null` and is left out.
+function readUnits<TInscription extends ResolvedUnitInscription>(
+  documentsByUnit: ReadonlyMap<string, DocumentedComprobante[]>,
+  inscriptions: readonly TInscription[],
+  unitOf: (inscription: TInscription) => string,
+  today: string,
+): Map<string, AnchorBilling> {
+  const readings = new Map<string, AnchorBilling>();
+
+  for (const [unitId, documents] of documentsByUnit) {
     const reading = deriveAnchorBilling({
-      inscriptions: input.choreographyInscriptions
-        .filter((inscription) => inscription.choreographyId === choreographyId)
+      inscriptions: inscriptions
+        .filter((inscription) => unitOf(inscription) === unitId)
         .map(toBilledInscription),
       comprobantes: documents,
       today,
     });
 
     if (reading) {
-      billing.choreographies.set(choreographyId, reading);
+      readings.set(unitId, reading);
     }
   }
 
-  for (const [seminarId, documents] of documentsByUnit.seminars) {
-    const reading = deriveAnchorBilling({
-      inscriptions: input.seminarInscriptions
-        .filter((inscription) => inscription.seminarId === seminarId)
-        .map(toBilledInscription),
-      comprobantes: documents,
-      today,
-    });
-
-    if (reading) {
-      billing.seminars.set(seminarId, reading);
-    }
-  }
-
-  return billing;
+  return readings;
 }
 
 function toBilledInscription(

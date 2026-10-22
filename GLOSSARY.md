@@ -486,7 +486,7 @@ Its mirror: the anchor's derived total is below what its comprobantes document, 
 _Avoid_: pending refund, `Reembolso` (money returned, not a document), annulment
 
 **`uninvoicedInscription`** — ui: "Sin facturar"
-Inscription of an invoiced anchor that no comprobante line names yet, because it was registered after the invoice: the `Facturada` axis, rendered only by its absence, since one invoice covers the whole roster. It is what a `pendingDebitNote` is for, and it clears with the note that names it. An inscription that owes nothing is never one.
+Inscription of an invoiced anchor that no comprobante line names yet, because it was registered after the invoice: the `Facturada` axis, rendered only by its absence, since one invoice covers the whole roster. It is what a `pendingDebitNote` is for, and it clears with the note that names it. An inscription that owes nothing is never one, and none is while the anchor owes no note: a row added that nets exactly against a withdrawal is named by no document ever.
 _Avoid_: `Facturada` (never shown), unbilled, pending
 
 **`anchor`** — ui: "Origen"

@@ -79,16 +79,20 @@ export function deriveAnchorBilling(input: {
             input.today,
           )
         : null,
-    // A row that owes nothing is left out: the note would carry no line for
-    // it, so it could never stop reading `Sin facturar`. An unpriced row is
-    // kept, because it is genuinely billed by nothing yet.
-    uninvoicedInscriptionIds: input.inscriptions
-      .filter(
-        (inscription) =>
-          !documentedByInscription.has(inscription.id) &&
-          inscription.owed !== 0,
-      )
-      .map((inscription) => inscription.id),
+    // Only rows a next note will name: one that owes nothing gets no line, and
+    // while the delta is zero no note is emitted at all — a row added that
+    // nets exactly against a withdrawal would read `Sin facturar` forever. An
+    // unpriced row is kept, since its note follows once it has a price.
+    uninvoicedInscriptionIds:
+      delta === 0
+        ? []
+        : input.inscriptions
+            .filter(
+              (inscription) =>
+                !documentedByInscription.has(inscription.id) &&
+                inscription.owed !== 0,
+            )
+            .map((inscription) => inscription.id),
   };
 }
 

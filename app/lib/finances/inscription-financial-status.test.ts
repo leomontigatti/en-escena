@@ -226,6 +226,52 @@ describe("deriveInscriptionFinancialFigures on a withdrawn inscription", () => {
 });
 
 describe("resolveInscriptionStatusBadge", () => {
+  // A withdrawn choreography whose credit note is still owed has that left to
+  // do (#585); `Sobreasignada` still yields to `Retirada`.
+  test("puts a pending note above `Retirada`", () => {
+    expect(
+      resolveInscriptionStatusBadge({
+        anomalies: ["pendingCreditNote"],
+        financialStatus: "paidInFull",
+        withdrawn: true,
+      }),
+    ).toEqual({ kind: "anomaly", anomaly: "pendingCreditNote" });
+  });
+
+  test("puts a pending note above the over-allocation anomaly", () => {
+    expect(
+      resolveInscriptionStatusBadge({
+        anomalies: ["overAllocated", "pendingDebitNote"],
+        financialStatus: "depositMet",
+      }),
+    ).toEqual({ kind: "anomaly", anomaly: "pendingDebitNote" });
+  });
+
+  test("reads `Sin facturar` in place of the status, below an anomaly and `Retirada`", () => {
+    expect(
+      resolveInscriptionStatusBadge({
+        anomalies: [],
+        financialStatus: "depositPending",
+        uninvoiced: true,
+      }),
+    ).toEqual({ kind: "uninvoiced" });
+    expect(
+      resolveInscriptionStatusBadge({
+        anomalies: ["overAllocated"],
+        financialStatus: "depositMet",
+        uninvoiced: true,
+      }),
+    ).toEqual({ kind: "anomaly", anomaly: "overAllocated" });
+    expect(
+      resolveInscriptionStatusBadge({
+        anomalies: [],
+        financialStatus: "paidInFull",
+        uninvoiced: true,
+        withdrawn: true,
+      }),
+    ).toEqual({ kind: "withdrawn" });
+  });
+
   test("puts `Retirada` above the over-allocation anomaly", () => {
     expect(
       resolveInscriptionStatusBadge({

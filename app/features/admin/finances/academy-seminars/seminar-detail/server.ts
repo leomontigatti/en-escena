@@ -113,6 +113,7 @@ export async function loadSeminarFinanceDetail(input: {
     readAcademyAnchorBilling({
       academyId,
       eventId,
+      anchor: seminarAnchor(seminarId, academyId),
       choreographyInscriptions: [],
       seminarInscriptions: financeDetail.seminarInscriptions,
     }),

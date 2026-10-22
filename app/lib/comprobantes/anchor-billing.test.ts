@@ -225,6 +225,18 @@ describe("deriveAnchorBilling", () => {
     ).toMatchObject({ anomaly: null, uninvoicedInscriptionIds: [] });
   });
 
+  test("a row that nets against a withdrawal to a zero delta is not `Sin facturar`: no note will ever name it", () => {
+    // The withdrawn row is documented 7000 above what it retains and the new
+    // one owes exactly 7000: the unit owes nothing and the emitter refuses.
+    expect(
+      deriveAnchorBilling({
+        inscriptions: [withdrawn("a", 3000, "2026-10-19"), active("new", 7000)],
+        comprobantes: [factura(10000, [["a", 10000]])],
+        today,
+      }),
+    ).toMatchObject({ anomaly: null, uninvoicedInscriptionIds: [] });
+  });
+
   test("an unpriced row names no anomaly, since the total is unknown, but is still not invoiced", () => {
     expect(
       deriveAnchorBilling({

@@ -330,21 +330,6 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(inscriptionStatusTexts(markup)).toEqual(["Señada", "Sin facturar"]);
   });
 
-  test("raises no pending-document alert once the documents match", () => {
-    const markup = renderDetail({
-      billing: {
-        anomaly: null,
-        amount: 0,
-        creditClockDays: null,
-        documentedAmount: 10000,
-        owedAmount: 10000,
-        uninvoicedInscriptionIds: [],
-      },
-    });
-
-    expect(markup).not.toContain("Falta emitir");
-  });
-
   test("warns when the deposit has no configured price", () => {
     const markup = renderDetail({
       choreography: choreographyFixture({

@@ -122,6 +122,7 @@ export async function loadChoreographyFinanceDetail(input: {
     readAcademyAnchorBilling({
       academyId,
       eventId,
+      anchor: choreographyAnchor(choreographyId),
       choreographyInscriptions: financeDetail.inscriptions,
       seminarInscriptions: [],
     }),

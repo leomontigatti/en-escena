@@ -869,7 +869,10 @@ informs and never blocks.
 invoiced anchor, an inscription no comprobante line names and that owes
 something reads it in its `Estado`, on the administration's financial details
 only. It is what `Pendiente de facturar` is for, and the debit note that names
-the row clears both. `Facturada` itself is never shown.
+the row clears both. It reads only rows a next note will name: none while the
+delta is zero, since nothing is emitted then — a row added that nets exactly
+against a withdrawal is documented by no note ever — and never a row that owes
+nothing, which no note carries a line for. `Facturada` itself is never shown.
 
 **Badges.** All three anomalies are `destructive`, not amber: beside `Seña
 pendiente`, two amber badges would read as one kind of fact. Each **warns and
