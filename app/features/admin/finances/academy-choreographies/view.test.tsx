@@ -385,6 +385,7 @@ describe("AcademyFinancesRouteView", () => {
                   {
                     amount: 7000,
                     inscriptionId: "seminar_inscription_2",
+                    overAllocatedAmount: 0,
                     personName: "Bruno Mirando",
                     priceName: "Exclusivo",
                   },
@@ -453,12 +454,14 @@ describe("AcademyFinancesRouteView", () => {
                   {
                     amount: 40000,
                     inscriptionId: "seminar_inscription_1",
+                    overAllocatedAmount: 0,
                     personName: "Ana Bailando",
                     priceName: "Exclusivo participante",
                   },
                   {
                     amount: 22000,
                     inscriptionId: "seminar_inscription_2",
+                    overAllocatedAmount: 0,
                     personName: "Bruno Mirando",
                     priceName: "Preventa exclusiva",
                   },
@@ -527,6 +530,50 @@ describe("AcademyFinancesRouteView", () => {
     expect(dialogText()).toContain("No alcanzan los lugares");
     expect(dialogText()).toContain(
       "No quedan lugares suficientes en el seminario de Abril Sosa del 10 de octubre de 2026: falta 1.",
+    );
+  });
+
+  test("disables `Asignar` and names the person when the price they would take is below what they hold", async () => {
+    const preview = seminarPresetPreviewFixture({ seminarId: "seminar_1" });
+
+    await renderListIntoDocument({
+      initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [seminarFinanceRowFixture({ id: "seminar_1" })],
+        seminarPresetPreviews: {
+          seminar_1: {
+            ...preview,
+            stages: {
+              ...preview.stages,
+              deposit: {
+                neededCount: 1,
+                reservedCount: 0,
+                people: [
+                  {
+                    amount: 0,
+                    inscriptionId: "seminar_inscription_1",
+                    overAllocatedAmount: 3000,
+                    personName: "Bruno Mirando",
+                    priceName: "Exclusivo participante",
+                  },
+                ],
+              },
+            },
+          },
+        },
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 100000,
+        },
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(findButton("Asignar")?.disabled).toBe(true);
+    expect(dialogText()).toContain(
+      "Bruno Mirando tiene asignados $ 3.000 más que el precio que le corresponde.",
     );
   });
 
@@ -1528,6 +1575,7 @@ function seminarPresetPreviewFixture(
           {
             amount: 8000,
             inscriptionId: "seminar_inscription_1",
+            overAllocatedAmount: 0,
             personName: "Ana Bailando",
             priceName: "Regular",
           },
@@ -1540,6 +1588,7 @@ function seminarPresetPreviewFixture(
           {
             amount: 5000,
             inscriptionId: "seminar_inscription_1",
+            overAllocatedAmount: 0,
             personName: "Ana Bailando",
             priceName: "Regular",
           },

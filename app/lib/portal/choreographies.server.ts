@@ -40,6 +40,8 @@ export type PortalChoreographyDetail = PortalChoreographyListItem & {
   scheduleCapacityId: string;
   scheduleName: string;
   scheduleLabel: string;
+  /** The day it dances, which decides whether its order number is published. */
+  scheduledDate: string;
   dancers: Array<{
     id: string;
     firstName: string;
@@ -222,6 +224,7 @@ export async function findChoreographyForAcademyEvent(
       scheduledDate: row.scheduleDate,
       startTime: row.scheduleTime,
     }),
+    scheduledDate: row.scheduleDate,
     dancers: dancerRows,
     professors: professorRows,
   };

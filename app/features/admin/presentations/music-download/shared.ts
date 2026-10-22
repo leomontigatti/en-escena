@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+import {
+  cleanFileNamePart,
+  formatMusicFileLabel,
+  formatMusicFileName,
+  getMusicFileExtension,
+} from "@/lib/presentations/music-file-name";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { slugify } from "@/lib/shared/slugify";
 
@@ -55,13 +61,10 @@ export type MusicArchivePlan = {
 
 export const missingMusicListName = "FALTANTES.txt";
 
-/** A name part longer than this is cut: some file systems cap a name at 255. */
-const maxNamePartLength = 80;
-
 /**
  * Lays the day's archive out. `rows` come in running order and `schedules` in
- * time order, both narrowed to the day. The number is padded to the width of
- * the event's highest one, not the day's: the order runs across the event.
+ * time order, both narrowed to the day. Each file is named as a single
+ * download names it (`formatMusicFileName`).
  */
 export function planMusicArchive(input: {
   day: string;
@@ -70,7 +73,6 @@ export function planMusicArchive(input: {
   rows: readonly MusicArchiveRow[];
   schedules: readonly MusicArchiveSchedule[];
 }): MusicArchivePlan {
-  const width = String(input.highestOrderNumber).length;
   // A day with one schedule needs no folder: there is nothing to tell apart.
   const foldersBySchedule = new Map(
     input.schedules.map((schedule) => [
@@ -82,7 +84,10 @@ export function planMusicArchive(input: {
   const missingBySchedule = new Map<string, string[]>();
 
   for (const row of input.rows) {
-    const label = `${cleanNamePart(row.name)} - ${cleanNamePart(row.academyName)}`;
+    const label = formatMusicFileLabel({
+      academyName: row.academyName,
+      choreographyName: row.name,
+    });
 
     if (row.musicStorageKey === null) {
       const missing = missingBySchedule.get(row.scheduleId) ?? [];
@@ -93,8 +98,15 @@ export function planMusicArchive(input: {
     }
 
     const folder = foldersBySchedule.get(row.scheduleId);
-    const extension = row.musicStorageKey.split(".").pop() ?? "";
-    const fileName = `${String(row.orderNumber).padStart(width, "0")} - ${label}.${extension}`;
+    const fileName = formatMusicFileName({
+      academyName: row.academyName,
+      choreographyName: row.name,
+      extension: getMusicFileExtension(row.musicStorageKey),
+      order: {
+        highestOrderNumber: input.highestOrderNumber,
+        orderNumber: row.orderNumber,
+      },
+    });
 
     files.push({
       path: folder ? `${folder}/${fileName}` : fileName,
@@ -138,21 +150,5 @@ function formatMissingList(
 
 /** `10:00` reads `10.00`: a colon is no file name on Windows. */
 function formatScheduleFolder(schedule: MusicArchiveSchedule) {
-  return `${schedule.startTime.slice(0, 5).replace(":", ".")} - ${cleanNamePart(schedule.name)}`;
-}
-
-/**
- * Keeps accents and spaces, which every system the archive opens on reads, and
- * drops what Windows or a Unix path refuses.
- */
-function cleanNamePart(value: string) {
-  return (
-    value
-      // oxlint-disable-next-line no-control-regex -- control characters are exactly what is being removed
-      .replace(/[/\\:*?"<>|\u0000-\u001f]/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, maxNamePartLength)
-      .replace(/[\s.]+$/, "")
-  );
+  return `${schedule.startTime.slice(0, 5).replace(":", ".")} - ${cleanFileNamePart(schedule.name)}`;
 }

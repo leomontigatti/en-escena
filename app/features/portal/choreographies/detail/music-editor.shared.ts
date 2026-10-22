@@ -42,6 +42,7 @@ export type PortalChoreographyMusicActionData =
   | undefined;
 
 export type PortalChoreographyDetailChoreography = PortalChoreographyDetail & {
+  musicDownloadFileName: string | null;
   musicDownloadUrl: string | null;
 };
 
