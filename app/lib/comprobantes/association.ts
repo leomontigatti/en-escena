@@ -10,7 +10,7 @@ import { readComprobanteKind } from "./kind";
 // what the note credits was billed by a debit note, the leyenda is where that
 // debit note is identified. It is derived from the lines, not stored: a debit
 // note is adjusted when it billed, before the credit note, a positive amount
-// for an inscription the credit note credits.
+// for an inscription the credit note credits with a positive line.
 
 /** The fields a surface needs to name an associated comprobante. */
 export type AssociatedComprobante = {
@@ -88,7 +88,11 @@ function findAdjustedDebitNotes(
   creditNote: AssociationScopeComprobante,
   scope: readonly AssociationScopeComprobante[],
 ): AssociationScopeComprobante[] {
-  const credited = new Set(creditNote.lines.map(lineInscriptionId));
+  // Only a positive line credits its inscription: a credit note signs its
+  // lines in its own direction, so a negative one bills that inscription more.
+  const credited = new Set(
+    creditNote.lines.filter((line) => line.amount > 0).map(lineInscriptionId),
+  );
   const emittedBefore = scope.slice(
     0,
     Math.max(

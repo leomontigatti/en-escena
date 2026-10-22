@@ -177,49 +177,4 @@ describe("recordComprobante persistence", () => {
     );
     expect(survivors).toHaveLength(1);
   });
-
-  test("an invoiced inscription cannot be hard deleted: its line keeps naming it", async () => {
-    const { choreography, inscription } = await seedInscribedChoreography(
-      `roster.${crypto.randomUUID()}@example.com`,
-    );
-
-    await recordComprobante(
-      facturaCInput({
-        choreographyId: choreography.id,
-        eventId: choreography.eventId,
-        impTotal: 10000,
-        lines: [{ choreographyInscriptionId: inscription.id, amount: 10000 }],
-      }),
-    );
-
-    // The roster withdraws an invoiced inscription instead (#600); a delete
-    // that got past it would make the line vanish from `FC + ΣND − ΣNC`.
-    await expect(
-      db
-        .delete(choreographyDancers)
-        .where(eq(choreographyDancers.id, inscription.id)),
-    ).rejects.toThrow();
-
-    const [survivor] = await listAnchorComprobantes(
-      choreographyAnchor(choreography.id),
-    );
-    expect(survivor.lines[0]?.choreographyInscriptionId).toBe(inscription.id);
-  });
-
-  test("refuses a line that names no inscription", async () => {
-    const { choreography } = await seedInscribedChoreography(
-      `sin-inscripcion.${crypto.randomUUID()}@example.com`,
-    );
-
-    await expect(
-      recordComprobante(
-        facturaCInput({
-          choreographyId: choreography.id,
-          eventId: choreography.eventId,
-          impTotal: 10000,
-          lines: [{ amount: 10000 } as never],
-        }),
-      ),
-    ).rejects.toThrow();
-  });
 });

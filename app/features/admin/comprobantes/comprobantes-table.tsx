@@ -15,23 +15,14 @@ import {
   signedComprobanteAmount,
 } from "@/lib/comprobantes/kind";
 import { formatAmount } from "@/lib/finances/formatters";
-
-/** A comprobante as a row of a short list of them. */
-export type ComprobanteTableRow = {
-  id: string;
-  cbteTipo: number;
-  ptoVta: number;
-  cbteNro: number;
-  cbteFch: string;
-  impTotal: number;
-};
+import type { AssociatedComprobante } from "@/lib/comprobantes/association";
 
 /**
  * The comprobantes of one unit, or the notes that adjust one invoice: few
  * enough that there is nothing to search or page through. Each row opens the
  * comprobante's detail.
  */
-export function ComprobantesTable({ rows }: { rows: ComprobanteTableRow[] }) {
+export function ComprobantesTable({ rows }: { rows: AssociatedComprobante[] }) {
   return (
     <ClientDataTable
       rows={rows}
@@ -46,7 +37,7 @@ export function ComprobantesTable({ rows }: { rows: ComprobanteTableRow[] }) {
 }
 
 // No status column: the comprobante's detail, one click away, carries it.
-const comprobanteColumns: DataTableColumn<ComprobanteTableRow>[] = [
+const comprobanteColumns: DataTableColumn<AssociatedComprobante>[] = [
   {
     id: "numero",
     header: "N.°",

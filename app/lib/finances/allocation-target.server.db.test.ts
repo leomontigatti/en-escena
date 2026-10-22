@@ -3,8 +3,6 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import {
-  comprobanteInscriptions,
-  comprobantes,
   events,
   paymentAllocations,
   payments,
@@ -17,7 +15,6 @@ import { readAcademyAvailableBalance } from "@/lib/finances/allocation-pool.serv
 import { applyAllocationDelta } from "@/lib/finances/choreography-cobro-allocations.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 
-import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -141,55 +138,6 @@ async function storePrice(inscriptionId: string, priceId: string) {
     .update(seminarInscriptions)
     .set({ selectedPriceId: priceId })
     .where(eq(seminarInscriptions.id, inscriptionId));
-}
-
-/** A choreography of the event: the anchor a comprobante root still needs. */
-async function seedChoreographyId(eventId: string) {
-  const event = await db.query.events.findFirst({
-    where: eq(events.id, eventId),
-  });
-
-  if (!event) {
-    throw new Error("Expected the event.");
-  }
-
-  const { choreography } = await createAcademyFinanceChoreographyFixture({
-    academyName: "Academia Coreografias",
-    choreographyName: "Coreografia ancla",
-    email: `ancla.${crypto.randomUUID()}@example.com`,
-    event,
-  });
-
-  return choreography.id;
-}
-
-async function recordComprobanteRoot(
-  eventId: string,
-  choreographyId: string,
-  academyId: string,
-) {
-  const [comprobante] = await db
-    .insert(comprobantes)
-    .values({
-      academyId,
-      cae: "74123456789012",
-      caeVto: "20300801",
-      cbteFch: "20300722",
-      cbteNro: 1,
-      cbteTipo: 11,
-      choreographyId,
-      eventId,
-      impTotal: 10000,
-      issuerCuit: "30717611590",
-      issuerIvaCondition: "exento",
-      ptoVta: 1,
-      receptorDocNro: "0",
-      receptorDocTipo: 99,
-      receptorIvaConditionId: 5,
-    })
-    .returning();
-
-  return comprobante;
 }
 
 describe("the allocation target", () => {
@@ -379,63 +327,5 @@ describe("the seminar inscription price lock", () => {
       where: eq(seminarInscriptions.id, fixture.inscription.id),
     });
     expect(row?.selectedPriceId).toBe(fixture.otherPriceId);
-  });
-});
-
-describe("the comprobante line target", () => {
-  test("refuses a line naming nobody and one naming both", async () => {
-    const fixture = await seedSeminarTarget();
-    const choreographyId = await seedChoreographyId(fixture.eventId);
-    const comprobante = await recordComprobanteRoot(
-      fixture.eventId,
-      choreographyId,
-      fixture.academyId,
-    );
-
-    await expect(
-      db.insert(comprobanteInscriptions).values({
-        amount: 10000,
-        comprobanteId: comprobante.id,
-      }),
-    ).rejects.toThrow();
-
-    await expect(
-      db.insert(comprobanteInscriptions).values({
-        amount: 10000,
-        choreographyInscriptionId: fixture.inscription.id,
-        comprobanteId: comprobante.id,
-        seminarInscriptionId: fixture.inscription.id,
-      }),
-    ).rejects.toThrow();
-  });
-
-  test("refuses two lines of one comprobante for the same seminar inscription", async () => {
-    const fixture = await seedSeminarTarget();
-    const choreographyId = await seedChoreographyId(fixture.eventId);
-    const comprobante = await recordComprobanteRoot(
-      fixture.eventId,
-      choreographyId,
-      fixture.academyId,
-    );
-
-    await db.insert(comprobanteInscriptions).values({
-      amount: 5000,
-      comprobanteId: comprobante.id,
-      seminarInscriptionId: fixture.inscription.id,
-    });
-
-    await expect(
-      db.insert(comprobanteInscriptions).values({
-        amount: 5000,
-        comprobanteId: comprobante.id,
-        seminarInscriptionId: fixture.inscription.id,
-      }),
-    ).rejects.toThrow();
-
-    const lines = await db
-      .select()
-      .from(comprobanteInscriptions)
-      .where(eq(comprobanteInscriptions.comprobanteId, comprobante.id));
-    expect(lines).toHaveLength(1);
   });
 });

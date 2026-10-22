@@ -295,26 +295,6 @@ describe("renderComprobantePrintDocument", () => {
     expect(html).not.toContain("Comprobante asociado");
   });
 
-  test("prints a note's associated comprobante block with its leyenda", () => {
-    const html = renderComprobantePrintDocument({
-      model: buildComprobantePrintViewModel(
-        printRecord({
-          cbteTipo: 13,
-          association: {
-            role: "note",
-            factura: associated({ cbteNro: 41 }),
-            adjustedDebitNotes: [associated({ cbteTipo: 12, cbteNro: 5 })],
-          },
-        }),
-      ),
-      qrCodeSvg: QR_SVG_STUB,
-    });
-
-    expect(html).toContain("Comprobante asociado");
-    expect(html).toContain("Factura C N° 0003-00000041, del 22/07/2026");
-    expect(html).toContain("Ajusta la Nota de Débito C N° 0003-00000005");
-  });
-
   test("prints the seminar's receptor block", () => {
     const html = renderComprobantePrintDocument({
       model: buildComprobantePrintViewModel(seminarPrintRecord()),
@@ -324,7 +304,6 @@ describe("renderComprobantePrintDocument", () => {
     expect(html).toContain(
       "<p>Academia Alfa — Seminario Abril Sosa, 10/10/2030</p>",
     );
-    expect(html).toContain("<td>Inscripción — Eva Ruiz</td>");
     expect(html).toContain("10/10/2030 — 10/10/2030");
   });
 

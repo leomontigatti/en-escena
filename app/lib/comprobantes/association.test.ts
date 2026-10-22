@@ -138,6 +138,19 @@ describe("readComprobanteAssociation", () => {
     expect(association).toMatchObject({ adjustedDebitNotes: [] });
   });
 
+  // A credit note signs its lines in its own direction: a negative line bills
+  // that inscription more, so it credits nothing a debit note billed.
+  test("a credit note line that bills the inscription more adjusts no debit note", () => {
+    const raise = comprobante("nd-raise", 12, { lines: [line("ana", 2000)] });
+    const nc = comprobante("nc", 13, {
+      lines: [line("ana", -1000), line("beto", 5000)],
+    });
+
+    const association = readComprobanteAssociation(nc, [factura, raise, nc]);
+
+    expect(association).toMatchObject({ adjustedDebitNotes: [] });
+  });
+
   test("a seminar credit note matches debit notes by the seminar inscription", () => {
     const seminarLine = (inscriptionId: string, amount: number) => ({
       choreographyInscriptionId: null,

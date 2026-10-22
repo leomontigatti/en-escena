@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { AdminEmptyState } from "@/components/admin/resource-layout";
-import { ComprobantesTable } from "@/components/shared/comprobantes-table";
+import { ComprobantesTable } from "@/features/admin/comprobantes/comprobantes-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { AnchorComprobanteRow } from "./server";

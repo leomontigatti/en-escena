@@ -6,7 +6,6 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { BackButton } from "@/components/shared/action-buttons";
-import { ComprobantesTable } from "@/components/shared/comprobantes-table";
 import {
   ClientDataTable,
   type DataTableColumn,
@@ -30,6 +29,7 @@ import {
 import { formatComprobanteKindLabel } from "@/lib/comprobantes/kind";
 
 import { ComprobanteStatusBadge } from "@/components/shared/comprobante-status-badge";
+import { ComprobantesTable } from "../comprobantes-table";
 import type { ComprobanteDetail, ComprobanteDetailLoaderData } from "./server";
 
 type ComprobanteLine = ComprobanteDetail["lines"][number];
@@ -95,7 +95,9 @@ export function ComprobanteDetailRouteView({
         </ResourceActionsMenu>
       }
     >
-      <Tabs defaultValue="information">
+      {/* Keyed by the comprobante: following a note from `Ajustes` stays on
+          this route, and a note has no `Ajustes` tab to stay on. */}
+      <Tabs key={comprobante.id} defaultValue="information">
         <TabsList variant="line">
           <TabsTrigger value="information">Información</TabsTrigger>
           <TabsTrigger value="lines">
