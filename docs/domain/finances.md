@@ -1113,8 +1113,39 @@ and its amount; the operator cannot choose another. The confirmation carries
 the previewed kind and amount, and the emitter, planning again under the lock,
 refuses rather than emit a document that changed since. With nothing owed the item
 stays (`Emitir factura` before the invoice, `Emitir nota` after) and opens a
-dialog saying why, in the words the server refuses with. There is no bulk
-action yet (#1712).
+dialog saying why, in the words the server refuses with.
+
+**Bulk emission** (#617) is the academy finance list's `Emitir comprobantes`,
+over the `Coreografías` tab's selection; seminar units emit from their own
+detail only. It is not a batch: the browser sends N single emissions, one per
+choreography and one after the other, each the detail's `emit-comprobante`
+request posted to the list, which answers the number in place instead of
+redirecting. Each emits whatever its choreography owes — invoice, debit or
+credit note — under the same lock and checks.
+
+- **The confirmation is a plan.** Every selected choreography is listed with the
+  document and amount it would emit, read off the emitter's own plan, or as
+  `Salteada` with the reasons it would be refused; the totals billed and
+  credited apart; how long it may take (10 to 20 seconds each, up to a minute
+  when ARCA is slow); and that closing the tab cuts it. There is no cap. Each
+  emission plans again under its lock, so a plan that moved costs that row a
+  refusal, never a document.
+- **One date for the run**, today by default, bounded by the latest floor among
+  the series the plan emits in; every emission checks it again against its own.
+- **The plan becomes the progress**: a `k de N` counter, each row `Pendiente`,
+  `Emitiendo`, `Emitida` with its number, `Falló` with the reason, or
+  `Sin intentar`. A rejection or an attempt that never reached ARCA fails its
+  row and the run goes on, since the number is free again. **`Detener` stops
+  after the choreography in flight**: ARCA may authorize a request already sent,
+  so nothing cancels it. **A live reservation halts the run** on the existing
+  contingency alert, with its re-check and its abandon in place. Both stops
+  leave the untouched rows `Sin intentar`.
+- **Nothing about the run is persisted, and nothing resumes it.** A choreography
+  already documented owes nothing, so selecting again plans only what is still
+  owed; `Reintentar las que faltan` does that for the rows the run did not emit.
+- **A live reservation blocks the action before it starts**: while one exists at
+  the sales point, `Emitir comprobantes` opens a dialog naming the attempt
+  instead of the plan.
 
 - **Emission is serialised per anchor.** Before it reads anything it plans by,
   an emission takes a Postgres advisory lock keyed on the anchor — the
@@ -1235,11 +1266,6 @@ in that series, today − 10)` — ARCA's 10016 refuses a date earlier than the
   that reason: the block is the application's to state, in Spanish, not the
   database's to resolve by destroying the evidence.
 
-> **Specified, not built.** The rest of ADR-0014 §5, owned by the last slice
-> of [#657](https://github.com/leomontigatti/en-escena/issues/657): **bulk
-> emission** (#1712). The delta as the comprobante status and the 15-day clock
-> are built ("The comprobante status").
->
 > `Nota de crédito C` and `Nota de débito C` are verified against ARCA's
 > homologation environment (#686).
 

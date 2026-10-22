@@ -7,8 +7,10 @@ import {
   emitAnchorComprobante,
   readAnchorEmissionPlan,
   type ComprobanteEmissionDeps,
+  type ComprobanteEmissionOutcome,
   type ConfirmedEmission,
 } from "@/lib/comprobantes/emit-comprobante.server";
+import { formatComprobanteNumber } from "@/lib/comprobantes/format";
 import { readConfiguredPtoVta } from "@/lib/comprobantes/emission-config.server";
 import {
   abandonComprobanteReservation,
@@ -22,6 +24,7 @@ import {
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import type { NotificationKey } from "@/lib/shared/notification-toasts";
 
+import type { BulkEmissionActionData } from "./bulk";
 import {
   emitComprobanteConfirmValue,
   type AnchorInvoicing,
@@ -56,10 +59,65 @@ export type ComprobanteEmissionContext = {
 export async function handleEmitComprobante(
   input: ComprobanteEmissionContext & { formData: FormData },
 ): Promise<ComprobanteEmissionActionData | never> {
+  const emitted = await emitFromForm(input);
+
+  if (!emitted.ok) {
+    return emitted.data;
+  }
+
+  // A recovered emission redirects like any other, so the notice travels by
+  // flash session (docs/agents/form-feedback.md). It deliberately does not look
+  // like the dialog's `recovered`: that way the operator can tell "it recovered
+  // on its own" from "I recovered it myself".
+  throw await redirectToDetail(
+    input.detailUrl,
+    emitted.outcome.recovered ? "comprobante-recovered" : undefined,
+  );
+}
+
+/**
+ * One emission of a bulk run (#617): the same intent, form and emitter as a
+ * detail's, answered in place instead of redirecting, since the run stays on
+ * the list and goes on to the next choreography. The list revalidates after
+ * each one all the same.
+ */
+export async function handleBulkEmitComprobante(
+  input: Omit<ComprobanteEmissionContext, "detailUrl"> & {
+    formData: FormData;
+  },
+): Promise<BulkEmissionActionData> {
+  const emitted = await emitFromForm(input);
+
+  if (!emitted.ok) {
+    return emitted.data;
+  }
+
+  return {
+    status: "emitted",
+    number: formatComprobanteNumber(emitted.outcome.comprobante),
+    recovered: emitted.outcome.recovered,
+  };
+}
+
+// The emission the form confirms, or what the dialog shows instead of it.
+async function emitFromForm(
+  input: Omit<ComprobanteEmissionContext, "detailUrl"> & {
+    formData: FormData;
+  },
+): Promise<
+  | {
+      ok: true;
+      outcome: Extract<ComprobanteEmissionOutcome, { ok: true }>;
+    }
+  | { ok: false; data: ComprobanteEmissionActionData }
+> {
   if (input.formData.get("confirm") !== emitComprobanteConfirmValue) {
     return {
-      status: "error",
-      message: "Confirmá la emisión irreversible para continuar.",
+      ok: false,
+      data: {
+        status: "error",
+        message: "Confirmá la emisión irreversible para continuar.",
+      },
     };
   }
 
@@ -67,8 +125,11 @@ export async function handleEmitComprobante(
 
   if (!confirmed) {
     return {
-      status: "error",
-      message: "No pudimos identificar el comprobante a emitir.",
+      ok: false,
+      data: {
+        status: "error",
+        message: "No pudimos identificar el comprobante a emitir.",
+      },
     };
   }
 
@@ -85,18 +146,9 @@ export async function handleEmitComprobante(
     input.resolveEmissionDeps(),
   );
 
-  if (outcome.ok) {
-    // A recovered emission redirects like any other, so the notice travels by
-    // flash session (docs/agents/form-feedback.md). It deliberately does not look
-    // like the dialog's `recovered`: that way the operator can tell "it recovered
-    // on its own" from "I recovered it myself".
-    throw await redirectToDetail(
-      input.detailUrl,
-      outcome.recovered ? "comprobante-recovered" : undefined,
-    );
-  }
-
-  return toContingencyActionData(outcome);
+  return outcome.ok
+    ? { ok: true, outcome }
+    : { ok: false, data: toContingencyActionData(outcome) };
 }
 
 /**

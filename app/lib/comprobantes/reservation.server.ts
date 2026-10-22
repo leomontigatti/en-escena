@@ -123,6 +123,26 @@ export async function findBlockingReservation(
   return reservation ?? null;
 }
 
+/**
+ * The oldest live reservation at the sales point, in any series: what a bulk
+ * emission meets before it starts (#617). With no sales point configured every
+ * point counts, which is only ever stricter.
+ */
+export async function findLiveReservation(
+  ptoVta: number | null,
+): Promise<ComprobanteReservation | null> {
+  const [reservation] = await db
+    .select()
+    .from(comprobanteReservations)
+    .where(
+      ptoVta === null ? undefined : eq(comprobanteReservations.ptoVta, ptoVta),
+    )
+    .orderBy(comprobanteReservations.createdAt)
+    .limit(1);
+
+  return reservation ?? null;
+}
+
 export async function findReservation(
   attempt: ComprobanteSeries & { cbteNro: number },
 ): Promise<ComprobanteReservation | null> {
