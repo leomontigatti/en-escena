@@ -161,12 +161,13 @@ export const comprobantes = createTable(
   ],
 ).enableRLS();
 
-// Internal lines of a comprobante, one per billed inscription (#323/#326). They
-// are a snapshot: each row holds the amount billed for one inscription at
-// emission time. Roster editing (adding or removing inscriptions) stays allowed
-// even with comprobantes on the choreography (#340), so deleting an inscription
-// nulls the link (`onDelete set null`) without losing the frozen amount; the
-// fiscal figure lives in `imp_total` on the root row, which is immutable.
+// Internal lines of a comprobante, one per billed inscription (#323/#326) at
+// the amount billed for it, net of discounts. They are a snapshot: the fiscal
+// figure lives in `imp_total` on the root row, and the lines of every
+// comprobante sum to it. A line always names its inscription: the roster
+// withdraws an invoiced inscription rather than deleting it (#600), so the
+// references do not act on delete, and a delete that got past the roster is
+// refused instead of leaving a line `FC + ΣND − ΣNC` could no longer place.
 export const comprobanteInscriptions = createTable(
   "comprobante_inscription",
   {
@@ -175,9 +176,7 @@ export const comprobanteInscriptions = createTable(
       .notNull()
       .$defaultFn(() => crypto.randomUUID()),
     comprobanteId: varchar("comprobante_id", { length: 255 }).notNull(),
-    // The billed inscription, of either kind: at most one of the two is set. A
-    // line with both null is a line whose inscription was deleted after
-    // emission, which is the shape the frozen amount survives in.
+    // The billed inscription, of either kind: exactly one of the two is set.
     choreographyInscriptionId: varchar("choreography_inscription_id", {
       length: 255,
     }),
@@ -194,17 +193,14 @@ export const comprobanteInscriptions = createTable(
       columns: [table.choreographyInscriptionId],
       foreignColumns: [choreographyDancers.id],
       name: "comprobante_inscription_choreography_fk",
-    }).onDelete("set null"),
+    }),
     foreignKey({
       columns: [table.seminarInscriptionId],
       foreignColumns: [seminarInscriptions.id],
       name: "comprobante_inscription_seminar_fk",
-    }).onDelete("set null"),
-    // One partial unique index per kind, not a single unique over both columns:
-    // orphaned lines carry null in both, and two of them on the same
-    // comprobante must not collide. Postgres treating NULLs as distinct is what
-    // the choreography index relied on before; keeping each index partial keeps
-    // that true now that a line has two nullable target columns.
+    }),
+    // One partial unique index per kind: each covers only the lines of its
+    // own kind, which are the rows where its column is set.
     uniqueIndex("comprobante_inscription_choreography_unique")
       .on(table.comprobanteId, table.choreographyInscriptionId)
       .where(sql`${table.choreographyInscriptionId} is not null`),
@@ -212,8 +208,8 @@ export const comprobanteInscriptions = createTable(
       .on(table.comprobanteId, table.seminarInscriptionId)
       .where(sql`${table.seminarInscriptionId} is not null`),
     check(
-      "comprobante_inscription_at_most_one_target",
-      sql`num_nonnulls(${table.choreographyInscriptionId}, ${table.seminarInscriptionId}) <= 1`,
+      "comprobante_inscription_exactly_one_target",
+      sql`num_nonnulls(${table.choreographyInscriptionId}, ${table.seminarInscriptionId}) = 1`,
     ),
     index("comprobante_inscription_choreography_idx").on(
       table.choreographyInscriptionId,

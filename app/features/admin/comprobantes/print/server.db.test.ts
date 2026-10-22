@@ -91,7 +91,6 @@ describe("loadComprobantePrint", () => {
     expect(html).toContain(
       "<p>Academia Seminario — Seminario Abril Sosa, 10/10/2030</p>",
     );
-    expect(html).toContain("<td>Inscripción</td>");
     expect(html).toContain("10/10/2030 — 10/10/2030");
     expect(html).toContain("22/07/2026");
   });

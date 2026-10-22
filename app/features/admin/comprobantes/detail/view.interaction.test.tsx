@@ -38,6 +38,15 @@ function comprobanteFixture(
     academyId: "academy_1",
     academyName: "Academia Centro",
     eventName: "En Escena 2026",
+    lines: [
+      {
+        id: "line_1",
+        description: "Inscripción — Ana López",
+        amount: 7000,
+        withdrawn: false,
+      },
+    ],
+    association: { role: "factura", adjustments: [] },
     ...overrides,
   };
 }
@@ -147,6 +156,39 @@ describe("ComprobanteDetailRouteView", () => {
         (item) => item.textContent,
       ),
     ).toEqual(["Ver la coreografía", "Imprimir"]);
+  });
+
+  test("a note names its invoice and links to it", async () => {
+    await mount({
+      comprobante: {
+        cbteTipo: 13,
+        status: null,
+        association: {
+          role: "note",
+          factura: {
+            id: "factura_1",
+            cbteTipo: 11,
+            ptoVta: 1,
+            cbteNro: 40,
+            cbteFch: "20260715",
+            impTotal: 7000,
+          },
+          adjustedDebitNotes: [],
+        },
+      },
+    });
+
+    expect(lockedFieldValue("Comprobante asociado")).toBe(
+      "Factura C 0001-00000040",
+    );
+
+    await openActionsMenu();
+
+    const facturaLink = document.querySelector(
+      'a[href="/administracion/comprobantes/factura_1"]',
+    );
+    expect(facturaLink?.getAttribute("role")).toBe("menuitem");
+    expect(facturaLink?.textContent).toBe("Ver la factura");
   });
 
   test("shows the derived status as the header's badge", async () => {

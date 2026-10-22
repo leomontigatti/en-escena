@@ -21,14 +21,10 @@ import {
 type ComprobanteRow = typeof comprobantes.$inferSelect;
 type ComprobanteInscriptionRow = typeof comprobanteInscriptions.$inferSelect;
 
-// One billed inscription, of either kind. At most one of the two ids is set:
-// both null is the shape a line survives in once its inscription was hard
-// deleted, which is the only reason the frozen amount is on the line at all.
-export type ComprobanteLineInput = {
-  amount: number;
-  choreographyInscriptionId?: string | null;
-  seminarInscriptionId?: string | null;
-};
+// One billed inscription, of either kind: exactly one of the two ids is set.
+export type ComprobanteLineInput =
+  | { amount: number; choreographyInscriptionId: string }
+  | { amount: number; seminarInscriptionId: string };
 
 // An emission snapshot already resolved against ARCA (CAE included). This layer
 // does NOT call ARCA: it only persists the immutable row and its internal lines.
@@ -105,8 +101,12 @@ export async function recordComprobante(
       await tx.insert(comprobanteInscriptions).values(
         input.lines.map((line) => ({
           comprobanteId: comprobante.id,
-          choreographyInscriptionId: line.choreographyInscriptionId ?? null,
-          seminarInscriptionId: line.seminarInscriptionId ?? null,
+          choreographyInscriptionId:
+            "choreographyInscriptionId" in line
+              ? line.choreographyInscriptionId
+              : null,
+          seminarInscriptionId:
+            "seminarInscriptionId" in line ? line.seminarInscriptionId : null,
           amount: line.amount,
         })),
       );
