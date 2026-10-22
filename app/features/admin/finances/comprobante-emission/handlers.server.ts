@@ -93,7 +93,7 @@ export async function handleBulkEmitComprobante(
   }
 
   return {
-    status: "emitted",
+    status: "success",
     number: formatComprobanteNumber(emitted.outcome.comprobante),
     recovered: emitted.outcome.recovered,
   };

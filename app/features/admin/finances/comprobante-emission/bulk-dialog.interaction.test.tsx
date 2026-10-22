@@ -9,6 +9,8 @@ import {
   waitFor,
 } from "@/lib/test-support/react-dom";
 
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
+
 import type { BulkEmission, BulkEmissionActionData } from "./bulk";
 import { BulkEmissionDialog } from "./bulk-dialog";
 
@@ -71,7 +73,9 @@ describe("BulkEmissionDialog", () => {
     };
   }
 
-  async function mount(action: ReturnType<typeof heldAction>["action"]) {
+  async function mount(
+    action: (args: { request: Request }) => Promise<BulkEmissionActionData>,
+  ) {
     const router = createMemoryRouter(
       [
         {
@@ -110,7 +114,7 @@ describe("BulkEmissionDialog", () => {
     await waitFor(() => held.posted.length === 1);
     await clickReactDomButton("Detener");
     await held.answer({
-      status: "emitted",
+      status: "success",
       number: "0001-00000007",
       recovered: false,
     });
@@ -138,7 +142,7 @@ describe("BulkEmissionDialog", () => {
 
     await clickReactDomButton("Emitir", { exact: true });
     await held.answer({
-      status: "emitted",
+      status: "success",
       number: "0001-00000007",
       recovered: false,
     });
@@ -161,5 +165,41 @@ describe("BulkEmissionDialog", () => {
       "b",
     ]);
     expect(rowText("Calma")).toContain("Sin intentar");
+  });
+
+  // Two refusals in a row can be the very same object; each still settles
+  // its own row.
+  test("settles every request, even when two answer with the same object", async () => {
+    const refusal = { status: "error", message: "Ocupada." } as const;
+    const posted: string[] = [];
+    await mount(async ({ request }) => {
+      posted.push(String((await request.formData()).get("choreographyId")));
+      return refusal;
+    });
+
+    await clickReactDomButton("Emitir", { exact: true });
+
+    await waitFor(() => document.body.textContent?.includes("Cerrar") ?? false);
+    expect(posted).toEqual(["a", "b", "c"]);
+    expect(rowText("Calma")).toContain("Ocupada.");
+  });
+
+  // The route's client action turns a throw into one shared generic failure:
+  // nobody knows whether ARCA authorized it, so the run stops there.
+  test("a request that failed unexpectedly stops the run instead of going on", async () => {
+    const posted: string[] = [];
+    await mount(({ request }) =>
+      recoverableClientAction(async () => {
+        posted.push(String((await request.formData()).get("choreographyId")));
+        throw new Error("socket hang up");
+      }),
+    );
+
+    await clickReactDomButton("Emitir", { exact: true });
+
+    await waitFor(() => document.body.textContent?.includes("Cerrar") ?? false);
+    expect(posted).toEqual(["a"]);
+    expect(rowText("Aire")).toContain("No sabemos si se emitió");
+    expect(rowText("Brisa")).toContain("Sin intentar");
   });
 });

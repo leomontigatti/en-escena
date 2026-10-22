@@ -15,7 +15,7 @@ import {
 
 const emitted = (cbteNro: number) =>
   ({
-    status: "emitted",
+    status: "success",
     number: `0001-${String(cbteNro).padStart(8, "0")}`,
     recovered: false,
   }) as const;
@@ -138,6 +138,37 @@ describe("bulk emission run", () => {
     });
     expect(run.rows.c).toMatchObject({ status: "emitted" });
     expect(run.halt).toBeNull();
+  });
+
+  test("a request whose answer never came back stops the run there", () => {
+    let run = beginBulkEmission(threeReady(), "a");
+    run = settleBulkEmission(run, "a", { status: "lost" });
+
+    expect(run.phase).toBe("done");
+    expect(run.rows.a).toMatchObject({ status: "failed" });
+    expect(run.rows.b).toEqual({ status: "untried" });
+  });
+
+  test("re-checking the halting attempt into a recovery marks its row emitted", () => {
+    let run = beginBulkEmission(threeReady(), "a");
+    run = settleBulkEmission(run, "a", {
+      status: "warning",
+      contingency: {
+        status: "unverified",
+        message: "Sin confirmar.",
+        ptoVta: 1,
+        cbteTipo: 11,
+        cbteNro: 8,
+      },
+    });
+    run = updateBulkHalt(run, { status: "recovered" });
+
+    expect(run.rows.a).toEqual({
+      status: "emitted",
+      number: null,
+      recovered: true,
+    });
+    expect(unemittedBulkIds(run)).not.toContain("a");
   });
 
   test("what is left to retry is every planned row that did not emit", () => {

@@ -38,7 +38,7 @@ export const bulkChoreographyIdField = "choreographyId";
 // detail's dialog would have shown.
 export type BulkEmissionActionData =
   | ComprobanteEmissionActionData
-  | { status: "emitted"; number: string; recovered: boolean };
+  | { status: "success"; number: string; recovered: boolean };
 
 /**
  * The run's date bounds over the kinds it emits: the latest floor among their

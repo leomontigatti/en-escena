@@ -22,7 +22,9 @@ export type BulkRowState =
   | { status: "skipped"; reasons: string[] }
   | { status: "pending" }
   | { status: "emitting" }
-  | { status: "emitted"; number: string; recovered: boolean }
+  // `number` is `null` on one recovered by re-checking the attempt that
+  // halted the run: the re-check answers that it is recorded, not its number.
+  | { status: "emitted"; number: string | null; recovered: boolean }
   | { status: "failed"; message: string }
   | { status: "untried" };
 
@@ -70,13 +72,39 @@ export function beginBulkEmission(run: BulkRun, id: string): BulkRun {
   return withRow(run, id, { status: "emitting" });
 }
 
+/**
+ * What one request settled with: the server's answer, or `lost` when none came
+ * back (the connection dropped, the server failed unexpectedly), and then
+ * nobody knows whether ARCA authorized it.
+ */
+export type BulkEmissionAnswer = BulkEmissionActionData | { status: "lost" };
+
 export function settleBulkEmission(
   run: BulkRun,
   id: string,
-  answer: BulkEmissionActionData,
+  answer: BulkEmissionAnswer,
 ): BulkRun {
-  if (answer.status === "emitted") {
-    return settleIfIdle(withRow(run, id, answer));
+  if (answer.status === "success") {
+    return settleIfIdle(
+      withRow(run, id, {
+        status: "emitted",
+        number: answer.number,
+        recovered: answer.recovered,
+      }),
+    );
+  }
+
+  // An unknown outcome stops the run like `Detener`: the next request could
+  // meet this one still at ARCA. Planning again tells whether it emitted.
+  if (answer.status === "lost") {
+    return settleIfIdle({
+      ...withRow(run, id, {
+        status: "failed",
+        message:
+          "No sabemos si se emitió: se cortó la respuesta. Reintentá para ver lo que todavía se debe.",
+      }),
+      phase: run.phase === "done" ? run.phase : "stopping",
+    });
   }
 
   if (answer.status === "error") {
@@ -127,12 +155,27 @@ export function stopBulkRun(run: BulkRun): BulkRun {
     : run;
 }
 
-/** What the re-checking or abandoning of the halting attempt answered. */
+/**
+ * What the re-checking or abandoning of the halting attempt answered. A
+ * recovered one is the halted row's comprobante, recorded after all.
+ */
 export function updateBulkHalt(
   run: BulkRun,
   contingency: ComprobanteContingency,
 ): BulkRun {
-  return run.halt ? { ...run, halt: { ...run.halt, contingency } } : run;
+  if (!run.halt) {
+    return run;
+  }
+
+  const halted = { ...run, halt: { ...run.halt, contingency } };
+
+  return contingency.status === "recovered"
+    ? withRow(halted, run.halt.choreographyId, {
+        status: "emitted",
+        number: null,
+        recovered: true,
+      })
+    : halted;
 }
 
 export function bulkRunProgress(run: BulkRun): {

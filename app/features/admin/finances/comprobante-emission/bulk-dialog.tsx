@@ -3,7 +3,6 @@ import { Check, CircleStop, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { useFetcher } from "react-router";
-import { z } from "zod";
 
 import { BulkRunDialog } from "@/components/shared/bulk-run-dialog";
 import { DateOnlyField } from "@/components/shared/date-only-field";
@@ -25,6 +24,8 @@ import {
 } from "@/lib/comprobantes/kind";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatAmount } from "@/lib/finances/formatters";
+import { isThrownActionResult } from "@/lib/shared/recoverable-client-action";
+import { useServerActionToast } from "@/lib/shared/toasts";
 
 import {
   bulkChoreographyIdField,
@@ -44,9 +45,15 @@ import {
   stopBulkRun,
   unemittedBulkIds,
   updateBulkHalt,
+  type BulkEmissionAnswer,
   type BulkRowState,
   type BulkRun,
 } from "./bulk-run";
+import {
+  emissionCalendarBounds,
+  emissionDateSchema,
+  type EmissionDateValues,
+} from "./emission-date";
 import {
   abandonReservationIntent,
   emitComprobanteConfirmValue,
@@ -92,8 +99,8 @@ export function BulkEmissionDialog({
   const [cbteFch, setCbteFch] = useState("");
   const emission = useBulkEmissionLoop({ cbteFch, run, setRun });
   const selection = planSelection({ bulkEmission, choreographies, ids });
-  const form = useForm<BulkDateValues>({
-    resolver: zodResolver(bulkDateSchema(selection.bounds)),
+  const form = useForm<EmissionDateValues>({
+    resolver: zodResolver(emissionDateSchema(selection.bounds)),
     defaultValues: { cbteFch: bulkEmission.cbteFch.today },
   });
 
@@ -186,7 +193,7 @@ function planDialog({
   selection,
   today,
 }: {
-  form: UseFormReturn<BulkDateValues>;
+  form: UseFormReturn<EmissionDateValues>;
   onStart: (cbteFch: string) => void;
   selection: BulkSelection;
   today: string;
@@ -217,18 +224,19 @@ function planDialog({
         />
         {ready.length > 0 ? <PlanTotals ready={ready} /> : null}
         {bounds ? (
-          <DateOnlyField
-            calendarBounds={{
-              defaultMonth: parseDateOnly(today),
-              startMonth: parseDateOnly(bounds.floor),
-              endMonth: parseDateOnly(bounds.max),
-              earliestSelectableDate: parseDateOnly(bounds.floor),
-              latestSelectableDate: parseDateOnly(bounds.max),
-            }}
-            control={form.control}
-            label="Fecha de los comprobantes"
-            name="cbteFch"
-          />
+          <div className="flex flex-col gap-2">
+            <DateOnlyField
+              calendarBounds={emissionCalendarBounds(today, bounds)}
+              control={form.control}
+              label="Fecha de los comprobantes"
+              name="cbteFch"
+            />
+            {/* The floor is said, not only enforced by the calendar: one
+                series' last date can hold back the whole run. */}
+            <p className="text-sm text-muted-foreground">
+              No puede ser anterior al {bounds.description}.
+            </p>
+          </div>
         ) : null}
       </>
     ),
@@ -268,7 +276,12 @@ function progressDialog({
       <StopButton stopping={run.phase === "stopping"} onStop={onStop} />
     ),
     cancelLabel: done ? "Cerrar" : null,
-    description: `${settled} de ${total}. ${describeProgress({ done, held, left })}`,
+    description: `${settled} de ${total}. ${describeProgress({
+      done,
+      held,
+      left,
+      remaining: total - settled,
+    })}`,
     title: describeProgressTitle(run, held),
     children: (
       <>
@@ -343,46 +356,57 @@ function useBulkEmissionLoop({
 }) {
   const fetcher = useFetcher<BulkEmissionActionData>();
   const resolver = useFetcher<BulkEmissionActionData>();
-  // The answer already settled, so a revalidation that leaves the fetcher
-  // idle with the same data does not settle the next row with it.
-  const settled = useRef<BulkEmissionActionData | undefined>(undefined);
-  const inFlight = run?.ids.find((id) => run.rows[id].status === "emitting");
+  // The request in flight, and whether its submit has finished: a row is
+  // settled by the request it sent, never by comparing answers, since two
+  // requests may answer with the very same object (the generic failure).
+  const request = useRef<{ id: string; finished: boolean } | null>(null);
+  const [finishedRequests, setFinishedRequests] = useState(0);
   const next = run ? nextBulkEmission(run) : null;
   const nextPlan = next ? run?.plans[next] : undefined;
 
   useEffect(() => {
-    const answer = fetcher.data;
+    const sent = request.current;
 
-    if (
-      fetcher.state === "idle" &&
-      inFlight &&
-      answer &&
-      answer !== settled.current
-    ) {
-      settled.current = answer;
-      setRun(
-        (current) => current && settleBulkEmission(current, inFlight, answer),
-      );
-    }
-  }, [fetcher.state, fetcher.data, inFlight, setRun]);
-
-  useEffect(() => {
-    if (fetcher.state !== "idle" || !next || nextPlan?.status !== "ready") {
+    if (!sent?.finished || fetcher.state !== "idle") {
       return;
     }
 
-    setRun((current) => current && beginBulkEmission(current, next));
-    void fetcher.submit(
-      {
-        intent: emitComprobanteIntent,
-        confirm: emitComprobanteConfirmValue,
-        [bulkChoreographyIdField]: next,
-        kind: nextPlan.kind,
-        amount: String(nextPlan.amount),
-        cbteFch,
-      },
-      { method: "post" },
+    request.current = null;
+    const answer = toBulkAnswer(fetcher.data);
+    setRun(
+      (current) => current && settleBulkEmission(current, sent.id, answer),
     );
+  }, [fetcher.state, fetcher.data, finishedRequests, setRun]);
+
+  useEffect(() => {
+    if (
+      request.current ||
+      fetcher.state !== "idle" ||
+      !next ||
+      nextPlan?.status !== "ready"
+    ) {
+      return;
+    }
+
+    const sent = { id: next, finished: false };
+    request.current = sent;
+    setRun((current) => current && beginBulkEmission(current, next));
+    void fetcher
+      .submit(
+        {
+          intent: emitComprobanteIntent,
+          confirm: emitComprobanteConfirmValue,
+          [bulkChoreographyIdField]: next,
+          kind: nextPlan.kind,
+          amount: String(nextPlan.amount),
+          cbteFch,
+        },
+        { method: "post" },
+      )
+      .finally(() => {
+        sent.finished = true;
+        setFinishedRequests((count) => count + 1);
+      });
   }, [cbteFch, fetcher, next, nextPlan, setRun]);
 
   useEffect(() => {
@@ -394,6 +418,15 @@ function useBulkEmissionLoop({
       );
     }
   }, [resolver.state, resolver.data, setRun]);
+
+  // A re-check or an abandon refused says why, like the detail's dialog: the
+  // halt keeps its last contingency, and the operator can try again.
+  useServerActionToast(
+    resolver.state === "idle" && resolver.data?.status === "error"
+      ? resolver.data
+      : null,
+    { toastId: "bulk-emission:error" },
+  );
 
   return {
     isResolving: resolver.state !== "idle",
@@ -412,9 +445,10 @@ function describeProgress(state: {
   done: boolean;
   held: boolean;
   left: boolean;
+  remaining: number;
 }): string {
   if (!state.done) {
-    return "No cierres esta pestaña mientras se emiten.";
+    return `${describeBulkDuration(state.remaining)} No cierres esta pestaña mientras se emiten.`;
   }
 
   if (state.held) {
@@ -427,6 +461,17 @@ function describeProgress(state: {
 }
 
 type BulkEmissionLoop = ReturnType<typeof useBulkEmissionLoop>;
+
+// A request that came back with no answer of its own — the generic failure
+// the route's client action turns a throw into, or none at all — left its
+// outcome at ARCA unknown.
+function toBulkAnswer(
+  data: BulkEmissionActionData | undefined,
+): BulkEmissionAnswer {
+  return data === undefined || isThrownActionResult(data)
+    ? { status: "lost" }
+    : data;
+}
 
 function describePlan(count: number): string {
   if (count === 0) {
@@ -511,7 +556,9 @@ function BulkRowStatus({ state }: { state: BulkRowState | undefined }) {
         <div className="flex flex-col items-start gap-1">
           <Badge variant="success">Emitida</Badge>
           <span className="text-xs text-muted-foreground tabular-nums">
-            N° {state.number}
+            {state.number === null
+              ? "Recuperada de ARCA"
+              : `N° ${state.number}`}
           </span>
         </div>
       );
@@ -590,29 +637,4 @@ function toPlannedState(plan: BulkEmissionPlan): BulkRowState {
   return plan.status === "ready"
     ? { status: "pending" }
     : { status: "skipped", reasons: plan.reasons };
-}
-
-type BulkDateValues = z.input<ReturnType<typeof bulkDateSchema>>;
-
-// The bounds every emission of the run is checked against again, so a date
-// one of them would refuse is caught before the run starts.
-function bulkDateSchema(bounds: ReturnType<typeof resolveBulkCbteFchBounds>) {
-  return z.object({
-    cbteFch: z
-      .string()
-      .min(1, "Este campo es obligatorio.")
-      .refine((value) => !bounds || value <= bounds.max, {
-        message: "La fecha no puede ser posterior a hoy.",
-      })
-      .refine((value) => !bounds || value >= bounds.floor, {
-        message: `La fecha no puede ser anterior al ${bounds?.description ?? ""}.`,
-      }),
-  });
-}
-
-// A business date `AAAA-MM-DD` as the calendar's local midnight.
-function parseDateOnly(value: string): Date {
-  const [year, month, day] = value.split("-").map(Number);
-
-  return new Date(year, month - 1, day);
 }

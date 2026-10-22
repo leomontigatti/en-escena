@@ -1117,35 +1117,27 @@ dialog saying why, in the words the server refuses with.
 
 **Bulk emission** (#617) is the academy finance list's `Emitir comprobantes`,
 over the `Coreografías` tab's selection; seminar units emit from their own
-detail only. It is not a batch: the browser sends N single emissions, one per
-choreography and one after the other, each the detail's `emit-comprobante`
-request posted to the list, which answers the number in place instead of
-redirecting. Each emits whatever its choreography owes — invoice, debit or
-credit note — under the same lock and checks.
+detail only. It is not a batch: the browser sends one emission per choreography,
+one after the other, each the detail's own request and checks, so each emits
+whatever its choreography owes. There is no server-side job because ARCA's
+numbering is sequential anyway and no request then nears the proxy's timeout;
+the cost accepted is that closing the tab stops the run.
 
-- **The confirmation is a plan.** Every selected choreography is listed with the
-  document and amount it would emit, read off the emitter's own plan, or as
-  `Salteada` with the reasons it would be refused; the totals billed and
-  credited apart; how long it may take (10 to 20 seconds each, up to a minute
-  when ARCA is slow); and that closing the tab cuts it. There is no cap. Each
+- **The confirmation is a plan, not a commitment.** It is read off the
+  emitter's own plan and names every choreography left out and why; each
   emission plans again under its lock, so a plan that moved costs that row a
-  refusal, never a document.
-- **One date for the run**, today by default, bounded by the latest floor among
-  the series the plan emits in; every emission checks it again against its own.
-- **The plan becomes the progress**: a `k de N` counter, each row `Pendiente`,
-  `Emitiendo`, `Emitida` with its number, `Falló` with the reason, or
-  `Sin intentar`. A rejection or an attempt that never reached ARCA fails its
-  row and the run goes on, since the number is free again. **`Detener` stops
-  after the choreography in flight**: ARCA may authorize a request already sent,
-  so nothing cancels it. **A live reservation halts the run** on the existing
-  contingency alert, with its re-check and its abandon in place. Both stops
-  leave the untouched rows `Sin intentar`.
-- **Nothing about the run is persisted, and nothing resumes it.** A choreography
-  already documented owes nothing, so selecting again plans only what is still
-  owed; `Reintentar las que faltan` does that for the rows the run did not emit.
-- **A live reservation blocks the action before it starts**: while one exists at
-  the sales point, `Emitir comprobantes` opens a dialog naming the attempt
-  instead of the plan.
+  refusal, never a document. There is no cap: the time a run may take is stated
+  instead.
+- **One date for the run**, bounded by the latest floor among the series the
+  plan emits in; every emission checks it again against its own.
+- **Nothing cancels an emission already sent**, since ARCA may authorize it
+  anyway (ADR-0012): stopping waits for the one in flight. A rejection frees its
+  number and the run goes on; a live reservation, or a request whose outcome
+  never came back, stops it, and the reservation is resolved in place.
+- **Nothing about a run is persisted, and nothing resumes it.** A choreography
+  already documented owes nothing, so planning again is resuming.
+- **A live reservation blocks the action before it starts**, naming the attempt,
+  so another admin reads the block instead of meeting it mid-run.
 
 - **Emission is serialised per anchor.** Before it reads anything it plans by,
   an emission takes a Postgres advisory lock keyed on the anchor — the

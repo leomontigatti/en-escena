@@ -252,7 +252,7 @@ describe("academy finance list — emitting one choreography of the run", () => 
     });
 
     expect(result).toEqual({
-      status: "emitted",
+      status: "success",
       number: "0001-00000007",
       recovered: false,
     });
