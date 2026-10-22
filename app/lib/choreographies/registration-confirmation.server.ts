@@ -18,6 +18,7 @@ import { matchesToWarnAbout } from "@/lib/shared/duplicate-warning";
 import { normalizedTextEquals } from "@/lib/shared/text-normalization.server";
 import { validateChoreographyName } from "@/lib/choreographies/choreography-name";
 import {
+  eventNotReadyMessage,
   resolveChoreographyRegistrationOperation,
   type ChoreographyRegistrationOperationFailureCode,
   type ChoreographyRegistrationOperationInput,
@@ -40,6 +41,8 @@ import {
   type ExperienceLevel,
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
+import { lockEventPrices } from "@/lib/prices/price-list-lock.server";
+import { coversGroupType } from "@/lib/prices/repository.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -176,6 +179,20 @@ export async function createChoreographyRegistration(
 
   try {
     choreography = await db.transaction(async (tx) => {
+      // First, before the schedule lock (`lockEventPrices`). Readiness was
+      // read before the transaction, so the one part of it a price edit can
+      // take away while this registration is in flight is asked again here.
+      await lockEventPrices(tx, input.eventId);
+
+      if (
+        !(await coversGroupType(tx, {
+          eventId: input.eventId,
+          groupType: operation.resolution.groupType,
+        }))
+      ) {
+        throw createFailure("event-not-ready", eventNotReadyMessage);
+      }
+
       const scheduleLock = await lockScheduleCapacityForAssignment({
         tx,
         scheduleId: scheduleSelection.value.scheduleId,

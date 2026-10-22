@@ -20,7 +20,9 @@ import { allocateToInscription } from "@/lib/finances/inscription-allocation.ser
 import {
   frozenPriceDeleteError,
   frozenSpecialPriceUpdateError,
+  uncoveredPriceDeleteError,
 } from "@/lib/prices/guards";
+import { lockEventPrices } from "@/lib/prices/price-list-lock.server";
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { deletePrice, updatePrice } from "@/lib/prices/repository.server";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
@@ -179,6 +181,62 @@ describe.skipIf(isPgliteTestBackend())(
         });
         await expectNothingStored(fixture);
       });
+    });
+  },
+);
+
+/**
+ * Deleting a group type's general row with no deadline refuses while the group
+ * type has an active inscription, a fact a registration or a draft save can be
+ * committing while the deletion runs. They take the event's price list shared
+ * and the deletion takes it exclusive, so a deletion queued behind one sees the
+ * inscription it made active. The registration's side is
+ * `registration-confirmation.server.db.test.ts`; Postgres only, as above.
+ */
+describe.skipIf(isPgliteTestBackend())(
+  "price deletions against a write that makes an inscription active",
+  () => {
+    test("refuses removing the general row the new inscription needs", async () => {
+      const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+      // A choreography with no dancer yet: no active solo inscription until
+      // the holder adds one.
+      const { academy, choreography } =
+        await createAcademyFinanceChoreographyFixture({
+          academyName: "Academia Carrera",
+          email: `carrera.${crypto.randomUUID()}@example.com`,
+          choreographyName: "Aire",
+          event,
+        });
+      const dancer = await createDancer(academy.academy.id);
+      const [tail] = await insertTestPrices([
+        {
+          eventId: event.id,
+          name: "Precio Solo",
+          groupType: "solo",
+          amount: 12000,
+          paymentDeadline: null,
+        },
+      ]);
+
+      const removal = await runBehindAHolder({
+        waitingOn: "choreography price list lock",
+        hold: (tx) => lockEventPrices(tx, event.id),
+        contender: () => deletePrice(tail.id),
+        // What the registration inserts under the lock.
+        beforeCommit: (tx) =>
+          tx.insert(choreographyDancers).values({
+            ageAtEventStart: 14,
+            choreographyId: choreography.id,
+            dancerId: dancer.id,
+          }),
+      });
+
+      expect(removal).toEqual({
+        ok: false,
+        code: "event-bases-has-dependencies",
+        error: uncoveredPriceDeleteError,
+      });
+      await expect(readPriceAmount(tail.id)).resolves.toBe(12000);
     });
   },
 );

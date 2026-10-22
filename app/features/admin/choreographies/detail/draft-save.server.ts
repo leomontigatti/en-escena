@@ -35,6 +35,7 @@ import {
   type ExperienceLevel,
 } from "@/lib/events/experience-levels";
 import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
+import { lockEventPrices } from "@/lib/prices/price-list-lock.server";
 
 import type { ChoreographyDetail } from "./choreography-queries.server";
 import {
@@ -100,6 +101,12 @@ export async function saveChoreographyDraft(input: {
   }
 
   const result = await db.transaction(async (tx) => {
+    // First, holding nothing yet (`lockEventPrices`): the save can make an
+    // inscription of a group type active, which a price edit asks before
+    // uncovering the group type, so an edit in flight is waited for and one
+    // that comes second sees the inscription.
+    await lockEventPrices(tx, input.eventId);
+
     // A re-synced roster may delete an inscription a comprobante emission is
     // about to bill (an unpaid one, on a debit note): it waits for the
     // emission and then finds its line, so it withdraws instead. Taken before
