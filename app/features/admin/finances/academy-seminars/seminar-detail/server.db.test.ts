@@ -130,7 +130,7 @@ describe("what a `(seminar, academy)` unit's documents leave pending", () => {
     });
   }
 
-  test("a person registered after invoicing reads `Sin facturar`, and the unit `Pendiente de facturar` on the list and the detail", async () => {
+  test("a person registered after invoicing leaves a debit pending that names them, on the detail and the list", async () => {
     const fixture = await seedEventSeminarFinanceFixture();
     await recordSeminarInvoice({
       academyId: fixture.northAcademyId,
@@ -154,28 +154,26 @@ describe("what a `(seminar, academy)` unit's documents leave pending", () => {
     };
 
     const detail = await loadDetail(unit);
-    const list = await loadList(unit);
 
-    expect(detail.seminar?.anomalies).toEqual(["pendingDebitNote"]);
+    expect(detail.seminar?.anomalies).toEqual([]);
     expect(detail.billing).toMatchObject({
       anomaly: "pendingDebitNote",
       amount: 20000,
     });
+    expect(detail.billing?.uninvoicedInscriptionIds).toEqual([added.id]);
+    const list = await loadList(unit);
     expect(
-      detail.inscriptions
-        .filter((inscription) => inscription.uninvoiced)
-        .map((inscription) => inscription.inscriptionId),
-    ).toEqual([added.id]);
+      list.seminarFinanceRows.find((row) => row.id === fixture.abrilSeminarId)
+        ?.billingStatus,
+    ).toBe("pendingDebitNote");
+    // A unit never invoiced reads no comprobante status at all.
     expect(
-      list.seminarFinanceRows.find((row) => row.id === fixture.abrilSeminarId),
-    ).toMatchObject({ anomalies: ["pendingDebitNote"], creditClockDays: null });
-    // A unit never invoiced reads nothing.
-    expect(
-      list.seminarFinanceRows.find((row) => row.id === fixture.brunoSeminarId),
-    ).toMatchObject({ anomalies: [], creditClockDays: null });
+      list.seminarFinanceRows.find((row) => row.id === fixture.brunoSeminarId)
+        ?.billingStatus,
+    ).toBeNull();
   });
 
-  test("a withdrawal after invoicing reads `Pendiente de acreditar` with its day count on the list and the detail", async () => {
+  test("a withdrawal after invoicing leaves a credit pending with its day count, on the detail and the list", async () => {
     const fixture = await seedEventSeminarFinanceFixture();
     await recordSeminarInvoice({
       academyId: fixture.northAcademyId,
@@ -196,7 +194,6 @@ describe("what a `(seminar, academy)` unit's documents leave pending", () => {
     };
 
     const detail = await loadDetail(unit);
-    const list = await loadList(unit);
 
     expect(detail.billing).toMatchObject({
       anomaly: "pendingCreditNote",
@@ -204,10 +201,9 @@ describe("what a `(seminar, academy)` unit's documents leave pending", () => {
       creditClockDays: 2,
     });
     expect(
-      list.seminarFinanceRows.find((row) => row.id === fixture.brunoSeminarId),
-    ).toMatchObject({
-      anomalies: ["pendingCreditNote"],
-      creditClockDays: 2,
-    });
+      (await loadList(unit)).seminarFinanceRows.find(
+        (row) => row.id === fixture.brunoSeminarId,
+      )?.billingStatus,
+    ).toBe("pendingCreditNote");
   });
 });

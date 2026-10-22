@@ -1,4 +1,3 @@
-import type { AnchorBillingAnomaly } from "@/lib/finances/inscription-financial-status";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 import {
@@ -13,9 +12,14 @@ import {
 // document cannot disagree about what is owed.
 //
 // Its sign names the anomaly the way it names the document: a positive delta
-// is `Pendiente de facturar` (a debit note is owed), a negative one
-// `Pendiente de acreditar` (a credit note is owed). Like every anomaly it is a
-// comparison of current state, persisted nowhere: emitting the note clears it.
+// is `ND pendiente` (a debit note is owed), a negative one `NC pendiente` (a
+// credit note is owed). Like every anomaly it is a comparison of current
+// state, persisted nowhere: emitting the note clears it. It is the billing
+// axis, beside the payment one and never in its place: a unit can be `Pagada`
+// and still owe a note.
+
+/** The note an invoiced unit's documents owe, named by the delta's sign. */
+export type AnchorBillingAnomaly = "pendingDebitNote" | "pendingCreditNote";
 
 /** An inscription as the delta counts it, and when it left the roster. */
 export type BilledInscription = OwedInscription & {
@@ -34,10 +38,11 @@ export type AnchorBilling = {
   // drives it: a delta from any other cause has no date the system persists
   // (ADR-0009), so it carries none rather than a made-up one.
   creditClockDays: number | null;
-  // The rows the invoiced unit has not documented yet (`Sin facturar`): the
-  // `Facturada` axis renders by its absence, since one invoice covers the
-  // whole roster.
+  // The rows the invoiced unit has not documented yet: the next note names
+  // them, so they read the note the unit owes.
   uninvoicedInscriptionIds: string[];
+  // The rows some document of the unit names (`Facturada`).
+  documentedInscriptionIds: string[];
 };
 
 /**
@@ -79,9 +84,10 @@ export function deriveAnchorBilling(input: {
             input.today,
           )
         : null,
+    documentedInscriptionIds: [...documentedByInscription.keys()],
     // Only rows a next note will name: one that owes nothing gets no line, and
     // while the delta is zero no note is emitted at all — a row added that
-    // nets exactly against a withdrawal would read `Sin facturar` forever. An
+    // nets exactly against a withdrawal would wait for a note forever. An
     // unpriced row is kept, since its note follows once it has a price.
     uninvoicedInscriptionIds:
       delta === 0
@@ -132,9 +138,48 @@ function toUtcDay(dateOnly: string): number {
   return Date.UTC(year, month - 1, day);
 }
 
-/** The clock as the surfaces read it, `Día N de 15`. */
-export function formatCreditClock(days: number): string {
-  return `Día ${days} de ${CREDIT_NOTE_DEADLINE_DAYS}`;
+/**
+ * An invoiced unit's comprobante status, and its inscriptions', the second
+ * badge of their `Estado`
+ * beside the payment one: its documents add up (`Facturada`), or the note they
+ * owe. `null` before its invoice: the badge appears once something has been
+ * issued. An unpriced unit's delta is unknown and reads `Facturada`: nothing
+ * can be emitted for it until it has a price.
+ */
+export type BillingStatus = "invoiced" | AnchorBillingAnomaly;
+
+export function deriveUnitBillingStatus(
+  billing: AnchorBilling | null | undefined,
+): BillingStatus | null {
+  if (!billing) {
+    return null;
+  }
+
+  return billing.anomaly ?? "invoiced";
+}
+
+/**
+ * An inscription's comprobante status, on an invoiced unit only: some document
+ * names it (`Facturada`), or the unit's next note will — the row reads the
+ * note it is waiting for, as its unit does. `null` when neither holds: the
+ * unit is not invoiced yet, the row owes nothing and no document will ever
+ * name it, or the unit is unpriced and no note can be emitted until it is.
+ */
+export function deriveInscriptionBillingStatus(
+  billing: AnchorBilling | null,
+  inscriptionId: string | null,
+): BillingStatus | null {
+  if (!billing || inscriptionId === null) {
+    return null;
+  }
+
+  if (billing.documentedInscriptionIds.includes(inscriptionId)) {
+    return "invoiced";
+  }
+
+  return billing.uninvoicedInscriptionIds.includes(inscriptionId)
+    ? billing.anomaly
+    : null;
 }
 
 // RG 4540 art. 3: the note is due within fifteen calendar days of the event.

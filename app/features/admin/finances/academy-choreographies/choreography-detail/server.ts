@@ -9,10 +9,8 @@ import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
-import {
-  readAcademyAnchorBilling,
-  withAnchorBilling,
-} from "@/lib/comprobantes/anchor-billing.server";
+import { deriveInscriptionBillingStatus } from "@/lib/comprobantes/anchor-billing";
+import { readAnchorBilling } from "@/lib/comprobantes/anchor-billing.server";
 import { type ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
 import { getComprobanteEmissionDeps } from "@/lib/comprobantes/emission-config.server";
 import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
@@ -106,7 +104,7 @@ export async function loadChoreographyFinanceDetail(input: {
     priceOptions,
     invoicing,
     comprobantes,
-    anchorBilling,
+    billing,
   ] = await Promise.all([
     readChoreographyInscriptionRows({
       academyEventInscriptions: financeDetail.inscriptions,
@@ -119,16 +117,15 @@ export async function loadChoreographyFinanceDetail(input: {
       eventId,
     }),
     readAnchorComprobantes(choreographyAnchor(choreographyId)),
-    readAcademyAnchorBilling({
+    readAnchorBilling({
       academyId,
-      eventId,
       anchor: choreographyAnchor(choreographyId),
-      choreographyInscriptions: financeDetail.inscriptions,
-      seminarInscriptions: [],
+      eventId,
+      inscriptions: financeDetail.inscriptions.filter(
+        (inscription) => inscription.choreographyId === choreographyId,
+      ),
     }),
   ]);
-  const billing = anchorBilling.choreographies.get(choreographyId) ?? null;
-  const uninvoiced = new Set(billing?.uninvoicedInscriptionIds);
   // One price travels with the row: the **effective** one, what the inscription
   // is charged at. It is the figure the dialog reads out, the row the picker
   // opens on and the same one `basePriceAmount` carries, so nothing on this
@@ -137,9 +134,10 @@ export async function loadChoreographyFinanceDetail(input: {
   // longer travels to the client.
   const inscriptions = inscriptionRows.map((inscription) => ({
     ...inscription,
-    uninvoiced:
-      inscription.inscriptionId !== null &&
-      uninvoiced.has(inscription.inscriptionId),
+    billingStatus: deriveInscriptionBillingStatus(
+      billing,
+      inscription.inscriptionId,
+    ),
     effectivePrice:
       inscription.inscriptionId === null
         ? null
@@ -159,8 +157,7 @@ export async function loadChoreographyFinanceDetail(input: {
     comprobantes,
     choreography: {
       allocatedAmount: choreographyFinanceRow.allocatedAmount,
-      anomalies: withAnchorBilling(choreographyFinanceRow, billing ?? undefined)
-        .anomalies,
+      anomalies: choreographyFinanceRow.anomalies,
       choreographyNumber: choreographyFinanceRow.choreographyNumber,
       depositAmount: choreographyFinanceRow.depositAmount,
       financialStatus: choreographyFinanceRow.financialStatus,

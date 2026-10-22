@@ -281,10 +281,8 @@ describe("ChoreographyFinanceDetailView", () => {
           documentedAmount: 10000,
           owedAmount: 3000,
           uninvoicedInscriptionIds: [],
+          documentedInscriptionIds: [],
         },
-        choreography: choreographyFixture({
-          anomalies: ["pendingCreditNote"],
-        }),
       }),
     );
 
@@ -295,11 +293,11 @@ describe("ChoreographyFinanceDetailView", () => {
       "Lo facturado suma $ 10.000 y hoy corresponden $ 3.000: la nota de crédito es por $ 7.000.",
     );
     expect(alert.textContent).toContain(
-      "Pasaron 4 de los 15 días corridos desde la baja más antigua.",
+      "De una baja solo se factura la seña que retiene. Pasaron 4 de los 15 días corridos desde la baja más antigua.",
     );
   });
 
-  test("alerts that a debit note is owed with no clock, and badges the rows it is for `Sin facturar`", () => {
+  test("alerts that a debit note is owed with no clock, naming the dancers no comprobante includes yet and badging their comprobante status", () => {
     const markup = renderDetail({
       billing: {
         anomaly: "pendingDebitNote",
@@ -308,15 +306,18 @@ describe("ChoreographyFinanceDetailView", () => {
         documentedAmount: 10000,
         owedAmount: 20000,
         uninvoicedInscriptionIds: ["inscription_2"],
+        documentedInscriptionIds: ["inscription_1"],
       },
-      choreography: choreographyFixture({ anomalies: ["pendingDebitNote"] }),
       inscriptions: [
-        inscriptionFixture({ financialStatus: "depositMet" }),
         inscriptionFixture({
+          billingStatus: "invoiced",
+          financialStatus: "depositMet",
+        }),
+        inscriptionFixture({
+          billingStatus: "pendingDebitNote",
           financialStatus: "depositPending",
           firstName: "Bruno",
           inscriptionId: "inscription_2",
-          uninvoiced: true,
         }),
       ],
     });
@@ -325,9 +326,14 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(alert.querySelector('[data-slot="alert-title"]')?.textContent).toBe(
       "Falta emitir una nota de débito",
     );
-    expect(alert.textContent).toContain("la nota de débito es por $ 10.000.");
+    expect(alert.textContent).toContain(
+      "la nota de débito es por $ 10.000. Incluye a Bruno López, que todavía no figura en ningún comprobante.",
+    );
     expect(alert.textContent).not.toContain("días corridos");
-    expect(inscriptionStatusTexts(markup)).toEqual(["Señada", "Sin facturar"]);
+    expect(inscriptionStatusTexts(markup)).toEqual([
+      "SeñadaFacturada",
+      "Seña pendienteND pendiente",
+    ]);
   });
 
   test("warns when the deposit has no configured price", () => {
@@ -359,6 +365,11 @@ function pendingDocumentAlert(markup: string) {
 }
 
 /** The `Estado` badge of every inscription row, read by its header. */
+/**
+ * Maps each amount column of the inscription row to its decoration. It anchors on
+ * the column's header, not on its position, so the test talks about
+ * "Saldo adeudado" and not about "cell 5".
+ */
 function inscriptionStatusTexts(markup: string) {
   const table = inscriptionsTable(markup);
   const headers = [...(table?.querySelectorAll("thead th") ?? [])].map(
@@ -371,11 +382,6 @@ function inscriptionStatusTexts(markup: string) {
   );
 }
 
-/**
- * Maps each amount column of the inscription row to its decoration. It anchors on
- * the column's header, not on its position, so the test talks about
- * "Saldo adeudado" and not about "cell 5".
- */
 function inscriptionsTable(markup: string) {
   const document = new DOMParser().parseFromString(markup, "text/html");
 
@@ -537,6 +543,7 @@ function inscriptionFixture(
     allocatedAmount: 3000,
     anomalies: [],
     basePriceAmount: 10000,
+    billingStatus: null,
     dancerDiscountAmount: 0,
     dancerId: "dancer_1",
     depositAmount: 3000,
@@ -554,7 +561,6 @@ function inscriptionFixture(
     owedBalanceAmount: 7000,
     owedDepositAmount: 0,
     totalAmount: 10000,
-    uninvoiced: false,
     withdrawn: false,
     ...overrides,
   };

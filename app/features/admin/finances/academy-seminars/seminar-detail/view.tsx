@@ -15,9 +15,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FinancialDetailTabs } from "@/features/admin/finances/anchor-comprobantes/tabs";
-import { PendingDocumentAlert } from "@/features/admin/finances/comprobante-emission/pending-document-alert";
 import { EmissionBlockedDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
+import {
+  BillingStatusBadge,
+  billingFacet,
+} from "@/components/shared/billing-status-badge";
+import { deriveUnitBillingStatus } from "@/lib/comprobantes/anchor-billing";
+import { PendingDocumentAlert } from "@/features/admin/finances/comprobante-emission/pending-document-alert";
 import {
   formatEmitActionLabel,
   type AnchorInvoicing,
@@ -28,7 +33,7 @@ import { formatDate } from "@/features/admin/schedules/view-shared";
 import { formatDancerName } from "@/lib/finances/formatters";
 import {
   inscriptionFinanceColumns,
-  adminSeminarInscriptionFinanceFacetedFilters,
+  seminarInscriptionFinanceFacetedFilters,
 } from "@/lib/finances/inscription-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 
@@ -64,6 +69,14 @@ export function SeminarFinanceDetailView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title={seminar ? seminar.instructorName : "Seminario no encontrado"}
+      // The unit's comprobante status, as the academy's list draws it.
+      titleBadge={
+        seminar ? (
+          <BillingStatusBadge
+            status={deriveUnitBillingStatus(loaderData.billing)}
+          />
+        ) : undefined
+      }
       description={
         seminar
           ? `Revisá y/o modificá las asignaciones de cada inscripción del seminario del ${formatDate(seminar.scheduledDate)}.`
@@ -184,7 +197,10 @@ function SeminarAlerts({ loaderData }: SeminarFinanceDetailViewProps) {
   return (
     <AlertStack>
       {loaderData.billing?.anomaly ? (
-        <PendingDocumentAlert billing={loaderData.billing} />
+        <PendingDocumentAlert
+          billing={loaderData.billing}
+          inscriptions={loaderData.inscriptions}
+        />
       ) : null}
       {overAllocated ? (
         <Alert variant="destructive">
@@ -260,7 +276,7 @@ function InscriptionsTable({
       <ClientDataTable
         rows={inscriptions}
         columns={columns}
-        facetedFilters={adminSeminarInscriptionFinanceFacetedFilters}
+        facetedFilters={inscriptionFacetedFilters}
         getRowKey={(inscription) => inscription.inscriptionId}
         searchPlaceholder="Buscar por nombre"
         textFilterColumnId="person"
@@ -308,3 +324,10 @@ function buildInscriptionColumns(
     ...inscriptionFinanceColumns,
   ];
 }
+
+// The administration's detail also filters by the comprobante status, which
+// the academy is never shown (ADR-0014 §10).
+const inscriptionFacetedFilters = [
+  ...seminarInscriptionFinanceFacetedFilters,
+  billingFacet,
+];

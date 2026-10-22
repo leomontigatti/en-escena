@@ -910,7 +910,7 @@ describe("financial detail — what the documents leave pending", () => {
     expect((redirect as Response).status).toBe(302);
   }
 
-  test("a dancer added after invoicing reads `Sin facturar` under a pending debit, and the debit note clears both", async () => {
+  test("a dancer added after invoicing leaves a debit pending that names them, and the debit note clears it", async () => {
     const seeded = await seedChoreographyWithPaidInscription({
       academyName: "Academia Suma",
       choreographyName: "Coreografía suma",
@@ -941,26 +941,22 @@ describe("financial detail — what the documents leave pending", () => {
     const session = await signIn(seeded);
     const pending = await session.load();
 
-    expect(pending.choreography?.anomalies).toEqual(["pendingDebitNote"]);
+    // The billing axis, never mixed into the payment one.
+    expect(pending.choreography?.anomalies).toEqual([]);
     expect(pending.billing).toMatchObject({
       anomaly: "pendingDebitNote",
       amount: 10000,
       creditClockDays: null,
     });
-    expect(
-      pending.inscriptions
-        .filter((inscription) => inscription.uninvoiced)
-        .map((inscription) => inscription.inscriptionId),
-    ).toEqual([added.id]);
+    expect(pending.billing?.uninvoicedInscriptionIds).toEqual([added.id]);
 
     await session.emit({ kind: "nota_debito_c", amount: 10000 });
     const settled = await session.load();
 
-    expect(settled.choreography?.anomalies).toEqual([]);
-    expect(settled.billing).toMatchObject({ anomaly: null });
-    expect(
-      settled.inscriptions.some((inscription) => inscription.uninvoiced),
-    ).toBe(false);
+    expect(settled.billing).toMatchObject({
+      anomaly: null,
+      uninvoicedInscriptionIds: [],
+    });
   });
 
   test("a withdrawal after invoicing leaves a pending credit counting days, and the credit note clears it", async () => {
@@ -986,14 +982,13 @@ describe("financial detail — what the documents leave pending", () => {
     const pending = await session.load();
 
     // The row retains its 3000 deposit: 7000 of its line is owed back.
-    expect(pending.choreography?.anomalies).toEqual(["pendingCreditNote"]);
     expect(pending.billing).toMatchObject({
       anomaly: "pendingCreditNote",
       amount: 7000,
       creditClockDays: 4,
     });
     expect((await session.list()).choreographyFinanceRows).toMatchObject([
-      { anomalies: ["pendingCreditNote"], creditClockDays: 4 },
+      { anomalies: [], billingStatus: "pendingCreditNote" },
     ]);
 
     await session.emit({ kind: "nota_credito_c", amount: 7000 });
@@ -1004,11 +999,11 @@ describe("financial detail — what the documents leave pending", () => {
       creditClockDays: null,
     });
     expect((await session.list()).choreographyFinanceRows).toMatchObject([
-      { anomalies: [], creditClockDays: null },
+      { billingStatus: "invoiced" },
     ]);
   });
 
-  test("before the invoice there is nothing pending and no row reads `Sin facturar`", async () => {
+  test("before the invoice there is nothing pending", async () => {
     const seeded = await seedChoreographyWithPaidInscription({
       academyName: "Academia Previa",
       choreographyName: "Coreografía previa",
@@ -1019,8 +1014,5 @@ describe("financial detail — what the documents leave pending", () => {
     const loaderData = await loadDetail(seeded);
 
     expect(loaderData.billing).toBeNull();
-    expect(
-      loaderData.inscriptions.some((inscription) => inscription.uninvoiced),
-    ).toBe(false);
   });
 });

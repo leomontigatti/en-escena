@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 
-import { deriveAnchorBilling, type BilledInscription } from "./anchor-billing";
+import {
+  deriveAnchorBilling,
+  deriveInscriptionBillingStatus,
+  type BilledInscription,
+} from "./anchor-billing";
 import type { DocumentedComprobante } from "./emission-plan";
 
 const factura = (
@@ -73,12 +77,13 @@ describe("deriveAnchorBilling", () => {
       amount: 0,
       creditClockDays: null,
       documentedAmount: 18000,
+      documentedInscriptionIds: ["a", "b"],
       owedAmount: 18000,
       uninvoicedInscriptionIds: [],
     });
   });
 
-  test("a dancer added after invoicing leaves a debit pending and reads `Sin facturar`", () => {
+  test("a dancer added after invoicing leaves a debit pending and names the row the note is for", () => {
     expect(
       deriveAnchorBilling({
         inscriptions: [active("a", 10000), active("new", 8000)],
@@ -214,8 +219,8 @@ describe("deriveAnchorBilling", () => {
   });
 
   test("a row added after invoicing that owes nothing has nothing to invoice", () => {
-    // A waived dancer's next note would carry no line for it, so a `Sin
-    // facturar` there would never clear.
+    // A waived dancer's next note would carry no line for it, so an `FC
+    // pendiente` there would never clear.
     expect(
       deriveAnchorBilling({
         inscriptions: [active("a", 10000), active("waived", 0)],
@@ -225,7 +230,7 @@ describe("deriveAnchorBilling", () => {
     ).toMatchObject({ anomaly: null, uninvoicedInscriptionIds: [] });
   });
 
-  test("a row that nets against a withdrawal to a zero delta is not `Sin facturar`: no note will ever name it", () => {
+  test("a row that nets against a withdrawal to a zero delta waits for no note: none will ever name it", () => {
     // The withdrawn row is documented 7000 above what it retains and the new
     // one owes exactly 7000: the unit owes nothing and the emitter refuses.
     expect(
@@ -249,5 +254,49 @@ describe("deriveAnchorBilling", () => {
       amount: 0,
       uninvoicedInscriptionIds: ["unpriced"],
     });
+  });
+});
+
+describe("deriveInscriptionBillingStatus", () => {
+  const read = (inscriptions: BilledInscription[], fc: DocumentedComprobante) =>
+    deriveAnchorBilling({ inscriptions, comprobantes: [fc], today });
+
+  test("a row a document names reads `Facturada`", () => {
+    const billing = read(
+      [active("a", 10000), active("new", 8000)],
+      factura(10000, [["a", 10000]]),
+    );
+
+    expect(deriveInscriptionBillingStatus(billing, "a")).toBe("invoiced");
+  });
+
+  test("a row no document names reads the note its unit owes, a debit or a credit", () => {
+    const debit = read(
+      [active("a", 10000), active("new", 8000)],
+      factura(10000, [["a", 10000]]),
+    );
+    // Added while a larger withdrawal is owed back: the unit owes a credit,
+    // and the new row goes in that note.
+    const credit = read(
+      [withdrawn("b", 0, "2026-10-19"), active("new", 3000)],
+      factura(10000, [["b", 10000]]),
+    );
+
+    expect(deriveInscriptionBillingStatus(debit, "new")).toBe(
+      "pendingDebitNote",
+    );
+    expect(deriveInscriptionBillingStatus(credit, "new")).toBe(
+      "pendingCreditNote",
+    );
+  });
+
+  test("reads nothing before the invoice, or while the unit is unpriced", () => {
+    const unpriced = read(
+      [active("a", 10000), active("unpriced", null)],
+      factura(10000, [["a", 10000]]),
+    );
+
+    expect(deriveInscriptionBillingStatus(null, "a")).toBeNull();
+    expect(deriveInscriptionBillingStatus(unpriced, "unpriced")).toBeNull();
   });
 });

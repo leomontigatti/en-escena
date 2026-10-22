@@ -7,10 +7,8 @@ import {
   readFinanceAcademyId,
 } from "@/features/admin/finances/academy.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import {
-  readAcademyAnchorBilling,
-  withAnchorBilling,
-} from "@/lib/comprobantes/anchor-billing.server";
+import { deriveUnitBillingStatus } from "@/lib/comprobantes/anchor-billing";
+import { readAcademyAnchorBilling } from "@/lib/comprobantes/anchor-billing.server";
 import { calculateDepositAmount } from "@/lib/finances/inscription-financial-status";
 import { loadEventPriceRows } from "@/lib/prices/rows.server";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
@@ -90,11 +88,10 @@ export async function loadAcademyFinances(input: {
           }),
         ]);
 
-  // What each invoiced unit's documents leave pending joins its row's
-  // anomalies, with the 15-day clock beside them.
+  // Each unit's comprobante status, the second badge of its `Estado`.
   const billing =
     eventContext.selectedEventId === null
-      ? { choreographies: new Map(), seminars: new Map() }
+      ? undefined
       : await readAcademyAnchorBilling({
           academyId: academy.id,
           eventId: eventContext.selectedEventId,
@@ -104,8 +101,13 @@ export async function loadAcademyFinances(input: {
 
   return {
     academy,
-    choreographyFinanceRows: financeDetail.choreographyFinanceRows.map((row) =>
-      withAnchorBilling(row, billing.choreographies.get(row.id)),
+    choreographyFinanceRows: financeDetail.choreographyFinanceRows.map(
+      (row) => ({
+        ...row,
+        billingStatus: deriveUnitBillingStatus(
+          billing?.choreographies.get(row.id),
+        ),
+      }),
     ),
     inscriptions: financeDetail.inscriptions.map(toPresetInscription),
     priceOptionsByGroupType,
@@ -118,9 +120,10 @@ export async function loadAcademyFinances(input: {
     // academy's portal does; administration reads their money on each
     // individual's own page.
     seminarFinanceRows: withLinkedInscriptionsCounted(
-      financeDetail.seminarFinanceRows.map((row) =>
-        withAnchorBilling(row, billing.seminars.get(row.id)),
-      ),
+      financeDetail.seminarFinanceRows.map((row) => ({
+        ...row,
+        billingStatus: deriveUnitBillingStatus(billing?.seminars.get(row.id)),
+      })),
       linkedInscriptions,
     ),
     // What either seminar preset would charge, per seminar: the dialog reads the

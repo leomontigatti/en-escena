@@ -1207,6 +1207,7 @@ function inscriptionFixture(
     allocatedAmount: 3000,
     anomalies: [],
     basePriceAmount: 10000,
+    billingStatus: null,
     dancerDiscountAmount: 0,
     dancerId: "dancer_1",
     depositAmount: 3000,
@@ -1224,7 +1225,6 @@ function inscriptionFixture(
     owedBalanceAmount: 7000,
     owedDepositAmount: 0,
     totalAmount: 10000,
-    uninvoiced: false,
     withdrawn: false,
     ...overrides,
   };

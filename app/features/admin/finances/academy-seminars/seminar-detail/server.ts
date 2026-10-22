@@ -20,10 +20,8 @@ import {
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { seminarAnchor } from "@/lib/comprobantes/anchor";
-import {
-  readAcademyAnchorBilling,
-  withAnchorBilling,
-} from "@/lib/comprobantes/anchor-billing.server";
+import { deriveInscriptionBillingStatus } from "@/lib/comprobantes/anchor-billing";
+import { readAnchorBilling } from "@/lib/comprobantes/anchor-billing.server";
 import { type ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
 import { getComprobanteEmissionDeps } from "@/lib/comprobantes/emission-config.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
@@ -100,7 +98,7 @@ export async function loadSeminarFinanceDetail(input: {
     seminarRow,
     invoicing,
     comprobantes,
-    anchorBilling,
+    billing,
   ] = await Promise.all([
     readSeminarInscriptionFinanceRows({ academyId, eventId, seminarId }),
     readSeminarInscriptionPriceOptions({ eventId, seminarId }),
@@ -110,19 +108,21 @@ export async function loadSeminarFinanceDetail(input: {
       eventId,
     }),
     readAnchorComprobantes(seminarAnchor(seminarId, academyId)),
-    readAcademyAnchorBilling({
+    readAnchorBilling({
       academyId,
-      eventId,
       anchor: seminarAnchor(seminarId, academyId),
-      choreographyInscriptions: [],
-      seminarInscriptions: financeDetail.seminarInscriptions,
+      eventId,
+      inscriptions: financeDetail.seminarInscriptions.filter(
+        (inscription) => inscription.seminarId === seminarId,
+      ),
     }),
   ]);
-  const billing = anchorBilling.seminars.get(seminarId) ?? null;
-  const uninvoiced = new Set(billing?.uninvoicedInscriptionIds);
   const inscriptions = inscriptionRows.map((inscription) => ({
     ...inscription,
-    uninvoiced: uninvoiced.has(inscription.inscriptionId),
+    billingStatus: deriveInscriptionBillingStatus(
+      billing,
+      inscription.inscriptionId,
+    ),
   }));
 
   return {
@@ -146,8 +146,7 @@ export async function loadSeminarFinanceDetail(input: {
     ),
     seminar: {
       allocatedAmount: seminarFinanceRow.allocatedAmount,
-      anomalies: withAnchorBilling(seminarFinanceRow, billing ?? undefined)
-        .anomalies,
+      anomalies: seminarFinanceRow.anomalies,
       // The quota minus the **covered** inscriptions, whichever academy holds
       // them: a place is taken by covering a deposit, so this is what says
       // whether the next crossing here can go through at all.

@@ -2,7 +2,6 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { comprobanteInscriptions, comprobantes } from "@/db/schema";
-import type { InscriptionAnomaly } from "@/lib/finances/inscription-financial-status";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 import { comprobanteAnchorFilter, type ComprobanteAnchor } from "./anchor";
@@ -23,6 +22,12 @@ type ResolvedUnitInscription = {
   withdrawnAt: Date | null;
 };
 
+type ChoreographyUnitInscription = ResolvedUnitInscription & {
+  choreographyId: string;
+};
+
+type SeminarUnitInscription = ResolvedUnitInscription & { seminarId: string };
+
 /**
  * The billing reading of every invoiced unit of one academy in one event, keyed
  * by the choreography or by the seminar of the `(seminar, academy)` pair. A
@@ -34,28 +39,67 @@ export type AcademyAnchorBilling = {
 };
 
 /**
- * What the academy's documents leave pending, for its finance list and its
- * financial details. The inscriptions are the ones the academy's rollup
- * already resolved, the same figures the emitter bills by; this read adds the
- * academy's comprobantes and their lines (one anchor's, on a detail), two
- * queries whatever the number of units, and hands each unit to
- * `deriveAnchorBilling`.
+ * What one anchor's documents leave pending, for its financial detail: the
+ * alert's figures, its clock and the rows no document names yet. `null` while
+ * the anchor holds no invoice.
  *
  * Administration only: the academy is told nothing when its bill moves
  * (ADR-0014 §10).
  */
+export async function readAnchorBilling(input: {
+  academyId: string;
+  anchor: ComprobanteAnchor;
+  eventId: string;
+  // The anchor's inscriptions as the academy's rollup resolved them, the same
+  // figures the emitter bills by.
+  inscriptions: ReadonlyArray<ResolvedUnitInscription>;
+  // The business date, `AAAA-MM-DD`; Córdoba's today when absent.
+  today?: string;
+}): Promise<AnchorBilling | null> {
+  const choreography = input.anchor.kind === "choreography";
+  const unitId = choreography
+    ? (input.anchor as { choreographyId: string }).choreographyId
+    : (input.anchor as { seminarId: string }).seminarId;
+  const billing = await readAcademyAnchorBilling({
+    academyId: input.academyId,
+    anchor: input.anchor,
+    eventId: input.eventId,
+    choreographyInscriptions: choreography
+      ? input.inscriptions.map((inscription) => ({
+          ...inscription,
+          choreographyId: unitId,
+        }))
+      : [],
+    seminarInscriptions: choreography
+      ? []
+      : input.inscriptions.map((inscription) => ({
+          ...inscription,
+          seminarId: unitId,
+        })),
+    today: input.today,
+  });
+
+  return (
+    (choreography
+      ? billing.choreographies.get(unitId)
+      : billing.seminars.get(unitId)) ?? null
+  );
+}
+
+/**
+ * What the academy's documents leave pending, for its finance list: each
+ * unit's comprobante status. The inscriptions are the ones the academy's
+ * rollup already resolved, the same figures the emitter bills by; this read
+ * adds the academy's comprobantes and their lines, two queries whatever the
+ * number of units, and hands each unit to `deriveAnchorBilling`.
+ */
 export async function readAcademyAnchorBilling(input: {
   academyId: string;
-  eventId: string;
-  // A financial detail reads its own anchor alone; the list reads them all.
+  // Narrows the read to one anchor, for a financial detail.
   anchor?: ComprobanteAnchor;
-  choreographyInscriptions: ReadonlyArray<
-    ResolvedUnitInscription & { choreographyId: string }
-  >;
-  seminarInscriptions: ReadonlyArray<
-    ResolvedUnitInscription & { seminarId: string }
-  >;
-  // The business date, `AAAA-MM-DD`; Córdoba's today when absent.
+  eventId: string;
+  choreographyInscriptions: readonly ChoreographyUnitInscription[];
+  seminarInscriptions: readonly SeminarUnitInscription[];
   today?: string;
 }): Promise<AcademyAnchorBilling> {
   // Only what the delta reads: the kind, the total, the star and the lines.
@@ -179,25 +223,5 @@ function toBilledInscription(
     id: inscription.id,
     owed: deriveOwedAmount(inscription),
     withdrawnAt: inscription.withdrawnAt,
-  };
-}
-
-/**
- * A unit's finance row with its billing anomaly joined to the anomalies it
- * already carries, and the clock beside it. The badge, its filter and the
- * detail's alert all read the array, so the anomaly needs no path of its own.
- */
-export function withAnchorBilling<
-  TRow extends { anomalies: InscriptionAnomaly[] },
->(
-  row: TRow,
-  billing: AnchorBilling | undefined,
-): TRow & { creditClockDays: number | null } {
-  return {
-    ...row,
-    anomalies: billing?.anomaly
-      ? [...row.anomalies, billing.anomaly]
-      : row.anomalies,
-    creditClockDays: billing?.creditClockDays ?? null,
   };
 }

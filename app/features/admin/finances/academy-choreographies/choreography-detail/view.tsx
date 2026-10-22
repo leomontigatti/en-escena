@@ -26,12 +26,17 @@ import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financ
 
 import {
   inscriptionFinanceColumns,
-  adminInscriptionFinanceFacetedFilters,
+  inscriptionFinanceFacetedFilters,
 } from "@/lib/finances/inscription-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import { FinancialDetailTabs } from "@/features/admin/finances/anchor-comprobantes/tabs";
 import { EmissionBlockedDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
+import {
+  BillingStatusBadge,
+  billingFacet,
+} from "@/components/shared/billing-status-badge";
+import { deriveUnitBillingStatus } from "@/lib/comprobantes/anchor-billing";
 import { PendingDocumentAlert } from "@/features/admin/finances/comprobante-emission/pending-document-alert";
 import {
   formatEmitActionLabel,
@@ -80,12 +85,18 @@ export function ChoreographyFinanceDetailView({
             )}`
           : "Coreografía no encontrada"
       }
-      // The badge the academy's list draws for this row, anomaly included.
+      // The badges the academy's list draws for this row: its payment status,
+      // anomaly included, and its comprobante status.
       titleBadge={
         choreography ? (
-          <FinancialStatusBadge
-            status={resolveInscriptionStatusBadge(choreography)}
-          />
+          <span className="flex items-center gap-2">
+            <FinancialStatusBadge
+              status={resolveInscriptionStatusBadge(choreography)}
+            />
+            <BillingStatusBadge
+              status={deriveUnitBillingStatus(loaderData.billing)}
+            />
+          </span>
         ) : undefined
       }
       description={
@@ -152,7 +163,10 @@ function ChoreographyAlerts({
   return (
     <AlertStack>
       {loaderData.billing?.anomaly ? (
-        <PendingDocumentAlert billing={loaderData.billing} />
+        <PendingDocumentAlert
+          billing={loaderData.billing}
+          inscriptions={loaderData.inscriptions}
+        />
       ) : null}
       {overAllocated ? <OverAllocatedAlert /> : null}
       {missingPrice ? (
@@ -409,7 +423,7 @@ function InscriptionsTable({
       <ClientDataTable
         rows={inscriptions}
         columns={columns}
-        facetedFilters={adminInscriptionFinanceFacetedFilters}
+        facetedFilters={inscriptionFacetedFilters}
         getRowKey={(inscription) =>
           inscription.inscriptionId ?? inscription.dancerId
         }
@@ -511,3 +525,10 @@ function DancerNameCell({
     </Button>
   );
 }
+
+// The administration's detail also filters by the comprobante status, which
+// the academy is never shown (ADR-0014 §10).
+const inscriptionFacetedFilters = [
+  ...inscriptionFinanceFacetedFilters,
+  billingFacet,
+];

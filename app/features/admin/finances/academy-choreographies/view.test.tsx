@@ -1285,55 +1285,65 @@ describe("AcademyFinancesRouteView", () => {
     expect(columnValues("Nombre")).toEqual(["Tango"]);
   });
 
-  const pendingRows = () => [
+  const billedRows = () => [
     choreographyFinanceRowFixture({
-      anomalies: ["pendingDebitNote"],
-      financialStatus: "depositPending",
+      billingStatus: "pendingDebitNote",
+      financialStatus: "paidInFull",
       id: "choreography_1",
       name: "Aire",
     }),
-    // Withdrawn and invoiced: the credit note it owes is what is left to do.
     choreographyFinanceRowFixture({
-      anomalies: ["pendingCreditNote"],
+      billingStatus: "pendingCreditNote",
       choreographyNumber: 2,
-      creditClockDays: 3,
       id: "choreography_2",
       name: "Tango",
       withdrawn: true,
     }),
     choreographyFinanceRowFixture({
+      billingStatus: "invoiced",
       choreographyNumber: 3,
       financialStatus: "depositMet",
       id: "choreography_3",
       name: "Vals",
     }),
+    choreographyFinanceRowFixture({
+      choreographyNumber: 4,
+      id: "choreography_4",
+      name: "Zamba",
+    }),
   ];
 
-  test("badges what the documents leave pending, over `Retirada`, with the credit's day count", async () => {
+  test("badges the comprobante status beside the payment one, never in its place", async () => {
     await renderListIntoDocument({
       loaderData: academyFinancesLoaderDataFixture({
-        choreographyFinanceRows: pendingRows(),
+        choreographyFinanceRows: billedRows(),
       }),
     });
 
     expect(statusBadges()).toEqual([
-      [{ text: "Pendiente de facturar", destructive: true }],
-      [{ text: "Pendiente de acreditar", destructive: true }],
-      [{ text: "Señada", destructive: false }],
-    ]);
-    expect(columnValues("Estado")).toEqual([
-      "Pendiente de facturar",
-      "Pendiente de acreditarDía 3 de 15",
-      "Señada",
+      [
+        { text: "Pagada", destructive: false },
+        { text: "ND pendiente", destructive: true },
+      ],
+      [
+        { text: "Retirada", destructive: false },
+        { text: "NC pendiente", destructive: true },
+      ],
+      [
+        { text: "Señada", destructive: false },
+        { text: "Facturada", destructive: false },
+      ],
+      // Not invoiced yet: nothing has been issued, so nothing to badge.
+      [{ text: "Seña pendiente", destructive: false }],
     ]);
   });
 
-  test("filters the list down to the pending credits on `Pendiente de acreditar`", async () => {
+  test("filters the list down to the pending credits on `NC pendiente`", async () => {
     await renderListIntoDocument({
       initialEntry:
-        "/administracion/finanzas/academy_1?estado=pendingCreditNote",
+        "/administracion/finanzas/academy_1?facturacion=pendingCreditNote",
       loaderData: academyFinancesLoaderDataFixture({
-        choreographyFinanceRows: pendingRows(),
+        choreographyFinanceRows: billedRows(),
       }),
     });
 
@@ -1592,6 +1602,7 @@ function seminarFinanceRowFixture(
     allocatedAmount: 0,
     anomalies: [],
     basePriceAmount: { amount: 20000, status: "complete" },
+    billingStatus: null,
     depositAmount: { amount: 5000, status: "complete" },
     financialStatus: "depositPending",
     id: "seminar",
@@ -1602,7 +1613,6 @@ function seminarFinanceRowFixture(
     registrationCount: 2,
     scheduledDate: "2026-10-10",
     totalAmount: { amount: 20000, status: "complete" },
-    creditClockDays: null,
     ...overrides,
   };
 }
@@ -1687,6 +1697,7 @@ function choreographyFinanceRowFixture(
     allocatedAmount: 0,
     anomalies: [],
     basePriceAmount: { amount: 10000, status: "complete" },
+    billingStatus: null,
     choreographyNumber: 1,
     depositAmount: { amount: 3000, status: "complete" },
     financialStatus: "depositPending",
@@ -1699,7 +1710,6 @@ function choreographyFinanceRowFixture(
     registrationCount: 1,
     totalAmount: { amount: 10000, status: "complete" },
     withdrawn: false,
-    creditClockDays: null,
     ...overrides,
   };
 }

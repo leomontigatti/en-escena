@@ -8,14 +8,19 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import {
+  billingFacet,
+  BillingStatusBadge,
+  billingFacetId,
+} from "@/components/shared/billing-status-badge";
 import { FinancialStatusBadge } from "@/components/shared/financial-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate } from "@/features/admin/schedules/view-shared";
-import { formatCreditClock } from "@/lib/comprobantes/anchor-billing";
+import type { BillingStatus } from "@/lib/comprobantes/anchor-billing";
 import {
-  adminUnitStatusFilterOptions,
+  choreographyStatusFilterOptions,
   formatInscriptionStatusBadge,
 } from "@/lib/finances/choreography-financial-status";
 import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
@@ -46,7 +51,10 @@ type ChoreographyFinanceRow =
 type SeminarFinanceRow =
   AcademyFinancesLoaderData["seminarFinanceRows"][number];
 
-export const academyChoreographyFinanceFacetedFilterIds = ["estado"] as const;
+export const academyChoreographyFinanceFacetedFilterIds = [
+  "estado",
+  billingFacetId,
+] as const;
 
 const choreographyFinanceFacetedFilters: DataTableFacetedFiltersOf<
   typeof academyChoreographyFinanceFacetedFilterIds
@@ -54,9 +62,10 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFiltersOf<
   {
     id: "estado",
     label: "Estado",
-    options: [...adminUnitStatusFilterOptions],
+    options: [...choreographyStatusFilterOptions],
     renderValue: renderInscriptionStatusFilterValue,
   },
+  billingFacet,
 ];
 
 type AcademyFinancesRouteViewProps = {
@@ -291,15 +300,17 @@ function buildSeminarFinanceColumns(
       id: "financialStatus",
       header: "Estado",
       cell: (row) => (
-        <UnitStatusCell
-          creditClockDays={row.creditClockDays}
+        <UnitStatusBadges
+          billingStatus={row.billingStatus}
           status={resolveSeminarStatus(row)}
         />
       ),
-      // The filter comes from the same badge the cell shows, for the same
-      // reason it does on the choreography tab.
-      filterValue: (row) =>
+      // The filters come from the same badges the cell shows, for the same
+      // reason they do on the choreography tab.
+      filterValues: (row) => [
         formatInscriptionStatusBadge(resolveSeminarStatus(row)).value,
+        row.billingStatus ?? "",
+      ],
     },
   ];
 }
@@ -356,12 +367,19 @@ function buildChoreographyFinanceColumns(
     {
       id: "financialStatus",
       header: "Estado",
-      cell: (row) => <ChoreographyStatusCell row={row} />,
-      // The filter comes from the same badge the cell shows, not from
+      cell: (row) => (
+        <UnitStatusBadges
+          billingStatus={row.billingStatus}
+          status={resolveChoreographyStatus(row)}
+        />
+      ),
+      // The filters come from the same badges the cell shows, not from
       // `financialStatus`: a row badged `Sobreasignada` that turned up while
       // filtering by `Señada` would contradict itself on screen.
-      filterValue: (row) =>
+      filterValues: (row) => [
         formatInscriptionStatusBadge(resolveChoreographyStatus(row)).value,
+        row.billingStatus ?? "",
+      ],
     },
   ];
 }
@@ -387,38 +405,22 @@ function resolveChoreographyStatus(row: ChoreographyFinanceRow) {
   });
 }
 
-function ChoreographyStatusCell({ row }: { row: ChoreographyFinanceRow }) {
-  return (
-    <UnitStatusCell
-      creditClockDays={row.creditClockDays}
-      status={resolveChoreographyStatus(row)}
-    />
-  );
-}
-
 /**
- * The unit's badge, and beside it the 15-day clock while a credit note its
- * withdrawals owe is pending (#657). Muted and in the same cell: it qualifies
- * the badge rather than being a fact of its own, and it informs without
- * blocking anything.
+ * The unit's two axes side by side: what its money reads, and what its
+ * comprobantes still owe ARCA. Neither replaces the other — a unit can be
+ * `Pagada` and still owe a note.
  */
-function UnitStatusCell({
-  creditClockDays,
+function UnitStatusBadges({
+  billingStatus,
   status,
 }: {
-  creditClockDays: number | null;
+  billingStatus: BillingStatus | null;
   status: ReturnType<typeof resolveInscriptionStatusBadge>;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <span className="flex items-center gap-2">
       <FinancialStatusBadge status={status} />
-      {status.kind === "anomaly" &&
-      status.anomaly === "pendingCreditNote" &&
-      creditClockDays !== null ? (
-        <span className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">
-          {formatCreditClock(creditClockDays)}
-        </span>
-      ) : null}
-    </div>
+      <BillingStatusBadge status={billingStatus} />
+    </span>
   );
 }

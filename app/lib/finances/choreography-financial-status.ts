@@ -23,28 +23,15 @@ const inscriptionFinancialStatusBadgeVariants = {
 
 const inscriptionAnomalyLabels = {
   overAllocated: "Sobreasignada",
-  pendingDebitNote: "Pendiente de facturar",
-  pendingCreditNote: "Pendiente de acreditar",
 } as const satisfies Record<InscriptionAnomaly, string>;
 
 /**
  * `Sobreasignada` is `destructive`, not amber: next to `Seña pendiente`, two
- * amber badges would read as the same kind of fact. The billing pair is too:
- * each is a document someone has to emit.
+ * amber badges would read as the same kind of fact.
  */
 const inscriptionAnomalyBadgeVariants = {
   overAllocated: "destructive",
-  pendingDebitNote: "destructive",
-  pendingCreditNote: "destructive",
 } as const satisfies Record<InscriptionAnomaly, string>;
-
-/**
- * `Sin facturar`: a row the unit's invoice does not name. Outlined, since it
- * is neither a state of the money nor an anomaly of its own — the unit's
- * `Pendiente de facturar` is the anomaly, and this says which rows it is for.
- */
-const uninvoicedInscriptionLabel = "Sin facturar";
-const uninvoicedInscriptionBadgeVariant = "outline";
 
 /**
  * The paying scale's options. `Bonificada` is not among them: a seminar
@@ -113,7 +100,6 @@ type FormattedInscriptionStatusBadge = {
     | (typeof inscriptionAnomalyBadgeVariants)[InscriptionAnomaly]
     | typeof linkedIndividualInscriptionBadgeVariant
     | typeof reservedInscriptionBadgeVariant
-    | typeof uninvoicedInscriptionBadgeVariant
     | typeof withdrawnInscriptionBadgeVariant;
 };
 
@@ -144,15 +130,6 @@ export function formatInscriptionStatusBadge(
       label: reservedInscriptionLabel,
       value: "reserved",
       variant: reservedInscriptionBadgeVariant,
-    };
-  }
-
-  if (badge.kind === "uninvoiced") {
-    return {
-      kind: badge.kind,
-      label: uninvoicedInscriptionLabel,
-      value: uninvoicedStatusFilterOption.value,
-      variant: uninvoicedInscriptionBadgeVariant,
     };
   }
 
@@ -210,33 +187,6 @@ export const choreographyStatusFilterOptions = [
 ] as const satisfies ReadonlyArray<{ label: string; value: string }>;
 
 /**
- * The administration's lists of units — an academy's choreographies and its
- * `(seminar, academy)` units — can also badge what the unit's documents leave
- * pending. The academy is told nothing when its bill moves (ADR-0014 §10), so
- * the portal's filters never offer them.
- */
-export const adminUnitStatusFilterOptions = [
-  {
-    label: inscriptionAnomalyLabels.pendingDebitNote,
-    value: "pendingDebitNote",
-  },
-  {
-    label: inscriptionAnomalyLabels.pendingCreditNote,
-    value: "pendingCreditNote",
-  },
-  ...choreographyStatusFilterOptions,
-] as const satisfies ReadonlyArray<{ label: string; value: string }>;
-
-/**
- * The `Sin facturar` option, for the administration's financial details: the
- * only inscription lists that read the `Facturada` axis.
- */
-export const uninvoicedStatusFilterOption = {
-  label: uninvoicedInscriptionLabel,
-  value: "uninvoiced",
-} as const satisfies { label: string; value: string };
-
-/**
  * The `Estado` column of a list of inscriptions badges the same three axes as a
  * list of choreographies, so it offers the same options. The two names are kept
  * apart because the two columns are: what they share is that both are
@@ -264,7 +214,6 @@ const inscriptionStatusFilterBadgeVariants = new Map<
     ...inscriptionFinancialStatusBadgeVariants,
     ...inscriptionAnomalyBadgeVariants,
     reserved: reservedInscriptionBadgeVariant,
-    [uninvoicedStatusFilterOption.value]: uninvoicedInscriptionBadgeVariant,
     [linkedIndividualStatusFilterOption.value]:
       linkedIndividualInscriptionBadgeVariant,
     [withdrawnStatusFilterOption.value]: withdrawnInscriptionBadgeVariant,

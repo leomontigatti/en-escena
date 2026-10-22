@@ -477,17 +477,9 @@ _Avoid_: `payment`, `paymentAllocation`, choreography invoice (retired), voucher
 The next number of a comprobante series —one kind of document at one sales point— taken by an emission before ARCA is asked to authorize it, so no two emissions submit the same number. It is not a **`comprobante`**: it carries no CAE and documents nothing. While it exists it holds its series and its **`anchor`**, and nothing else is emitted there; it ends when ARCA settles it, as the comprobante it became or as nothing, or when the operator abandons it. `number-taken` is the one whose number ARCA gave to a different comprobante.
 _Avoid_: `comprobante` (it may never become one), pending comprobante, draft invoice
 
-**`pendingDebitNote`** — ui: "Pendiente de facturar"
-Anomaly of an invoiced **`anchor`** whose derived total is above what its comprobantes document, so a `Nota de débito C` is owed: a dancer added after the invoice, or a total that rose. It belongs to the anchor, never to one inscription, warns and never blocks, and clears when the note is emitted. The academy is never shown it.
-_Avoid_: `Desactualizada` (retired), pending invoice, stale invoice
-
-**`pendingCreditNote`** — ui: "Pendiente de acreditar"
-Its mirror: the anchor's derived total is below what its comprobantes document, so a `Nota de crédito C` is owed — a withdrawal that does not retain everything, or a total that fell. When withdrawals drive it, it counts the **days since the oldest withdrawal still owed a credit**, read `Día N de 15` against the fifteen calendar days RG 4540 gives the note; a fall from any other cause has no such date and carries no count. The count informs and never blocks, and lateness is legible on the note's own date.
-_Avoid_: pending refund, `Reembolso` (money returned, not a document), annulment
-
-**`uninvoicedInscription`** — ui: "Sin facturar"
-Inscription of an invoiced anchor that no comprobante line names yet, because it was registered after the invoice: the `Facturada` axis, rendered only by its absence, since one invoice covers the whole roster. It is what a `pendingDebitNote` is for, and it clears with the note that names it. An inscription that owes nothing is never one, and none is while the anchor owes no note: a row added that nets exactly against a withdrawal is named by no document ever.
-_Avoid_: `Facturada` (never shown), unbilled, pending
+**`billingStatus`** — ui: "Facturada" / "ND pendiente" / "NC pendiente"
+The comprobante axis of an invoiced **`anchor`** and of its inscriptions, the second badge of their `Estado`, beside the payment one and never in its place: a unit can be `Pagada` and still owe a note. It reads the anchor's derived total against what its comprobantes document: `Facturada` (green) when they add up, `ND pendiente` (`pendingDebitNote`, red) when the total is above —a dancer added after the invoice, a total that rose— and `NC pendiente` (`pendingCreditNote`, red) when it is below —a withdrawal that does not retain everything, a total that fell. An inscription reads `Facturada` when a comprobante names it, and the note its anchor owes when the next one will. Nothing shows before the anchor's first invoice, on a row that owes nothing, or while the anchor is unpriced. It is derived, warns and never blocks, clears when the note is emitted, and the academy is never shown it. A credit owed for a withdrawal carries the **days since the oldest withdrawal still owed one**, read in the financial detail's alert against the fifteen calendar days RG 4540 gives the note; a fall from any other cause has no such date and carries no count.
+_Avoid_: `FC pendiente` (no second invoice is emitted for a row added after the first: the next note names it), `Sin facturar`, `Pendiente de facturar`, `Desactualizada` (retired), pending refund, `Reembolso` (money returned, not a document)
 
 **`anchor`** — ui: "Origen"
 What a **`comprobante`** belongs to and bills: one choreography, or one academy's inscriptions in one seminar, the `(seminar, academy)` unit. Its kind is a comprobante's `Origen`, and its reading — the choreography's name, or `Seminario {instructor}, {fecha}` — is how a comprobante names it.

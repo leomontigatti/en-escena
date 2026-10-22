@@ -108,6 +108,7 @@ describe("SeminarFinanceDetailView", () => {
         documentedAmount: 20000,
         owedAmount: 0,
         uninvoicedInscriptionIds: [],
+        documentedInscriptionIds: [],
       },
     });
 
@@ -234,7 +235,7 @@ function inscriptionFixture(
   overrides: Partial<InscriptionRow> = {},
 ): InscriptionRow {
   return {
-    uninvoiced: false,
+    billingStatus: null,
     ...seminarInscriptionFinanceRowFixture(overrides),
   };
 }

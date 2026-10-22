@@ -3,6 +3,7 @@ import {
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import type { DataTableFacetedFilterOption } from "@/components/shared/data-table.shared";
+import { BillingStatusBadge } from "@/components/shared/billing-status-badge";
 import { FinancialStatusBadge } from "@/components/shared/financial-status-badge";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -11,7 +12,6 @@ import {
   inscriptionStatusFilterOptions,
   linkedIndividualStatusFilterOption,
   seminarInscriptionStatusFilterOptions,
-  uninvoicedStatusFilterOption,
 } from "@/lib/finances/choreography-financial-status";
 import {
   resolveInscriptionStatusBadge,
@@ -19,6 +19,7 @@ import {
   type InscriptionFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
 
+import type { BillingStatus } from "@/lib/comprobantes/anchor-billing";
 import { formatAmount } from "@/lib/finances/formatters";
 
 /**
@@ -34,6 +35,9 @@ import { formatAmount } from "@/lib/finances/formatters";
 export type InscriptionFinanceRow = {
   allocatedAmount: number;
   anomalies: InscriptionAnomaly[];
+  /** The row's comprobante status, the `Estado`'s second badge. Only the
+   * administration's financial details carry it (ADR-0014 §10). */
+  billingStatus?: BillingStatus | null;
   depositAmount: number | null;
   effectivePrice: { name: string } | null;
   financialStatus: InscriptionFinancialStatus;
@@ -45,9 +49,6 @@ export type InscriptionFinanceRow = {
   /** A seminar inscription holding a reserved place; choreography rows never
    * carry it. */
   reserved?: boolean;
-  /** A row its unit's invoice does not name (`Sin facturar`). Only the
-   * administration's financial details carry it. */
-  uninvoiced?: boolean;
   totalAmount: number | null;
   withdrawn: boolean;
 };
@@ -88,20 +89,6 @@ export const inscriptionFinanceFacetedFilters = statusFacet(
 export const seminarInscriptionFinanceFacetedFilters = statusFacet(
   seminarInscriptionStatusFilterOptions,
 );
-
-/**
- * The administration's financial details also read `Sin facturar`, the
- * `Facturada` axis the academy is not shown.
- */
-export const adminInscriptionFinanceFacetedFilters = statusFacet([
-  ...inscriptionStatusFilterOptions,
-  uninvoicedStatusFilterOption,
-]);
-
-export const adminSeminarInscriptionFinanceFacetedFilters = statusFacet([
-  ...seminarInscriptionStatusFilterOptions,
-  uninvoicedStatusFilterOption,
-]);
 
 /** The academy's seminar detail can also read `Particular`. */
 export const portalSeminarInscriptionFinanceFacetedFilters = statusFacet([
@@ -158,12 +145,14 @@ export const inscriptionFinanceColumns: DataTableColumn<InscriptionFinanceRow>[]
       cell: (inscription) => (
         <InscriptionStatusCell inscription={inscription} />
       ),
-      // The filter comes from the same badge the cell shows and not from
+      // The filters come from the same badges the cell shows and not from
       // `financialStatus`: a row badged `Retirada` that showed up when filtering
       // by `Pagada` would contradict itself on screen.
-      filterValue: (inscription) =>
+      filterValues: (inscription) => [
         formatInscriptionStatusBadge(resolveInscriptionStatus(inscription))
           .value,
+        inscription.billingStatus ?? "",
+      ],
     },
   ];
 
@@ -179,7 +168,6 @@ function resolveInscriptionStatus(inscription: InscriptionFinanceRow) {
     financialStatus: inscription.financialStatus,
     linkedIndividual: inscription.linkedIndividual,
     reserved: inscription.reserved,
-    uninvoiced: inscription.uninvoiced,
     withdrawn: inscription.withdrawn,
   });
 }
@@ -206,8 +194,13 @@ function InscriptionStatusCell({
 }: {
   inscription: InscriptionFinanceRow;
 }) {
+  // The comprobante badge sits beside the payment one, never in its place;
+  // the portal's rows carry none.
   return (
-    <FinancialStatusBadge status={resolveInscriptionStatus(inscription)} />
+    <span className="flex items-center gap-2">
+      <FinancialStatusBadge status={resolveInscriptionStatus(inscription)} />
+      <BillingStatusBadge status={inscription.billingStatus} />
+    </span>
   );
 }
 

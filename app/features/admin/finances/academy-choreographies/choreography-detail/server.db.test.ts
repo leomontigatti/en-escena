@@ -138,6 +138,7 @@ describe("`/administracion/finanzas` choreography detail", () => {
         allocatedAmount: 0,
         anomalies: [],
         basePriceAmount: 10000,
+        billingStatus: null,
         dancerDiscountAmount: 0,
         dancerId: dancer.id,
         depositAmount: 3000,
@@ -157,7 +158,6 @@ describe("`/administracion/finanzas` choreography detail", () => {
         owedBalanceAmount: 10000,
         owedDepositAmount: 3000,
         totalAmount: 10000,
-        uninvoiced: false,
         withdrawn: false,
       },
     ]);
@@ -220,6 +220,7 @@ describe("`/administracion/finanzas` choreography detail", () => {
         allocatedAmount: 3000,
         anomalies: [],
         basePriceAmount: 10000,
+        billingStatus: null,
         dancerDiscountAmount: 0,
         dancerId: dancer.id,
         depositAmount: 3000,
@@ -237,7 +238,6 @@ describe("`/administracion/finanzas` choreography detail", () => {
         owedBalanceAmount: 7000,
         owedDepositAmount: 0,
         totalAmount: 10000,
-        uninvoiced: false,
         withdrawn: false,
       },
     ]);
@@ -594,6 +594,7 @@ describe("`/administracion/finanzas` choreography detail", () => {
         allocatedAmount: 0,
         anomalies: [],
         basePriceAmount: null,
+        billingStatus: null,
         dancerDiscountAmount: 0,
         dancerId: dancer.id,
         depositAmount: null,
@@ -606,7 +607,6 @@ describe("`/administracion/finanzas` choreography detail", () => {
         owedBalanceAmount: null,
         owedDepositAmount: null,
         totalAmount: null,
-        uninvoiced: false,
         withdrawn: false,
       },
     ]);

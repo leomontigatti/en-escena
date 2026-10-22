@@ -203,10 +203,12 @@ describe("portal seminar financial detail", () => {
       admin.seminar?.owedBalanceAmount,
     );
     expect(portal.availableBalanceAmount).toBe(admin.availableBalanceAmount);
-    // `Sin facturar` is administration's alone: the academy is told nothing
-    // when its bill moves (ADR-0014 §10).
+    // The comprobante status is administration's alone: the academy is told
+    // nothing when its bill moves (ADR-0014 §10).
     expect(portal.inscriptions).toEqual(
-      admin.inscriptions.map(({ uninvoiced: _uninvoiced, ...row }) => row),
+      admin.inscriptions.map(
+        ({ billingStatus: _billingStatus, ...row }) => row,
+      ),
     );
     // And the row on the academy's `Seminarios` tab is the same unit again.
     const summary = await loadPortalAcademyFinances(
