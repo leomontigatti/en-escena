@@ -3,7 +3,6 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { choreographies, events, seminars } from "@/db/schema";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
-import { deriveRetainedAmount } from "@/lib/finances/inscription-financial-status";
 import { readChoreographyUnitFinance } from "@/lib/finances/operational-summary.server";
 import { readSeminarUnitFinance } from "@/lib/finances/seminar-operational-summary.server";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
@@ -39,6 +38,7 @@ import {
   type ComprobanteWithLines,
 } from "./comprobantes.server";
 import {
+  deriveOwedAmount,
   emissionRefusalLabel,
   planAnchorEmission,
   type DocumentedComprobante,
@@ -597,10 +597,7 @@ async function readAnchorObligation(
       : ("paidInFull" as const),
     inscriptions: unit.inscriptions.map((inscription): OwedInscription => ({
       id: inscription.id,
-      // A withdrawn row owes the deposit it retains, not whatever it still holds.
-      owed: inscription.withdrawn
-        ? deriveRetainedAmount(inscription)
-        : inscription.totalAmount,
+      owed: deriveOwedAmount(inscription),
     })),
     comprobantes: comprobantes.map((comprobante) =>
       toDocumented(input.anchor, comprobante),

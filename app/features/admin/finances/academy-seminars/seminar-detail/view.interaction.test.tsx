@@ -124,6 +124,7 @@ function loaderDataFixture(
       phone: "11-5555-5555",
     },
     availableBalanceAmount: 7000,
+    billing: null,
     comprobantes: [],
     inscriptions: [],
     invoicing: readyInvoicing("factura_c", 4000),

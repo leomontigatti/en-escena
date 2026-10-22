@@ -20,6 +20,8 @@ import {
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { seminarAnchor } from "@/lib/comprobantes/anchor";
+import { deriveInscriptionBillingStatus } from "@/lib/comprobantes/anchor-billing";
+import { readAnchorBilling } from "@/lib/comprobantes/anchor-billing.server";
 import { type ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
 import { getComprobanteEmissionDeps } from "@/lib/comprobantes/emission-config.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
@@ -64,6 +66,7 @@ export async function loadSeminarFinanceDetail(input: {
     return {
       academy,
       availableBalanceAmount: 0,
+      billing: null,
       comprobantes: [],
       inscriptions: [],
       invoicing: null,
@@ -89,17 +92,38 @@ export async function loadSeminarFinanceDetail(input: {
     throw new Response(seminarNotFoundMessage, { status: 404 });
   }
 
-  const [inscriptions, priceOptions, seminarRow, invoicing, comprobantes] =
-    await Promise.all([
-      readSeminarInscriptionFinanceRows({ academyId, eventId, seminarId }),
-      readSeminarInscriptionPriceOptions({ eventId, seminarId }),
-      getSeminar(seminarId),
-      readAnchorInvoicing({
-        anchor: seminarAnchor(seminarId, academyId),
-        eventId,
-      }),
-      readAnchorComprobantes(seminarAnchor(seminarId, academyId)),
-    ]);
+  const [
+    inscriptionRows,
+    priceOptions,
+    seminarRow,
+    invoicing,
+    comprobantes,
+    billing,
+  ] = await Promise.all([
+    readSeminarInscriptionFinanceRows({ academyId, eventId, seminarId }),
+    readSeminarInscriptionPriceOptions({ eventId, seminarId }),
+    getSeminar(seminarId),
+    readAnchorInvoicing({
+      anchor: seminarAnchor(seminarId, academyId),
+      eventId,
+    }),
+    readAnchorComprobantes(seminarAnchor(seminarId, academyId)),
+    readAnchorBilling({
+      academyId,
+      anchor: seminarAnchor(seminarId, academyId),
+      eventId,
+      inscriptions: financeDetail.seminarInscriptions.filter(
+        (inscription) => inscription.seminarId === seminarId,
+      ),
+    }),
+  ]);
+  const inscriptions = inscriptionRows.map((inscription) => ({
+    ...inscription,
+    billingStatus: deriveInscriptionBillingStatus(
+      billing,
+      inscription.inscriptionId,
+    ),
+  }));
 
   return {
     academy,
@@ -107,6 +131,8 @@ export async function loadSeminarFinanceDetail(input: {
     // belongs to neither, and it is the pool the allocations made here come out
     // of.
     availableBalanceAmount: financeDetail.summary.availableBalanceAmount,
+    // What the unit's documents leave pending, `null` before its invoice.
+    billing,
     comprobantes,
     inscriptions,
     invoicing,

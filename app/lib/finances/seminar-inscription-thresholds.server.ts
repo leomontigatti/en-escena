@@ -59,6 +59,7 @@ export type ResolvedSeminarInscription = InscriptionFinancialFigures & {
   storedPriceRow: SeminarFinancePriceRow | null;
   thresholds: InscriptionThresholds;
   withdrawn: boolean;
+  withdrawnAt: Date | null;
 };
 
 /** What the pool's threshold reader hands back for a seminar target. */
@@ -193,6 +194,7 @@ export async function resolveSeminarInscriptions(
       storedPriceRow,
       thresholds,
       withdrawn,
+      withdrawnAt: row.withdrawnAt,
     });
   }
 

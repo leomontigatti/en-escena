@@ -1,4 +1,7 @@
-import type { InscriptionFinancialStatus } from "@/lib/finances/inscription-financial-status";
+import {
+  deriveRetainedAmount,
+  type InscriptionFinancialStatus,
+} from "@/lib/finances/inscription-financial-status";
 
 import {
   comprobanteKindSign,
@@ -94,21 +97,17 @@ export function planAnchorEmission<
   // In emission order: the first invoice is the one the star anchors at.
   comprobantes: readonly TComprobante[];
 }): EmissionPlan<TComprobante> {
-  const factura = input.comprobantes.find(
-    (comprobante) =>
-      readComprobanteKind(comprobante.cbteTipo).kind === "factura_c",
-  );
+  const anchorDelta = deriveAnchorDelta(input);
 
-  if (!factura) {
+  if (!anchorDelta) {
     return planFactura(input);
   }
 
-  if (input.inscriptions.some((inscription) => inscription.owed === null)) {
+  const { delta, documentedByInscription: documented, factura } = anchorDelta;
+
+  if (delta === null) {
     return { ok: false, reasons: ["unpriced"], invoiced: true };
   }
-
-  const documented = documentedByInscription(input.comprobantes);
-  const delta = sumOwed(input.inscriptions) - sumDocumented(input.comprobantes);
 
   if (delta === 0) {
     return { ok: false, reasons: ["nothing-owed"], invoiced: true };
@@ -141,6 +140,76 @@ export function planAnchorEmission<
   });
 
   return { ok: true, kind, amount, factura, lines };
+}
+
+/**
+ * The two sides of an invoiced unit and their difference, which is the one
+ * thing every reader of the delta asks: the emitter to name its document, the
+ * finance surfaces to name the anomaly. `null` while the unit holds no invoice,
+ * since only after it does the sign name anything.
+ */
+export type AnchorDelta<
+  TComprobante extends DocumentedComprobante = DocumentedComprobante,
+> = {
+  // The invoice the star anchors at: the first one, in emission order.
+  factura: TComprobante;
+  // `derived total − (FC + ΣND − ΣNC)`; `null` when an inscription has no
+  // price, and then nothing says what the unit owes.
+  delta: number | null;
+  // `FC + ΣND − ΣNC` over the documents' totals.
+  documented: number;
+  // The derived total, counting an unpriced row as zero.
+  owed: number;
+  // What the lines document per inscription, net of the notes. An inscription
+  // no line names is absent, which is how the unit tells a row it never
+  // invoiced from one it invoiced at zero.
+  documentedByInscription: Map<string, number>;
+};
+
+export function deriveAnchorDelta<
+  TComprobante extends DocumentedComprobante,
+>(input: {
+  inscriptions: readonly OwedInscription[];
+  comprobantes: readonly TComprobante[];
+}): AnchorDelta<TComprobante> | null {
+  const factura = input.comprobantes.find(
+    (comprobante) =>
+      readComprobanteKind(comprobante.cbteTipo).kind === "factura_c",
+  );
+
+  if (!factura) {
+    return null;
+  }
+
+  const owed = sumOwed(input.inscriptions);
+  const documented = sumDocumented(input.comprobantes);
+  const unpriced = input.inscriptions.some(
+    (inscription) => inscription.owed === null,
+  );
+
+  return {
+    factura,
+    delta: unpriced ? null : owed - documented,
+    documented,
+    owed,
+    documentedByInscription: documentedByInscription(input.comprobantes),
+  };
+}
+
+/**
+ * What one inscription owes now, as the delta counts it: its derived total,
+ * and on a withdrawn row the deposit it retains rather than whatever it still
+ * holds (ADR-0014 §6, #1065).
+ */
+export function deriveOwedAmount(inscription: {
+  allocatedAmount: number;
+  depositAmount: number | null;
+  totalAmount: number | null;
+  withdrawn: boolean;
+}): number | null {
+  return inscription.withdrawn
+    ? deriveRetainedAmount(inscription)
+    : inscription.totalAmount;
 }
 
 function planFactura(input: {

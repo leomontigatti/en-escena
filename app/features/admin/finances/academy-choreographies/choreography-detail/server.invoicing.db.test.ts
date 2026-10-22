@@ -49,6 +49,8 @@ import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
 
+import { loadAcademyFinances } from "../server";
+
 import {
   handleChoreographyFinanceAction,
   loadChoreographyFinanceDetail,
@@ -842,5 +844,175 @@ describe("financial detail — the comprobantes tab", () => {
         ptoVta: 1,
       },
     ]);
+  });
+});
+
+describe("financial detail — what the documents leave pending", () => {
+  type Seeded = { academyId: string; choreographyId: string; eventId: string };
+
+  // One sign-in per test: the detail is read before and after the emission.
+  async function signIn(seeded: Seeded) {
+    const { request } = await createSignedInRequest({
+      email: ADMIN_EMAIL,
+      role: "admin",
+      requestUrl: detailUrl(seeded),
+    });
+    const cookie = request.headers.get("cookie") ?? "";
+
+    return {
+      // The academy's finance list, read with the same session.
+      list: async () =>
+        await loadAcademyFinances({
+          params: { academyId: seeded.academyId },
+          request: new Request(
+            `http://localhost/administracion/finanzas/${seeded.academyId}?evento=${seeded.eventId}`,
+            { headers: { cookie } },
+          ),
+        }),
+      load: async () =>
+        await loadChoreographyFinanceDetail({
+          params: {
+            academyId: seeded.academyId,
+            choreographyId: seeded.choreographyId,
+          },
+          request: new Request(detailUrl(seeded), { headers: { cookie } }),
+        }),
+      emit: async (note: { kind: string; amount: number }) =>
+        await emitOwedNote(
+          seeded,
+          new Request(detailUrl(seeded), {
+            method: "POST",
+            headers: {
+              cookie,
+              "content-type": "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({
+              intent: emitComprobanteIntent,
+              confirm: emitComprobanteConfirmValue,
+              kind: note.kind,
+              amount: String(note.amount),
+            }),
+          }),
+        ),
+    };
+  }
+
+  async function emitOwedNote(seeded: Seeded, request: Request) {
+    const redirect = await handleChoreographyFinanceAction({
+      params: {
+        academyId: seeded.academyId,
+        choreographyId: seeded.choreographyId,
+      },
+      request,
+      resolveEmissionDeps: () => emissionDeps(fakeBilling()),
+    }).catch((thrown) => thrown);
+
+    expect((redirect as Response).status).toBe(302);
+  }
+
+  test("a dancer added after invoicing leaves a debit pending that names them, and the debit note clears it", async () => {
+    const seeded = await seedChoreographyWithPaidInscription({
+      academyName: "Academia Suma",
+      choreographyName: "Coreografía suma",
+      email: "academia.suma@example.com",
+      paidAmount: 3000,
+    });
+    await recordValidInvoice({
+      choreographyId: seeded.choreographyId,
+      eventId: seeded.eventId,
+      inscriptionId: seeded.inscriptionId,
+      amount: 10000,
+      cbteNro: 7,
+    });
+    const [added] = await db
+      .insert(choreographyDancers)
+      .values({
+        ageAtEventStart: 15,
+        choreographyId: seeded.choreographyId,
+        dancerId: (
+          await createDancer(seeded.academyId, {
+            firstName: "Bruno",
+            lastName: "Díaz",
+          })
+        ).id,
+      })
+      .returning();
+
+    const session = await signIn(seeded);
+    const pending = await session.load();
+
+    // The billing axis, never mixed into the payment one.
+    expect(pending.choreography?.anomalies).toEqual([]);
+    expect(pending.billing).toMatchObject({
+      anomaly: "pendingDebitNote",
+      amount: 10000,
+      creditClockDays: null,
+    });
+    expect(pending.billing?.uninvoicedInscriptionIds).toEqual([added.id]);
+
+    await session.emit({ kind: "nota_debito_c", amount: 10000 });
+    const settled = await session.load();
+
+    expect(settled.billing).toMatchObject({
+      anomaly: null,
+      uninvoicedInscriptionIds: [],
+    });
+  });
+
+  test("a withdrawal after invoicing leaves a pending credit counting days, and the credit note clears it", async () => {
+    const seeded = await seedChoreographyWithPaidInscription({
+      academyName: "Academia Baja",
+      choreographyName: "Coreografía baja",
+      email: "academia.baja@example.com",
+      paidAmount: 3000,
+    });
+    await recordValidInvoice({
+      choreographyId: seeded.choreographyId,
+      eventId: seeded.eventId,
+      inscriptionId: seeded.inscriptionId,
+      amount: 10000,
+      cbteNro: 7,
+    });
+    await db
+      .update(choreographyDancers)
+      .set({ withdrawnAt: new Date(Date.now() - 4 * 86_400_000) })
+      .where(eq(choreographyDancers.id, seeded.inscriptionId));
+
+    const session = await signIn(seeded);
+    const pending = await session.load();
+
+    // The row retains its 3000 deposit: 7000 of its line is owed back.
+    expect(pending.billing).toMatchObject({
+      anomaly: "pendingCreditNote",
+      amount: 7000,
+      creditClockDays: 4,
+    });
+    expect((await session.list()).choreographyFinanceRows).toMatchObject([
+      { anomalies: [], billingStatus: "pendingCreditNote" },
+    ]);
+
+    await session.emit({ kind: "nota_credito_c", amount: 7000 });
+    const settled = await session.load();
+
+    expect(settled.billing).toMatchObject({
+      anomaly: null,
+      creditClockDays: null,
+    });
+    expect((await session.list()).choreographyFinanceRows).toMatchObject([
+      { billingStatus: "invoiced" },
+    ]);
+  });
+
+  test("before the invoice there is nothing pending", async () => {
+    const seeded = await seedChoreographyWithPaidInscription({
+      academyName: "Academia Previa",
+      choreographyName: "Coreografía previa",
+      email: "academia.previa@example.com",
+      paidAmount: 3000,
+    });
+
+    const loaderData = await loadDetail(seeded);
+
+    expect(loaderData.billing).toBeNull();
   });
 });

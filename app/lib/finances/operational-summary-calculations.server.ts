@@ -46,6 +46,9 @@ export type ResolvedInscription = {
   // enters and which badge it carries; its figures already come derived
   // accordingly.
   withdrawn: boolean;
+  // When it left the roster: the start of the 15-day clock on the credit note
+  // its withdrawal owes (#657).
+  withdrawnAt: Date | null;
 };
 
 export type FinanceChoreographyRow = {

@@ -179,6 +179,7 @@ function loaderDataFixture(
       phone: "11-5555-5555",
     },
     availableBalanceAmount: 7000,
+    billing: null,
     comprobantes: [],
     inscriptions: [inscriptionFixture()],
     invoicing: readyInvoicing("factura_c", 4000),
@@ -214,5 +215,8 @@ function loaderDataFixture(
 function inscriptionFixture(
   overrides: Partial<InscriptionRow> = {},
 ): InscriptionRow {
-  return seminarInscriptionFinanceRowFixture(overrides);
+  return {
+    billingStatus: null,
+    ...seminarInscriptionFinanceRowFixture(overrides),
+  };
 }

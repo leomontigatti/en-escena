@@ -271,6 +271,63 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(markup).not.toContain("más dinero asignado que su total");
   });
 
+  test("alerts that a credit note is owed, with what was invoiced, what is owed and the day count", () => {
+    const alert = pendingDocumentAlert(
+      renderDetail({
+        billing: {
+          anomaly: "pendingCreditNote",
+          amount: 7000,
+          creditClockDays: 4,
+          documentedAmount: 10000,
+          owedAmount: 3000,
+          uninvoicedInscriptionIds: [],
+          documentedInscriptionIds: [],
+        },
+      }),
+    );
+
+    expect(alert.querySelector('[data-slot="alert-title"]')?.textContent).toBe(
+      "Falta emitir una nota de crédito",
+    );
+    expect(alert.textContent).toContain(
+      "Lo facturado suma $ 10.000 y hoy corresponden $ 3.000: la nota de crédito es por $ 7.000.",
+    );
+    expect(alert.textContent).toContain(
+      "De una baja solo se factura la seña que retiene. Pasaron 4 de los 15 días corridos desde la baja más antigua.",
+    );
+  });
+
+  test("alerts that a debit note is owed with no clock, naming the dancers no comprobante includes yet", () => {
+    const markup = renderDetail({
+      billing: {
+        anomaly: "pendingDebitNote",
+        amount: 10000,
+        creditClockDays: null,
+        documentedAmount: 10000,
+        owedAmount: 20000,
+        uninvoicedInscriptionIds: ["inscription_2"],
+        documentedInscriptionIds: ["inscription_1"],
+      },
+      inscriptions: [
+        inscriptionFixture({ financialStatus: "depositMet" }),
+        inscriptionFixture({
+          financialStatus: "depositPending",
+          firstName: "Bruno",
+          inscriptionId: "inscription_2",
+        }),
+      ],
+    });
+    const alert = pendingDocumentAlert(markup);
+
+    expect(alert.querySelector('[data-slot="alert-title"]')?.textContent).toBe(
+      "Falta emitir una nota de débito",
+    );
+    expect(alert.textContent).toContain(
+      "la nota de débito es por $ 10.000. Incluye a Bruno López, que todavía no figura en ningún comprobante.",
+    );
+    expect(alert.textContent).not.toContain("días corridos");
+  });
+
   test("warns when the deposit has no configured price", () => {
     const markup = renderDetail({
       choreography: choreographyFixture({
@@ -286,6 +343,20 @@ describe("ChoreographyFinanceDetailView", () => {
   });
 });
 
+function pendingDocumentAlert(markup: string) {
+  const document = new DOMParser().parseFromString(markup, "text/html");
+  const alert = [...document.querySelectorAll('[data-slot="alert"]')].find(
+    (candidate) => candidate.textContent?.includes("Falta emitir"),
+  );
+
+  if (!alert) {
+    throw new Error("Expected a pending-document alert.");
+  }
+
+  return alert;
+}
+
+/** The `Estado` badge of every inscription row, read by its header. */
 /**
  * Maps each amount column of the inscription row to its decoration. It anchors on
  * the column's header, not on its position, so the test talks about
@@ -393,6 +464,7 @@ function loaderDataFixture(
       phone: "11-5555-5555",
     },
     availableBalanceAmount: 5000,
+    billing: null,
     comprobantes: [],
     choreography: choreographyFixture(),
     inscriptions: [inscriptionFixture({ financialStatus: "depositMet" })],
@@ -451,6 +523,7 @@ function inscriptionFixture(
     allocatedAmount: 3000,
     anomalies: [],
     basePriceAmount: 10000,
+    billingStatus: null,
     dancerDiscountAmount: 0,
     dancerId: "dancer_1",
     depositAmount: 3000,

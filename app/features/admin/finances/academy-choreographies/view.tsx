@@ -8,7 +8,11 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { FinancialStatusBadge } from "@/components/shared/financial-status-badge";
+import {
+  billingFacet,
+  billingFacetId,
+  PaymentAndBillingBadges,
+} from "@/components/shared/billing-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,7 +49,10 @@ type ChoreographyFinanceRow =
 type SeminarFinanceRow =
   AcademyFinancesLoaderData["seminarFinanceRows"][number];
 
-export const academyChoreographyFinanceFacetedFilterIds = ["estado"] as const;
+export const academyChoreographyFinanceFacetedFilterIds = [
+  "estado",
+  billingFacetId,
+] as const;
 
 const choreographyFinanceFacetedFilters: DataTableFacetedFiltersOf<
   typeof academyChoreographyFinanceFacetedFilterIds
@@ -56,6 +63,7 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFiltersOf<
     options: [...choreographyStatusFilterOptions],
     renderValue: renderInscriptionStatusFilterValue,
   },
+  billingFacet,
 ];
 
 type AcademyFinancesRouteViewProps = {
@@ -290,12 +298,17 @@ function buildSeminarFinanceColumns(
       id: "financialStatus",
       header: "Estado",
       cell: (row) => (
-        <FinancialStatusBadge status={resolveSeminarStatus(row)} />
+        <PaymentAndBillingBadges
+          billingStatus={row.billingStatus}
+          status={resolveSeminarStatus(row)}
+        />
       ),
-      // The filter comes from the same badge the cell shows, for the same
-      // reason it does on the choreography tab.
-      filterValue: (row) =>
+      // The filters come from the same badges the cell shows, for the same
+      // reason they do on the choreography tab.
+      filterValues: (row) => [
         formatInscriptionStatusBadge(resolveSeminarStatus(row)).value,
+        row.billingStatus ?? "",
+      ],
     },
   ];
 }
@@ -352,12 +365,19 @@ function buildChoreographyFinanceColumns(
     {
       id: "financialStatus",
       header: "Estado",
-      cell: (row) => <ChoreographyStatusCell row={row} />,
-      // The filter comes from the same badge the cell shows, not from
+      cell: (row) => (
+        <PaymentAndBillingBadges
+          billingStatus={row.billingStatus}
+          status={resolveChoreographyStatus(row)}
+        />
+      ),
+      // The filters come from the same badges the cell shows, not from
       // `financialStatus`: a row badged `Sobreasignada` that turned up while
       // filtering by `Señada` would contradict itself on screen.
-      filterValue: (row) =>
+      filterValues: (row) => [
         formatInscriptionStatusBadge(resolveChoreographyStatus(row)).value,
+        row.billingStatus ?? "",
+      ],
     },
   ];
 }
@@ -381,8 +401,4 @@ function resolveChoreographyStatus(row: ChoreographyFinanceRow) {
     financialStatus: row.financialStatus,
     withdrawn: row.withdrawn,
   });
-}
-
-function ChoreographyStatusCell({ row }: { row: ChoreographyFinanceRow }) {
-  return <FinancialStatusBadge status={resolveChoreographyStatus(row)} />;
 }

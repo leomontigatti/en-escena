@@ -3,7 +3,7 @@ import {
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import type { DataTableFacetedFilterOption } from "@/components/shared/data-table.shared";
-import { FinancialStatusBadge } from "@/components/shared/financial-status-badge";
+import { PaymentAndBillingBadges } from "@/components/shared/billing-status-badge";
 import { Badge } from "@/components/ui/badge";
 import {
   formatInscriptionStatusBadge,
@@ -18,6 +18,7 @@ import {
   type InscriptionFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
 
+import type { BillingStatus } from "@/lib/comprobantes/anchor-billing";
 import { formatAmount } from "@/lib/finances/formatters";
 
 /**
@@ -33,6 +34,9 @@ import { formatAmount } from "@/lib/finances/formatters";
 export type InscriptionFinanceRow = {
   allocatedAmount: number;
   anomalies: InscriptionAnomaly[];
+  /** The row's comprobante status, the `Estado`'s second badge. Only the
+   * administration's financial details carry it (ADR-0014 §10). */
+  billingStatus?: BillingStatus | null;
   depositAmount: number | null;
   effectivePrice: { name: string } | null;
   financialStatus: InscriptionFinancialStatus;
@@ -140,12 +144,14 @@ export const inscriptionFinanceColumns: DataTableColumn<InscriptionFinanceRow>[]
       cell: (inscription) => (
         <InscriptionStatusCell inscription={inscription} />
       ),
-      // The filter comes from the same badge the cell shows and not from
+      // The filters come from the same badges the cell shows and not from
       // `financialStatus`: a row badged `Retirada` that showed up when filtering
       // by `Pagada` would contradict itself on screen.
-      filterValue: (inscription) =>
+      filterValues: (inscription) => [
         formatInscriptionStatusBadge(resolveInscriptionStatus(inscription))
           .value,
+        inscription.billingStatus ?? "",
+      ],
     },
   ];
 
@@ -187,8 +193,13 @@ function InscriptionStatusCell({
 }: {
   inscription: InscriptionFinanceRow;
 }) {
+  // The comprobante badge sits beside the payment one, never in its place;
+  // the portal's rows carry none.
   return (
-    <FinancialStatusBadge status={resolveInscriptionStatus(inscription)} />
+    <PaymentAndBillingBadges
+      billingStatus={inscription.billingStatus}
+      status={resolveInscriptionStatus(inscription)}
+    />
   );
 }
 

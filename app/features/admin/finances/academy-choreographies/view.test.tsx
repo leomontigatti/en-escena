@@ -1285,6 +1285,46 @@ describe("AcademyFinancesRouteView", () => {
     expect(columnValues("Nombre")).toEqual(["Tango"]);
   });
 
+  const billedRows = () => [
+    choreographyFinanceRowFixture({
+      billingStatus: "pendingDebitNote",
+      financialStatus: "paidInFull",
+      id: "choreography_1",
+      name: "Aire",
+    }),
+    choreographyFinanceRowFixture({
+      billingStatus: "pendingCreditNote",
+      choreographyNumber: 2,
+      id: "choreography_2",
+      name: "Tango",
+      withdrawn: true,
+    }),
+    choreographyFinanceRowFixture({
+      billingStatus: "invoiced",
+      choreographyNumber: 3,
+      financialStatus: "depositMet",
+      id: "choreography_3",
+      name: "Vals",
+    }),
+    choreographyFinanceRowFixture({
+      choreographyNumber: 4,
+      id: "choreography_4",
+      name: "Zamba",
+    }),
+  ];
+
+  test("filters the list down to the pending credits on `NC pendiente`", async () => {
+    await renderListIntoDocument({
+      initialEntry:
+        "/administracion/finanzas/academy_1?facturacion=pendingCreditNote",
+      loaderData: academyFinancesLoaderDataFixture({
+        choreographyFinanceRows: billedRows(),
+      }),
+    });
+
+    expect(columnValues("Nombre")).toEqual(["Tango"]);
+  });
+
   async function renderListIntoDocument(
     props: {
       actionData?: AcademyFinancesActionData;
@@ -1537,6 +1577,7 @@ function seminarFinanceRowFixture(
     allocatedAmount: 0,
     anomalies: [],
     basePriceAmount: { amount: 20000, status: "complete" },
+    billingStatus: null,
     depositAmount: { amount: 5000, status: "complete" },
     financialStatus: "depositPending",
     id: "seminar",
@@ -1631,6 +1672,7 @@ function choreographyFinanceRowFixture(
     allocatedAmount: 0,
     anomalies: [],
     basePriceAmount: { amount: 10000, status: "complete" },
+    billingStatus: null,
     choreographyNumber: 1,
     depositAmount: { amount: 3000, status: "complete" },
     financialStatus: "depositPending",

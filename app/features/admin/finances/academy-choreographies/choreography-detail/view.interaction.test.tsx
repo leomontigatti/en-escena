@@ -1207,6 +1207,7 @@ function inscriptionFixture(
     allocatedAmount: 3000,
     anomalies: [],
     basePriceAmount: 10000,
+    billingStatus: null,
     dancerDiscountAmount: 0,
     dancerId: "dancer_1",
     depositAmount: 3000,
@@ -1240,6 +1241,7 @@ function loaderDataFixture(
       phone: "11-5555-5555",
     },
     availableBalanceAmount: 5000,
+    billing: null,
     comprobantes: [],
     choreography: {
       allocatedAmount: 3000,

@@ -9,6 +9,8 @@ import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
+import { deriveInscriptionBillingStatus } from "@/lib/comprobantes/anchor-billing";
+import { readAnchorBilling } from "@/lib/comprobantes/anchor-billing.server";
 import { type ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
 import { getComprobanteEmissionDeps } from "@/lib/comprobantes/emission-config.server";
 import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
@@ -74,6 +76,7 @@ export async function loadChoreographyFinanceDetail(input: {
     return {
       academy,
       availableBalanceAmount: 0,
+      billing: null,
       choreography: null,
       comprobantes: [],
       inscriptions: [],
@@ -101,6 +104,7 @@ export async function loadChoreographyFinanceDetail(input: {
     priceOptions,
     invoicing,
     comprobantes,
+    billing,
   ] = await Promise.all([
     readChoreographyInscriptionRows({
       academyEventInscriptions: financeDetail.inscriptions,
@@ -113,6 +117,14 @@ export async function loadChoreographyFinanceDetail(input: {
       eventId,
     }),
     readAnchorComprobantes(choreographyAnchor(choreographyId)),
+    readAnchorBilling({
+      academyId,
+      anchor: choreographyAnchor(choreographyId),
+      eventId,
+      inscriptions: financeDetail.inscriptions.filter(
+        (inscription) => inscription.choreographyId === choreographyId,
+      ),
+    }),
   ]);
   // One price travels with the row: the **effective** one, what the inscription
   // is charged at. It is the figure the dialog reads out, the row the picker
@@ -122,6 +134,10 @@ export async function loadChoreographyFinanceDetail(input: {
   // longer travels to the client.
   const inscriptions = inscriptionRows.map((inscription) => ({
     ...inscription,
+    billingStatus: deriveInscriptionBillingStatus(
+      billing,
+      inscription.inscriptionId,
+    ),
     effectivePrice:
       inscription.inscriptionId === null
         ? null
@@ -134,6 +150,9 @@ export async function loadChoreographyFinanceDetail(input: {
     // allocated belongs to neither. It travels this far because it is the pool
     // every allocation made in this detail comes out of.
     availableBalanceAmount: financeDetail.summary.availableBalanceAmount,
+    // What the choreography's documents leave pending, `null` before its
+    // invoice: the alert's figures and the clock.
+    billing,
     invoicing,
     comprobantes,
     choreography: {
