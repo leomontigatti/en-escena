@@ -85,6 +85,16 @@ export function formatComprobanteKindLabel(cbteTipo: number): string {
     : knownKindTraits[kind.kind].label;
 }
 
+// A correlative series, `(ptoVta, cbteTipo)`, the way ARCA's portal finds it.
+// Every kind numbers and dates on its own series, so a message about a number
+// or a date has to say which one it means.
+export function formatComprobanteSeriesLabel(series: {
+  ptoVta: number;
+  cbteTipo: number;
+}): string {
+  return `${formatComprobanteKindLabel(series.cbteTipo)}, punto de venta ${String(series.ptoVta).padStart(4, "0")}`;
+}
+
 // The list's type column has the width of two letters; the full label stays as
 // the badge's `title`, so nothing is lost when it shrinks.
 export function formatComprobanteKindInitials(cbteTipo: number): string {

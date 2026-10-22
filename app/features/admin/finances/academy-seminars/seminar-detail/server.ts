@@ -7,21 +7,21 @@ import {
   readFinanceAcademyId,
 } from "@/features/admin/finances/academy.server";
 import {
+  handleAbandonReservation,
   handleEmitComprobante,
   handleRecheckComprobante,
   readAnchorInvoicing,
 } from "@/features/admin/finances/comprobante-emission/handlers.server";
 import {
+  abandonReservationIntent,
   emitComprobanteIntent,
   recheckComprobanteIntent,
 } from "@/features/admin/finances/comprobante-emission/shared";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { seminarAnchor } from "@/lib/comprobantes/anchor";
-import {
-  getComprobanteEmissionDeps,
-  type ComprobanteEmissionDeps,
-} from "@/lib/comprobantes/emit-comprobante.server";
+import { type ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
+import { getComprobanteEmissionDeps } from "@/lib/comprobantes/emission-config.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import {
   readSeminarInscriptionPriceOptions,
@@ -183,6 +183,10 @@ export async function handleSeminarFinanceAction(input: {
 
   if (intent === recheckComprobanteIntent) {
     return await handleRecheckComprobante({ ...emissionContext, formData });
+  }
+
+  if (intent === abandonReservationIntent) {
+    return await handleAbandonReservation({ ...emissionContext, formData });
   }
 
   const result = await runSeminarInscriptionMoneyIntent({

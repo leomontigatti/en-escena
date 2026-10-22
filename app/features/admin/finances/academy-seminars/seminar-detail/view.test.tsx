@@ -5,6 +5,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { seminarInscriptionFinanceRowFixture } from "@/lib/finances/seminar-inscriptions.test-support";
+import { readyInvoicing } from "@/features/admin/finances/comprobante-emission/shared.test-support";
 
 import type { loadSeminarFinanceDetail } from "./server";
 import { SeminarFinanceDetailView } from "./view";
@@ -180,7 +181,7 @@ function loaderDataFixture(
     availableBalanceAmount: 7000,
     comprobantes: [],
     inscriptions: [inscriptionFixture()],
-    invoicing: { status: "ready", kind: "factura_c", amount: 4000 },
+    invoicing: readyInvoicing("factura_c", 4000),
     priceOptionsByInscription: {
       seminar_inscription_1: [
         {

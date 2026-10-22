@@ -28,12 +28,14 @@ import { cn } from "@/lib/shared/utils";
  * knows all of them, and they only make sense together. `endMonth` bounds the
  * month dropdown while `latestSelectableDate` bounds the days inside the last
  * month it offers — a bound given only by month still shows clickable days past
- * it.
+ * it. `startMonth` and `earliestSelectableDate` are the same pair at the other
+ * end.
  */
 type DateOnlyFieldCalendarBounds = {
   defaultMonth?: Date;
   startMonth?: Date;
   endMonth?: Date;
+  earliestSelectableDate?: Date;
   latestSelectableDate?: Date;
 };
 
@@ -255,7 +257,7 @@ function DateOnlyFieldCalendar({
       defaultMonth={calendarBounds?.defaultMonth}
       startMonth={calendarBounds?.startMonth}
       endMonth={calendarBounds?.endMonth}
-      disabled={toDisabledDays(calendarBounds?.latestSelectableDate)}
+      disabled={toDisabledDays(calendarBounds)}
       mode="single"
       selected={selectedDate}
       onSelect={(date) => onPick(date ? formatDateOnly(date) : "")}
@@ -303,8 +305,17 @@ function getTriggerClassName(
   );
 }
 
-function toDisabledDays(latestSelectableDate: Date | undefined) {
-  return latestSelectableDate ? { after: latestSelectableDate } : undefined;
+function toDisabledDays(bounds: DateOnlyFieldCalendarBounds | undefined) {
+  const disabled = [
+    bounds?.earliestSelectableDate
+      ? { before: bounds.earliestSelectableDate }
+      : null,
+    bounds?.latestSelectableDate
+      ? { after: bounds.latestSelectableDate }
+      : null,
+  ].filter((matcher) => matcher !== null);
+
+  return disabled.length > 0 ? disabled : undefined;
 }
 
 function getDateOnlyValue(value: string) {

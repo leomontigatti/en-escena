@@ -16,7 +16,6 @@ import {
   facturaCConsultada,
   notaCreditoCAprobada,
   ultimoAutorizado,
-  ultimoNotaCreditoAutorizado,
 } from "./wsfe-responses.test-support";
 
 // Timeouts in milliseconds: the tests exercise the real cut-off, with no fake
@@ -62,11 +61,11 @@ const emissionInput = {
 };
 
 describe("ArcaClient", () => {
-  test("queries the last authorized number for `Factura C` (type 11) and interprets it", async () => {
+  test("queries the last authorized number of the series it is asked about and interprets it", async () => {
     const billing = fakeBilling();
     const client = new ArcaClient(billing);
 
-    const result = await client.getLastFacturaCNumber(1);
+    const result = await client.getLastComprobanteNumber(1, 11);
 
     expect(billing.getLastVoucher).toHaveBeenCalledWith(1, 11);
     expect(result.lastCbteNro).toBe(42);
@@ -100,19 +99,6 @@ describe("ArcaClient", () => {
       client.emitFacturaC({ ...emissionInput, importe: 0 }),
     ).rejects.toThrow(/ImpTotal/);
     expect(billing.createVoucher).not.toHaveBeenCalled();
-  });
-
-  test("queries the last authorized number for `Nota de crédito C` (type 13)", async () => {
-    const billing = fakeBilling({
-      getLastVoucher: vi.fn(async () => ultimoNotaCreditoAutorizado),
-    });
-    const client = new ArcaClient(billing);
-
-    const result = await client.getLastNotaCreditoCNumber(1);
-
-    expect(billing.getLastVoucher).toHaveBeenCalledWith(1, 13);
-    expect(result.lastCbteNro).toBe(7);
-    expect(result.nextCbteNro).toBe(8);
   });
 
   test("emits a mirror `Nota de crédito C` (type 13) with CbtesAsoc and returns the CAE", async () => {
@@ -178,7 +164,7 @@ describe("ArcaClient (timeouts)", () => {
     const billing = fakeBilling({ getLastVoucher: vi.fn(neverAnswers) });
     const client = new ArcaClient(billing, FAST_TIMEOUTS);
 
-    await expect(client.getLastFacturaCNumber(1)).rejects.toThrow(
+    await expect(client.getLastComprobanteNumber(1, 11)).rejects.toThrow(
       /FECompUltimoAutorizado/,
     );
   });
@@ -192,18 +178,14 @@ describe("ArcaClient (timeouts)", () => {
     );
   });
 
-  test("also bounds the type 13 series' last-number lookup and its emission", async () => {
+  test("also bounds a note's emission", async () => {
     const client = new ArcaClient(
       fakeBilling({
-        getLastVoucher: vi.fn(neverAnswers),
         createVoucher: vi.fn(neverAnswers),
       }),
       FAST_TIMEOUTS,
     );
 
-    await expect(client.getLastNotaCreditoCNumber(1)).rejects.toThrow(
-      /FECompUltimoAutorizado/,
-    );
     await expect(
       client.emitNotaCreditoC({
         ...emissionInput,
@@ -226,9 +208,11 @@ describe("ArcaClient (timeouts)", () => {
   test("a call that responds in time is unaffected", async () => {
     const client = new ArcaClient(fakeBilling(), FAST_TIMEOUTS);
 
-    await expect(client.getLastFacturaCNumber(1)).resolves.toMatchObject({
-      nextCbteNro: 43,
-    });
+    await expect(client.getLastComprobanteNumber(1, 11)).resolves.toMatchObject(
+      {
+        nextCbteNro: 43,
+      },
+    );
   });
 });
 

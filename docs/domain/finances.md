@@ -857,7 +857,9 @@ Removing a dancer from a roster is an **admin-only** action, and it chooses once
 between two outcomes:
 
 - **Physical delete** when the inscription holds neither payment allocations nor
-  a `comprobante_inscription` line. Nothing to preserve.
+  a `comprobante_inscription` line, and no live `comprobanteReservation` names it
+  (the attempt may already be a document at ARCA, and recording it needs the
+  row). Nothing to preserve.
 - **Withdrawal** otherwise: `withdrawnAt` is stamped and the row survives with
   its money and its comprobante line on it.
 
@@ -954,7 +956,8 @@ presentation; a comprobante is a reason to withdraw, never a reason to refuse.
 **Removing a seminar inscription goes through the same chooser**, on both sides
 (`app/lib/seminars/inscription-withdrawal.server.ts`): the academy keeps its
 removal until the seminar starts and administration keeps its removal at any
-time; a row with no allocation and no comprobante line is deleted, any other is
+time; a row with no allocation, no comprobante line and no live reservation
+naming it is deleted, any other is
 withdrawn with its money, its stored row and its `createdAt`. The academy
 therefore has an **academy-driven withdrawal** choreographies do not have. A
 withdrawn seminar inscription owes nothing beyond what it holds, exposes its
@@ -1070,31 +1073,60 @@ dialog saying why, in the words the server refuses with. There is no bulk
 action yet (#1712).
 
 - **Emission is serialised per anchor.** Before it reads anything it plans by,
-  an emission takes a transaction-scoped Postgres advisory lock keyed on the
-  anchor — the choreography, or the `(seminar, academy)` pair — and holds it
-  through the authorization and the insert. Two operators pressing `Emitir` at
-  once therefore cannot each see the same delta and each obtain a CAE for it;
-  the second finds nothing owed. Two academies emitting in the same seminar take
-  different keys and never wait on each other. Removing an inscription from the
-  roster takes the same lock first, so it never deletes an unpaid inscription
-  that a debit note in flight is about to name: it waits, finds the line, and
-  withdraws.
-- **Each kind numbers on its own series**, `FECompUltimoAutorizado + 1` per
-  `(ptoVta, cbteTipo)`, and the date is today (#1709 makes it choosable and adds
-  the correlative reservation).
+  an emission takes a Postgres advisory lock keyed on the anchor — the
+  choreography, or the `(seminar, academy)` pair — as a session lock on a
+  connection of its own, and holds it through the authorization and the insert.
+  No transaction stays open while ARCA answers. The lock is taken fail-fast: two
+  operators pressing `Emitir` at once cannot each see the same delta and each
+  obtain a CAE for it, since the second is turned away as busy before it reads
+  anything (a waiter would hold a connection the holder may need). Re-checking
+  and abandoning an attempt take the lock of the anchor it names, the same way. Two academies emitting in the same
+  seminar take different keys and never wait on each other. Removing an
+  inscription from the roster takes the same lock first, as a transaction lock,
+  so it never deletes an unpaid inscription that a debit note in flight is about
+  to name: it waits, finds the line, and withdraws.
+- **Each kind numbers on its own series**, `(ptoVta, cbteTipo)`, and the number
+  is **reserved before ARCA is asked to authorize it** (ADR-0014 §7): the
+  emission reads `FECompUltimoAutorizado + 1`, commits a
+  `comprobanteReservation` for it, and only then calls `FECAESolicitar`. A series
+  holds one reservation at most, so two emissions in one series cannot submit the
+  same number: the second is refused before ARCA. **A live reservation blocks its
+  series** — every emission there is refused naming the attempt, its unit and its
+  amount — **and its anchor in every series**, since its document may exist
+  without the plan seeing it. It is deleted once settled: authorized (the
+  comprobante records what the reservation holds), rejected or not emitted (a
+  rejected `FECAESolicitar` consumes no number, #686), or abandoned.
+- **`CbteFch` defaults to today and the operator may back-date it**, in the
+  emission dialog, down to its series' floor: `max(last CbteFch this app recorded
+in that series, today − 10)` — ARCA's 10016 refuses a date earlier than the
+  series' last, a ratchet each authorization raises for good, and services take
+  ten days back at most. Never after today. The dialog's calendar offers only
+  the days in between; a date outside them is refused with the floor, what sets
+  it and the series, and the emitter refuses it again before ARCA is called.
 - A comprobante is emitted as a **service** (WSFEv1 `Concepto` 2). The service
   period is the unit's own: a choreography bills the event's span; a seminar is
   taught on one day, so both ends read the seminar's date. `FchVtoPago` is the
   comprobante's own date (ADR-0014 §8).
-- **A rejection persists nothing**, and is read from `Resultado`: ARCA returns
-  10197 in `Observaciones` with no `Errors` node (#686). Contingency and
-  recovery when ARCA is unreachable are implemented: a failure is classified by
-  phase, timeouts are wrapper-level constants, and authorization ambiguity is
-  resolved by consulting ARCA, in the document's own series, rather than by
-  asking the operator. Re-verification sends the attempt's series and number
-  and re-plans the anchor, so the amount it validates against is the server's;
-  a plan that now names another kind leaves the attempt `unverified`. The UI states what was resolved —
-  `rejected` / `not-emitted` / `unverified` — never which call broke.
+- **A rejection persists nothing**, and is read from `Resultado`, with its codes
+  looked for in `Errors` and `Observaciones` alike: ARCA returns 10197 in
+  `Observaciones` with no `Errors` node (#686). A 10016 names its axis (#612): the
+  emitter asks ARCA for the series' last number again, and if its own was still
+  the next one the rejection is about the date, otherwise about the number.
+- **Contingency and recovery when ARCA is unreachable**: a failure is classified
+  by phase, timeouts are wrapper-level constants, and authorization ambiguity is
+  resolved by consulting ARCA at the reserved number rather than by asking the
+  operator. What ARCA holds there is ours when its amount and date match what was
+  submitted, and is recorded; when they differ it is someone else's, and the
+  reservation turns **`number-taken`**; when ARCA cannot be asked, or does not
+  have the number after an authorization that timed out, it stays `unverified`.
+  Either way the reservation stays live, and the alert offers two ways out:
+  **re-checking**, which records what the reservation holds — on the anchor it
+  names, whatever that anchor owes now — and **abandoning**, which frees the
+  series. On `number-taken` abandoning follows the evidence the alert shows; on
+  `unverified` it is the operator's word that ARCA's portal does not have the
+  number, and it frees the series only while ARCA's last number is below it. The
+  UI states what was resolved — `rejected` / `not-emitted` / `unverified` /
+  `number-taken` — never which call broke.
 
 ### Reading comprobantes
 
@@ -1159,11 +1191,9 @@ action yet (#1712).
   that reason: the block is the application's to state, in Spanish, not the
   database's to resolve by destroying the evidence.
 
-> **Specified, not built.** The rest of ADR-0014 §5 and §7, owned by the slices
+> **Specified, not built.** The rest of ADR-0014 §5, owned by the slices
 > of [#657](https://github.com/leomontigatti/en-escena/issues/657):
 >
-> - the correlative **reservation** in its own table, an admin-chosen `CbteFch`
->   within ARCA's window, and the 10016 message (#1709);
 > - the delta as an anchor-level **anomaly** split by sign, `Sin facturar` rows
 >   and the 15-day clock (#1711);
 > - **bulk emission** (#1712).

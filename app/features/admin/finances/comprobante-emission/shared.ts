@@ -15,6 +15,10 @@ export const emitComprobanteIntent = "emit-comprobante";
 // for that sequence number, without retrying the authorization.
 export const recheckComprobanteIntent = "recheck-comprobante";
 
+// Abandonment of a reservation left live: it frees its series once the
+// operator has checked ARCA (ADR-0014 §7).
+export const abandonReservationIntent = "abandon-comprobante-reservation";
+
 // The exact value the irreversible emission confirmation sends in the form. The
 // server requires it before triggering the emission: the UI affordance and the
 // server agree on the same keyword so an accidental submit does not get through.
@@ -33,7 +37,20 @@ export type ComprobanteEmissionActionData =
  * under its lock all the same.
  */
 export type AnchorInvoicing =
-  | { status: "ready"; kind: KnownComprobanteKind; amount: number }
+  | {
+      status: "ready";
+      kind: KnownComprobanteKind;
+      amount: number;
+      // The dates the document may carry, `AAAA-MM-DD`: today by default,
+      // never after it, never below its series' floor (ADR-0014 §5), and the
+      // floor named with what sets it.
+      cbteFch: {
+        today: string;
+        floor: string;
+        max: string;
+        floorDescription: string;
+      };
+    }
   | {
       status: "blocked";
       // Whether the unit already holds its invoice, which decides what the

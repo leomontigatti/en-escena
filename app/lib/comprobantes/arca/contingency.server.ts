@@ -1,5 +1,12 @@
-import { formatComprobanteNumber } from "@/lib/comprobantes/format";
-import { formatComprobanteKindLabel } from "@/lib/comprobantes/kind";
+import {
+  formatComprobanteArcaDate,
+  formatComprobanteNumber,
+} from "@/lib/comprobantes/format";
+import {
+  formatComprobanteKindLabel,
+  formatComprobanteSeriesLabel,
+} from "@/lib/comprobantes/kind";
+import { formatAmount } from "@/lib/finances/formatters";
 
 import { ArcaTimeoutError, type ArcaClient } from "./client.server";
 
@@ -70,11 +77,17 @@ export type ArcaAttemptedVoucher = {
   cbteNro: number;
 };
 
+// What ARCA holds at a reserved number that is not what was submitted there.
+export type ArcaTakenVoucher = {
+  impTotal: number | null;
+  cbteFch: string | null;
+};
+
 // Why nothing could be asserted. It does not reach the UI — which only
 // distinguishes the three settled states (decision 6) — but it picks the text,
 // which would otherwise lie about what happened.
 export type ArcaUnverifiedReason =
-  // The lookup failed, or returned a comprobante that is not ours.
+  // The lookup failed, or returned a comprobante it could not settle.
   | "consult-inconclusive"
   // The lookup answered that ARCA does not have it, but the authorization was
   // cut off by a timeout and is still in flight: the "I don't have it" may be
@@ -88,6 +101,9 @@ export type ArcaRecovery =
   // ARCA does not have that comprobante and the request cannot still be in
   // progress: nothing was authorized and retrying is safe.
   | { status: "not-emitted" }
+  // ARCA holds a different comprobante at the number: ours was never
+  // authorized there, and re-checking cannot change that (ADR-0014 §7).
+  | { status: "number-taken"; taken: ArcaTakenVoucher }
   // Nothing can be asserted.
   | { status: "unverified"; reason: ArcaUnverifiedReason };
 
@@ -96,11 +112,12 @@ export type ArcaRecovery =
  * querying ARCA for the exact comprobante that was attempted
  * (`FECompConsultar`, ADR-0012 decision 3).
  *
- * The comprobante that comes back counts as ours only if its total amount AND
- * its date match what was sent (decision 4): sequence numbers are not reserved,
- * so a comprobante carrying the number we attempted is not necessarily the one
- * we meant to emit, and persisting it blindly would record somebody else's CAE,
- * which nothing downstream could detect.
+ * The number was reserved before it was submitted (ADR-0014 §7), so nobody in
+ * this app submitted anything else at it: what identifies the attempt is the
+ * reservation, not the amount and date. Those are compared all the same, as an
+ * integrity assertion: a comprobante at our number that disagrees with what we
+ * sent was emitted by somebody else, and it is `number-taken`, which no
+ * re-check can clear.
  *
  * ARCA not having the comprobante only proves it was not emitted if the
  * authorization request finished. If it was cut off by a timeout it is still in
@@ -135,11 +152,17 @@ export async function recoverAuthorization(
       : { status: "not-emitted" };
   }
 
-  const matches =
-    voucher.impTotal === submitted.impTotal &&
-    voucher.cbteFch === submitted.cbteFch;
+  if (
+    voucher.impTotal !== submitted.impTotal ||
+    voucher.cbteFch !== submitted.cbteFch
+  ) {
+    return {
+      status: "number-taken",
+      taken: { impTotal: voucher.impTotal, cbteFch: voucher.cbteFch },
+    };
+  }
 
-  if (!matches || !voucher.cae || !voucher.caeVto || !voucher.cbteFch) {
+  if (!voucher.cae || !voucher.caeVto || !voucher.cbteFch) {
     return { status: "unverified", reason: "consult-inconclusive" };
   }
 
@@ -160,6 +183,13 @@ const ARTICLE: Record<ArcaContingencySubject, string> = {
   "nota de débito": "la nota de débito",
   "nota de crédito": "la nota de crédito",
 };
+
+// The document as the operator's messages name it, with its article.
+export function nameContingencySubject(
+  subject: ArcaContingencySubject,
+): string {
+  return ARTICLE[subject];
+}
 
 export function buildNotEmittedMessage(
   subject: ArcaContingencySubject,
@@ -189,6 +219,53 @@ export function buildUnverifiedMessage(
   return (
     `${what} (${formatAttemptedVoucher(attempt)}). Verificá ese comprobante ` +
     `en ARCA antes de reintentar, para no emitir dos veces.`
+  );
+}
+
+/**
+ * ARCA holds another comprobante at the reserved number (#578): the evidence
+ * against what was submitted, so whoever abandons the attempt decides on it.
+ */
+export function buildNumberTakenMessage(input: {
+  attempt: ArcaAttemptedVoucher;
+  submitted: { impTotal: number; cbteFch: string };
+  taken: ArcaTakenVoucher;
+}): string {
+  const found = [
+    input.taken.impTotal === null
+      ? null
+      : `por ${formatAmount(input.taken.impTotal)}`,
+    input.taken.cbteFch === null
+      ? null
+      : `con fecha ${formatComprobanteArcaDate(input.taken.cbteFch)}`,
+  ]
+    .filter((part) => part !== null)
+    .join(" ");
+
+  return (
+    `${formatAttemptedVoucher(input.attempt)} existe en ARCA${found ? ` ${found}` : ""}, ` +
+    `y no coincide con lo que se envió (${formatAmount(input.submitted.impTotal)}, ` +
+    `${formatComprobanteArcaDate(input.submitted.cbteFch)}). Verificá en el portal ` +
+    `de ARCA antes de abandonar este intento: abandonarlo libera la serie ` +
+    `${formatComprobanteSeriesLabel(input.attempt)} sin registrar nada.`
+  );
+}
+
+/**
+ * A live reservation met by another emission of its series (#578): the series
+ * stays blocked until somebody resolves it, and the message carries what is
+ * needed to find the attempt in ARCA's portal.
+ */
+export function buildSeriesBlockedMessage(input: {
+  attempt: ArcaAttemptedVoucher;
+  anchorLabel: string;
+  impTotal: number;
+}): string {
+  return (
+    `${formatAttemptedVoucher(input.attempt)} de ${input.anchorLabel}, por ` +
+    `${formatAmount(input.impTotal)}, quedó sin confirmar con ARCA. No se puede ` +
+    `emitir otro comprobante de la serie ${formatComprobanteSeriesLabel(input.attempt)} ` +
+    `hasta resolverlo.`
   );
 }
 

@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { useFetcher } from "react-router";
 
 import {
@@ -20,6 +21,7 @@ import {
   contingencyCancelLabel,
   resolveContingencySubmitState,
 } from "@/lib/comprobantes/contingency-alert";
+import { createValidatedRouteFormDataSubmitHandler } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 /** What an action ARCA answers returns to the dialog that posted it. */
@@ -38,13 +40,15 @@ type ArcaConfirmationActionData =
  * back here and the dialog stays open on it; the happy path redirects, and the
  * fetcher follows it.
  */
-export function ArcaConfirmationDialog({
+export function ArcaConfirmationDialog<TFieldValues extends FieldValues>({
+  abandonIntent,
   children,
   confirmIcon: ConfirmIcon,
   confirmLabel,
   confirmValue,
   description,
   destructive = false,
+  form,
   intent,
   onOpenChange,
   open,
@@ -52,14 +56,21 @@ export function ArcaConfirmationDialog({
   title,
   toastId,
 }: {
+  /** The intent that gives up a reservation left live. */
+  abandonIntent: string;
   /** Shown under the description: what is about to be billed, say. */
   children?: ReactNode;
   confirmIcon: LucideIcon;
-  /** The verb from the title: `Emitir` for `¿Emitir la Factura C?`. */
+  /** The verb from the title: `Emitir` for `¿Emitir el comprobante?`. */
   confirmLabel: string;
   confirmValue: string;
   description: ReactNode;
   destructive?: boolean;
+  /**
+   * The form behind the fields `children` render, when the confirmation has
+   * any: the submit then goes through its validation first.
+   */
+  form?: Pick<UseFormReturn<TFieldValues>, "handleSubmit">;
   intent: string;
   onOpenChange: (open: boolean) => void;
   open: boolean;
@@ -69,14 +80,8 @@ export function ArcaConfirmationDialog({
   title: string;
   toastId: string;
 }) {
-  const {
-    acknowledge,
-    acknowledged,
-    contingency,
-    fetcher,
-    isSaving,
-    submitState,
-  } = useArcaConfirmation(toastId);
+  const { contingency, fetcher, isSaving, submitState } =
+    useArcaConfirmation(toastId);
 
   return (
     <AlertDialog
@@ -94,7 +99,15 @@ export function ArcaConfirmationDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
 
-        <fetcher.Form method="post" className="flex flex-col gap-4">
+        <fetcher.Form
+          method="post"
+          className="flex flex-col gap-4"
+          onSubmit={
+            form
+              ? createValidatedRouteFormDataSubmitHandler(form, fetcher.submit)
+              : undefined
+          }
+        >
           <input type="hidden" name="intent" value={intent} />
           <input type="hidden" name="confirm" value={confirmValue} />
 
@@ -102,11 +115,10 @@ export function ArcaConfirmationDialog({
 
           {contingency ? (
             <ContingencyAlert
-              acknowledged={acknowledged}
+              abandonIntent={abandonIntent}
               contingency={contingency}
               isBusy={isSaving}
-              onAcknowledge={acknowledge}
-              onRecheck={(payload) =>
+              onSubmit={(payload) =>
                 fetcher.submit(payload, { method: "post" })
               }
               recheckIntent={recheckIntent}
@@ -127,20 +139,21 @@ export function ArcaConfirmationDialog({
 }
 
 /**
- * The dialog's request and what ARCA answered it: the contingency it reported,
- * the operator's manual verification of it, and what that leaves the verb.
+ * The dialog's request and what ARCA answered it: the contingency it reported
+ * and what that leaves the verb.
  */
 function useArcaConfirmation(toastId: string) {
   const fetcher = useFetcher<ArcaConfirmationActionData>();
-  const contingency =
-    fetcher.data?.status === "warning" ? fetcher.data.contingency : null;
-
-  // Manual verification is declared by the operator, so it cannot survive a new
-  // attempt: every response from the server clears it and the retry goes back to
-  // being blocked if it is still unresolved.
-  const [acknowledged, setAcknowledged] = useState(false);
+  // The last contingency ARCA reported stands until ARCA reports another: an
+  // error answer is a toast about this request, not news about the attempt, so
+  // a re-check turned away as busy leaves the live attempt's alert and block.
+  const [contingency, setContingency] = useState<ComprobanteContingency | null>(
+    null,
+  );
   useEffect(() => {
-    setAcknowledged(false);
+    if (fetcher.data?.status === "warning") {
+      setContingency(fetcher.data.contingency);
+    }
   }, [fetcher.data]);
 
   useServerActionToast(fetcher.data?.status === "error" ? fetcher.data : null, {
@@ -148,12 +161,10 @@ function useArcaConfirmation(toastId: string) {
   });
 
   return {
-    acknowledge: () => setAcknowledged(true),
-    acknowledged,
     contingency,
     fetcher,
     isSaving: fetcher.state !== "idle",
-    submitState: resolveContingencySubmitState(contingency, acknowledged),
+    submitState: resolveContingencySubmitState(contingency),
   };
 }
 

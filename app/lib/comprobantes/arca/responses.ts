@@ -57,6 +57,18 @@ export type FacturaCEmissionResult = {
   errors: ArcaMessage[];
 };
 
+// Whether ARCA cited a validation code on either channel. A rejection's reason
+// is not always where the name says: ARCA returns 10197 in `Observaciones`
+// with `Resultado` "R" and no `Errors` at all (#686).
+export function hasArcaCode(
+  emission: Pick<FacturaCEmissionResult, "errors" | "observaciones">,
+  code: number,
+): boolean {
+  return [...emission.errors, ...emission.observaciones].some(
+    (message) => message.code === code,
+  );
+}
+
 // Interprets the `FECAESolicitar` response. It surfaces CAE/expiry, the
 // authorized sequence number and the errors/observations so the emission logic
 // (#446) can decide what to persist without digging through the raw DTO again.
@@ -86,7 +98,9 @@ export type LastVoucherResult = {
   // The last comprobante authorized for the (PtoVta, CbteTipo) queried. 0 when
   // the sales point has not emitted any yet.
   lastCbteNro: number;
-  // The next sequence number to request (validation 10016: last + 1).
+  // The next sequence number to request. Validation 10016 holds two rules
+  // under one code (#612): the number must be the last + 1 of its series, and
+  // `CbteFch` no earlier than the series' last authorized date.
   nextCbteNro: number;
   errors: ArcaMessage[];
 };

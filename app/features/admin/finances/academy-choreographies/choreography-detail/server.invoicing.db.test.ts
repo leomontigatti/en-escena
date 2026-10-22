@@ -30,14 +30,19 @@ import {
   ultimoAutorizado,
 } from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
-import type { ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
+import {
+  emitAnchorComprobante,
+  type ComprobanteEmissionDeps,
+} from "@/lib/comprobantes/emit-comprobante.server";
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import {
+  abandonReservationIntent,
   emitComprobanteConfirmValue,
   emitComprobanteIntent,
   recheckComprobanteIntent,
 } from "@/features/admin/finances/comprobante-emission/shared";
+import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createSavedEvent } from "@/lib/test-support/events";
@@ -78,7 +83,7 @@ function emissionDeps(billing: ArcaBillingPort): ComprobanteEmissionDeps {
     ptoVta: 1,
     issuerCuit: "30717611590",
     receptorIvaConditionId: 5,
-    cbteFch: "20260722",
+    today: "2026-07-22",
   };
 }
 
@@ -295,10 +300,17 @@ describe("financial detail — comprobante emission axis", () => {
 
     const loaderData = await loadDetail(seeded);
 
-    expect(loaderData.invoicing).toEqual({
+    // The date defaults to today, and the floor names the series it is the
+    // floor of.
+    expect(loaderData.invoicing).toMatchObject({
       status: "ready",
       kind: "factura_c",
       amount: 10000,
+      cbteFch: {
+        today: getBusinessDateOnly(),
+        max: getBusinessDateOnly(),
+        floorDescription: expect.stringContaining("(Factura C, punto de venta"),
+      },
     });
   });
 
@@ -376,10 +388,15 @@ describe("financial detail — comprobante emission axis", () => {
 
     const loaderData = await loadDetail(seeded);
 
-    expect(loaderData.invoicing).toEqual({
+    expect(loaderData.invoicing).toMatchObject({
       status: "ready",
       kind: "nota_debito_c",
       amount: 10000,
+      cbteFch: {
+        floorDescription: expect.stringContaining(
+          "(Nota de débito C, punto de venta",
+        ),
+      },
     });
   });
 
@@ -573,6 +590,37 @@ describe("financial detail — comprobante emission axis", () => {
     expect(stored).toHaveLength(1);
   });
 
+  // An authorization ARCA dropped, followed by a lookup that failed too:
+  // invoice 43 stays reserved and unverified. It goes straight to the emitter:
+  // the route signs in once per test.
+  async function leaveUnverified(seeded: {
+    choreographyId: string;
+    eventId: string;
+  }) {
+    const outcome = await emitAnchorComprobante(
+      {
+        anchor: choreographyAnchor(seeded.choreographyId),
+        eventId: seeded.eventId,
+      },
+      emissionDeps(
+        fakeBilling({
+          createVoucher: vi.fn(async () => {
+            throw new Error("socket hang up");
+          }),
+          getVoucherInfo: vi.fn(async () => {
+            throw new Error("socket hang up");
+          }),
+        }),
+      ),
+    );
+
+    expect(outcome).toMatchObject({
+      ok: false,
+      reason: "unverified",
+      attempt: { cbteTipo: 11, cbteNro: 43 },
+    });
+  }
+
   test("re-verification recovers the comprobante without leaving the dialog", async () => {
     const seeded = await seedChoreographyWithPaidInscription({
       academyName: "Academia Re-verificada",
@@ -580,6 +628,7 @@ describe("financial detail — comprobante emission axis", () => {
       email: "academia.reverificada@example.com",
       paidAmount: 3000,
     });
+    await leaveUnverified(seeded);
 
     const billing = fakeBilling({
       getVoucherInfo: vi.fn(async (): Promise<VoucherInfoResultDto> => ({
@@ -622,15 +671,23 @@ describe("financial detail — comprobante emission axis", () => {
     expect(stored).toHaveLength(1);
   });
 
-  // The amount is re-planned by the server: a tampered
-  // sequence number cannot force somebody else's CAE to be persisted
-  // (decision 4).
-  test("re-verifying someone else's sequence number stays unverified", async () => {
+  // Only a reservation identifies an attempt: a tampered or stale number that
+  // no attempt holds cannot get somebody else's CAE recorded.
+  test("re-verifying a number no attempt holds records nothing", async () => {
     const seeded = await seedChoreographyWithPaidInscription({
       academyName: "Academia Ajena",
       choreographyName: "Coreografía ajena",
       email: "academia.ajena@example.com",
       paidAmount: 3000,
+    });
+    const billing = fakeBilling({
+      getVoucherInfo: vi.fn(async (): Promise<VoucherInfoResultDto> => ({
+        ...facturaCConsultada,
+        cbteDesde: 999,
+        cbteHasta: 999,
+        impTotal: 999999,
+        cbteFch: "20260722",
+      })),
     });
 
     const result = await handleChoreographyFinanceAction({
@@ -646,30 +703,51 @@ describe("financial detail — comprobante emission axis", () => {
           cbteNro: "999",
         },
       }),
-      resolveEmissionDeps: () =>
-        emissionDeps(
-          fakeBilling({
-            getVoucherInfo: vi.fn(async (): Promise<VoucherInfoResultDto> => ({
-              ...facturaCConsultada,
-              cbteDesde: 999,
-              cbteHasta: 999,
-              impTotal: 999999,
-              cbteFch: "20260722",
-            })),
-          }),
-        ),
+      resolveEmissionDeps: () => emissionDeps(billing),
     });
 
     expect(result).toMatchObject({
       status: "warning",
-      contingency: { status: "unverified", cbteNro: 999 },
+      contingency: { status: "not-emitted" },
     });
+    expect(billing.getVoucherInfo).not.toHaveBeenCalled();
 
     const stored = await db
       .select()
       .from(comprobantes)
       .where(eq(comprobantes.choreographyId, seeded.choreographyId));
     expect(stored).toHaveLength(0);
+  });
+
+  test("the operator's verification abandons the attempt and frees the series", async () => {
+    const seeded = await seedChoreographyWithPaidInscription({
+      academyName: "Academia Verificada",
+      choreographyName: "Coreografía verificada",
+      email: "academia.verificada@example.com",
+      paidAmount: 3000,
+    });
+    await leaveUnverified(seeded);
+
+    const result = await handleChoreographyFinanceAction({
+      params: {
+        academyId: seeded.academyId,
+        choreographyId: seeded.choreographyId,
+      },
+      request: await buildActionRequest({
+        ...seeded,
+        formData: {
+          intent: abandonReservationIntent,
+          cbteTipo: "11",
+          cbteNro: "43",
+        },
+      }),
+      resolveEmissionDeps: () => emissionDeps(fakeBilling()),
+    });
+
+    expect(result).toEqual({
+      status: "warning",
+      contingency: { status: "released" },
+    });
   });
 
   test("refuses to emit without the irreversible confirmation", async () => {

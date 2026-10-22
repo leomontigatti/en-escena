@@ -21,13 +21,15 @@ import {
 } from "@/db/schema";
 import { seminarAnchor } from "@/lib/comprobantes/anchor";
 import { lockComprobanteAnchor } from "@/lib/comprobantes/anchor-lock.server";
+import { findReservedInscriptionIds } from "@/lib/comprobantes/reservation.server";
 import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Executor = Transaction | typeof db;
 
 /**
- * A seminar inscription's evidence: allocated money or a comprobante line. It
+ * A seminar inscription's evidence: allocated money, a comprobante line, or a
+ * line of a live comprobante reservation, which may become one. It
  * is the justification for keeping the row, so it is both what the chooser
  * consults and what the two removal dialogs read to say the consequence out
  * loud before the removal is confirmed.
@@ -40,7 +42,7 @@ export async function findSeminarInscriptionsWithEvidence(
     return new Set();
   }
 
-  const [allocated, invoiced] = await Promise.all([
+  const [allocated, invoiced, reserved] = await Promise.all([
     executor
       .selectDistinct({
         inscriptionId: paymentAllocations.seminarInscriptionId,
@@ -58,13 +60,15 @@ export async function findSeminarInscriptionsWithEvidence(
           inArray(comprobanteInscriptions.seminarInscriptionId, inscriptionIds),
         ),
       ),
+    findReservedInscriptionIds("seminar", inscriptionIds, executor),
   ]);
 
-  return new Set(
-    [...allocated, ...invoiced].flatMap((row) =>
+  return new Set([
+    ...[...allocated, ...invoiced].flatMap((row) =>
       row.inscriptionId ? [row.inscriptionId] : [],
     ),
-  );
+    ...reserved,
+  ]);
 }
 
 /**

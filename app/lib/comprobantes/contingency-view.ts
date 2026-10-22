@@ -5,7 +5,7 @@ import type { ComprobanteContingency } from "./contingency-alert";
 // The minimal shape of an emission failure, for both financial details, so the
 // mapping to the UI surface is written once. The `reason` admits any string
 // because the emitter adds its own — `not-found`, `below-deposit`,
-// `over-credit` — but the three that do map are compared
+// `over-credit` — but the four that do map are compared
 // against `ArcaEmissionFailureReason`: renaming one over there breaks here
 // instead of silently degrading to a generic error.
 export type ContingencyFailure = {
@@ -33,6 +33,7 @@ export type ContingencyFailure = {
 const REJECTED: ArcaEmissionFailureReason = "rejected";
 const NOT_EMITTED: ArcaEmissionFailureReason = "not-emitted";
 const UNVERIFIED: ArcaEmissionFailureReason = "unverified";
+const NUMBER_TAKEN: ArcaEmissionFailureReason = "number-taken";
 
 export function toComprobanteContingency(
   failure: ContingencyFailure,
@@ -59,6 +60,14 @@ export function toComprobanteContingency(
     };
   }
 
+  if (failure.reason === NUMBER_TAKEN && failure.attempt) {
+    return {
+      status: "number-taken",
+      message: failure.message,
+      ...failure.attempt,
+    };
+  }
+
   return null;
 }
 
@@ -73,8 +82,8 @@ export type ContingencyActionData =
 /**
  * Wraps `toComprobanteContingency` in the `actionData` the emission dialog
  * consumes. It lives here rather than in a feature so the failure → UI state
- * translation cannot diverge between the two financial details: the `unverified`
- * state blocks a destructive submit, and the consequence of that drift is a
+ * translation cannot diverge between the two financial details: a live
+ * reservation blocks a destructive submit, and the consequence of that drift is a
  * second fiscal comprobante.
  */
 export function toContingencyActionData(

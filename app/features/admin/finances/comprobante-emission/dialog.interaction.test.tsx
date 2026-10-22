@@ -13,10 +13,13 @@ import {
 
 import { EmissionDialog } from "./dialog";
 import {
+  abandonReservationIntent,
+  emitComprobanteIntent,
   recheckComprobanteIntent,
   type AnchorInvoicing,
   type ComprobanteEmissionActionData,
 } from "./shared";
+import { readyInvoicing } from "./shared.test-support";
 
 /** The dialog's verb, apart from the page's own `Emitir Factura C`. */
 function emitButton() {
@@ -62,13 +65,7 @@ describe("EmissionDialog", () => {
           action: props.action,
           element: (
             <EmissionDialog
-              invoicing={
-                props.invoicing ?? {
-                  status: "ready",
-                  kind: "factura_c",
-                  amount: 12000,
-                }
-              }
+              invoicing={props.invoicing ?? readyInvoicing("factura_c", 12000)}
               open={props.open}
               onOpenChange={() => {}}
             />
@@ -81,8 +78,8 @@ describe("EmissionDialog", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 
-  // It answers by intent: the first submit leaves the requested contingency and
-  // the re-verification answers `recovered`.
+  // It answers by intent: the first submit leaves the requested contingency,
+  // the re-verification answers `recovered` and the abandonment `released`.
   function contingencyAction(
     contingency: ComprobanteEmissionActionData["status"] extends never
       ? never
@@ -92,8 +89,10 @@ describe("EmissionDialog", () => {
         >["contingency"],
   ) {
     const recheckPayloads: Array<Record<string, string>> = [];
+    const emitPayloads: Array<Record<string, string>> = [];
 
     return {
+      emitPayloads,
       recheckPayloads,
       async action({
         request,
@@ -111,6 +110,12 @@ describe("EmissionDialog", () => {
           };
         }
 
+        if (entries.intent === abandonReservationIntent) {
+          recheckPayloads.push(entries);
+          return { status: "warning", contingency: { status: "released" } };
+        }
+
+        emitPayloads.push(entries);
         return { status: "warning", contingency };
       },
     };
@@ -144,8 +149,10 @@ describe("EmissionDialog", () => {
     expect(getButton("Ya verifiqué en ARCA")).not.toBeNull();
   });
 
-  test("declaring manual verification re-enables the retry", async () => {
-    const { action } = contingencyAction(unverified);
+  // The operator's verification is not a client-side flag any more: the series
+  // stays held until the server lets the reservation go.
+  test("declaring manual verification abandons the attempt on the server, and only then re-enables the retry", async () => {
+    const { action, recheckPayloads } = contingencyAction(unverified);
     await mount({
       open: true,
       action,
@@ -156,8 +163,64 @@ describe("EmissionDialog", () => {
       within: document.querySelector('[role="alertdialog"]'),
     });
     await clickReactDomButton("Ya verifiqué en ARCA");
+    // The first click only asks: nothing is abandoned until it is confirmed.
+    expect(recheckPayloads).toEqual([]);
+    await clickReactDomButton("Sí, abandonar");
 
+    expect(recheckPayloads).toEqual([
+      { intent: abandonReservationIntent, cbteTipo: "11", cbteNro: "43" },
+    ]);
+    expect(document.body.textContent).toContain("su serie quedó libre");
     expect(emitButton().disabled).toBe(false);
+  });
+
+  test("a number another comprobante took blocks the retry until the attempt is abandoned, on a second, explicit step", async () => {
+    const { action, recheckPayloads } = contingencyAction({
+      status: "number-taken",
+      message:
+        "Factura C 0001-00000043 existe en ARCA por $ 99.999 con fecha 20/07/2026, y no coincide con lo que se envió.",
+      ptoVta: 1,
+      cbteTipo: 11,
+      cbteNro: 43,
+    });
+    await mount({ open: true, action });
+
+    await clickReactDomButton("Emitir", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
+    expect(emitButton().disabled).toBe(true);
+
+    await clickReactDomButton("Abandonar este intento");
+    await clickReactDomButton("Volver");
+    expect(recheckPayloads).toEqual([]);
+
+    await clickReactDomButton("Abandonar este intento");
+    await clickReactDomButton("Sí, abandonar");
+
+    expect(recheckPayloads).toEqual([
+      { intent: abandonReservationIntent, cbteTipo: "11", cbteNro: "43" },
+    ]);
+    expect(emitButton().disabled).toBe(false);
+  });
+
+  test("the emission carries the comprobante's date, today unless the operator moves it", async () => {
+    const { action, emitPayloads } = contingencyAction(unverified);
+    await mount({ open: true, action });
+
+    await clickReactDomButton("Emitir", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
+
+    expect(emitPayloads).toEqual([
+      expect.objectContaining({
+        intent: emitComprobanteIntent,
+        kind: "factura_c",
+        amount: "12000",
+        cbteFch: "2026-07-22",
+      }),
+    ]);
   });
 
   test("verify now sends only the sequence number and resolves the alert inside the dialog", async () => {
@@ -182,6 +245,41 @@ describe("EmissionDialog", () => {
     // Recovered: the submit is removed, not disabled.
     expect(document.querySelector('button[type="submit"]')).toBeNull();
     expect(getButton("Cerrar")).not.toBeNull();
+  });
+
+  // A busy unit answers the re-check with an error toast; the attempt is still
+  // live, so its alert and its block stay.
+  test("a re-check turned away as busy keeps the live attempt's alert and its block", async () => {
+    let answered = false;
+    await mount({
+      open: true,
+      action: async () => {
+        if (answered) {
+          return {
+            status: "error",
+            message: "Hay otra operación en curso sobre esta unidad.",
+          };
+        }
+        answered = true;
+        return { status: "warning", contingency: unverified };
+      },
+    });
+
+    await clickReactDomButton("Emitir", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
+    await clickReactDomButton("Verificar ahora");
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(toastError).toHaveBeenCalledWith(
+      "Hay otra operación en curso sobre esta unidad.",
+      { id: "comprobante-emission:error" },
+    );
+    expect(getButton("Verificar ahora")).not.toBeNull();
+    expect(emitButton().disabled).toBe(true);
   });
 
   test("an ARCA rejection allows a retry and shows the raw errors", async () => {

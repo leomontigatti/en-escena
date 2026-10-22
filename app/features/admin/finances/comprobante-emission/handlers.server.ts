@@ -2,13 +2,18 @@ import { redirect } from "react-router";
 
 import { toContingencyActionData } from "@/lib/comprobantes/contingency-view";
 import type { ComprobanteAnchor } from "@/lib/comprobantes/anchor";
+import { describeCbteFchFloor } from "@/lib/comprobantes/cbte-fch";
 import {
   emitAnchorComprobante,
   readAnchorEmissionPlan,
-  recheckAnchorComprobante,
   type ComprobanteEmissionDeps,
   type ConfirmedEmission,
 } from "@/lib/comprobantes/emit-comprobante.server";
+import { readConfiguredPtoVta } from "@/lib/comprobantes/emission-config.server";
+import {
+  abandonComprobanteReservation,
+  recheckComprobanteReservation,
+} from "@/lib/comprobantes/reserved-attempt.server";
 import { comprobanteKinds } from "@/lib/comprobantes/kind";
 import {
   emissionRefusalLabel,
@@ -26,7 +31,8 @@ import {
 /*
  * The financial detail's emission axis: emitting the document the unit owes —
  * its `Factura C`, or the debit or credit note its delta names — and
- * re-verifying an emission left unresolved (ADR-0012, ADR-0014 §5). It lives apart from the
+ * resolving a reservation left live, by re-verifying or abandoning it
+ * (ADR-0012, ADR-0014 §5 and §7). It lives apart from the
  * detail's server because it is the only part that talks to ARCA and the only
  * one that decides between redirecting and staying in the dialog.
  *
@@ -66,8 +72,16 @@ export async function handleEmitComprobante(
     };
   }
 
+  const cbteFch = input.formData.get("cbteFch");
   const outcome = await emitAnchorComprobante(
-    { anchor: input.anchor, eventId: input.eventId, confirmed },
+    {
+      anchor: input.anchor,
+      eventId: input.eventId,
+      confirmed,
+      // Absent, the comprobante goes out dated today; present, the emitter
+      // checks it against its series before ARCA is asked anything.
+      ...(typeof cbteFch === "string" && cbteFch !== "" ? { cbteFch } : {}),
+    },
     input.resolveEmissionDeps(),
   );
 
@@ -106,27 +120,25 @@ function readConfirmedEmission(formData: FormData): ConfirmedEmission | null {
 }
 
 /**
- * Queries ARCA again for the emission left unresolved, without leaving the dialog
+ * Queries ARCA again for a reservation left live, without leaving the dialog
  * (#577). Only the attempt's identity — its series and number — is read from
- * the form: the amount and the date the queried comprobante is validated
- * against are recomputed by `recheckAnchorComprobante` from the anchor
- * (ADR-0012 decision 4).
+ * the form; what it is checked against is the reservation's own record of what
+ * was submitted, and what it records goes to the anchor the reservation names.
  */
 export async function handleRecheckComprobante(
   input: ComprobanteEmissionContext & { formData: FormData },
 ): Promise<ComprobanteEmissionActionData> {
-  const cbteTipo = Number(input.formData.get("cbteTipo"));
-  const cbteNro = Number(input.formData.get("cbteNro"));
+  const attempt = readAttempt(input.formData);
 
-  if (!isPositiveInteger(cbteTipo) || !isPositiveInteger(cbteNro)) {
+  if (!attempt) {
     return {
       status: "error",
       message: "No pudimos identificar el comprobante a verificar.",
     };
   }
 
-  const outcome = await recheckAnchorComprobante(
-    { anchor: input.anchor, cbteTipo, cbteNro, eventId: input.eventId },
+  const outcome = await recheckComprobanteReservation(
+    attempt,
     input.resolveEmissionDeps(),
   );
 
@@ -140,17 +152,76 @@ export async function handleRecheckComprobante(
 }
 
 /**
+ * Gives up a reservation left live, freeing its series (ADR-0014 §7): the
+ * `number-taken` one after the operator saw the evidence, the `unverified` one
+ * on their word that ARCA's portal does not have it. ARCA may still answer
+ * that the number is ours, which records it instead.
+ */
+export async function handleAbandonReservation(
+  input: ComprobanteEmissionContext & { formData: FormData },
+): Promise<ComprobanteEmissionActionData> {
+  const attempt = readAttempt(input.formData);
+
+  if (!attempt) {
+    return {
+      status: "error",
+      message: "No pudimos identificar el intento a abandonar.",
+    };
+  }
+
+  const outcome = await abandonComprobanteReservation(
+    attempt,
+    input.resolveEmissionDeps(),
+  );
+
+  if ("released" in outcome) {
+    return { status: "warning", contingency: { status: "released" } };
+  }
+
+  if (outcome.ok) {
+    return { status: "warning", contingency: { status: "recovered" } };
+  }
+
+  return toContingencyActionData(outcome);
+}
+
+function readAttempt(
+  formData: FormData,
+): { cbteTipo: number; cbteNro: number } | null {
+  const cbteTipo = Number(formData.get("cbteTipo"));
+  const cbteNro = Number(formData.get("cbteNro"));
+
+  return isPositiveInteger(cbteTipo) && isPositiveInteger(cbteNro)
+    ? { cbteTipo, cbteNro }
+    : null;
+}
+
+/**
  * The detail's emission axis, read off the emitter's own plan: the document the
  * unit owes, or why it owes none in the sentences the emitter would refuse with.
  */
 export async function readAnchorInvoicing(input: {
   anchor: ComprobanteAnchor;
   eventId: string;
+  ptoVta?: number | null;
 }): Promise<AnchorInvoicing> {
-  const plan = await readAnchorEmissionPlan(input);
+  const plan = await readAnchorEmissionPlan({
+    ...input,
+    ptoVta: input.ptoVta === undefined ? readConfiguredPtoVta() : input.ptoVta,
+  });
 
   if (plan.ok) {
-    return { status: "ready", kind: plan.kind, amount: plan.amount };
+    return {
+      status: "ready",
+      kind: plan.kind,
+      amount: plan.amount,
+      cbteFch: {
+        today: plan.cbteFch.today,
+        floor: plan.cbteFch.floor,
+        max: plan.cbteFch.max,
+        floorDescription: describeCbteFchFloor(plan.cbteFch),
+      },
+    };
   }
 
   if (!("invoiced" in plan)) {

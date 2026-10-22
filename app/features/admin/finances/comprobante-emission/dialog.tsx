@@ -1,14 +1,18 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Check } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 import { ArcaConfirmationDialog } from "@/components/shared/arca-confirmation-dialog";
+import { DateOnlyField } from "@/components/shared/date-only-field";
 import { formatAmount } from "@/lib/finances/formatters";
 import {
   comprobanteKindCbteTipo,
   formatComprobanteKindLabel,
 } from "@/lib/comprobantes/kind";
-import { lowercaseFirst } from "@/lib/shared/utils";
 
 import {
+  abandonReservationIntent,
   emitComprobanteConfirmValue,
   emitComprobanteIntent,
   recheckComprobanteIntent,
@@ -26,6 +30,10 @@ type ReadyInvoicing = Extract<AnchorInvoicing, { status: "ready" }>;
  * Driven from the header's actions menu (ADR-0011): the `Emitir` affordance is
  * an item of the `ResourceActionsMenu`, not a separate button, and it only
  * mounts when the unit owes a document.
+ *
+ * The one thing the operator chooses is the date (ADR-0014 §5): today unless
+ * they back-date it, down to the floor of the document's series, the earliest
+ * day the calendar offers. The server checks it again under the lock.
  */
 export function EmissionDialog({
   invoicing,
@@ -39,18 +47,24 @@ export function EmissionDialog({
   const label = formatComprobanteKindLabel(
     comprobanteKindCbteTipo(invoicing.kind),
   );
+  const form = useForm<EmissionDateValues>({
+    resolver: zodResolver(emissionDateSchema(invoicing.cbteFch)),
+    defaultValues: { cbteFch: invoicing.cbteFch.today },
+  });
 
   return (
     <ArcaConfirmationDialog
+      abandonIntent={abandonReservationIntent}
       confirmIcon={Check}
       confirmLabel="Emitir"
       confirmValue={emitComprobanteConfirmValue}
-      description={`Vas a emitir una ${lowercaseFirst(label)} por ${formatAmount(invoicing.amount)}. ${irreversibilityNotes[invoicing.kind]}`}
+      description={irreversibilityNotes[invoicing.kind]}
+      form={form}
       intent={emitComprobanteIntent}
       onOpenChange={onOpenChange}
       open={open}
       recheckIntent={recheckComprobanteIntent}
-      title={`¿Emitir la ${label}?`}
+      title="¿Emitir el comprobante?"
       toastId="comprobante-emission:error"
     >
       {/* What was previewed travels with the confirmation: the server
@@ -58,18 +72,57 @@ export function EmissionDialog({
       <input type="hidden" name="kind" value={invoicing.kind} />
       <input type="hidden" name="amount" value={invoicing.amount} />
       <EmissionPreview invoicing={invoicing} label={label} />
+      <DateOnlyField
+        calendarBounds={{
+          defaultMonth: parseDateOnly(invoicing.cbteFch.today),
+          startMonth: parseDateOnly(invoicing.cbteFch.floor),
+          endMonth: parseDateOnly(invoicing.cbteFch.max),
+          earliestSelectableDate: parseDateOnly(invoicing.cbteFch.floor),
+          latestSelectableDate: parseDateOnly(invoicing.cbteFch.max),
+        }}
+        control={form.control}
+        label="Fecha"
+        name="cbteFch"
+      />
     </ArcaConfirmationDialog>
   );
 }
 
+type EmissionDateValues = z.input<ReturnType<typeof emissionDateSchema>>;
+
+// The bounds the server enforces, so a date it would refuse is caught before
+// the submit; the calendar already offers no other day.
+function emissionDateSchema(bounds: ReadyInvoicing["cbteFch"]) {
+  return z.object({
+    cbteFch: z
+      .string()
+      .min(1, "Este campo es obligatorio.")
+      .refine((value) => value <= bounds.max, {
+        message: "La fecha no puede ser posterior a hoy.",
+      })
+      .refine((value) => value >= bounds.floor, {
+        message: `La fecha no puede ser anterior al ${bounds.floorDescription}.`,
+      }),
+  });
+}
+
+// A business date `AAAA-MM-DD` as the calendar's local midnight.
+function parseDateOnly(value: string): Date {
+  const [year, month, day] = value.split("-").map(Number);
+
+  return new Date(year, month - 1, day);
+}
+
 // What undoes the document once it carries a CAE: a later note, never an edit.
+// The preview names the document and its amount, so the description is only
+// this.
 const irreversibilityNotes: Record<ReadyInvoicing["kind"], string> = {
   factura_c:
-    "Una vez emitida, sólo una nota de crédito puede acreditar lo facturado.",
+    "Una vez emitido, sólo una nota de crédito puede acreditar lo facturado.",
   nota_debito_c:
-    "Una vez emitida, sólo una nota de crédito puede acreditar lo debitado.",
+    "Una vez emitido, sólo una nota de crédito puede acreditar lo debitado.",
   nota_credito_c:
-    "Una vez emitida, sólo una nota de débito puede volver a facturar lo acreditado.",
+    "Una vez emitido, sólo una nota de débito puede volver a facturar lo acreditado.",
 };
 
 /**

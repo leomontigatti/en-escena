@@ -14,6 +14,7 @@ import {
 
 import { ChoreographyFinanceDetailView } from "./view";
 import type { AnchorInvoicing } from "@/features/admin/finances/comprobante-emission/shared";
+import { readyInvoicing } from "@/features/admin/finances/comprobante-emission/shared.test-support";
 
 import type { loadChoreographyFinanceDetail } from "./server";
 
@@ -522,17 +523,16 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
     expect(dialog?.textContent).toContain(blockedInvoicing.remedy);
   });
 
-  test("names the item and the dialog after the document the choreography owes", async () => {
+  test("names the item and the preview after the document the choreography owes", async () => {
     await mount({
-      invoicing: { status: "ready", kind: "nota_credito_c", amount: 7000 },
+      invoicing: readyInvoicing("nota_credito_c", 7000),
     });
 
     await openActionsMenu();
     await clickMenuItem("Emitir nota de crédito");
 
-    expect(document.body.textContent).toContain(
-      "¿Emitir la Nota de crédito C?",
-    );
+    expect(document.body.textContent).toContain("¿Emitir el comprobante?");
+    expect(document.body.textContent).toContain("Nota de crédito C");
     expect(document.body.textContent).toContain("Total a acreditar");
     expect(document.body.textContent).toContain("7.000");
   });
@@ -561,7 +561,7 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
           <ChoreographyFinanceDetailView
             loaderData={loaderDataFixture({
               invoicing: billable
-                ? { status: "ready", kind: "factura_c", amount: 12000 }
+                ? readyInvoicing("factura_c", 12000)
                 : { ...blockedInvoicing, invoiced: true },
             })}
           />
@@ -576,12 +576,12 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
 
     await openActionsMenu();
     await clickMenuItem("Emitir factura");
-    expect(document.body.textContent).toContain("¿Emitir la Factura C?");
+    expect(document.body.textContent).toContain("¿Emitir el comprobante?");
 
     await clickReactDomButton("revalidar");
 
     // The preview still shows the amount frozen on open, not a $ 0.
-    expect(document.body.textContent).toContain("¿Emitir la Factura C?");
+    expect(document.body.textContent).toContain("¿Emitir el comprobante?");
     expect(document.body.textContent).toContain("12.000");
   });
 });

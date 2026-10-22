@@ -1,11 +1,8 @@
 /** @vitest-environment jsdom */
 
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 
-import {
-  clickReactDomButton,
-  createReactDomTestRenderer,
-} from "@/lib/test-support/react-dom";
+import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 import {
   ContingencyAlert,
@@ -22,17 +19,14 @@ describe("ContingencyAlert", () => {
   function mount(
     contingency: ComprobanteContingency,
     overrides: {
-      acknowledged?: boolean;
-      onAcknowledge?: () => void;
-      onRecheck?: (payload: Record<string, string>) => void;
+      onSubmit?: (payload: Record<string, string>) => void;
     } = {},
   ) {
     renderer.render(
       <ContingencyAlert
-        acknowledged={overrides.acknowledged ?? false}
+        abandonIntent="abandon-reservation"
         contingency={contingency}
-        onAcknowledge={overrides.onAcknowledge ?? (() => {})}
-        onRecheck={overrides.onRecheck ?? (() => {})}
+        onSubmit={overrides.onSubmit ?? (() => {})}
         recheckIntent="recheck-comprobante"
       />,
     );
@@ -86,30 +80,6 @@ describe("ContingencyAlert", () => {
     expect(document.body.textContent).toContain("Ya verifiqué en ARCA");
   });
 
-  test("verify now sends only the intent and the sequence number", async () => {
-    const onRecheck = vi.fn();
-    mount(
-      {
-        status: "unverified",
-        message: "sin resolver",
-        ptoVta: 1,
-        cbteTipo: 11,
-        cbteNro: 43,
-      },
-      { onRecheck },
-    );
-
-    await clickReactDomButton("Verificar ahora");
-
-    // The amount and the date do NOT travel from the client: the server recomputes
-    // them (ADR-0012 decision 4). The attempt's series does, beside its number.
-    expect(onRecheck).toHaveBeenCalledWith({
-      intent: "recheck-comprobante",
-      cbteTipo: "11",
-      cbteNro: "43",
-    });
-  });
-
   test("recovered says it was recorded and does not offer a retry", () => {
     mount({ status: "recovered" });
 
@@ -122,47 +92,50 @@ describe("ContingencyAlert", () => {
 
 describe("resolveContingencySubmitState", () => {
   test("with no contingency the submit stays enabled", () => {
-    expect(resolveContingencySubmitState(null, false)).toBe("enabled");
+    expect(resolveContingencySubmitState(null)).toBe("enabled");
   });
 
   test("a rejection or a not-emitted result allow a retry", () => {
     expect(
-      resolveContingencySubmitState(
-        {
-          status: "rejected",
-          message: "no",
-          resultado: "R",
-          errors: [],
-          observaciones: [],
-        },
-        false,
-      ),
+      resolveContingencySubmitState({
+        status: "rejected",
+        message: "no",
+        resultado: "R",
+        errors: [],
+        observaciones: [],
+      }),
     ).toBe("enabled");
     expect(
-      resolveContingencySubmitState(
-        { status: "not-emitted", message: "no se emitió" },
-        false,
-      ),
+      resolveContingencySubmitState({
+        status: "not-emitted",
+        message: "no se emitió",
+      }),
     ).toBe("enabled");
   });
 
-  test("unverified blocks the submit until the operator declares they verified it", () => {
-    const unverified: ComprobanteContingency = {
-      status: "unverified",
+  test("a live reservation blocks the submit until the server resolves or releases it", () => {
+    const attempt = {
       message: "sin resolver",
       ptoVta: 1,
       cbteTipo: 11,
       cbteNro: 43,
     };
 
-    expect(resolveContingencySubmitState(unverified, false)).toBe("blocked");
-    expect(resolveContingencySubmitState(unverified, true)).toBe("enabled");
+    expect(
+      resolveContingencySubmitState({ status: "unverified", ...attempt }),
+    ).toBe("blocked");
+    expect(
+      resolveContingencySubmitState({ status: "number-taken", ...attempt }),
+    ).toBe("blocked");
+    expect(resolveContingencySubmitState({ status: "released" })).toBe(
+      "enabled",
+    );
   });
 
   test("recovered removes the submit, it does not disable it", () => {
     // A disabled button reads as "hold on a moment" and invites a retry; here
     // retrying emits a second fiscal comprobante.
-    expect(resolveContingencySubmitState({ status: "recovered" }, false)).toBe(
+    expect(resolveContingencySubmitState({ status: "recovered" })).toBe(
       "removed",
     );
     expect(contingencyCancelLabel("removed")).toBe("Cerrar");
