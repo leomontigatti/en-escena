@@ -64,9 +64,10 @@ Which channel carries a message (alert, toast or field) is
 - **An icon repeats the label**: `Check` saves, `Trash2` deletes, `Cancelar`
   has none. A delete reads `Eliminar` alone: the page already names the record. A destructive action other than a delete carries its own icon or
   none.
-- **An icon-only button has an accessible name and a tooltip**, unless its
-  icon is obvious: `Trash2`, `X`, play and pause, `Download`, `Copy`, a drag
-  handle, `Volver`'s chevron. Text cut by truncation keeps a native `title`.
+- **An icon-only button has an accessible name and a tooltip**
+  (`TooltipIconButton`), unless its icon is obvious: `Trash2`, `X`, `Copy`, a
+  drag handle, `Volver`'s chevron. Play, pause and `Download` take one. Text
+  cut by truncation keeps a native `title`.
 
 ### Actions menu
 

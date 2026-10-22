@@ -193,6 +193,7 @@ function TestMusicUploadField({
       fieldLabel="Archivo de música"
       label="Arrastrá o hacé click para cargar la música"
       {...getAssetUploadFieldProps("choreographyMusic")}
+      downloadFileName="07 - Tema - Academia.mp3"
       downloadLabel="Descargar música"
       downloadUrl={existingPreviewUrl}
       existingPreviewUrl={existingPreviewUrl}
@@ -279,6 +280,23 @@ describe("FileUploadField with an audio preview", () => {
       "Descargar música",
       "Quitar música",
     ]);
+  });
+
+  // Opening the link would only show the browser's own player in a new tab.
+  test("downloads the stored file under the name it is given", async () => {
+    await render(
+      <TestMusicUploadField
+        defaultStorageKey="academies/a/music.mp3"
+        existingPreviewUrl="/almacenamiento?key=music.mp3"
+      />,
+    );
+
+    const download = container.querySelector(
+      'a[aria-label="Descargar música"]',
+    );
+
+    expect(download?.getAttribute("download")).toBe("07 - Tema - Academia.mp3");
+    expect(download?.getAttribute("target")).toBeNull();
   });
 
   test("brings the picker back when the file is deleted from the player", async () => {
