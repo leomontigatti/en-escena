@@ -284,6 +284,9 @@ export async function seedSeminarPresetFixture(input: {
 
   return {
     academyId,
+    // The academy's choreography, the one `participant` dances in: inserting a
+    // dancer here turns them into a participant.
+    choreographyId: academy.choreography.id,
     earlyBirdId,
     eventId: event.id,
     expiredPriceId,

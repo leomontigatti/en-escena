@@ -19,6 +19,7 @@ import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.serve
 import { formatAmount, formatDate } from "@/lib/finances/formatters";
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 import type { SeminarCobroPreview } from "@/lib/finances/seminar-cobro-presets.server";
+import { seminarOverAllocatedMessage } from "@/lib/finances/seminar-cobro-refusals";
 import {
   countSeminarPlacesLeft,
   countSeminarPlacesShort,
@@ -50,7 +51,8 @@ import type { AcademyFinancesActionData } from "./server";
  * seminar, the people the charge reaches with the price they will hold and the
  * amount, and the places it takes against the places left. When it can already
  * see the charge failing — a seminar short of places, or more owed than
- * `Saldo disponible` — `Asignar` is disabled and the reason is stated. The
+ * `Saldo disponible`, or a person holding more than the price the charge would
+ * store — `Asignar` is disabled and the reason is stated. The
  * server makes the same checks as the last word, for a state that moved after
  * the dialog opened.
  *
@@ -82,7 +84,10 @@ export function SeminarPresetDialog({
     selectedSeminarIds,
     stage,
   });
-  const isBlocked = summary.shortfalls.length > 0 || summary.isBalanceShort;
+  const isBlocked =
+    summary.shortfalls.length > 0 ||
+    summary.isBalanceShort ||
+    summary.overAllocated.length > 0;
 
   useServerActionToast(fetcher.data);
 
@@ -105,7 +110,9 @@ export function SeminarPresetDialog({
               : `${selectedSeminarIds.length} seminarios elegidos.`}{" "}
             Sale del saldo disponible de la academia y se asigna a cada
             inscripción activa lo que adeuda. Las que no tienen precio toman el
-            que les corresponde hoy; las que ya tienen uno lo conservan.
+            que les corresponde hoy, y también las que tienen uno de
+            participante o no participante que ya no les corresponde y no
+            cubrieron la seña; las demás conservan el suyo.
           </DialogDescription>
         </DialogHeader>
 
@@ -159,6 +166,22 @@ export function SeminarPresetDialog({
                   </ul>
                   Sacá ese seminario de la selección o liberá lugares antes de
                   asignar.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            {summary.overAllocated.length > 0 ? (
+              <Alert variant="warning">
+                <TriangleAlert aria-hidden="true" />
+                <AlertTitle>Hay más asignado que el precio</AlertTitle>
+                <AlertDescription>
+                  <ul className="list-disc pl-4">
+                    {summary.overAllocated.map((person) => (
+                      <li key={person.inscriptionId}>
+                        {seminarOverAllocatedMessage(person)}
+                      </li>
+                    ))}
+                  </ul>
+                  Quitales la diferencia desde su detalle antes de asignar.
                 </AlertDescription>
               </Alert>
             ) : null}
@@ -254,7 +277,9 @@ function SeminarPresetSummary({
  * The selection read off the write's plan: the seminars in the list's order of
  * selection, the owed figure summed from the people it reaches, the seminars
  * short of places, and whether `Saldo disponible` falls short of the owed
- * figure. The place count is the write's own (`countSeminarPlacesShort`).
+ * figure, and the people the write would refuse for holding more than the
+ * price it would store. The place count is the write's own
+ * (`countSeminarPlacesShort`).
  */
 function summarizeSeminarPreset(input: {
   availableBalanceAmount: number;
@@ -305,6 +330,7 @@ function summarizeSeminarPreset(input: {
       availableBalanceAmount: input.availableBalanceAmount,
       owedAmount,
     }),
+    overAllocated: people.filter((person) => person.overAllocatedAmount > 0),
     owedAmount,
     seminars,
     shortfalls,
