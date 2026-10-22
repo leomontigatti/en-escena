@@ -272,6 +272,9 @@ async function resolveRegistrationBases(
   });
 }
 
+export const eventNotReadyMessage =
+  "El evento activo todavía no tiene las bases mínimas para registrar coreografías.";
+
 async function resolveRegistrationFromResolvedDancers(input: {
   eventBases: EventBases;
   eventId: string;
@@ -288,10 +291,7 @@ async function resolveRegistrationFromResolvedDancers(input: {
     );
 
     if (!readiness.isReady) {
-      return failure(
-        "event-not-ready",
-        "El evento activo todavía no tiene las bases mínimas para registrar coreografías.",
-      );
+      return failure("event-not-ready", eventNotReadyMessage);
     }
   }
 

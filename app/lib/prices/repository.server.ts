@@ -35,6 +35,7 @@ import {
   findPriceDuplicateFailure,
   refuseLostDuplicateRace,
 } from "@/lib/prices/price-duplicates.server";
+import { lockEventPricesForEdit } from "@/lib/prices/price-list-lock.server";
 import {
   listOccupiedDroppedSchedules,
   replacePriceSchedules,
@@ -43,6 +44,7 @@ import {
   loadEventPriceRows,
   loadPriceRow,
   loadPriceRowForUpdate,
+  loadPriceRows,
   type PriceRow,
 } from "@/lib/prices/rows.server";
 
@@ -202,9 +204,17 @@ export async function updatePrice(
   // The guards read which inscriptions stored the row, so they run under the
   // row's lock: the writers that store a price take the same lock
   // (`loadCandidatePriceRow`), and one that commits while this edit is in
-  // flight is seen here instead of being left on a row the edit changed.
+  // flight is seen here instead of being left on a row the edit changed. They
+  // also read whether the group type has an active inscription, so they run
+  // under the price list's lock too, which the writers that make one active
+  // take (`lockEventPrices`).
   try {
-    return await savePriceUnderLock(priceId, validation.input, dependencies);
+    return await savePriceUnderLock(
+      existing.eventId,
+      priceId,
+      validation.input,
+      dependencies,
+    );
   } catch (error) {
     return await refuseLostDuplicateRace(
       error,
@@ -216,11 +226,14 @@ export async function updatePrice(
 }
 
 async function savePriceUnderLock(
+  eventId: string,
   priceId: string,
   input: ValidPriceInput,
   dependencies: PriceDependencies,
 ): Promise<EventBasesMutationResult<PriceRecord>> {
   return await db.transaction(async (tx) => {
+    await lockEventPricesForEdit(tx, eventId);
+
     const locked = await loadPriceRowForUpdate(tx, priceId);
 
     if (!locked) {
@@ -296,8 +309,17 @@ export async function deletePrice(
   priceId: string,
   dependencies: PriceDependencies = {},
 ): Promise<EventBasesDeleteResult> {
-  // Under the row's lock for the same reason as `updatePrice`.
+  const found = await loadPriceRow(db, priceId);
+
+  if (!found) {
+    return eventBaseEntityNotFound("price");
+  }
+
+  // Under the price list's lock and the row's, for the same reasons as
+  // `updatePrice`.
   return await db.transaction(async (tx) => {
+    await lockEventPricesForEdit(tx, found.eventId);
+
     const price = await loadPriceRowForUpdate(tx, priceId);
 
     if (!price) {
@@ -419,6 +441,27 @@ async function removesNeverExpiringCoverage(
   }
 
   return hasActiveInscriptions(executor, existing.eventId, existing.groupType);
+}
+
+/**
+ * Whether the group type keeps a general row with no deadline: the row
+ * `removesNeverExpiringCoverage` refuses to remove while the group type has an
+ * active inscription. A registration asks it under `lockEventPrices`, because
+ * its readiness check ran before its transaction.
+ */
+export async function coversGroupType(
+  tx: EventBasesTransaction,
+  input: { eventId: string; groupType: GroupType },
+) {
+  const rows = await loadPriceRows(
+    tx,
+    and(
+      eq(prices.eventId, input.eventId),
+      eq(prices.groupType, input.groupType),
+    ),
+  );
+
+  return rows.some(isGeneralTail);
 }
 
 /**

@@ -1,5 +1,5 @@
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -52,6 +52,9 @@ import {
   getEventLocalDateParts,
 } from "@/lib/choreographies/registration-resolution.server";
 import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
+import { uncoveredPriceDeleteError } from "@/lib/prices/guards";
+import { deletePrice } from "@/lib/prices/repository.server";
+import { eventLockSpaces } from "@/lib/shared/event-advisory-locks.server";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { GroupType } from "@/lib/events/group-types";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
@@ -572,6 +575,57 @@ describe("saving a draft of the choreography detail", () => {
     },
   );
 
+  describe.skipIf(isPgliteTestBackend())("racing a price edit", () => {
+    // The save makes an inscription of the new group type active, which is
+    // what deleting that group type's general row asks first: a deletion that
+    // starts while the save is in flight has to wait for it and see the
+    // inscription, instead of uncovering the group type under it.
+    test("a deletion of the new group type's general row waits for the save and refuses", async () => {
+      const scenario = await createDraftScenario({ slug: "carrera-precio" });
+      const duoTail = await db.query.prices.findFirst({
+        where: and(
+          eq(prices.eventId, scenario.event.id),
+          eq(prices.groupType, "duo"),
+          isNull(prices.paymentDeadline),
+        ),
+      });
+      let removal: ReturnType<typeof deletePrice> | undefined;
+
+      // The holder parks the save on the choreography's row lock, once it has
+      // taken what it takes first; the deletion starts behind it.
+      const response = await runBehindAHolder({
+        waitingOn: "choreography row lock",
+        hold: (tx) =>
+          tx
+            .select({ id: choreographies.id })
+            .from(choreographies)
+            .where(eq(choreographies.id, scenario.choreography.id))
+            .for("update"),
+        contender: () =>
+          scenario.saveDraft(
+            scenario.draft({
+              dancerIds: [scenario.ana.id, scenario.bea.id],
+              scheduleCapacityId: scenario.catalog.duoScheduleCapacity.id,
+            }),
+          ),
+        beforeCommit: async () => {
+          removal = deletePrice(duoTail!.id);
+          await waitUntilQueuedOrSettled(removal, scenario.event.id);
+        },
+      });
+
+      expect(response).toMatchObject({ status: "success" });
+      await expect(removal).resolves.toEqual({
+        ok: false,
+        code: "event-bases-has-dependencies",
+        error: uncoveredPriceDeleteError,
+      });
+      await expect(
+        db.query.prices.findFirst({ where: eq(prices.id, duoTail!.id) }),
+      ).resolves.toBeDefined();
+    });
+  });
+
   describe.skipIf(isPgliteTestBackend())("racing a deposit", () => {
     test("refuses the group type when money crossing the deposit commits while the save waits", async () => {
       const scenario = await createDraftScenario({
@@ -1083,4 +1137,49 @@ async function createTargetModality(
     soloCapacity,
     submodality,
   };
+}
+
+/**
+ * Resolves once `pending` waits on the event's choreography price list lock,
+ * or once it has settled without waiting: the moment a contention test can let
+ * the holder go knowing the second contender either queued there or ran. Only
+ * that lock counts (its keyspace, the event's key, this database), so an
+ * unrelated advisory waiter cannot stand in for it.
+ */
+async function waitUntilQueuedOrSettled(
+  pending: Promise<unknown>,
+  eventId: string,
+) {
+  let settled = false;
+
+  void pending.then(
+    () => (settled = true),
+    () => (settled = true),
+  );
+
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    if (settled) {
+      return;
+    }
+
+    const [row] = await db.execute<{ waiting: number }>(
+      sql`select count(*)::int as waiting from pg_locks
+        where locktype = 'advisory'
+          and not granted
+          and database = (select oid from pg_database where datname = current_database())
+          and objsubid = 2
+          and classid::bigint = ${eventLockSpaces.choreographyPriceList}
+          and objid::bigint = (hashtext(${eventId})::bigint & 4294967295)`,
+    );
+
+    if (Number(row?.waiting ?? 0) > 0) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
+  throw new Error(
+    "The deletion neither queued on the price list lock nor settled.",
+  );
 }
