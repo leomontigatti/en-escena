@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { dancers, seminarInscriptions } from "@/db/schema";
+import { dancers, seminarInscriptions, seminarPrices } from "@/db/schema";
 import {
   createDancer,
   createProfessor,
@@ -18,6 +18,7 @@ import {
   listSeminarInscriptionsForAcademy,
   listSeminarPersonOptionsForAcademy,
 } from "@/lib/seminars/inscription-rosters.server";
+import { lockEventSeminarPricesForEdit } from "@/lib/seminar-prices/price-locks.server";
 import { createSeminarPrice } from "@/lib/seminar-prices/repository.server";
 import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
 import {
@@ -35,7 +36,11 @@ import {
   createLinkedIndividualUser,
 } from "@/lib/test-support/individuals";
 
-import { installDatabaseTestHooks } from "../../../tests/db/harness";
+import {
+  installDatabaseTestHooks,
+  isPgliteTestBackend,
+} from "../../../tests/db/harness";
+import { runBehindAHolder } from "../../../tests/db/lock-contention";
 
 installDatabaseTestHooks();
 
@@ -1042,3 +1047,59 @@ describe("the same person registered from both sides", () => {
     );
   });
 });
+
+/**
+ * A registration reads whether the price list covers every participant cell,
+ * and a price edit refuses to uncover a cell while the event has an active
+ * inscription (`removesNeverExpiringCoverage`). Each reads what the other has
+ * not committed yet unless they serialise on the event's price list: a
+ * registration queued behind an edit that uncovers a cell reads the uncovered
+ * list and refuses, instead of leaving an inscription no price resolves.
+ *
+ * Postgres only: the fast suite's single PGlite connection serialises the
+ * transactions on its own.
+ */
+describe.skipIf(isPgliteTestBackend())(
+  "a registration against a price edit that uncovers a cell",
+  () => {
+    test("a registration queued behind the edit refuses the uncovered event", async () => {
+      const { eventId, seminar } = await createSeminarFixture();
+      const academy = await createAcademy("Academia Carrera");
+      const dancer = await createDancer(academy.id);
+
+      const registration = await runBehindAHolder({
+        waitingOn: "seminar price list lock",
+        hold: (tx) => lockEventSeminarPricesForEdit(tx, eventId),
+        contender: () =>
+          registerDancerBeforeStart({
+            academyId: academy.id,
+            eventId,
+            personId: dancer.id,
+            seminarId: seminar.id,
+          }),
+        // What deleting the participant cell's deadline-less row writes, once
+        // its guard found no active inscription.
+        beforeCommit: (tx) =>
+          tx
+            .delete(seminarPrices)
+            .where(
+              and(
+                eq(seminarPrices.eventId, eventId),
+                eq(seminarPrices.forParticipants, true),
+              ),
+            ),
+      });
+
+      expect(registration).toMatchObject({
+        ok: false,
+        code: "prices-missing",
+      });
+      await expect(
+        db
+          .select({ id: seminarInscriptions.id })
+          .from(seminarInscriptions)
+          .where(eq(seminarInscriptions.seminarId, seminar.id)),
+      ).resolves.toEqual([]);
+    });
+  },
+);
