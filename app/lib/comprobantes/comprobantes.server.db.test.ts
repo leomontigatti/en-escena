@@ -178,12 +178,12 @@ describe("recordComprobante persistence", () => {
     expect(survivors).toHaveLength(1);
   });
 
-  test("the emitted row survives a roster edit: removing an inscription neither mutates nor deletes it", async () => {
+  test("an invoiced inscription cannot be hard deleted: its line keeps naming it", async () => {
     const { choreography, inscription } = await seedInscribedChoreography(
       `roster.${crypto.randomUUID()}@example.com`,
     );
 
-    const factura = await recordComprobante(
+    await recordComprobante(
       facturaCInput({
         choreographyId: choreography.id,
         eventId: choreography.eventId,
@@ -192,22 +192,34 @@ describe("recordComprobante persistence", () => {
       }),
     );
 
-    // Roster editing (removing an inscription) is still allowed even with
-    // comprobantes emitted (#340): only deleting the choreography is blocked.
-    await db
-      .delete(choreographyDancers)
-      .where(eq(choreographyDancers.id, inscription.id));
+    // The roster withdraws an invoiced inscription instead (#600); a delete
+    // that got past it would make the line vanish from `FC + ΣND − ΣNC`.
+    await expect(
+      db
+        .delete(choreographyDancers)
+        .where(eq(choreographyDancers.id, inscription.id)),
+    ).rejects.toThrow();
 
     const [survivor] = await listAnchorComprobantes(
       choreographyAnchor(choreography.id),
     );
-    // The fiscal row is immutable: its total amount does not change.
-    expect(survivor.id).toBe(factura.id);
-    expect(survivor.impTotal).toBe(10000);
-    // The link to the inscription is nulled out, but the frozen amount is
-    // preserved.
-    expect(survivor.lines).toHaveLength(1);
-    expect(survivor.lines[0]?.choreographyInscriptionId).toBeNull();
-    expect(survivor.lines[0]?.amount).toBe(10000);
+    expect(survivor.lines[0]?.choreographyInscriptionId).toBe(inscription.id);
+  });
+
+  test("refuses a line that names no inscription", async () => {
+    const { choreography } = await seedInscribedChoreography(
+      `sin-inscripcion.${crypto.randomUUID()}@example.com`,
+    );
+
+    await expect(
+      recordComprobante(
+        facturaCInput({
+          choreographyId: choreography.id,
+          eventId: choreography.eventId,
+          impTotal: 10000,
+          lines: [{ amount: 10000 } as never],
+        }),
+      ),
+    ).rejects.toThrow();
   });
 });

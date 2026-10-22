@@ -1,7 +1,6 @@
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
-import { readComprobanteAnchorContext } from "@/lib/comprobantes/anchor-context.server";
 import { renderComprobanteQrSvg } from "@/lib/comprobantes/arca/qr-code.server";
-import { listAnchorComprobantes } from "@/lib/comprobantes/comprobantes.server";
+import { readComprobanteRecord } from "@/lib/comprobantes/comprobante-record.server";
 
 import {
   buildComprobantePrintViewModel,
@@ -9,30 +8,25 @@ import {
 } from "./model";
 import { renderComprobantePrintDocument } from "./view";
 
-// Loads the comprobante with its derived state, its lines and the anchoring
+// Loads the comprobante with its lines, its association and the anchoring
 // context (the anchor's reading, the academy and the event). Returns null if it
 // does not exist.
 async function getComprobantePrintRecord(
   comprobanteId: string,
 ): Promise<ComprobantePrintRecord | null> {
-  const context = await readComprobanteAnchorContext(comprobanteId);
+  const record = await readComprobanteRecord(comprobanteId);
 
-  if (!context) {
-    return null;
-  }
-
-  const scope = await listAnchorComprobantes(context.anchor);
-  const comprobante = scope.find((row) => row.id === comprobanteId);
-
-  if (!comprobante) {
+  if (!record) {
     return null;
   }
 
   return {
-    ...comprobante,
-    anchor: context.reading,
-    academyName: context.academyName,
-    eventName: context.eventName,
+    ...record.comprobante,
+    lines: record.lines,
+    association: record.association,
+    anchor: record.context.reading,
+    academyName: record.context.academyName,
+    eventName: record.context.eventName,
   };
 }
 

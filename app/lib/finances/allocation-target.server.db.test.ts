@@ -383,7 +383,7 @@ describe("the seminar inscription price lock", () => {
 });
 
 describe("the comprobante line target", () => {
-  test("accepts a line naming nobody and refuses one naming both", async () => {
+  test("refuses a line naming nobody and one naming both", async () => {
     const fixture = await seedSeminarTarget();
     const choreographyId = await seedChoreographyId(fixture.eventId);
     const comprobante = await recordComprobanteRoot(
@@ -392,10 +392,12 @@ describe("the comprobante line target", () => {
       fixture.academyId,
     );
 
-    await db.insert(comprobanteInscriptions).values({
-      amount: 10000,
-      comprobanteId: comprobante.id,
-    });
+    await expect(
+      db.insert(comprobanteInscriptions).values({
+        amount: 10000,
+        comprobanteId: comprobante.id,
+      }),
+    ).rejects.toThrow();
 
     await expect(
       db.insert(comprobanteInscriptions).values({
@@ -407,7 +409,7 @@ describe("the comprobante line target", () => {
     ).rejects.toThrow();
   });
 
-  test("lets two orphaned lines of one comprobante coexist and refuses two for the same seminar inscription", async () => {
+  test("refuses two lines of one comprobante for the same seminar inscription", async () => {
     const fixture = await seedSeminarTarget();
     const choreographyId = await seedChoreographyId(fixture.eventId);
     const comprobante = await recordComprobanteRoot(
@@ -415,11 +417,6 @@ describe("the comprobante line target", () => {
       choreographyId,
       fixture.academyId,
     );
-
-    await db.insert(comprobanteInscriptions).values([
-      { amount: 4000, comprobanteId: comprobante.id },
-      { amount: 6000, comprobanteId: comprobante.id },
-    ]);
 
     await db.insert(comprobanteInscriptions).values({
       amount: 5000,
@@ -439,6 +436,6 @@ describe("the comprobante line target", () => {
       .select()
       .from(comprobanteInscriptions)
       .where(eq(comprobanteInscriptions.comprobanteId, comprobante.id));
-    expect(lines).toHaveLength(3);
+    expect(lines).toHaveLength(1);
   });
 });

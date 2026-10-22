@@ -539,15 +539,13 @@ than an append-only ledger.
 - One inscription's money can come from several payments, and one payment can
   fund several inscriptions.
 
-The `comprobante_inscription` line carries the same pair, with two differences
-that follow from what a line is. Both targets are `set null` rather than
-cascading, and the CHECK allows **at most one** rather than exactly one: a line
-whose inscription was deleted after emission keeps its frozen amount with both
-columns null, which is the shape the fiscal figure survives in. Uniqueness is
-then **two partial indexes, one per kind**, each over `(comprobante, its own
-target)` and restricted to rows where that target is set — a single unique over
-both columns would have to treat nulls as equal to say anything at all, and two
-orphaned lines of one comprobante would collide.
+The `comprobante_inscription` line carries the same pair, with exactly one set
+as on the allocation, and one difference that follows from what a line is:
+neither target acts on delete. The roster withdraws an inscription a line names
+instead of deleting it ("Withdrawal from the roster"), so a delete that reaches
+one is refused rather than leaving a line `FC + ΣND − ΣNC` could no longer
+place. Uniqueness is **two partial indexes, one per kind**, each over
+`(comprobante, its own target)` and restricted to the rows of that kind.
 
 ## The pool rules
 
@@ -1121,10 +1119,27 @@ action yet (#1712).
   `Comprobantes (n)` tab beside `Inscripciones`, newest first, with no status:
   number (linking to the comprobante), type, date and amount, a credit note
   reading negative.
-- **The printed document carries exactly one line**, whose description reads
-  `Inscripción` and nothing else, at the comprobante's total; there is no
-  per-dancer line and no discount line until #1710 prints one line per
-  inscription. The receptor block prints `{academy} — {unit}`.
+- **A comprobante has one line per inscription it bills**, reading
+  `Inscripción — {dancer}` at the **net** amount, rounded once at the line, so
+  the lines sum to `impTotal`. The discount is **never** a line item: rendering
+  `Precio / Descuento` would forfeit the fiscal argument that makes the live
+  discount lawful. A withdrawn inscription's line still shows, on the detail
+  (with its `Retirada` badge) and on the printed document, because without it
+  the lines would not sum to what ARCA authorized. The receptor block prints
+  `{academy} — {unit}`, so a line does not repeat it.
+- **The printed document carries no `Estado`**: the status changes as notes
+  adjust an invoice, and the authorized document does not.
+- **The associated comprobante reads both ways in the detail.** A note shows the
+  invoice it amends as `Comprobante asociado`, with `Ver la factura` in its
+  actions; an invoice lists the notes that adjust it on an `Ajustes (n)` tab,
+  which is what makes `Ajustada` readable. Only a note prints it: a
+  `Comprobante asociado` block naming the invoice and, on a credit note that
+  credits what a debit note billed, the leyenda naming that debit note
+  (`Ajusta la Nota de Débito C N° …, asociada a la Factura C N° …`), since
+  `CbtesAsoc` carries only the invoice and the leyenda never reaches ARCA
+  (#610). Which debit notes it names is derived from the lines: those emitted
+  before the credit note that billed a positive amount for an inscription it
+  credits.
 - **The anchor reads as one of two units on every surface.** A
   choreography reads as its name; a seminar reads
   `Seminario {instructor}, {fecha}`, because a seminar has no name of its own.
@@ -1145,11 +1160,6 @@ action yet (#1712).
 >
 > - the correlative **reservation** in its own table, an admin-chosen `CbteFch`
 >   within ARCA's window, and the 10016 message (#1709);
-> - the printed document's **one line per inscription**, reading
->   `Inscripción — {dancer}` at the **net** amount — the discount is **never** a
->   line item, since rendering `Precio / Descuento` would forfeit the fiscal
->   argument that makes the live discount lawful — and the associated
->   comprobante in both directions (#1710);
 > - the delta as an anchor-level **anomaly** split by sign, `Sin facturar` rows
 >   and the 15-day clock (#1711);
 > - **bulk emission** (#1712).

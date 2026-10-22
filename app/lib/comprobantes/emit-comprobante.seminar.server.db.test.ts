@@ -441,10 +441,12 @@ describe("seminar deletion with fiscal history", () => {
 
     expect(await seminarHasComprobantes(seminar.id)).toBe(true);
 
-    // Even with every inscription gone — the state that otherwise opens the
-    // delete — the fiscal history keeps refusing it.
+    // The refusal names the fiscal history, not the inscriptions: removing
+    // them could never open the delete, since an invoiced inscription is
+    // withdrawn rather than deleted and its line refuses a delete that got
+    // past the roster.
     await db.delete(paymentAllocations);
-    await db.delete(seminarInscriptions);
+    await expect(db.delete(seminarInscriptions)).rejects.toThrow();
 
     await expect(deleteSeminar(seminar.id)).resolves.toMatchObject({
       ok: false,

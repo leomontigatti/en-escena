@@ -2,6 +2,8 @@
 
 import { describe, expect, test } from "vitest";
 
+import type { AssociatedComprobante } from "@/lib/comprobantes/association";
+
 import {
   buildComprobantePrintViewModel,
   type ComprobantePrintRecord,
@@ -11,6 +13,20 @@ import { renderComprobantePrintDocument } from "./view";
 // A stable QR snapshot: the printout injects the SVG as is, so the HTML snapshot
 // is not tied to the QR's matrix (validated separately in arca/qr.test).
 const QR_SVG_STUB = '<svg data-testid="qr-stub"></svg>';
+
+function associated(
+  overrides: Partial<AssociatedComprobante> = {},
+): AssociatedComprobante {
+  return {
+    id: "factura_1",
+    cbteTipo: 11,
+    ptoVta: 3,
+    cbteNro: 7,
+    cbteFch: "20260722",
+    impTotal: 25000,
+    ...overrides,
+  };
+}
 
 function printRecord(
   overrides: Partial<ComprobantePrintRecord> = {},
@@ -38,23 +54,21 @@ function printRecord(
     caeVto: "20260801",
     associatedComprobanteId: null,
     createdAt: new Date("2026-07-22T12:00:00Z"),
-    status: "valid",
     lines: [
       {
         id: "line_1",
-        comprobanteId: "comprobante_1",
-        choreographyInscriptionId: "insc_1",
-        seminarInscriptionId: null,
+        description: "Inscripción — Ana López",
         amount: 15000,
+        withdrawn: true,
       },
       {
         id: "line_2",
-        comprobanteId: "comprobante_1",
-        choreographyInscriptionId: "insc_2",
-        seminarInscriptionId: null,
+        description: "Inscripción — Bruno Díaz",
         amount: 10000,
+        withdrawn: false,
       },
     ],
+    association: { role: "factura", adjustments: [] },
     anchor: {
       kind: "choreography",
       choreographyId: "choreo_1",
@@ -89,10 +103,9 @@ function seminarPrintRecord(
     lines: [
       {
         id: "line_1",
-        comprobanteId: "comprobante_1",
-        choreographyInscriptionId: null,
-        seminarInscriptionId: "seminar_insc_1",
+        description: "Inscripción — Eva Ruiz",
         amount: 25000,
+        withdrawn: false,
       },
     ],
     ...overrides,
@@ -110,24 +123,85 @@ describe("buildComprobantePrintViewModel", () => {
     expect(model.issueDate).toBe("22/07/2026");
     expect(model.caeVto).toBe("01/08/2026");
     expect(model.cae).toBe("11112222333344");
-    expect(model.statusLabel).toBe("Vigente");
   });
 
-  test("projects a single `Inscripción` line with the total", () => {
+  // #657: the detail sums to the authorized `impTotal`, which only holds if a
+  // withdrawn inscription's line still prints (#600).
+  test("prints one line per inscription, withdrawn ones included, at its amount", () => {
+    const model = buildComprobantePrintViewModel(printRecord());
+
+    expect(model.lines).toEqual([
+      { description: "Inscripción — Ana López", amount: "$ 15.000" },
+      { description: "Inscripción — Bruno Díaz", amount: "$ 10.000" },
+    ]);
+    expect(model.totalAmount).toBe("$ 25.000");
+  });
+
+  test("an invoice prints no associated comprobante, even when notes adjust it", () => {
     const model = buildComprobantePrintViewModel(
-      printRecord({ impTotal: 25000 }),
+      printRecord({
+        association: {
+          role: "factura",
+          adjustments: [associated({ id: "nc", cbteTipo: 13 })],
+        },
+      }),
     );
 
-    expect(model.lines).toHaveLength(1);
-    // The description names the service sold, not a rung of the retired ladder:
-    // `porcion` is deleted, so a comprobante is neither deposit nor balance.
-    expect(model.lines[0].description).toBe("Inscripción");
-    expect(model.lines[0].amount).toBe(model.totalAmount);
-    // It carries no right-hand side: the receptor block already names the
-    // academy and the choreography, and there is no dancer to name until #657
-    // renders one line per inscription.
-    expect(model.lines[0].description).not.toContain("Coreografía Alfa");
-    expect(model.lines[0].description).not.toContain("Certamen 2026");
+    expect(model.associatedComprobante).toBeNull();
+  });
+
+  test("a note prints the invoice it is associated with", () => {
+    const model = buildComprobantePrintViewModel(
+      printRecord({
+        cbteTipo: 12,
+        association: {
+          role: "note",
+          factura: associated({ cbteNro: 41, cbteFch: "20260715" }),
+          adjustedDebitNotes: [],
+        },
+      }),
+    );
+
+    expect(model.associatedComprobante).toEqual({
+      description: "Factura C N° 0003-00000041, del 15/07/2026",
+      legend: null,
+    });
+  });
+
+  // #610's leyenda: `CbtesAsoc` names only the invoice, so the debit notes
+  // that billed what the credit note credits are identified here.
+  test("a credit note of what debit notes billed names them in the leyenda", () => {
+    const factura = associated({ cbteNro: 41 });
+    const one = buildComprobantePrintViewModel(
+      printRecord({
+        cbteTipo: 13,
+        association: {
+          role: "note",
+          factura,
+          adjustedDebitNotes: [associated({ cbteTipo: 12, cbteNro: 5 })],
+        },
+      }),
+    );
+    const two = buildComprobantePrintViewModel(
+      printRecord({
+        cbteTipo: 13,
+        association: {
+          role: "note",
+          factura,
+          adjustedDebitNotes: [
+            associated({ cbteTipo: 12, cbteNro: 5 }),
+            associated({ cbteTipo: 12, cbteNro: 6 }),
+          ],
+        },
+      }),
+    );
+
+    expect(one.associatedComprobante?.legend).toBe(
+      "Ajusta la Nota de Débito C N° 0003-00000005, asociada a la Factura C N° 0003-00000041.",
+    );
+    expect(two.associatedComprobante?.legend).toBe(
+      "Ajusta las Notas de Débito C N° 0003-00000005 y 0003-00000006, asociadas a la Factura C N° 0003-00000041.",
+    );
   });
 
   test("exposes the snapshot's billed period and payment due date", () => {
@@ -169,9 +243,6 @@ describe("buildComprobantePrintViewModel", () => {
 
     expect(model.anchorLabel).toBe("Seminario Abril Sosa, 10/10/2030");
     expect(model.academyName).toBe("Academia Alfa");
-    // The single line is the same constant on both kinds.
-    expect(model.lines).toHaveLength(1);
-    expect(model.lines[0].description).toBe("Inscripción");
     // The seminar is taught on one day, so the period collapses to it, and what
     // is billed was already collected.
     expect(model.servicePeriodFrom).toBe("10/10/2030");
@@ -179,14 +250,11 @@ describe("buildComprobantePrintViewModel", () => {
     expect(model.paymentDueDate).toBe(model.issueDate);
   });
 
-  test("uses the credit note heading for type 13, and prints no status for a note", () => {
-    const model = buildComprobantePrintViewModel(
-      printRecord({ cbteTipo: 13, status: null }),
-    );
+  test("uses the credit note heading for type 13", () => {
+    const model = buildComprobantePrintViewModel(printRecord({ cbteTipo: 13 }));
 
     expect(model.header.title).toBe("Nota de Crédito C");
     expect(model.header.code).toBe("013");
-    expect(model.statusLabel).toBeNull();
   });
 });
 
@@ -207,20 +275,47 @@ describe("renderComprobantePrintDocument", () => {
     expect(html).toContain("Comprobante Autorizado");
   });
 
-  test("prints `Inscripción` alone under `Descripción` and leaves the context under `Receptor`", () => {
+  // `Estado` is a mutable fact about an immutable document (#554): an
+  // adjusted invoice reprints exactly as it was authorized.
+  test("prints no status, whatever the invoice's state", () => {
     const html = renderComprobantePrintDocument({
-      model: buildComprobantePrintViewModel(printRecord()),
+      model: buildComprobantePrintViewModel(
+        printRecord({
+          association: {
+            role: "factura",
+            adjustments: [associated({ id: "nc", cbteTipo: 13 })],
+          },
+        }),
+      ),
       qrCodeSvg: QR_SVG_STUB,
     });
 
-    // The detail cell is the description column RG 1415 asks to identify the
-    // service; the receptor block above is where the academy and choreography
-    // are already named, which is why the cell does not repeat them.
-    expect(html).toContain("<td>Inscripción</td>");
-    expect(html).toContain("<p>Academia Alfa — Coreografía Alfa</p>");
+    expect(html).not.toContain("Estado");
+    expect(html).not.toContain("Ajustada");
+    expect(html).not.toContain("Comprobante asociado");
   });
 
-  test("prints the seminar's receptor block and keeps the constant line", () => {
+  test("prints a note's associated comprobante block with its leyenda", () => {
+    const html = renderComprobantePrintDocument({
+      model: buildComprobantePrintViewModel(
+        printRecord({
+          cbteTipo: 13,
+          association: {
+            role: "note",
+            factura: associated({ cbteNro: 41 }),
+            adjustedDebitNotes: [associated({ cbteTipo: 12, cbteNro: 5 })],
+          },
+        }),
+      ),
+      qrCodeSvg: QR_SVG_STUB,
+    });
+
+    expect(html).toContain("Comprobante asociado");
+    expect(html).toContain("Factura C N° 0003-00000041, del 22/07/2026");
+    expect(html).toContain("Ajusta la Nota de Débito C N° 0003-00000005");
+  });
+
+  test("prints the seminar's receptor block", () => {
     const html = renderComprobantePrintDocument({
       model: buildComprobantePrintViewModel(seminarPrintRecord()),
       qrCodeSvg: QR_SVG_STUB,
@@ -229,7 +324,7 @@ describe("renderComprobantePrintDocument", () => {
     expect(html).toContain(
       "<p>Academia Alfa — Seminario Abril Sosa, 10/10/2030</p>",
     );
-    expect(html).toContain("<td>Inscripción</td>");
+    expect(html).toContain("<td>Inscripción — Eva Ruiz</td>");
     expect(html).toContain("10/10/2030 — 10/10/2030");
   });
 
