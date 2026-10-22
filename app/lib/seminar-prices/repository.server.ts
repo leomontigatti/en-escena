@@ -19,6 +19,7 @@ import {
   uncoveredPriceUpdateError,
 } from "@/lib/prices/guards";
 import { hasCompleteSeminarPriceCells } from "@/lib/seminar-prices/participant-cells";
+import { lockEventSeminarPricesForEdit } from "@/lib/seminar-prices/price-locks.server";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import { isSeminarKind, type SeminarKind } from "@/lib/seminars/seminar-kinds";
 
@@ -116,10 +117,18 @@ export async function createSeminarPrice(
     return validation;
   }
 
-  const [record] = await db
-    .insert(seminarPrices)
-    .values({ eventId, ...validation.input })
-    .returning();
+  // A money write in flight could pick the new row up and store it before the
+  // charge it planned on the old list (`lockEventSeminarPrices`).
+  const record = await db.transaction(async (tx) => {
+    await lockEventSeminarPricesForEdit(tx, eventId);
+
+    const [inserted] = await tx
+      .insert(seminarPrices)
+      .values({ eventId, ...validation.input })
+      .returning();
+
+    return inserted;
+  });
 
   return createdSeminarPrice(record);
 }
@@ -145,12 +154,17 @@ export async function updateSeminarPrice(
     return validation;
   }
 
-  // The guards read which inscriptions stored the row, so they run under the
-  // row's lock: the writes that store a seminar price take it too
-  // (`lockEventSeminarPrices`), and one that commits while this edit is in
-  // flight is seen here instead of being left on a row the edit changed.
+  // The dependency guard reads which inscriptions stored the row, so it runs
+  // under the price list's lock: the writes that store a seminar price take it
+  // too (`lockEventSeminarPrices`), and one that commits while this edit is in
+  // flight is seen here instead of being left on a row the edit changed. The
+  // coverage guard is not serialised against a registration this way.
   return await db.transaction(async (tx) => {
-    const locked = await loadSeminarPriceForUpdate(tx, seminarPriceId);
+    const locked = await loadSeminarPriceUnderLock(
+      tx,
+      existing.eventId,
+      seminarPriceId,
+    );
 
     if (!locked) {
       return seminarPriceNotFound();
@@ -188,9 +202,22 @@ export async function deleteSeminarPrice(
   seminarPriceId: string,
   dependencies: SeminarPriceDependencies = {},
 ): Promise<EventBasesDeleteResult> {
-  // Under the row's lock for the same reason as `updateSeminarPrice`.
+  const found = await db.query.seminarPrices.findFirst({
+    columns: { eventId: true },
+    where: eq(seminarPrices.id, seminarPriceId),
+  });
+
+  if (!found) {
+    return seminarPriceNotFound();
+  }
+
+  // Under the price list's lock for the same reason as `updateSeminarPrice`.
   return await db.transaction(async (tx) => {
-    const existing = await loadSeminarPriceForUpdate(tx, seminarPriceId);
+    const existing = await loadSeminarPriceUnderLock(
+      tx,
+      found.eventId,
+      seminarPriceId,
+    );
 
     if (!existing) {
       return seminarPriceNotFound();
@@ -218,18 +245,20 @@ export async function deleteSeminarPrice(
   });
 }
 
-/** The row, taken `FOR UPDATE`; `undefined` when it does not exist. */
-async function loadSeminarPriceForUpdate(
+/**
+ * The row, read again once the event's price list is locked for editing
+ * (`lockEventSeminarPricesForEdit`); `undefined` when it is gone by then.
+ */
+async function loadSeminarPriceUnderLock(
   tx: EventBasesTransaction,
+  eventId: string,
   seminarPriceId: string,
 ) {
-  const [row] = await tx
-    .select()
-    .from(seminarPrices)
-    .where(eq(seminarPrices.id, seminarPriceId))
-    .for("update");
+  await lockEventSeminarPricesForEdit(tx, eventId);
 
-  return row;
+  return await tx.query.seminarPrices.findFirst({
+    where: eq(seminarPrices.id, seminarPriceId),
+  });
 }
 
 function resolveHasDependencies(

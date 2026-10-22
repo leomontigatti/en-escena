@@ -19,6 +19,10 @@ import {
   frozenPriceUpdateError,
 } from "@/lib/prices/guards";
 import {
+  lockEventSeminarPrices,
+  lockEventSeminarPricesForEdit,
+} from "@/lib/seminar-prices/price-locks.server";
+import {
   deleteSeminarPrice,
   updateSeminarPrice,
 } from "@/lib/seminar-prices/repository.server";
@@ -32,13 +36,13 @@ import { runBehindAHolder } from "../../../tests/db/lock-contention";
 installDatabaseTestHooks();
 
 /**
- * Editing or deleting a seminar price and storing it on a seminar inscription
- * serialise on the price row, so whichever comes second sees what the first
- * committed: an edit behind a write that stores the price finds it stored and
- * refuses, and a write behind an edit charges by the edited row, or refuses a
- * row that is gone. Each test holds the row in its own transaction, standing in
- * for the side that got there first, and commits once the side under test is
- * queued behind it.
+ * Changing an event's seminar prices and storing one on a seminar inscription
+ * serialise on the event's price list, so whichever comes second sees what the
+ * first committed: an edit behind a write that stores the price finds it
+ * stored and refuses, and a write behind an edit charges by the edited list, or
+ * refuses a row that is gone. Each test holds the lock in its own transaction,
+ * standing in for the side that got there first, and commits once the side
+ * under test is queued behind it.
  *
  * The fast suite runs everything through a single PGlite connection, which
  * serialises the transactions on its own, so this runs on Postgres only.
@@ -52,8 +56,8 @@ describe.skipIf(isPgliteTestBackend())(
         const priceId = fixture.priceId("regular", true);
 
         const edit = await runBehindAHolder({
-          waitingOn: "seminar price row lock",
-          hold: (tx) => holdThePrice(tx, priceId, "share"),
+          waitingOn: "seminar price list lock",
+          hold: (tx) => lockEventSeminarPrices(tx, fixture.eventId),
           contender: () =>
             updateSeminarPrice(priceId, {
               name: "regular participante",
@@ -78,8 +82,8 @@ describe.skipIf(isPgliteTestBackend())(
         const priceId = fixture.earlyBirdId;
 
         const removal = await runBehindAHolder({
-          waitingOn: "seminar price row lock",
-          hold: (tx) => holdThePrice(tx, priceId, "share"),
+          waitingOn: "seminar price list lock",
+          hold: (tx) => lockEventSeminarPrices(tx, fixture.eventId),
           contender: () => deleteSeminarPrice(priceId),
           beforeCommit: (tx) => storeThePrice(tx, fixture, priceId),
         });
@@ -101,8 +105,8 @@ describe.skipIf(isPgliteTestBackend())(
         const priceId = fixture.priceId("regular", true);
 
         const preset = await runBehindAHolder({
-          waitingOn: "seminar price row lock",
-          hold: (tx) => holdThePrice(tx, priceId, "update"),
+          waitingOn: "seminar price list lock",
+          hold: (tx) => lockEventSeminarPricesForEdit(tx, fixture.eventId),
           contender: () =>
             paySeminarsPreset({
               academyId: fixture.academyId,
@@ -127,6 +131,43 @@ describe.skipIf(isPgliteTestBackend())(
         ).resolves.toBe(priceId);
       });
 
+      test("`Pagar seña` charges by a row created in the meantime", async () => {
+        const fixture = await seedSeminarPresetFixture({
+          paymentAmount: 100000,
+        });
+
+        const preset = await runBehindAHolder({
+          waitingOn: "seminar price list lock",
+          hold: (tx) => lockEventSeminarPricesForEdit(tx, fixture.eventId),
+          contender: () =>
+            paySeminarsPreset({
+              academyId: fixture.academyId,
+              eventId: fixture.eventId,
+              seminarIds: [fixture.regular.id],
+              stage: "deposit",
+            }),
+          // A dated row of the participant cell, so it is the one that applies
+          // today.
+          beforeCommit: (tx) =>
+            tx.insert(seminarPrices).values({
+              amount: 24000,
+              eventId: fixture.eventId,
+              forParticipants: true,
+              kind: "regular",
+              name: "Preventa participante",
+              paymentDeadline: "2099-12-31",
+            }),
+        });
+
+        expect(preset).toEqual({ ok: true });
+        await expect(
+          readAllocated(fixture.inscriptions.regularParticipant.id),
+        ).resolves.toBe(12000);
+        await expect(
+          readStoredPriceName(fixture.inscriptions.regularParticipant.id),
+        ).resolves.toBe("Preventa participante");
+      });
+
       test("the allocation dialog refuses a price deleted in the meantime", async () => {
         const fixture = await seedSeminarPresetFixture({
           paymentAmount: 100000,
@@ -135,8 +176,8 @@ describe.skipIf(isPgliteTestBackend())(
         const inscription = fixture.inscriptions.specialOutsider;
 
         const allocation = await runBehindAHolder({
-          waitingOn: "seminar price row lock",
-          hold: (tx) => holdThePrice(tx, priceId, "update"),
+          waitingOn: "seminar price list lock",
+          hold: (tx) => lockEventSeminarPricesForEdit(tx, fixture.eventId),
           contender: () =>
             allocateToSeminarInscription({
               academyId: fixture.academyId,
@@ -160,19 +201,6 @@ describe.skipIf(isPgliteTestBackend())(
     });
   },
 );
-
-/** The lock the side that got there first holds on the price row. */
-async function holdThePrice(
-  tx: Transaction,
-  priceId: string,
-  strength: "share" | "update",
-) {
-  await tx
-    .select({ id: seminarPrices.id })
-    .from(seminarPrices)
-    .where(eq(seminarPrices.id, priceId))
-    .for(strength);
-}
 
 /** What a write that prices an inscription stores. */
 async function storeThePrice(
@@ -202,6 +230,19 @@ async function readStoredPriceId(inscriptionId: string) {
     .where(eq(seminarInscriptions.id, inscriptionId));
 
   return row?.selectedPriceId;
+}
+
+async function readStoredPriceName(inscriptionId: string) {
+  const [row] = await db
+    .select({ name: seminarPrices.name })
+    .from(seminarInscriptions)
+    .innerJoin(
+      seminarPrices,
+      eq(seminarPrices.id, seminarInscriptions.selectedPriceId),
+    )
+    .where(eq(seminarInscriptions.id, inscriptionId));
+
+  return row?.name;
 }
 
 async function readAllocated(inscriptionId: string) {

@@ -124,8 +124,9 @@ type SeminarCobroPlan = {
  * `lock` takes the inscriptions' rows `FOR UPDATE`, in id order, as the
  * choreography preset does: a withdrawal racing the charge either commits
  * first, and is read here, or waits until the charge has priced and funded.
- * It takes the event's price rows too (`lockEventSeminarPrices`), so a price
- * edit cannot change a row between this read and the write that stores it.
+ * It takes the event's price list too (`lockEventSeminarPrices`), so a price
+ * edit or a new row cannot change the list between this read and the write
+ * that stores a row from it.
  * Only the write asks for it, under the seminars' locks; a preview reads
  * without it.
  */
