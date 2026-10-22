@@ -99,6 +99,44 @@ describe("SeminarFinanceDetailView", () => {
     expect(markup).toContain("$ 5.000");
   });
 
+  test("alerts the credit note a withdrawal owes, with its day count", () => {
+    const markup = renderDetail({
+      billing: {
+        anomaly: "pendingCreditNote",
+        amount: 20000,
+        creditClockDays: 2,
+        documentedAmount: 20000,
+        owedAmount: 0,
+        uninvoicedInscriptionIds: [],
+      },
+    });
+
+    expect(markup).toContain("Falta emitir una nota de crédito");
+    expect(markup).toContain(
+      "Pasaron 2 de los 15 días corridos desde la baja más antigua.",
+    );
+  });
+
+  test("badges a person registered after the invoice `Sin facturar`", () => {
+    const markup = renderDetail({
+      inscriptions: [
+        inscriptionFixture({
+          firstName: "Olga",
+          inscriptionId: "seminar_inscription_2",
+          uninvoiced: true,
+        }),
+      ],
+    });
+    const table = inscriptionsTable(markup);
+    const statusIndex = [...(table?.querySelectorAll("thead th") ?? [])]
+      .map((header) => header.textContent?.trim())
+      .indexOf("Estado");
+
+    expect(
+      table?.querySelectorAll("tbody tr td")[statusIndex]?.textContent,
+    ).toBe("Sin facturar");
+  });
+
   test("states a full quota without blocking anything, and says nothing while a place is left", () => {
     const full = renderDetail({
       seminar: { ...loaderDataFixture().seminar, availablePlaces: 0 },
@@ -179,6 +217,7 @@ function loaderDataFixture(
       phone: "11-5555-5555",
     },
     availableBalanceAmount: 7000,
+    billing: null,
     comprobantes: [],
     inscriptions: [inscriptionFixture()],
     invoicing: readyInvoicing("factura_c", 4000),
@@ -214,5 +253,8 @@ function loaderDataFixture(
 function inscriptionFixture(
   overrides: Partial<InscriptionRow> = {},
 ): InscriptionRow {
-  return seminarInscriptionFinanceRowFixture(overrides);
+  return {
+    uninvoiced: false,
+    ...seminarInscriptionFinanceRowFixture(overrides),
+  };
 }

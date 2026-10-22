@@ -21,10 +21,20 @@ type ScaleFinancialStatus = Exclude<InscriptionFinancialStatus, "waived">;
 export type ChoreographyFinancialStatus = InscriptionFinancialStatus;
 
 /**
- * Anomalies: comparisons of the current state, all self-resolving and persisted
- * nowhere. `Sobreasignada` is the only one at this level.
+ * The anomalies a unit's documents leave (ADR-0014 §5): its derived total
+ * against `FC + ΣND − ΣNC`, split by sign because the next document differs —
+ * `Pendiente de facturar` owes a debit note, `Pendiente de acreditar` a credit
+ * note. They belong to the unit, never to one inscription; their derivation is
+ * `deriveAnchorBilling`'s.
  */
-export type InscriptionAnomaly = "overAllocated";
+export type AnchorBillingAnomaly = "pendingDebitNote" | "pendingCreditNote";
+
+/**
+ * Anomalies: comparisons of the current state, all self-resolving and persisted
+ * nowhere. `Sobreasignada` is the only one an inscription derives; a unit adds
+ * the billing pair above.
+ */
+export type InscriptionAnomaly = "overAllocated" | AnchorBillingAnomaly;
 
 /**
  * Explicit badge precedence, most urgent first. The array `anomalies` is built
@@ -32,9 +42,21 @@ export type InscriptionAnomaly = "overAllocated";
  * wins is decided here and nowhere else, so adding an anomaly means adding it to
  * this list rather than hoping it got pushed in the right place.
  */
+//
+// The billing pair goes first: it is a fiscal document owed, the pending credit
+// with a legal clock running, and it can co-occur with `Sobreasignada`.
 const inscriptionAnomalyPrecedence = [
+  "pendingCreditNote",
+  "pendingDebitNote",
   "overAllocated",
 ] as const satisfies readonly InscriptionAnomaly[];
+
+// The anomalies that outrank `Retirada`: a withdrawn unit still owes the credit
+// note its withdrawal requires, and that is the one thing left to do on it.
+const anchorBillingAnomalies: ReadonlySet<InscriptionAnomaly> = new Set([
+  "pendingCreditNote",
+  "pendingDebitNote",
+]);
 
 /**
  * Order of the scale. `depositPending < depositMet < paidInFull`, which is what
@@ -318,10 +340,18 @@ function deriveWaivedInscriptionFigures(input: {
  * by side: they **replace** each other, because two badges competing for the same
  * glance read as two facts of equal weight when only one asks for something.
  *
- * `Retirada` outranks everything: it is roster state, and the money axes describe
- * a row that is still on the roster. `Sobreasignada` cannot even co-occur with it
- * — see `deriveWithdrawnInscriptionFigures` — so the order is a statement, not a
- * tie-break.
+ * `Retirada` outranks everything but a unit's billing anomaly: it is roster
+ * state, and the money axes describe a row that is still on the roster.
+ * `Sobreasignada` cannot even co-occur with it — see
+ * `deriveWithdrawnInscriptionFigures` — so the order is a statement, not a
+ * tie-break. A billing anomaly can, on a withdrawn choreography whose credit
+ * note is still owed, and then it wins: the anomaly is what is left to do
+ * (#585).
+ *
+ * `Sin facturar` is the `Facturada` axis, rendered by its absence on a row the
+ * unit's invoice does not name (#585). It sits below the anomalies and above
+ * the status: the row's money still reads in its figures, while the badge says
+ * the one thing the next note is for.
  *
  * `Reservada` is a seminar's `Seña pendiente` that still holds a reserved place
  * (docs/domain/seminars.md, "The place"): it replaces that one status and no
@@ -335,6 +365,7 @@ export type InscriptionStatusBadge =
   | { kind: "linkedIndividual" }
   | { kind: "withdrawn" }
   | { kind: "anomaly"; anomaly: InscriptionAnomaly }
+  | { kind: "uninvoiced" }
   | { kind: "reserved" }
   | { kind: "status"; status: InscriptionFinancialStatus };
 
@@ -343,22 +374,31 @@ export function resolveInscriptionStatusBadge(input: {
   financialStatus: InscriptionFinancialStatus;
   linkedIndividual?: boolean;
   reserved?: boolean;
+  uninvoiced?: boolean;
   withdrawn?: boolean;
 }): InscriptionStatusBadge {
   if (input.linkedIndividual) {
     return { kind: "linkedIndividual" };
   }
 
-  if (input.withdrawn) {
-    return { kind: "withdrawn" };
-  }
-
   const anomaly = inscriptionAnomalyPrecedence.find((candidate) =>
     input.anomalies.includes(candidate),
   );
 
+  if (anomaly && anchorBillingAnomalies.has(anomaly)) {
+    return { kind: "anomaly", anomaly };
+  }
+
+  if (input.withdrawn) {
+    return { kind: "withdrawn" };
+  }
+
   if (anomaly) {
     return { kind: "anomaly", anomaly };
+  }
+
+  if (input.uninvoiced) {
+    return { kind: "uninvoiced" };
   }
 
   if (input.reserved && input.financialStatus === "depositPending") {

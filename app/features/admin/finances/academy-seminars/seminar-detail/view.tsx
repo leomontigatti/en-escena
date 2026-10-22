@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FinancialDetailTabs } from "@/features/admin/finances/anchor-comprobantes/tabs";
+import { PendingDocumentAlert } from "@/features/admin/finances/comprobante-emission/pending-document-alert";
 import { EmissionBlockedDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
 import {
@@ -27,7 +28,7 @@ import { formatDate } from "@/features/admin/schedules/view-shared";
 import { formatDancerName } from "@/lib/finances/formatters";
 import {
   inscriptionFinanceColumns,
-  seminarInscriptionFinanceFacetedFilters,
+  adminSeminarInscriptionFinanceFacetedFilters,
 } from "@/lib/finances/inscription-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 
@@ -179,12 +180,12 @@ function SeminarAlerts({ loaderData }: SeminarFinanceDetailViewProps) {
     loaderData.seminar?.anomalies.includes("overAllocated") ?? false;
   const isFull = loaderData.seminar?.availablePlaces === 0;
 
-  if (!missingPrice && !overAllocated && !isFull) {
-    return null;
-  }
-
+  // `AlertStack` draws nothing when every alert below is absent.
   return (
     <AlertStack>
+      {loaderData.billing?.anomaly ? (
+        <PendingDocumentAlert billing={loaderData.billing} />
+      ) : null}
       {overAllocated ? (
         <Alert variant="destructive">
           <CircleAlert aria-hidden="true" />
@@ -259,7 +260,7 @@ function InscriptionsTable({
       <ClientDataTable
         rows={inscriptions}
         columns={columns}
-        facetedFilters={seminarInscriptionFinanceFacetedFilters}
+        facetedFilters={adminSeminarInscriptionFinanceFacetedFilters}
         getRowKey={(inscription) => inscription.inscriptionId}
         searchPlaceholder="Buscar por nombre"
         textFilterColumnId="person"

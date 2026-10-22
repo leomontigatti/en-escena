@@ -26,12 +26,13 @@ import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financ
 
 import {
   inscriptionFinanceColumns,
-  inscriptionFinanceFacetedFilters,
+  adminInscriptionFinanceFacetedFilters,
 } from "@/lib/finances/inscription-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import { FinancialDetailTabs } from "@/features/admin/finances/anchor-comprobantes/tabs";
 import { EmissionBlockedDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
+import { PendingDocumentAlert } from "@/features/admin/finances/comprobante-emission/pending-document-alert";
 import {
   formatEmitActionLabel,
   type AnchorInvoicing,
@@ -147,12 +148,12 @@ function ChoreographyAlerts({
   const overAllocated =
     loaderData.choreography?.anomalies.includes("overAllocated") ?? false;
 
-  if (!missingPrice && !overAllocated) {
-    return null;
-  }
-
+  // `AlertStack` draws nothing when every alert below is absent.
   return (
     <AlertStack>
+      {loaderData.billing?.anomaly ? (
+        <PendingDocumentAlert billing={loaderData.billing} />
+      ) : null}
       {overAllocated ? <OverAllocatedAlert /> : null}
       {missingPrice ? (
         <Alert variant="warning">
@@ -408,7 +409,7 @@ function InscriptionsTable({
       <ClientDataTable
         rows={inscriptions}
         columns={columns}
-        facetedFilters={inscriptionFinanceFacetedFilters}
+        facetedFilters={adminInscriptionFinanceFacetedFilters}
         getRowKey={(inscription) =>
           inscription.inscriptionId ?? inscription.dancerId
         }

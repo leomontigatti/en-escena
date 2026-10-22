@@ -271,6 +271,80 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(markup).not.toContain("más dinero asignado que su total");
   });
 
+  test("alerts that a credit note is owed, with what was invoiced, what is owed and the day count", () => {
+    const alert = pendingDocumentAlert(
+      renderDetail({
+        billing: {
+          anomaly: "pendingCreditNote",
+          amount: 7000,
+          creditClockDays: 4,
+          documentedAmount: 10000,
+          owedAmount: 3000,
+          uninvoicedInscriptionIds: [],
+        },
+        choreography: choreographyFixture({
+          anomalies: ["pendingCreditNote"],
+        }),
+      }),
+    );
+
+    expect(alert.querySelector('[data-slot="alert-title"]')?.textContent).toBe(
+      "Falta emitir una nota de crédito",
+    );
+    expect(alert.textContent).toContain(
+      "Lo facturado suma $ 10.000 y hoy corresponden $ 3.000: la nota de crédito es por $ 7.000.",
+    );
+    expect(alert.textContent).toContain(
+      "Pasaron 4 de los 15 días corridos desde la baja más antigua.",
+    );
+  });
+
+  test("alerts that a debit note is owed with no clock, and badges the rows it is for `Sin facturar`", () => {
+    const markup = renderDetail({
+      billing: {
+        anomaly: "pendingDebitNote",
+        amount: 10000,
+        creditClockDays: null,
+        documentedAmount: 10000,
+        owedAmount: 20000,
+        uninvoicedInscriptionIds: ["inscription_2"],
+      },
+      choreography: choreographyFixture({ anomalies: ["pendingDebitNote"] }),
+      inscriptions: [
+        inscriptionFixture({ financialStatus: "depositMet" }),
+        inscriptionFixture({
+          financialStatus: "depositPending",
+          firstName: "Bruno",
+          inscriptionId: "inscription_2",
+          uninvoiced: true,
+        }),
+      ],
+    });
+    const alert = pendingDocumentAlert(markup);
+
+    expect(alert.querySelector('[data-slot="alert-title"]')?.textContent).toBe(
+      "Falta emitir una nota de débito",
+    );
+    expect(alert.textContent).toContain("la nota de débito es por $ 10.000.");
+    expect(alert.textContent).not.toContain("días corridos");
+    expect(inscriptionStatusTexts(markup)).toEqual(["Señada", "Sin facturar"]);
+  });
+
+  test("raises no pending-document alert once the documents match", () => {
+    const markup = renderDetail({
+      billing: {
+        anomaly: null,
+        amount: 0,
+        creditClockDays: null,
+        documentedAmount: 10000,
+        owedAmount: 10000,
+        uninvoicedInscriptionIds: [],
+      },
+    });
+
+    expect(markup).not.toContain("Falta emitir");
+  });
+
   test("warns when the deposit has no configured price", () => {
     const markup = renderDetail({
       choreography: choreographyFixture({
@@ -285,6 +359,32 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(markup).toContain("no tiene un precio configurado");
   });
 });
+
+function pendingDocumentAlert(markup: string) {
+  const document = new DOMParser().parseFromString(markup, "text/html");
+  const alert = [...document.querySelectorAll('[data-slot="alert"]')].find(
+    (candidate) => candidate.textContent?.includes("Falta emitir"),
+  );
+
+  if (!alert) {
+    throw new Error("Expected a pending-document alert.");
+  }
+
+  return alert;
+}
+
+/** The `Estado` badge of every inscription row, read by its header. */
+function inscriptionStatusTexts(markup: string) {
+  const table = inscriptionsTable(markup);
+  const headers = [...(table?.querySelectorAll("thead th") ?? [])].map(
+    (header) => (header.textContent ?? "").trim(),
+  );
+  const statusIndex = headers.indexOf("Estado");
+
+  return [...(table?.querySelectorAll("tbody tr") ?? [])].map((row) =>
+    (row.querySelectorAll("td")[statusIndex]?.textContent ?? "").trim(),
+  );
+}
 
 /**
  * Maps each amount column of the inscription row to its decoration. It anchors on
@@ -393,6 +493,7 @@ function loaderDataFixture(
       phone: "11-5555-5555",
     },
     availableBalanceAmount: 5000,
+    billing: null,
     comprobantes: [],
     choreography: choreographyFixture(),
     inscriptions: [inscriptionFixture({ financialStatus: "depositMet" })],
@@ -468,6 +569,7 @@ function inscriptionFixture(
     owedBalanceAmount: 7000,
     owedDepositAmount: 0,
     totalAmount: 10000,
+    uninvoiced: false,
     withdrawn: false,
     ...overrides,
   };

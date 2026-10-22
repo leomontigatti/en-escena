@@ -157,6 +157,7 @@ describe("`/administracion/finanzas` choreography detail", () => {
         owedBalanceAmount: 10000,
         owedDepositAmount: 3000,
         totalAmount: 10000,
+        uninvoiced: false,
         withdrawn: false,
       },
     ]);
@@ -236,6 +237,7 @@ describe("`/administracion/finanzas` choreography detail", () => {
         owedBalanceAmount: 7000,
         owedDepositAmount: 0,
         totalAmount: 10000,
+        uninvoiced: false,
         withdrawn: false,
       },
     ]);
@@ -604,6 +606,7 @@ describe("`/administracion/finanzas` choreography detail", () => {
         owedBalanceAmount: null,
         owedDepositAmount: null,
         totalAmount: null,
+        uninvoiced: false,
         withdrawn: false,
       },
     ]);

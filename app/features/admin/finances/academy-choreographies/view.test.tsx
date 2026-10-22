@@ -1285,6 +1285,61 @@ describe("AcademyFinancesRouteView", () => {
     expect(columnValues("Nombre")).toEqual(["Tango"]);
   });
 
+  const pendingRows = () => [
+    choreographyFinanceRowFixture({
+      anomalies: ["pendingDebitNote"],
+      financialStatus: "depositPending",
+      id: "choreography_1",
+      name: "Aire",
+    }),
+    // Withdrawn and invoiced: the credit note it owes is what is left to do.
+    choreographyFinanceRowFixture({
+      anomalies: ["pendingCreditNote"],
+      choreographyNumber: 2,
+      creditClockDays: 3,
+      id: "choreography_2",
+      name: "Tango",
+      withdrawn: true,
+    }),
+    choreographyFinanceRowFixture({
+      choreographyNumber: 3,
+      financialStatus: "depositMet",
+      id: "choreography_3",
+      name: "Vals",
+    }),
+  ];
+
+  test("badges what the documents leave pending, over `Retirada`, with the credit's day count", async () => {
+    await renderListIntoDocument({
+      loaderData: academyFinancesLoaderDataFixture({
+        choreographyFinanceRows: pendingRows(),
+      }),
+    });
+
+    expect(statusBadges()).toEqual([
+      [{ text: "Pendiente de facturar", destructive: true }],
+      [{ text: "Pendiente de acreditar", destructive: true }],
+      [{ text: "Señada", destructive: false }],
+    ]);
+    expect(columnValues("Estado")).toEqual([
+      "Pendiente de facturar",
+      "Pendiente de acreditarDía 3 de 15",
+      "Señada",
+    ]);
+  });
+
+  test("filters the list down to the pending credits on `Pendiente de acreditar`", async () => {
+    await renderListIntoDocument({
+      initialEntry:
+        "/administracion/finanzas/academy_1?estado=pendingCreditNote",
+      loaderData: academyFinancesLoaderDataFixture({
+        choreographyFinanceRows: pendingRows(),
+      }),
+    });
+
+    expect(columnValues("Nombre")).toEqual(["Tango"]);
+  });
+
   async function renderListIntoDocument(
     props: {
       actionData?: AcademyFinancesActionData;
@@ -1547,6 +1602,7 @@ function seminarFinanceRowFixture(
     registrationCount: 2,
     scheduledDate: "2026-10-10",
     totalAmount: { amount: 20000, status: "complete" },
+    creditClockDays: null,
     ...overrides,
   };
 }
@@ -1643,6 +1699,7 @@ function choreographyFinanceRowFixture(
     registrationCount: 1,
     totalAmount: { amount: 10000, status: "complete" },
     withdrawn: false,
+    creditClockDays: null,
     ...overrides,
   };
 }

@@ -37,6 +37,7 @@ import {
   type SeminarOperationalFinanceRow,
 } from "@/lib/finances/seminar-operational-summary.server";
 import { orderByChoreographyName } from "@/lib/choreographies/choreography-name.server";
+import type { ResolvedSeminarInscription } from "@/lib/finances/seminar-inscription-thresholds.server";
 
 type InscriptionRow = {
   id: string;
@@ -54,6 +55,8 @@ export type AcademyEventOperationalFinanceDetail = {
   // and not a second summary: the tabs split the tables, the figures above them
   // are one debt against one pool.
   seminarFinanceRows: SeminarOperationalFinanceRow[];
+  // The inscriptions those units roll up, withdrawn ones included.
+  seminarInscriptions: ResolvedSeminarInscription[];
   summary: OperationalFinanceSummary;
 };
 
@@ -122,6 +125,8 @@ export async function readAcademyEventOperationalFinanceDetail(input: {
         input.academyId,
     ),
     seminarFinanceRows,
+    seminarInscriptions:
+      finance.seminarInscriptionsByAcademy.get(input.academyId) ?? [],
     summary: buildOperationalFinanceSummaryFromRows({
       availableBalanceAmount,
       financeRows: [...choreographyFinanceRows, ...seminarFinanceRows],
@@ -177,6 +182,7 @@ type AcademyEventFinance = {
   inscriptions: ResolvedInscription[];
   paidByAcademy: Map<string, number>;
   seminarFinanceRowsByAcademy: Map<string, SeminarOperationalFinanceRow[]>;
+  seminarInscriptionsByAcademy: Map<string, ResolvedSeminarInscription[]>;
 };
 
 async function readAcademyEventFinance(input: {
@@ -396,6 +402,7 @@ async function readAcademyEventFinance(input: {
         dancerId: inscription.dancerId,
         id: inscription.id,
         withdrawn,
+        withdrawnAt: inscription.withdrawnAt,
       };
     },
   );
@@ -431,7 +438,8 @@ async function readAcademyEventFinance(input: {
     choreographyFinanceRowsByAcademy,
     inscriptions,
     paidByAcademy,
-    seminarFinanceRowsByAcademy: seminarFinance,
+    seminarFinanceRowsByAcademy: seminarFinance.rowsByAcademy,
+    seminarInscriptionsByAcademy: seminarFinance.inscriptionsByAcademy,
   };
 }
 

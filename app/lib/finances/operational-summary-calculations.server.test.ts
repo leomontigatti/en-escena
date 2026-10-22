@@ -43,6 +43,7 @@ function resolvedInscription(
     owedDepositAmount: 3000,
     totalAmount: 10000,
     withdrawn: false,
+    withdrawnAt: null,
   };
 
   return { ...base, ...overrides };

@@ -11,6 +11,7 @@ import {
   inscriptionStatusFilterOptions,
   linkedIndividualStatusFilterOption,
   seminarInscriptionStatusFilterOptions,
+  uninvoicedStatusFilterOption,
 } from "@/lib/finances/choreography-financial-status";
 import {
   resolveInscriptionStatusBadge,
@@ -44,6 +45,9 @@ export type InscriptionFinanceRow = {
   /** A seminar inscription holding a reserved place; choreography rows never
    * carry it. */
   reserved?: boolean;
+  /** A row its unit's invoice does not name (`Sin facturar`). Only the
+   * administration's financial details carry it. */
+  uninvoiced?: boolean;
   totalAmount: number | null;
   withdrawn: boolean;
 };
@@ -84,6 +88,20 @@ export const inscriptionFinanceFacetedFilters = statusFacet(
 export const seminarInscriptionFinanceFacetedFilters = statusFacet(
   seminarInscriptionStatusFilterOptions,
 );
+
+/**
+ * The administration's financial details also read `Sin facturar`, the
+ * `Facturada` axis the academy is not shown.
+ */
+export const adminInscriptionFinanceFacetedFilters = statusFacet([
+  ...inscriptionStatusFilterOptions,
+  uninvoicedStatusFilterOption,
+]);
+
+export const adminSeminarInscriptionFinanceFacetedFilters = statusFacet([
+  ...seminarInscriptionStatusFilterOptions,
+  uninvoicedStatusFilterOption,
+]);
 
 /** The academy's seminar detail can also read `Particular`. */
 export const portalSeminarInscriptionFinanceFacetedFilters = statusFacet([
@@ -161,6 +179,7 @@ function resolveInscriptionStatus(inscription: InscriptionFinanceRow) {
     financialStatus: inscription.financialStatus,
     linkedIndividual: inscription.linkedIndividual,
     reserved: inscription.reserved,
+    uninvoiced: inscription.uninvoiced,
     withdrawn: inscription.withdrawn,
   });
 }

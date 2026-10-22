@@ -685,7 +685,7 @@ describe("choreography registration resolution", () => {
     });
   });
 
-  test("allows category pendiente and omits experience level when no category is compatible", async () => {
+  test('allows category "pendiente" and omits experience level when no category is compatible', async () => {
     const owner = await createAcademySession({
       academyName: "Academia Pendiente",
       email: "registro.coreografia.pendiente@example.com",

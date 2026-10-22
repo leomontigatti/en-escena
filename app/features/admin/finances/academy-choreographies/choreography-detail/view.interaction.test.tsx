@@ -1224,6 +1224,7 @@ function inscriptionFixture(
     owedBalanceAmount: 7000,
     owedDepositAmount: 0,
     totalAmount: 10000,
+    uninvoiced: false,
     withdrawn: false,
     ...overrides,
   };
@@ -1240,6 +1241,7 @@ function loaderDataFixture(
       phone: "11-5555-5555",
     },
     availableBalanceAmount: 5000,
+    billing: null,
     comprobantes: [],
     choreography: {
       allocatedAmount: 3000,

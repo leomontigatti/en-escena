@@ -67,12 +67,19 @@ export async function readAcademySeminarFinance(input: {
   eventId: string;
   // The executor, so a caller reading inside a transaction stays inside it.
   executor?: Executor;
-}): Promise<Map<string, SeminarOperationalFinanceRow[]>> {
+}): Promise<{
+  rowsByAcademy: Map<string, SeminarOperationalFinanceRow[]>;
+  // The inscriptions the rows roll up, per academy: what a unit's delta is
+  // measured on, read once rather than unit by unit.
+  inscriptionsByAcademy: Map<string, ResolvedSeminarInscription[]>;
+}> {
   const executor = input.executor ?? db;
   const rowsByAcademy = new Map<string, SeminarOperationalFinanceRow[]>();
+  const inscriptionsByAcademy = new Map<string, ResolvedSeminarInscription[]>();
 
   for (const academyId of input.academyIds) {
     rowsByAcademy.set(academyId, []);
+    inscriptionsByAcademy.set(academyId, []);
   }
 
   const unitRows = await readSeminarUnitRows({ ...input, executor });
@@ -93,6 +100,7 @@ export async function readAcademySeminarFinance(input: {
 
     const key = seminarUnitKey(row);
     unitFactsByKey.set(key, row);
+    inscriptionsByAcademy.get(row.academyId)?.push(resolution);
     const bucket = inscriptionsByUnit.get(key);
 
     if (bucket) {
@@ -117,7 +125,7 @@ export async function readAcademySeminarFinance(input: {
     rows.sort(bySeminarSlot);
   }
 
-  return rowsByAcademy;
+  return { rowsByAcademy, inscriptionsByAcademy };
 }
 
 /**

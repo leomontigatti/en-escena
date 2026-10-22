@@ -13,8 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate } from "@/features/admin/schedules/view-shared";
+import { formatCreditClock } from "@/lib/comprobantes/anchor-billing";
 import {
-  choreographyStatusFilterOptions,
+  adminUnitStatusFilterOptions,
   formatInscriptionStatusBadge,
 } from "@/lib/finances/choreography-financial-status";
 import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
@@ -53,7 +54,7 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFiltersOf<
   {
     id: "estado",
     label: "Estado",
-    options: [...choreographyStatusFilterOptions],
+    options: [...adminUnitStatusFilterOptions],
     renderValue: renderInscriptionStatusFilterValue,
   },
 ];
@@ -290,7 +291,10 @@ function buildSeminarFinanceColumns(
       id: "financialStatus",
       header: "Estado",
       cell: (row) => (
-        <FinancialStatusBadge status={resolveSeminarStatus(row)} />
+        <UnitStatusCell
+          creditClockDays={row.creditClockDays}
+          status={resolveSeminarStatus(row)}
+        />
       ),
       // The filter comes from the same badge the cell shows, for the same
       // reason it does on the choreography tab.
@@ -384,5 +388,37 @@ function resolveChoreographyStatus(row: ChoreographyFinanceRow) {
 }
 
 function ChoreographyStatusCell({ row }: { row: ChoreographyFinanceRow }) {
-  return <FinancialStatusBadge status={resolveChoreographyStatus(row)} />;
+  return (
+    <UnitStatusCell
+      creditClockDays={row.creditClockDays}
+      status={resolveChoreographyStatus(row)}
+    />
+  );
+}
+
+/**
+ * The unit's badge, and beside it the 15-day clock while a credit note its
+ * withdrawals owe is pending (#657). Muted and in the same cell: it qualifies
+ * the badge rather than being a fact of its own, and it informs without
+ * blocking anything.
+ */
+function UnitStatusCell({
+  creditClockDays,
+  status,
+}: {
+  creditClockDays: number | null;
+  status: ReturnType<typeof resolveInscriptionStatusBadge>;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <FinancialStatusBadge status={status} />
+      {status.kind === "anomaly" &&
+      status.anomaly === "pendingCreditNote" &&
+      creditClockDays !== null ? (
+        <span className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">
+          {formatCreditClock(creditClockDays)}
+        </span>
+      ) : null}
+    </div>
+  );
 }

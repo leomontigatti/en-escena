@@ -832,24 +832,53 @@ Invoicing stays the header's emission item on each `(seminar, academy)` detail
 A derived **array**, all self-clearing comparisons of current state, persisted
 nowhere, acknowledged nowhere.
 
-| Anomaly         | UI              | Predicate                     |
-| --------------- | --------------- | ----------------------------- |
-| `overAllocated` | `Sobreasignada` | `Σ allocations > totalAmount` |
+| Anomaly             | UI                       | Predicate                                         |
+| ------------------- | ------------------------ | ------------------------------------------------- |
+| `overAllocated`     | `Sobreasignada`          | `Σ allocations > totalAmount`                     |
+| `pendingDebitNote`  | `Pendiente de facturar`  | invoiced anchor, `derived total > FC + ΣND − ΣNC` |
+| `pendingCreditNote` | `Pendiente de acreditar` | invoiced anchor, `derived total < FC + ΣND − ΣNC` |
 
 That is the whole list. `groupTypeMismatch`, `orphanedAllocations` and
 `deriveChoreographyNeedsAttention` were deleted and none of them exists in code.
-A choreography re-derives `overAllocated` from the summed excess of its
-inscriptions, so the **choreography-level anomaly slot is otherwise empty by
-design**.
+An inscription derives `overAllocated` alone; a unit re-derives it from the
+summed excess of its inscriptions and adds the billing pair.
 
-`Sobreasignada` is `destructive`, not amber: beside `Seña pendiente`, two amber
-badges would read as one kind of fact. It **warns and never blocks**.
+**The billing pair is the emitter's delta read as an anomaly** (ADR-0014 §5,
+#657): `deriveAnchorBilling` (`app/lib/comprobantes/anchor-billing.ts`) calls the
+same `deriveAnchorDelta` the emitter plans with, so the badge and the next
+document cannot disagree. It belongs to the **anchor** — a choreography or a
+`(seminar, academy)` unit — never to one inscription, is `null` until the anchor
+holds its invoice, and clears when the note it names is emitted. A delta that is
+unknown because some row has no price raises neither. It is administration's
+only: `readAcademyAnchorBilling` joins it to the rows of the academy's finance
+list and to the two financial details, and the portal reads the shared rollup,
+which never carries it (§10, the academy is told nothing).
 
-> **Specified, not built.**
-> ADR-0014 §5 adds the **documented-versus-derived delta** — `derived total −
-(FC + ΣND − ΣNC)` — as the second anomaly, split into two members by sign, with
-> a 15-day countdown on withdrawal-driven deltas. Nothing computes it today.
-> Owner: [#657](https://github.com/leomontigatti/en-escena/issues/657).
+**The 15-day clock** rides on `Pendiente de acreditar` when withdrawals drive it:
+the days since the **oldest unresolved `withdrawnAt`** — a withdrawn row still
+documented above what it retains — read `Día N de 15` beside the list badge and
+in the detail's alert, the withdrawal's own date being day zero, and counting on
+past fifteen so lateness stays legible. A credit owed for any other reason (a
+discount tier that moved) carries no clock: under ADR-0009 the delta has nowhere
+to record when it became non-zero, and `withdrawnAt` is the only start date the
+system persists. A full forfeit leaves the delta at zero, so the clock runs
+exactly when a credit note is owed. No worklist, no notification: the clock
+informs and never blocks.
+
+**`Sin facturar`** is the `Facturada` axis rendered by its absence: on an
+invoiced anchor, an inscription no comprobante line names and that owes
+something reads it in its `Estado`, on the administration's financial details
+only. It is what `Pendiente de facturar` is for, and the debit note that names
+the row clears both. `Facturada` itself is never shown.
+
+**Badges.** All three anomalies are `destructive`, not amber: beside `Seña
+pendiente`, two amber badges would read as one kind of fact. Each **warns and
+never blocks**. An anomaly replaces the status badge; the billing pair outranks
+`Sobreasignada` and also **`Retirada`**, because a withdrawn choreography whose
+credit note is owed still has that left to do (#585). `Sin facturar` is
+`outline`, below the anomalies and above the status. The details state the
+billing pair as an alert, `Falta emitir una nota de débito` / `… de crédito`,
+with what was invoiced, what is owed today, the note's amount and the clock.
 
 ## Withdrawal from the roster
 
@@ -983,14 +1012,14 @@ still reads everything it holds, so money above the deposit shows on the
 withdrawn row until it is released to `Saldo disponible`; #1065 releases it at
 withdrawal, after which the two agree.
 
-> **Specified, not built.** The 15-day clock from `withdrawnAt` on the
-> negative delta (#1711). Historical withdrawals from before the soft withdrawal
-> **cannot be reconstructed and are not backfillable**: the old path
-> hard-deleted the row and cascaded its allocations, destroying the evidence by
-> the very act that required it. How much that costs depends on how many
-> comprobantes were emitted before the soft withdrawal landed, which is a
-> question about the production database and cannot be answered from this
-> repository.
+The 15-day clock on the credit note a withdrawal owes counts from
+`withdrawnAt` ("Anomalies"). Historical withdrawals from before the soft
+withdrawal **cannot be reconstructed and are not backfillable**: the old path
+hard-deleted the row and cascaded its allocations, destroying the evidence by
+the very act that required it. How much that costs depends on how many
+comprobantes were emitted before the soft withdrawal landed, which is a
+question about the production database and cannot be answered from this
+repository.
 
 ## Invoicing
 
@@ -1191,12 +1220,10 @@ in that series, today − 10)` — ARCA's 10016 refuses a date earlier than the
   that reason: the block is the application's to state, in Spanish, not the
   database's to resolve by destroying the evidence.
 
-> **Specified, not built.** The rest of ADR-0014 §5, owned by the slices
-> of [#657](https://github.com/leomontigatti/en-escena/issues/657):
->
-> - the delta as an anchor-level **anomaly** split by sign, `Sin facturar` rows
->   and the 15-day clock (#1711);
-> - **bulk emission** (#1712).
+> **Specified, not built.** The rest of ADR-0014 §5, owned by the last slice
+> of [#657](https://github.com/leomontigatti/en-escena/issues/657): **bulk
+> emission** (#1712). The delta as an anchor-level anomaly, `Sin facturar` and
+> the 15-day clock are built ("Anomalies").
 >
 > `Nota de crédito C` and `Nota de débito C` are verified against ARCA's
 > homologation environment (#686).

@@ -20,6 +20,10 @@ import {
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { seminarAnchor } from "@/lib/comprobantes/anchor";
+import {
+  readAcademyAnchorBilling,
+  withAnchorBilling,
+} from "@/lib/comprobantes/anchor-billing.server";
 import { type ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
 import { getComprobanteEmissionDeps } from "@/lib/comprobantes/emission-config.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
@@ -64,6 +68,7 @@ export async function loadSeminarFinanceDetail(input: {
     return {
       academy,
       availableBalanceAmount: 0,
+      billing: null,
       comprobantes: [],
       inscriptions: [],
       invoicing: null,
@@ -89,17 +94,35 @@ export async function loadSeminarFinanceDetail(input: {
     throw new Response(seminarNotFoundMessage, { status: 404 });
   }
 
-  const [inscriptions, priceOptions, seminarRow, invoicing, comprobantes] =
-    await Promise.all([
-      readSeminarInscriptionFinanceRows({ academyId, eventId, seminarId }),
-      readSeminarInscriptionPriceOptions({ eventId, seminarId }),
-      getSeminar(seminarId),
-      readAnchorInvoicing({
-        anchor: seminarAnchor(seminarId, academyId),
-        eventId,
-      }),
-      readAnchorComprobantes(seminarAnchor(seminarId, academyId)),
-    ]);
+  const [
+    inscriptionRows,
+    priceOptions,
+    seminarRow,
+    invoicing,
+    comprobantes,
+    anchorBilling,
+  ] = await Promise.all([
+    readSeminarInscriptionFinanceRows({ academyId, eventId, seminarId }),
+    readSeminarInscriptionPriceOptions({ eventId, seminarId }),
+    getSeminar(seminarId),
+    readAnchorInvoicing({
+      anchor: seminarAnchor(seminarId, academyId),
+      eventId,
+    }),
+    readAnchorComprobantes(seminarAnchor(seminarId, academyId)),
+    readAcademyAnchorBilling({
+      academyId,
+      eventId,
+      choreographyInscriptions: [],
+      seminarInscriptions: financeDetail.seminarInscriptions,
+    }),
+  ]);
+  const billing = anchorBilling.seminars.get(seminarId) ?? null;
+  const uninvoiced = new Set(billing?.uninvoicedInscriptionIds);
+  const inscriptions = inscriptionRows.map((inscription) => ({
+    ...inscription,
+    uninvoiced: uninvoiced.has(inscription.inscriptionId),
+  }));
 
   return {
     academy,
@@ -107,6 +130,8 @@ export async function loadSeminarFinanceDetail(input: {
     // belongs to neither, and it is the pool the allocations made here come out
     // of.
     availableBalanceAmount: financeDetail.summary.availableBalanceAmount,
+    // What the unit's documents leave pending, `null` before its invoice.
+    billing,
     comprobantes,
     inscriptions,
     invoicing,
@@ -120,7 +145,8 @@ export async function loadSeminarFinanceDetail(input: {
     ),
     seminar: {
       allocatedAmount: seminarFinanceRow.allocatedAmount,
-      anomalies: seminarFinanceRow.anomalies,
+      anomalies: withAnchorBilling(seminarFinanceRow, billing ?? undefined)
+        .anomalies,
       // The quota minus the **covered** inscriptions, whichever academy holds
       // them: a place is taken by covering a deposit, so this is what says
       // whether the next crossing here can go through at all.
