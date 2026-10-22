@@ -111,6 +111,7 @@ function reserved(
     impTotal: 1000,
     cbteFch: "20260722",
     state: "unverified" as const,
+    taken: null,
     ...reservationMoves(),
     ...overrides,
   };
@@ -535,9 +536,15 @@ describe("recheckReservedAttempt", () => {
 });
 
 describe("abandonReservedAttempt", () => {
-  test("a number-taken reservation is released without asking ARCA anything", async () => {
+  test("a number-taken reservation is released without asking ARCA anything, logging ARCA's evidence beside what was sent", async () => {
     const billing = fakeBilling();
-    const attempt = reserved({ state: "number-taken" }, billing);
+    const attempt = reserved(
+      {
+        state: "number-taken",
+        taken: { impTotal: 99999, cbteFch: "20260720" },
+      },
+      billing,
+    );
 
     await expect(abandonReservedAttempt(attempt)).resolves.toEqual({
       ok: true,
@@ -545,6 +552,13 @@ describe("abandonReservedAttempt", () => {
     });
     expect(attempt.release).toHaveBeenCalledOnce();
     expect(billing.getLastVoucher).not.toHaveBeenCalled();
+    expect(console.warn).toHaveBeenCalledWith(
+      "[arca:attempt-abandoned]",
+      expect.objectContaining({
+        submitted: { impTotal: 1000, cbteFch: "20260722" },
+        taken: { impTotal: 99999, cbteFch: "20260720" },
+      }),
+    );
   });
 
   test("an unverified reservation ARCA has not reached yet is released, and the log keeps what was given up", async () => {
@@ -561,6 +575,7 @@ describe("abandonReservedAttempt", () => {
       cbteNro: 43,
       state: "unverified",
       submitted: { impTotal: 1000, cbteFch: "20260722" },
+      taken: null,
     });
   });
 

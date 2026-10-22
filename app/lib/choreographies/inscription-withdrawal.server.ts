@@ -1,6 +1,7 @@
 import { and, inArray, isNotNull } from "drizzle-orm";
 
 import { db } from "@/db";
+import { findReservedInscriptionIds } from "@/lib/comprobantes/reservation.server";
 import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-target.server";
 import {
   choreographyDancers,
@@ -12,7 +13,8 @@ type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Executor = Transaction | typeof db;
 
 /**
- * An inscription's evidence: allocated money or a comprobante line. It is the
+ * An inscription's evidence: allocated money, a comprobante line, or a line of
+ * a live comprobante reservation, which may become one. It is the
  * justification for keeping the row, so it is also what removal from the roster
  * consults to choose between deleting and withdrawing, and what the admin
  * detail's loader uses to spell the consequence out before the admin confirms.
@@ -25,7 +27,7 @@ export async function findInscriptionsWithEvidence(
     return new Set();
   }
 
-  const [allocated, invoiced] = await Promise.all([
+  const [allocated, invoiced, reserved] = await Promise.all([
     executor
       .selectDistinct({ inscriptionId: restrictedChoreographyInscriptionId })
       .from(paymentAllocations)
@@ -46,6 +48,7 @@ export async function findInscriptionsWithEvidence(
           ),
         ),
       ),
+    findReservedInscriptionIds("choreography", inscriptionIds, executor),
   ]);
 
   return new Set([
@@ -53,6 +56,7 @@ export async function findInscriptionsWithEvidence(
     ...invoiced.flatMap((row) =>
       row.inscriptionId ? [row.inscriptionId] : [],
     ),
+    ...reserved,
   ]);
 }
 

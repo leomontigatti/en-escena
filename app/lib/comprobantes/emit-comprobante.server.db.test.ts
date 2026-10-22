@@ -15,6 +15,7 @@ import {
   createEventRecord,
 } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyRecord } from "@/features/portal/test-support/db";
+import { removeInscriptionsFromRoster } from "@/lib/choreographies/inscription-withdrawal.server";
 import {
   type ArcaBillingPort,
   type ArcaTimeouts,
@@ -717,22 +718,21 @@ describe("emitAnchorComprobante — the crediting ceiling", () => {
 });
 
 /**
- * The unit is serialised by a transaction-scoped advisory lock keyed on the
- * anchor, so two operators pressing `Emitir` at once do not each read the same
- * delta and each authorize a comprobante for it. The second emission runs after
- * the first has committed, finds nothing owed, and stops before ARCA.
+ * The unit is serialised by a session advisory lock keyed on the anchor, taken
+ * fail-fast, so two operators pressing `Emitir` at once do not each read the
+ * same delta and each authorize a comprobante for it: the second is turned away
+ * as `busy` before it reads anything, and ARCA is asked once.
  *
  * ARCA answers slowly on purpose: without the lock the second plan would land
  * inside that window. That window only exists where the two emissions really
- * do overlap — under PGlite the single connection serialises the two
- * transactions on its own, so the assertion would hold even without the
- * advisory lock. The test is therefore gated to the Postgres backend instead of
- * passing for free on the fast suite.
+ * do overlap — under PGlite the single session re-enters its own advisory lock,
+ * so the assertion could not fail there. The test is therefore gated to the
+ * Postgres backend instead of passing for free on the fast suite.
  */
 describe.skipIf(isPgliteTestBackend())(
   "comprobante emission under real contention",
   () => {
-    test("serialises two concurrent emissions of one unit into a single comprobante", async () => {
+    test("two concurrent emissions of one unit make a single comprobante, the second turned away", async () => {
       const { academy, choreography, inscriptions } =
         await seedChoreographyWithInscriptions(
           `concurrencia.${crypto.randomUUID()}@example.com`,
@@ -760,7 +760,7 @@ describe.skipIf(isPgliteTestBackend())(
 
       expect(outcomes.filter((outcome) => outcome.ok)).toHaveLength(1);
       expect(outcomes.filter((outcome) => !outcome.ok)).toMatchObject([
-        { ok: false, reason: "refused", refusals: ["nothing-owed"] },
+        { ok: false, reason: "busy" },
       ]);
       expect(billing.createVoucher).toHaveBeenCalledTimes(1);
       await expect(
@@ -1119,6 +1119,45 @@ describe("the correlative reservation", () => {
       await expect(
         emit(choreography, approvingNumber(43)).outcome,
       ).resolves.toMatchObject({ ok: true, comprobante: { cbteNro: 43 } });
+    });
+
+    // Recording the attempt needs every inscription it names: one taken off
+    // the roster while the attempt is live is withdrawn, not deleted.
+    test("an inscription a live attempt names survives its removal, so the attempt can still be recorded", async () => {
+      const { academy, choreography } = await seedInvoicedChoreography(
+        "reserva-baja",
+        1,
+      );
+      const added = await enrol(
+        choreography.id,
+        (await createDancer(academy.id)).id,
+      );
+      const debitNote = await emit(
+        choreography,
+        fakeBilling({
+          createVoucher: vi.fn(neverAnswers),
+          getVoucherInfo: vi.fn(async () => null),
+        }),
+        { timeouts: FAST_TIMEOUTS },
+      ).outcome;
+      expect(debitNote).toMatchObject({
+        reason: "unverified",
+        attempt: { cbteTipo: 12, cbteNro: 43 },
+      });
+
+      await removeInscriptionsFromRoster(db, [added.id]);
+
+      await expect(
+        recheckComprobanteReservation(
+          { cbteTipo: 12, cbteNro: 43 },
+          emissionDeps(
+            fakeBilling({ getVoucherInfo: vi.fn(async () => consultada()) }),
+          ),
+        ),
+      ).resolves.toMatchObject({
+        ok: true,
+        comprobante: { cbteTipo: 12, impTotal: 10000 },
+      });
     });
 
     test("an attempt already resolved answers what became of it", async () => {

@@ -859,7 +859,9 @@ Removing a dancer from a roster is an **admin-only** action, and it chooses once
 between two outcomes:
 
 - **Physical delete** when the inscription holds neither payment allocations nor
-  a `comprobante_inscription` line. Nothing to preserve.
+  a `comprobante_inscription` line, and no live `comprobanteReservation` names it
+  (the attempt may already be a document at ARCA, and recording it needs the
+  row). Nothing to preserve.
 - **Withdrawal** otherwise: `withdrawnAt` is stamped and the row survives with
   its money and its comprobante line on it.
 
@@ -956,7 +958,8 @@ presentation; a comprobante is a reason to withdraw, never a reason to refuse.
 **Removing a seminar inscription goes through the same chooser**, on both sides
 (`app/lib/seminars/inscription-withdrawal.server.ts`): the academy keeps its
 removal until the seminar starts and administration keeps its removal at any
-time; a row with no allocation and no comprobante line is deleted, any other is
+time; a row with no allocation, no comprobante line and no live reservation
+naming it is deleted, any other is
 withdrawn with its money, its stored row and its `createdAt`. The academy
 therefore has an **academy-driven withdrawal** choreographies do not have. A
 withdrawn seminar inscription owes nothing beyond what it holds, exposes its
@@ -1075,9 +1078,11 @@ action yet (#1712).
   an emission takes a Postgres advisory lock keyed on the anchor — the
   choreography, or the `(seminar, academy)` pair — as a session lock on a
   connection of its own, and holds it through the authorization and the insert.
-  No transaction stays open while ARCA answers. Two operators pressing `Emitir`
-  at once therefore cannot each see the same delta and each obtain a CAE for it;
-  the second waits and finds nothing owed. Two academies emitting in the same
+  No transaction stays open while ARCA answers. The lock is taken fail-fast: two
+  operators pressing `Emitir` at once cannot each see the same delta and each
+  obtain a CAE for it, since the second is turned away as busy before it reads
+  anything (a waiter would hold a connection the holder may need). Re-checking
+  and abandoning an attempt take the lock of the anchor it names, the same way. Two academies emitting in the same
   seminar take different keys and never wait on each other. Removing an
   inscription from the roster takes the same lock first, as a transaction lock,
   so it never deletes an unpaid inscription that a debit note in flight is about

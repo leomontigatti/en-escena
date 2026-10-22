@@ -1,4 +1,5 @@
 import { CircleAlert, CircleCheck } from "lucide-react";
+import { useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -105,6 +106,9 @@ export function contingencyCancelLabel(state: ContingencySubmitState): string {
  * checked ARCA's portal; on `number-taken` it follows the evidence the message
  * lays out.
  *
+ * Abandoning takes a second, explicit step (#578): the first click only asks,
+ * beside the evidence, and nothing is posted until the operator confirms.
+ *
  * The intents come in as props: each feature posts its own.
  */
 export function ContingencyAlert({
@@ -170,31 +174,92 @@ export function ContingencyAlert({
           </div>
 
           {attempt ? (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isBusy}
-                onClick={() => onSubmit({ intent: recheckIntent, ...attempt })}
-              >
-                Verificar ahora
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isBusy}
-                onClick={() => onSubmit({ intent: abandonIntent, ...attempt })}
-              >
-                {contingency.status === "number-taken"
+            <AttemptActions
+              abandonLabel={
+                contingency.status === "number-taken"
                   ? "Abandonar este intento"
-                  : "Ya verifiqué en ARCA"}
-              </Button>
-            </div>
+                  : "Ya verifiqué en ARCA"
+              }
+              isBusy={isBusy}
+              onAbandon={() => onSubmit({ intent: abandonIntent, ...attempt })}
+              onRecheck={() => onSubmit({ intent: recheckIntent, ...attempt })}
+            />
           ) : null}
         </div>
       </AlertDescription>
     </Alert>
+  );
+}
+
+// The two ways out of a live attempt. Abandoning asks once more before it
+// posts, since it frees the series without recording anything.
+function AttemptActions({
+  abandonLabel,
+  isBusy,
+  onAbandon,
+  onRecheck,
+}: {
+  abandonLabel: string;
+  isBusy: boolean;
+  onAbandon: () => void;
+  onRecheck: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  if (confirming) {
+    return (
+      <div className="flex flex-col gap-2">
+        <span>
+          Abandonar el intento libera su serie sin registrar ningún comprobante.
+          ¿Confirmás que ARCA no lo tiene como tuyo?
+        </span>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isBusy}
+            onClick={() => {
+              setConfirming(false);
+              onAbandon();
+            }}
+          >
+            Sí, abandonar
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isBusy}
+            onClick={() => setConfirming(false)}
+          >
+            Volver
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={isBusy}
+        onClick={onRecheck}
+      >
+        Verificar ahora
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={isBusy}
+        onClick={() => setConfirming(true)}
+      >
+        {abandonLabel}
+      </Button>
+    </div>
   );
 }

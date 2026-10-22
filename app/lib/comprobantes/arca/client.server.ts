@@ -120,17 +120,28 @@ export class ArcaClient {
   // `FECompUltimoAutorizado` for one series, `(ptoVta, cbteTipo)`: the last
   // authorized number and the next one to request. Each document kind numbers
   // on its own series, ratcheting independently of the others (#686).
+  //
+  // ARCA answers an error without a number, which would read as an empty
+  // series, so an answer carrying errors throws, as a lookup that failed.
   async getLastComprobanteNumber(
     ptoVta: number,
     cbteTipo: number,
   ): Promise<LastVoucherResult> {
-    const result = await withTimeout(
-      this.timeouts.lookup,
-      "FECompUltimoAutorizado",
-      () => this.billing.getLastVoucher(ptoVta, cbteTipo),
+    const result = parseLastVoucher(
+      await withTimeout(this.timeouts.lookup, "FECompUltimoAutorizado", () =>
+        this.billing.getLastVoucher(ptoVta, cbteTipo),
+      ),
     );
 
-    return parseLastVoucher(result);
+    if (result.errors.length > 0) {
+      throw new Error(
+        `FECompUltimoAutorizado answered with errors: ${result.errors
+          .map((error) => `${error.code} ${error.msg}`)
+          .join("; ")}`,
+      );
+    }
+
+    return result;
   }
 
   // `FECAESolicitar` for a `Factura C`: builds the payload, authorizes it and

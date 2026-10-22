@@ -232,6 +232,8 @@ export type ArcaReservedAttempt<TVoucher> = ArcaAttemptedVoucher & {
   impTotal: number;
   cbteFch: string;
   state: "unverified" | "number-taken";
+  // On `number-taken`: what ARCA holds at the number instead.
+  taken: ArcaTakenVoucher | null;
 } & ArcaReservationMoves<TVoucher>;
 
 /**
@@ -323,7 +325,8 @@ export async function abandonReservedAttempt<TVoucher>(
 }
 
 // An abandoned attempt leaves no row behind, so the log is the only trace of
-// what was given up and on what evidence (#578).
+// what was given up and on what evidence: what was submitted against what ARCA
+// holds at the number (#578).
 async function releaseAbandoned<TVoucher>(
   reserved: ArcaReservedAttempt<TVoucher>,
 ): Promise<{ ok: true; released: true }> {
@@ -331,6 +334,7 @@ async function releaseAbandoned<TVoucher>(
     ...attemptOf(reserved),
     state: reserved.state,
     submitted: { impTotal: reserved.impTotal, cbteFch: reserved.cbteFch },
+    taken: reserved.taken,
   });
   await reserved.release();
 

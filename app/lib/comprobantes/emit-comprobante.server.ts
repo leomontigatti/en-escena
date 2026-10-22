@@ -104,6 +104,8 @@ export type ComprobanteEmissionFailureReason =
   | "changed"
   // The chosen `CbteFch` falls outside what ARCA accepts in its series.
   | "invalid-date"
+  // Another emission, re-check or roster write holds the unit right now.
+  | "busy"
   | ArcaEmissionFailureReason;
 
 export type ComprobanteEmissionOutcome =
@@ -166,7 +168,7 @@ export async function emitAnchorComprobante(
   },
   deps: ComprobanteEmissionDeps,
 ): Promise<ComprobanteEmissionOutcome> {
-  return await withComprobanteAnchorLock(input.anchor, async () => {
+  return await underAnchorLock(input.anchor, async () => {
     const planned = await planConfirmedEmission(input);
 
     if (!planned.ok) {
@@ -191,6 +193,26 @@ export async function emitAnchorComprobante(
       ),
     );
   });
+}
+
+/**
+ * Runs `run` under the unit's lock, or answers `busy` when something else holds
+ * it: nothing was read or emitted, and trying again in a moment is safe.
+ */
+export async function underAnchorLock<T>(
+  anchor: ComprobanteAnchor,
+  run: () => Promise<T>,
+): Promise<T | EmissionFailure> {
+  const held = await withComprobanteAnchorLock(anchor, run);
+
+  return held.locked
+    ? held.value
+    : {
+        ok: false,
+        reason: "busy",
+        message:
+          "Hay otra operación en curso sobre esta unidad. Esperá unos segundos y volvé a intentar.",
+      };
 }
 
 // What the anchor owes under the lock, refused when it owes nothing or no

@@ -1,3 +1,6 @@
+import { isDateOnly } from "@/lib/shared/date-only";
+
+import { toArcaDate } from "./arca/emission.server";
 import { formatComprobanteArcaDate } from "./format";
 import { formatComprobanteSeriesLabel } from "./kind";
 
@@ -80,29 +83,12 @@ export function checkCbteFch(
  * kinds ratchet independently.
  */
 export function describeCbteFchFloor(bounds: CbteFchBounds): string {
-  const floor = formatComprobanteArcaDate(toArcaDateOnly(bounds.floor));
+  const floor = formatComprobanteArcaDate(toArcaDate(bounds.floor));
   const series = formatComprobanteSeriesLabel(bounds.series);
 
   return bounds.floorReason === "series"
     ? `${floor}, la del último comprobante autorizado en la serie ${series}: ARCA no acepta fechas anteriores en esa serie`
     : `${floor}: ARCA no acepta comprobantes de servicios fechados más de ${CBTE_FCH_BACKDATE_DAYS} días antes de hoy (${series})`;
-}
-
-function isDateOnly(value: string): boolean {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-
-  if (!match) {
-    return false;
-  }
-
-  const [, year, month, day] = match.map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
 }
 
 function shiftDate(dateOnly: string, days: number): string {
@@ -115,8 +101,4 @@ function shiftDate(dateOnly: string, days: number): string {
 
 function fromArcaDate(arcaDate: string): string {
   return `${arcaDate.slice(0, 4)}-${arcaDate.slice(4, 6)}-${arcaDate.slice(6, 8)}`;
-}
-
-function toArcaDateOnly(dateOnly: string): string {
-  return dateOnly.replaceAll("-", "");
 }

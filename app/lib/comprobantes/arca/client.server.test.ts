@@ -72,6 +72,24 @@ describe("ArcaClient", () => {
     expect(result.nextCbteNro).toBe(43);
   });
 
+  // An error response carries no number, which would otherwise read as "the
+  // series is empty": abandoning a reservation trusts that answer.
+  test("a last-number answer with ARCA errors is a failed lookup, not an empty series", async () => {
+    const client = new ArcaClient(
+      fakeBilling({
+        getLastVoucher: vi.fn(async () => ({
+          ...ultimoAutorizado,
+          cbteNro: 0,
+          errors: { err: [{ code: 600, msg: "ValidacionDeToken" }] },
+        })),
+      }),
+    );
+
+    await expect(client.getLastComprobanteNumber(1, 11)).rejects.toThrow(
+      /ValidacionDeToken/,
+    );
+  });
+
   test("emits by sending a `Factura C` FECAESolicitar and returns the CAE", async () => {
     let sent: ArcaVoucher | undefined;
     const billing = fakeBilling({

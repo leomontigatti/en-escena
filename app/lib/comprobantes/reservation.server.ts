@@ -13,6 +13,7 @@ import {
   readComprobanteAnchor,
   type ComprobanteAnchor,
 } from "./anchor";
+import type { ComprobanteExecutor } from "./anchor-lock.server";
 import { formatComprobanteAnchorLabel } from "./anchor-reading";
 import {
   buildNumberTakenMessage,
@@ -234,6 +235,41 @@ async function readReservationAnchorLabel(
         ...seminar,
       })}»`
     : `el seminario ${reservation.seminarId}`;
+}
+
+/**
+ * The inscriptions, among `inscriptionIds`, that a live reservation names in
+ * its lines. They count as evidence the way a comprobante line does: the
+ * attempt may already be a document at ARCA, and recording it later needs the
+ * inscription it names, so removing one from the roster withdraws it rather
+ * than deleting it.
+ */
+export async function findReservedInscriptionIds(
+  kind: "choreography" | "seminar",
+  inscriptionIds: string[],
+  executor: ComprobanteExecutor = db,
+): Promise<string[]> {
+  if (inscriptionIds.length === 0) {
+    return [];
+  }
+
+  // At most one live reservation per series, so the table is a handful of
+  // rows: reading every payload is cheaper than querying inside the jsonb.
+  const reservations = await executor
+    .select({ payload: comprobanteReservations.payload })
+    .from(comprobanteReservations);
+  const wanted = new Set(inscriptionIds);
+
+  return reservations.flatMap(({ payload }) =>
+    payload.lines.flatMap((line) => {
+      const id =
+        kind === "choreography"
+          ? line.choreographyInscriptionId
+          : line.seminarInscriptionId;
+
+      return id !== null && wanted.has(id) ? [id] : [];
+    }),
+  );
 }
 
 /**

@@ -9,9 +9,9 @@ import {
   type ArcaReservedAttempt,
 } from "./arca/emission.server";
 import { readComprobanteAnchor } from "./anchor";
-import { withComprobanteAnchorLock } from "./anchor-lock.server";
 import {
   toOutcome,
+  underAnchorLock,
   type ComprobanteEmissionDeps,
   type ComprobanteEmissionOutcome,
 } from "./emit-comprobante.server";
@@ -71,10 +71,9 @@ export async function abandonComprobanteReservation(
 
 /**
  * Runs `act` on the live reservation at the attempt's number, under the lock
- * of the anchor it names, so it waits for an emission of that anchor still in
- * flight and then finds the reservation as that emission left it. A
- * reservation already gone was resolved by somebody else: the comprobante is
- * there, or nothing was emitted.
+ * of the anchor it names, so it never races an emission of that anchor still in
+ * flight: while one is, the answer is `busy`. A reservation already gone was
+ * resolved by somebody else: the comprobante is there, or nothing was emitted.
  */
 async function onLiveReservation<T>(
   input: ReservedAttemptInput,
@@ -88,16 +87,16 @@ async function onLiveReservation<T>(
     return await alreadyResolved(attempt);
   }
 
-  return await withComprobanteAnchorLock(
-    readComprobanteAnchor(found),
-    async () => {
-      const reservation = await findReservation(attempt);
+  return await underAnchorLock(readComprobanteAnchor(found), async () => {
+    // Read again under the lock, and only the same row: the one found may have
+    // been settled meanwhile and the number reserved again by another anchor,
+    // whose lock this is not.
+    const reservation = await findReservation(attempt);
 
-      return reservation
-        ? await act(reservedAttempt(reservation, deps))
-        : await alreadyResolved(attempt);
-    },
-  );
+    return reservation?.id === found.id
+      ? await act(reservedAttempt(reservation, deps))
+      : await alreadyResolved(attempt);
+  });
 }
 
 async function alreadyResolved(attempt: {
@@ -139,6 +138,13 @@ function reservedAttempt(
     impTotal: reservation.impTotal,
     cbteFch: reservation.cbteFch,
     state: reservation.state,
+    taken:
+      reservation.state === "number-taken"
+        ? {
+            impTotal: reservation.takenImpTotal,
+            cbteFch: reservation.takenCbteFch,
+          }
+        : null,
     persist: (authorized) => recordReservedComprobante(reservation, authorized),
     release: () => releaseReservation(reservation),
     markNumberTaken: (taken) => markReservationNumberTaken(reservation, taken),

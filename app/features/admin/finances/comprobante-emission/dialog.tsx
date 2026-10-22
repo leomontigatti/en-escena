@@ -90,7 +90,7 @@ export function EmissionDialog({
   );
 }
 
-type EmissionDateValues = { cbteFch: string };
+type EmissionDateValues = z.input<ReturnType<typeof emissionDateSchema>>;
 
 // The bounds the server enforces, so a date it would refuse is caught before
 // the submit; the calendar already offers no other day.

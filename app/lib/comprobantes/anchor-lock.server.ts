@@ -28,27 +28,40 @@ export function comprobanteAnchorLockKey(anchor: ComprobanteAnchor): string {
  * reserved for it, so that nothing else has to stay inside a transaction while
  * ARCA answers (ADR-0014 §7). Emission takes it: its writes commit one by one —
  * the reservation before `FECAESolicitar`, the comprobante after — and the lock
- * has to span all of them and the round-trip between. It waits rather than
- * failing fast, as the transaction lock does, so a second emission of the unit
- * starts once the first is over and plans against what the first recorded.
+ * has to span all of them and the round-trip between.
+ *
+ * It fails fast, `pg_try_advisory_lock`, and answers `locked: false` when the
+ * unit is busy. Waiting would be wrong here, not just slow: a waiter would hold
+ * its reserved connection for as long as the holder talks to ARCA, while the
+ * holder still needs a pooled connection for its own reads and writes, so
+ * enough waiters on one unit would starve the pool and the holder with it —
+ * a deadlock Postgres cannot see.
  *
  * The session and the transaction locks share one key space, so the roster
- * writes that take `lockComprobanteAnchor` wait on an emission in flight and an
- * emission waits on them. If the unlock itself fails the connection is the
- * likely casualty, and the lock ends with its session.
+ * writes that take `lockComprobanteAnchor` wait on an emission in flight, and an
+ * emission arriving while one of them holds the lock is turned away. If the
+ * unlock itself fails the connection is the likely casualty, and the lock ends
+ * with its session.
  */
 export async function withComprobanteAnchorLock<T>(
   anchor: ComprobanteAnchor,
   run: () => Promise<T>,
-): Promise<T> {
+): Promise<{ locked: true; value: T } | { locked: false }> {
   const key = comprobanteAnchorLockKey(anchor);
   const session = await client.reserve();
 
   try {
-    await session.unsafe("select pg_advisory_lock(hashtext($1))", [key]);
+    const [row] = await session.unsafe<Array<{ locked: boolean }>>(
+      "select pg_try_advisory_lock(hashtext($1)) as locked",
+      [key],
+    );
+
+    if (!row?.locked) {
+      return { locked: false };
+    }
 
     try {
-      return await run();
+      return { locked: true, value: await run() };
     } finally {
       await session.unsafe("select pg_advisory_unlock(hashtext($1))", [key]);
     }

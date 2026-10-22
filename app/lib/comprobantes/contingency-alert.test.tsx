@@ -1,11 +1,8 @@
 /** @vitest-environment jsdom */
 
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 
-import {
-  clickReactDomButton,
-  createReactDomTestRenderer,
-} from "@/lib/test-support/react-dom";
+import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 import {
   ContingencyAlert,
@@ -81,57 +78,6 @@ describe("ContingencyAlert", () => {
     expect(document.body.textContent).toContain("Factura C 0001-00000043");
     expect(document.body.textContent).toContain("Verificar ahora");
     expect(document.body.textContent).toContain("Ya verifiqué en ARCA");
-  });
-
-  // The amount and the date do NOT travel from the client: the server checks
-  // against its reservation. The attempt's series does, beside its number.
-  test("verify now and the operator's verification send only the intent and the attempt", async () => {
-    const onSubmit = vi.fn();
-    mount(
-      {
-        status: "unverified",
-        message: "sin resolver",
-        ptoVta: 1,
-        cbteTipo: 11,
-        cbteNro: 43,
-      },
-      { onSubmit },
-    );
-
-    await clickReactDomButton("Verificar ahora");
-    await clickReactDomButton("Ya verifiqué en ARCA");
-
-    expect(onSubmit.mock.calls).toEqual([
-      [{ intent: "recheck-comprobante", cbteTipo: "11", cbteNro: "43" }],
-      [{ intent: "abandon-reservation", cbteTipo: "11", cbteNro: "43" }],
-    ]);
-  });
-
-  test("a number another comprobante took offers to abandon the attempt, not to declare it verified", async () => {
-    const onSubmit = vi.fn();
-    mount(
-      {
-        status: "number-taken",
-        message: "Factura C 0001-00000043 existe en ARCA por $ 99.999",
-        ptoVta: 1,
-        cbteTipo: 11,
-        cbteNro: 43,
-      },
-      { onSubmit },
-    );
-
-    expect(document.body.textContent).toContain(
-      "ARCA tiene otro comprobante en este número",
-    );
-    expect(document.body.textContent).not.toContain("Ya verifiqué en ARCA");
-
-    await clickReactDomButton("Abandonar este intento");
-
-    expect(onSubmit).toHaveBeenCalledWith({
-      intent: "abandon-reservation",
-      cbteTipo: "11",
-      cbteNro: "43",
-    });
   });
 
   test("recovered says it was recorded and does not offer a retry", () => {

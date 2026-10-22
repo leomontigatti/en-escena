@@ -163,6 +163,9 @@ describe("EmissionDialog", () => {
       within: document.querySelector('[role="alertdialog"]'),
     });
     await clickReactDomButton("Ya verifiqué en ARCA");
+    // The first click only asks: nothing is abandoned until it is confirmed.
+    expect(recheckPayloads).toEqual([]);
+    await clickReactDomButton("Sí, abandonar");
 
     expect(recheckPayloads).toEqual([
       { intent: abandonReservationIntent, cbteTipo: "11", cbteNro: "43" },
@@ -171,12 +174,39 @@ describe("EmissionDialog", () => {
     expect(emitButton().disabled).toBe(false);
   });
 
+  test("a number another comprobante took blocks the retry until the attempt is abandoned, on a second, explicit step", async () => {
+    const { action, recheckPayloads } = contingencyAction({
+      status: "number-taken",
+      message:
+        "Factura C 0001-00000043 existe en ARCA por $ 99.999 con fecha 20/07/2026, y no coincide con lo que se envió.",
+      ptoVta: 1,
+      cbteTipo: 11,
+      cbteNro: 43,
+    });
+    await mount({ open: true, action });
+
+    await clickReactDomButton("Emitir", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
+    expect(emitButton().disabled).toBe(true);
+
+    await clickReactDomButton("Abandonar este intento");
+    await clickReactDomButton("Volver");
+    expect(recheckPayloads).toEqual([]);
+
+    await clickReactDomButton("Abandonar este intento");
+    await clickReactDomButton("Sí, abandonar");
+
+    expect(recheckPayloads).toEqual([
+      { intent: abandonReservationIntent, cbteTipo: "11", cbteNro: "43" },
+    ]);
+    expect(emitButton().disabled).toBe(false);
+  });
+
   test("the emission carries the comprobante's date, today unless the operator moves it", async () => {
     const { action, emitPayloads } = contingencyAction(unverified);
     await mount({ open: true, action });
-
-    expect(document.body.textContent).toContain("Fecha del comprobante");
-    expect(document.body.textContent).toContain("Desde el 12/07/2026");
 
     await clickReactDomButton("Emitir", {
       exact: true,
