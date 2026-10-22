@@ -68,7 +68,6 @@ const printStyles = `
   .footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 24px; gap: 24px; }
   .qr svg { width: 140px; height: 140px; }
   .cae { text-align: right; }
-  .status { display: inline-block; padding: 2px 8px; border: 1px solid #111827; border-radius: 999px; font-size: 12px; }
   @media print {
     body { background: #ffffff; padding: 0; }
     .sheet { border: none; }
@@ -135,6 +134,16 @@ function ComprobantePrintDocument({
             </p>
           </div>
 
+          {model.associatedComprobante && (
+            <div className="block">
+              <h2>Comprobante asociado</h2>
+              <p>{model.associatedComprobante.description}</p>
+              {model.associatedComprobante.legend && (
+                <p>{model.associatedComprobante.legend}</p>
+              )}
+            </div>
+          )}
+
           <div className="block">
             <h2>Detalle</h2>
             <table>
@@ -187,11 +196,6 @@ function ComprobantePrintDocument({
               <p>
                 <strong>Vto. CAE:</strong> {model.caeVto}
               </p>
-              {model.statusLabel === null ? null : (
-                <p>
-                  Estado: <span className="status">{model.statusLabel}</span>
-                </p>
-              )}
             </div>
           </div>
         </div>
