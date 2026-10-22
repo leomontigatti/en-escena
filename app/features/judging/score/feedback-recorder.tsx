@@ -4,20 +4,13 @@ import {
   useImperativeHandle,
   useRef,
   useState,
-  type ComponentProps,
   type Ref,
 } from "react";
 
 import { MediaRow, MediaTime } from "@/components/shared/audio-playback";
+import { TooltipIconButton } from "@/components/shared/tooltip-icon-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { FieldLegend, FieldSet } from "@/components/ui/field";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   feedbackAudioFieldSubmission,
   feedbackAudioFieldUrl,
@@ -460,50 +453,19 @@ function TakeBar({
         levels={isLive ? take.levels : emptyLevels()}
         activeRatio={phase === "recording" ? 1 : 0}
       />
-      <TakeButton
+      <TooltipIconButton
         label="Terminar grabación"
         disabled={!isLive}
         onClick={stopRecording}
       >
         <Check aria-hidden="true" />
-      </TakeButton>
+      </TooltipIconButton>
       {isLive ? (
         <span className="sr-only" aria-live="polite">
           {phase === "paused" ? "Grabación en pausa" : "Grabando"}
         </span>
       ) : null}
     </MediaRow>
-  );
-}
-
-/**
- * An icon-only control of the take whose icon does not say what it does (the
- * check, the red dot), so its name shows as a tooltip on hover and focus.
- */
-function TakeButton({
-  label,
-  ...buttonProps
-}: Omit<
-  ComponentProps<typeof Button>,
-  "aria-label" | "size" | "type" | "variant"
-> & {
-  label: string;
-}) {
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={label}
-            {...buttonProps}
-          />
-        </TooltipTrigger>
-        <TooltipContent>{label}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
   );
 }
 
@@ -529,28 +491,22 @@ function TakeControlButton({
 
   if (phase === "recording") {
     return (
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        aria-label="Pausar"
-        onClick={togglePause}
-      >
+      <TooltipIconButton label="Pausar" onClick={togglePause}>
         <Pause aria-hidden="true" />
-      </Button>
+      </TooltipIconButton>
     );
   }
 
   if (phase === "paused") {
     return (
-      <TakeButton label="Reanudar" onClick={togglePause}>
+      <TooltipIconButton label="Reanudar" onClick={togglePause}>
         <RecordDot />
-      </TakeButton>
+      </TooltipIconButton>
     );
   }
 
   return (
-    <TakeButton
+    <TooltipIconButton
       label="Empezar a grabar"
       disabled={disabled || phase === "requesting"}
       // `startRecording` reports its own failure on screen and never rejects.
@@ -558,6 +514,6 @@ function TakeControlButton({
     >
       {/* Stays a dot while the mic opens: pause appears once it is live. */}
       <RecordDot />
-    </TakeButton>
+    </TooltipIconButton>
   );
 }

@@ -17,6 +17,7 @@ import {
 import { AudioPlayback } from "@/components/shared/audio-playback";
 import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
 import { SharedFieldLayout } from "@/components/shared/field-layout";
+import { TooltipIconButton } from "@/components/shared/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/shared/utils";
 
@@ -166,16 +167,7 @@ function FileUploadPlayerActions({
   return (
     <>
       {downloadHref ? (
-        <Button asChild variant="ghost" size="icon">
-          <a
-            href={downloadHref}
-            target="_blank"
-            rel="noreferrer"
-            aria-label={config.downloadLabel}
-          >
-            <Download aria-hidden="true" />
-          </a>
-        </Button>
+        <FileDownloadButton config={config} href={downloadHref} />
       ) : null}
       {state.showsFileActions ? (
         <Button
@@ -192,11 +184,42 @@ function FileUploadPlayerActions({
   );
 }
 
+/**
+ * Saves the stored file rather than opening it: a song would only open the
+ * browser's own player in a new tab. The storage route is same-origin, so the
+ * browser honours `download`.
+ */
+function FileDownloadButton({
+  config,
+  href,
+  size,
+  variant,
+}: {
+  config: FileUploadControlConfig;
+  href: string;
+  size?: "icon-sm";
+  variant?: "outline";
+}) {
+  return (
+    <TooltipIconButton
+      asChild
+      label={config.downloadLabel}
+      size={size}
+      variant={variant}
+    >
+      <a href={href} download={config.downloadFileName ?? ""}>
+        <Download aria-hidden="true" />
+      </a>
+    </TooltipIconButton>
+  );
+}
+
 function getFileUploadControlConfig(
   {
     allowedMimeTypes,
     className,
     disabled = false,
+    downloadFileName,
     downloadLabel = "Descargar archivo",
     downloadUrl,
     error = false,
@@ -232,6 +255,7 @@ function getFileUploadControlConfig(
     allowedMimeTypes,
     className,
     disabled,
+    downloadFileName,
     downloadLabel,
     downloadUrl,
     error,
@@ -687,12 +711,12 @@ function FileUploadActions({
   return (
     <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
       {state.downloadHref ? (
-        <Button asChild variant="outline" size="icon-sm">
-          <a href={state.downloadHref} target="_blank" rel="noreferrer">
-            <Download aria-hidden="true" />
-            <span className="sr-only">{config.downloadLabel}</span>
-          </a>
-        </Button>
+        <FileDownloadButton
+          config={config}
+          href={state.downloadHref}
+          size="icon-sm"
+          variant="outline"
+        />
       ) : null}
       {state.showsFileActions ? (
         <Button

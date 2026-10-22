@@ -6,6 +6,7 @@ import {
   choreographies,
   choreographyDancers,
   choreographyProfessors,
+  presentations,
 } from "@/db/schema";
 import {
   handlePortalChoreographyDetailRouteAction as choreographyDetailAction,
@@ -21,6 +22,7 @@ import {
   createProfessor,
 } from "@/features/portal/choreographies/test-support/db";
 import { musicUpdateFormData } from "@/features/portal/choreographies/test-support/forms";
+import { setVisibleProgramDays } from "@/lib/presentations/program-visibility.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -217,6 +219,56 @@ describe("portal choreographies reads", () => {
     expect(detail.choreography?.dancers).toMatchObject([
       { firstName: "Sol", lastName: "Queda" },
     ]);
+  });
+
+  // The download is named as the day's audio archive names it, and the
+  // number is one the academy may not see before its day is published.
+  test("names the music download by its order number once the day is published", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Dueña",
+      email: "coreografias.detail.audio@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional Audio",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const addChoreography = (name: string) =>
+      createChoreographyRecord({
+        academyId: owner.academyId,
+        categoryId: catalog.categoryWithLevel.id,
+        eventId: event.id,
+        experienceLevelId: catalog.level.id,
+        modalityId: catalog.modality.id,
+        musicStorageKey: `music/${name}.mp3`,
+        name,
+        scheduleCapacityId: catalog.scheduleCapacity.id,
+        submodalityId: catalog.submodality.id,
+      });
+    const [choreography, later] = await Promise.all([
+      addChoreography("Tema"),
+      addChoreography("Otra"),
+    ]);
+    await db.insert(presentations).values([
+      { choreographyId: choreography.id, eventId: event.id, orderNumber: 7 },
+      { choreographyId: later.id, eventId: event.id, orderNumber: 12 },
+    ]);
+    const loadFileName = async () =>
+      (
+        await choreographyDetailLoader({
+          params: { choreographyId: choreography.id },
+          request: new Request(
+            `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+            { headers: { cookie: owner.cookie } },
+          ),
+        })
+      ).choreography.musicDownloadFileName;
+
+    expect(await loadFileName()).toBe("Tema - Academia Dueña.mp3");
+
+    await setVisibleProgramDays(event.id, [catalog.schedule.scheduledDate]);
+
+    expect(await loadFileName()).toBe("07 - Tema - Academia Dueña.mp3");
   });
 });
 
