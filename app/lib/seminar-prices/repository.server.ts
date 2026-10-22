@@ -6,7 +6,9 @@ import {
   eventBaseCollision,
   type EventBaseFailure,
   type EventBasesDeleteResult,
+  type EventBasesExecutor,
   type EventBasesMutationResult,
+  type EventBasesTransaction,
 } from "@/lib/events/bases-kernel.server";
 import { hasNeverExpiringPrice } from "@/lib/events/never-expiring-price";
 import {
@@ -17,6 +19,7 @@ import {
   uncoveredPriceUpdateError,
 } from "@/lib/prices/guards";
 import { hasCompleteSeminarPriceCells } from "@/lib/seminar-prices/participant-cells";
+import { lockEventSeminarPricesForEdit } from "@/lib/seminar-prices/price-locks.server";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import { isSeminarKind, type SeminarKind } from "@/lib/seminars/seminar-kinds";
 
@@ -114,10 +117,18 @@ export async function createSeminarPrice(
     return validation;
   }
 
-  const [record] = await db
-    .insert(seminarPrices)
-    .values({ eventId, ...validation.input })
-    .returning();
+  // A money write in flight could pick the new row up and store it before the
+  // charge it planned on the old list (`lockEventSeminarPrices`).
+  const record = await db.transaction(async (tx) => {
+    await lockEventSeminarPricesForEdit(tx, eventId);
+
+    const [inserted] = await tx
+      .insert(seminarPrices)
+      .values({ eventId, ...validation.input })
+      .returning();
+
+    return inserted;
+  });
 
   return createdSeminarPrice(record);
 }
@@ -143,70 +154,121 @@ export async function updateSeminarPrice(
     return validation;
   }
 
-  const hasDependencies =
-    dependencies.hasDependencies ?? seminarPriceHasOperationalDependencies;
+  // The dependency guard reads which inscriptions stored the row, so it runs
+  // under the price list's lock: the writes that store a seminar price take it
+  // too (`lockEventSeminarPrices`), and one that commits while this edit is in
+  // flight is seen here instead of being left on a row the edit changed. The
+  // coverage guard is not serialised against a registration this way.
+  return await db.transaction(async (tx) => {
+    const locked = await loadSeminarPriceUnderLock(
+      tx,
+      existing.eventId,
+      seminarPriceId,
+    );
 
-  if (hasStructuralSeminarPriceChanges(existing, validation.input)) {
-    if (await hasDependencies(seminarPriceId)) {
-      return {
-        ok: false,
-        code: "event-bases-has-dependencies",
-        error: frozenPriceUpdateError,
-      };
+    if (!locked) {
+      return seminarPriceNotFound();
     }
 
-    if (await removesNeverExpiringCoverage(existing, validation.input)) {
-      return {
-        ok: false,
-        code: "event-bases-has-dependencies",
-        error: uncoveredPriceUpdateError,
-      };
+    if (hasStructuralSeminarPriceChanges(locked, validation.input)) {
+      if (await resolveHasDependencies(tx, dependencies)(seminarPriceId)) {
+        return {
+          ok: false,
+          code: "event-bases-has-dependencies",
+          error: frozenPriceUpdateError,
+        };
+      }
+
+      if (await removesNeverExpiringCoverage(tx, locked, validation.input)) {
+        return {
+          ok: false,
+          code: "event-bases-has-dependencies",
+          error: uncoveredPriceUpdateError,
+        };
+      }
     }
-  }
 
-  const [record] = await db
-    .update(seminarPrices)
-    .set(validation.input)
-    .where(eq(seminarPrices.id, seminarPriceId))
-    .returning();
+    const [record] = await tx
+      .update(seminarPrices)
+      .set(validation.input)
+      .where(eq(seminarPrices.id, seminarPriceId))
+      .returning();
 
-  return createdSeminarPrice(record);
+    return createdSeminarPrice(record);
+  });
 }
 
 export async function deleteSeminarPrice(
   seminarPriceId: string,
   dependencies: SeminarPriceDependencies = {},
 ): Promise<EventBasesDeleteResult> {
-  const existing = await db.query.seminarPrices.findFirst({
+  const found = await db.query.seminarPrices.findFirst({
+    columns: { eventId: true },
     where: eq(seminarPrices.id, seminarPriceId),
   });
 
-  if (!existing) {
+  if (!found) {
     return seminarPriceNotFound();
   }
 
-  const hasDependencies =
-    dependencies.hasDependencies ?? seminarPriceHasOperationalDependencies;
+  // Under the price list's lock for the same reason as `updateSeminarPrice`.
+  return await db.transaction(async (tx) => {
+    const existing = await loadSeminarPriceUnderLock(
+      tx,
+      found.eventId,
+      seminarPriceId,
+    );
 
-  if (await hasDependencies(seminarPriceId)) {
-    return {
-      ok: false,
-      code: "event-bases-has-dependencies",
-      error: frozenPriceDeleteError,
-    };
-  }
+    if (!existing) {
+      return seminarPriceNotFound();
+    }
 
-  if (await removesNeverExpiringCoverage(existing, null)) {
-    return {
-      ok: false,
-      code: "event-bases-has-dependencies",
-      error: uncoveredPriceDeleteError,
-    };
-  }
+    if (await resolveHasDependencies(tx, dependencies)(seminarPriceId)) {
+      return {
+        ok: false,
+        code: "event-bases-has-dependencies",
+        error: frozenPriceDeleteError,
+      };
+    }
 
-  await db.delete(seminarPrices).where(eq(seminarPrices.id, seminarPriceId));
+    if (await removesNeverExpiringCoverage(tx, existing, null)) {
+      return {
+        ok: false,
+        code: "event-bases-has-dependencies",
+        error: uncoveredPriceDeleteError,
+      };
+    }
 
-  return { ok: true };
+    await tx.delete(seminarPrices).where(eq(seminarPrices.id, seminarPriceId));
+
+    return { ok: true };
+  });
+}
+
+/**
+ * The row, read again once the event's price list is locked for editing
+ * (`lockEventSeminarPricesForEdit`); `undefined` when it is gone by then.
+ */
+async function loadSeminarPriceUnderLock(
+  tx: EventBasesTransaction,
+  eventId: string,
+  seminarPriceId: string,
+) {
+  await lockEventSeminarPricesForEdit(tx, eventId);
+
+  return await tx.query.seminarPrices.findFirst({
+    where: eq(seminarPrices.id, seminarPriceId),
+  });
+}
+
+function resolveHasDependencies(
+  executor: EventBasesExecutor,
+  dependencies: SeminarPriceDependencies,
+) {
+  return (
+    dependencies.hasDependencies ??
+    ((id: string) => seminarPriceHasOperationalDependencies(executor, id))
+  );
 }
 
 /**
@@ -214,8 +276,11 @@ export async function deleteSeminarPrice(
  * included**: a withdrawn inscription keeps exposing the deposit figure it was
  * charged, so the row it points at cannot move either.
  */
-async function seminarPriceHasOperationalDependencies(seminarPriceId: string) {
-  const [dependency] = await db
+async function seminarPriceHasOperationalDependencies(
+  executor: EventBasesExecutor,
+  seminarPriceId: string,
+) {
+  const [dependency] = await executor
     .select({ id: seminarInscriptions.id })
     .from(seminarInscriptions)
     .where(eq(seminarInscriptions.selectedPriceId, seminarPriceId))
@@ -246,6 +311,7 @@ async function findReferencedSeminarPriceIds(seminarPriceIds: string[]) {
  * pre-mutation and is deliberately not date-relative.
  */
 async function removesNeverExpiringCoverage(
+  executor: EventBasesExecutor,
   existing: SeminarPriceRow,
   // What the row becomes, or `null` when it is being deleted.
   next: ValidSeminarPriceInput | null,
@@ -264,7 +330,7 @@ async function removesNeverExpiringCoverage(
     return false;
   }
 
-  const remainingCellPrices = await db
+  const remainingCellPrices = await executor
     .select({ paymentDeadline: seminarPrices.paymentDeadline })
     .from(seminarPrices)
     .where(
@@ -280,7 +346,7 @@ async function removesNeverExpiringCoverage(
     return false;
   }
 
-  return hasActiveSeminarInscriptions(existing.eventId);
+  return hasActiveSeminarInscriptions(existing.eventId, executor);
 }
 
 /**
@@ -290,8 +356,11 @@ async function removesNeverExpiringCoverage(
  * future price resolution needs, and a withdrawn row resolves nothing ever
  * again: registering the person anew inserts a row the guard sees.
  */
-async function hasActiveSeminarInscriptions(eventId: string) {
-  const [inscription] = await db
+async function hasActiveSeminarInscriptions(
+  eventId: string,
+  executor: EventBasesExecutor = db,
+) {
+  const [inscription] = await executor
     .select({ id: seminarInscriptions.id })
     .from(seminarInscriptions)
     .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))

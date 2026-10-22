@@ -44,6 +44,7 @@ import {
   readSeminarParticipation,
 } from "@/lib/finances/seminar-participation.server";
 
+import { lockEventSeminarPrices } from "@/lib/seminar-prices/price-locks.server";
 import {
   countReservedByOthers,
   holdsCoveredDeposit,
@@ -235,6 +236,10 @@ export async function allocateToSeminarInscription(
     if (!context.ok) {
       return context;
     }
+
+    // Before any price row is read: a price edit racing this write either
+    // commits first and is read here, or waits and finds the row stored.
+    await lockEventSeminarPrices(tx, input.eventId);
 
     // Read before the pricing step: a cheaper row can carry the money already on
     // the row across its deposit, and that is a crossing too.

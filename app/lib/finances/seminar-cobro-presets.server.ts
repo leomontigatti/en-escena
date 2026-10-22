@@ -39,6 +39,7 @@ import {
   type ResolvedSeminarInscription,
   type SeminarFinancePriceRow,
 } from "@/lib/finances/seminar-inscription-thresholds.server";
+import { lockEventSeminarPrices } from "@/lib/seminar-prices/price-locks.server";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import {
   countReservedByOthers,
@@ -129,6 +130,9 @@ type SeminarCobroPlan = {
  * `lock` takes the inscriptions' rows `FOR UPDATE`, in id order, as the
  * choreography preset does: a withdrawal racing the charge either commits
  * first, and is read here, or waits until the charge has priced and funded.
+ * It takes the event's price list too (`lockEventSeminarPrices`), so a price
+ * edit or a new row cannot change the list between this read and the write
+ * that stores a row from it.
  * Only the write asks for it, under the seminars' locks; a preview reads
  * without it.
  */
@@ -151,6 +155,7 @@ async function readSeminarCobroInscriptions(
 
   if (input.lock) {
     await lockActiveSeminarInscriptions(executor, filter);
+    await lockEventSeminarPrices(executor, input.eventId);
   }
 
   const rows = await readActiveSeminarInscriptions(executor, filter);
