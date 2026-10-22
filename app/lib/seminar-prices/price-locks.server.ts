@@ -6,6 +6,15 @@ import { db } from "@/db";
 type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
+ * The two-key form of the advisory lock is a keyspace of its own: the
+ * single-key locks (the pool, the comprobante anchors) hash a string into one
+ * `bigint`, and a hash collision with one of them would wait on an unrelated
+ * lock, which a withdrawal holding its anchor lock turns into a deadlock. The
+ * first key says which lock this is; nothing else takes the two-key form.
+ */
+const seminarPriceListLockSpace = 1;
+
+/**
  * The lock on an event's seminar price list, taken **shared** by a money write
  * before it reads the list to store a row on an inscription (the allocation
  * dialog, the `Pagar seña` / `Pagar saldo` presets). The price editor takes it
@@ -21,14 +30,15 @@ type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
  * Taken after the seminar locks (and a preset's inscription locks) and before
  * the pool lock; the editor takes no lock before this one and waits on none
  * after it, so it adds no order to deadlock against. Transaction-scoped, like
- * the pool lock (`allocation-pool.server.ts`).
+ * the pool lock (`allocation-pool.server.ts`). Two events hashing alike only
+ * share a lock.
  */
 export async function lockEventSeminarPrices(
   executor: Executor,
   eventId: string,
 ) {
   await executor.execute(
-    sql`select pg_advisory_xact_lock_shared(hashtext(${seminarPriceListLockKey(eventId)}))`,
+    sql`select pg_advisory_xact_lock_shared(${seminarPriceListLockSpace}::int, hashtext(${eventId}))`,
   );
 }
 
@@ -39,10 +49,6 @@ export async function lockEventSeminarPricesForEdit(
   eventId: string,
 ) {
   await executor.execute(
-    sql`select pg_advisory_xact_lock(hashtext(${seminarPriceListLockKey(eventId)}))`,
+    sql`select pg_advisory_xact_lock(${seminarPriceListLockSpace}::int, hashtext(${eventId}))`,
   );
-}
-
-function seminarPriceListLockKey(eventId: string) {
-  return `seminar-price-list:${eventId}`;
 }
