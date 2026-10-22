@@ -14,7 +14,7 @@ type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
  * which lock this is, the second hashes the event id: two events hashing alike
  * only share a lock. Nothing else takes the two-key form.
  */
-const eventLockSpaces = {
+export const eventLockSpaces = {
   seminarPriceList: 1,
   choreographyPriceList: 2,
 } as const;

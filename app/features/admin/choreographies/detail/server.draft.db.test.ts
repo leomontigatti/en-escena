@@ -54,6 +54,7 @@ import {
 import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
 import { uncoveredPriceDeleteError } from "@/lib/prices/guards";
 import { deletePrice } from "@/lib/prices/repository.server";
+import { eventLockSpaces } from "@/lib/shared/event-advisory-locks.server";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { GroupType } from "@/lib/events/group-types";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
@@ -609,7 +610,7 @@ describe("saving a draft of the choreography detail", () => {
           ),
         beforeCommit: async () => {
           removal = deletePrice(duoTail!.id);
-          await waitUntilQueuedOrSettled(removal);
+          await waitUntilQueuedOrSettled(removal, scenario.event.id);
         },
       });
 
@@ -1139,11 +1140,16 @@ async function createTargetModality(
 }
 
 /**
- * Resolves once `pending` waits on an advisory lock, or once it has settled
- * without waiting: the moment a contention test can let the holder go knowing
- * the second contender either queued or ran.
+ * Resolves once `pending` waits on the event's choreography price list lock,
+ * or once it has settled without waiting: the moment a contention test can let
+ * the holder go knowing the second contender either queued there or ran. Only
+ * that lock counts (its keyspace, the event's key, this database), so an
+ * unrelated advisory waiter cannot stand in for it.
  */
-async function waitUntilQueuedOrSettled(pending: Promise<unknown>) {
+async function waitUntilQueuedOrSettled(
+  pending: Promise<unknown>,
+  eventId: string,
+) {
   let settled = false;
 
   void pending.then(
@@ -1151,9 +1157,19 @@ async function waitUntilQueuedOrSettled(pending: Promise<unknown>) {
     () => (settled = true),
   );
 
-  for (let attempt = 0; attempt < 500 && !settled; attempt += 1) {
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    if (settled) {
+      return;
+    }
+
     const [row] = await db.execute<{ waiting: number }>(
-      sql`select count(*)::int as waiting from pg_stat_activity where wait_event_type = 'Lock' and wait_event = 'advisory'`,
+      sql`select count(*)::int as waiting from pg_locks
+        where locktype = 'advisory'
+          and not granted
+          and database = (select oid from pg_database where datname = current_database())
+          and objsubid = 2
+          and classid::bigint = ${eventLockSpaces.choreographyPriceList}
+          and objid::bigint = (hashtext(${eventId})::bigint & 4294967295)`,
     );
 
     if (Number(row?.waiting ?? 0) > 0) {
@@ -1162,4 +1178,8 @@ async function waitUntilQueuedOrSettled(pending: Promise<unknown>) {
 
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
+
+  throw new Error(
+    "The deletion neither queued on the price list lock nor settled.",
+  );
 }

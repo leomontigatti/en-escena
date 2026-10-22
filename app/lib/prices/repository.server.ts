@@ -444,13 +444,6 @@ async function removesNeverExpiringCoverage(
 }
 
 /**
- * Whether the row is its group type's deadline-less general row. It is the
- * only one: `price_general_unique` is `NULLS NOT DISTINCT` on
- * `(event_id, group_type, payment_deadline)` over the general rows, so no other
- * row can stand in for it. `listPrices` and `removesNeverExpiringCoverage` both ask it, so the flag
- * the form locks on and the refusal cannot drift.
- */
-/**
  * Whether the group type keeps a general row with no deadline: the row
  * `removesNeverExpiringCoverage` refuses to remove while the group type has an
  * active inscription. A registration asks it under `lockEventPrices`, because
@@ -471,6 +464,13 @@ export async function coversGroupType(
   return rows.some(isGeneralTail);
 }
 
+/**
+ * Whether the row is its group type's deadline-less general row. It is the
+ * only one: `price_general_unique` is `NULLS NOT DISTINCT` on
+ * `(event_id, group_type, payment_deadline)` over the general rows, so no other
+ * row can stand in for it. `listPrices` and `removesNeverExpiringCoverage` both ask it, so the flag
+ * the form locks on and the refusal cannot drift.
+ */
 function isGeneralTail(
   price: Pick<PriceRow, "paymentDeadline" | "scheduleIds">,
 ) {
