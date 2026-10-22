@@ -222,7 +222,7 @@ grupal`, whose level is optional. Five choreographies on the active event,
   price show their locks. The two afternoon presentations count as evaluated,
   which freezes that schedule's numbers; the score locks the criteria of
   `Contemporáneo` and leaves `Lírico`'s editable.
-- One comprobante, `9999-00000001`, for what `Río Arriba` paid. It goes through
+- One comprobante, `9999-00000001`: `Río Arriba`'s invoice for its full price, since it is `Señada`. It goes through
   the real emission with a stand-in for ARCA, on sales point 9999 so its number
   cannot collide with a real one. Its CAE is the manual's example and its issuer
   CUIT a placeholder: it is not a fiscal document.

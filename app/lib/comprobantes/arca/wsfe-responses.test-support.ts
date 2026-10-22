@@ -154,6 +154,49 @@ export const notaCreditoCAprobada: CreateVoucherResultDto = {
   },
 };
 
+// `FECAESolicitar` refusing a note sent without `CbtesAsoc`, exactly as #686
+// saw it in homologation for both a debit and a credit note: `Resultado` "R"
+// with code 10197 in `Observaciones` and **no `Errors` node at all**, so a
+// reading that looks only at `Errors` would take it for an authorization.
+export const notaRechazada10197: CreateVoucherResultDto = {
+  cae: "",
+  caeFchVto: "",
+  response: {
+    FeCabResp: {
+      Cuit: 30717611590,
+      PtoVta: 1,
+      CbteTipo: 13,
+      FchProceso: "20260807100500",
+      CantReg: 1,
+      Resultado: "R",
+      Reproceso: "N",
+    },
+    FeDetResp: {
+      FECAEDetResponse: [
+        {
+          Concepto: 1,
+          DocTipo: 99,
+          DocNro: 0,
+          CbteDesde: 6,
+          CbteHasta: 6,
+          CbteFch: "20260807",
+          Resultado: "R",
+          CAE: "",
+          CAEFchVto: "",
+          Observaciones: {
+            Obs: [
+              {
+                Code: 10197,
+                Msg: "Si el comprobante es Debito o Credito, enviar estructura CbteAsoc o PeriodoAsoc.",
+              },
+            ],
+          },
+        },
+      ],
+    },
+  },
+};
+
 // `FECompUltimoAutorizado` for the credit note series (type 13): it runs on
 // a sequence of its own, separate from the invoices'. Here it has emitted up to 7.
 export const ultimoNotaCreditoAutorizado: LastVoucherResultDto = {
@@ -181,14 +224,4 @@ export const facturaCConsultada: VoucherInfoResultDto = {
   impNeto: 1000,
   monId: "PES",
   monCotiz: 1,
-};
-
-// `FECompConsultar` for `Nota de crédito C` 8, with the same shape.
-export const notaCreditoCConsultada: VoucherInfoResultDto = {
-  ...facturaCConsultada,
-  codAutorizacion: "41124599990011",
-  cbteDesde: 8,
-  cbteHasta: 8,
-  impTotal: 7000,
-  impNeto: 7000,
 };

@@ -28,8 +28,8 @@ type ArcaConfirmationActionData =
   | { status: "warning"; contingency: ComprobanteContingency };
 
 /**
- * The confirmation of an action ARCA authorizes, emitting a comprobante or
- * the credit note that annuls one, as an `AlertDialog` (ADR-0011): focus
+ * The confirmation of an action ARCA authorizes, emitting a comprobante, as
+ * an `AlertDialog` (ADR-0011): focus
  * trapped, no close on an outside click, `role="alertdialog"`. No checkbox:
  * the dialog is the confirmation, and `confirm` travels as the hidden
  * deliberate-submit keyword the server requires.

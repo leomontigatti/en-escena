@@ -3,10 +3,10 @@ import { describe, expect, test } from "vitest";
 import { NOTA_CREDITO_C_CBTE_TIPO } from "./factura-c";
 import {
   buildNotaCreditoCVoucher,
-  type NotaCreditoCVoucherInput,
+  type ClassCNoteVoucherInput,
 } from "./nota-credito";
 
-const baseInput: NotaCreditoCVoucherInput = {
+const baseInput: ClassCNoteVoucherInput = {
   ptoVta: 1,
   cbteNro: 8,
   cbteFch: "20260722",

@@ -131,8 +131,15 @@ export function signedComprobanteAmount(comprobante: {
   cbteTipo: number;
   impTotal: number;
 }): number {
-  const kind = readComprobanteKind(comprobante.cbteTipo);
-  const sign = kind.kind === "unknown" ? 1 : knownKindTraits[kind.kind].sign;
+  return (
+    (comprobanteKindSign(comprobante.cbteTipo) ?? 1) * comprobante.impTotal
+  );
+}
 
-  return sign * comprobante.impTotal;
+// What the document does to what the unit is invoiced for, or `null` for a
+// code nobody emits: a reader that sums obligations decides what that means.
+export function comprobanteKindSign(cbteTipo: number): 1 | -1 | null {
+  const kind = readComprobanteKind(cbteTipo);
+
+  return kind.kind === "unknown" ? null : knownKindTraits[kind.kind].sign;
 }

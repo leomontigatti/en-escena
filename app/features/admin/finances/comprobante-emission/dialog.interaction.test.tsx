@@ -14,6 +14,7 @@ import {
 import { EmissionDialog } from "./dialog";
 import {
   recheckComprobanteIntent,
+  type AnchorInvoicing,
   type ComprobanteEmissionActionData,
 } from "./shared";
 
@@ -48,7 +49,7 @@ describe("EmissionDialog", () => {
   afterEach(renderer.cleanup);
 
   async function mount(props: {
-    billableAmount: number;
+    invoicing?: Extract<AnchorInvoicing, { status: "ready" }>;
     open: boolean;
     action?: (args: {
       request: Request;
@@ -61,7 +62,13 @@ describe("EmissionDialog", () => {
           action: props.action,
           element: (
             <EmissionDialog
-              billableAmount={props.billableAmount}
+              invoicing={
+                props.invoicing ?? {
+                  status: "ready",
+                  kind: "factura_c",
+                  amount: 12000,
+                }
+              }
               open={props.open}
               onOpenChange={() => {}}
             />
@@ -121,7 +128,6 @@ describe("EmissionDialog", () => {
   test("an unverified emission blocks the retry and offers both ways out", async () => {
     const { action } = contingencyAction(unverified);
     await mount({
-      billableAmount: 12000,
       open: true,
       action,
     });
@@ -141,7 +147,6 @@ describe("EmissionDialog", () => {
   test("declaring manual verification re-enables the retry", async () => {
     const { action } = contingencyAction(unverified);
     await mount({
-      billableAmount: 12000,
       open: true,
       action,
     });
@@ -158,7 +163,6 @@ describe("EmissionDialog", () => {
   test("verify now sends only the sequence number and resolves the alert inside the dialog", async () => {
     const { action, recheckPayloads } = contingencyAction(unverified);
     await mount({
-      billableAmount: 12000,
       open: true,
       action,
     });
@@ -172,7 +176,7 @@ describe("EmissionDialog", () => {
     // Neither the amount nor the date travels from the client (ADR-0012
     // decision 4).
     expect(recheckPayloads).toEqual([
-      { intent: recheckComprobanteIntent, cbteNro: "43" },
+      { intent: recheckComprobanteIntent, cbteTipo: "11", cbteNro: "43" },
     ]);
     expect(document.body.textContent).toContain("quedó registrado");
     // Recovered: the submit is removed, not disabled.
@@ -189,7 +193,6 @@ describe("EmissionDialog", () => {
       observaciones: [],
     });
     await mount({
-      billableAmount: 12000,
       open: true,
       action,
     });
@@ -209,7 +212,6 @@ describe("EmissionDialog", () => {
   // so it is a toast, and the dialog stays open to retry.
   test("toasts a refused emission and keeps the dialog open", async () => {
     await mount({
-      billableAmount: 12000,
       open: true,
       action: async () => ({
         status: "error",
@@ -235,14 +237,14 @@ describe("EmissionDialog", () => {
   });
 
   test("renders nothing while closed", async () => {
-    await mount({ billableAmount: 12000, open: false });
+    await mount({ open: false });
 
     expect(document.querySelector('[role="alertdialog"]')).toBeNull();
     expect(document.body.textContent).not.toContain("Total a facturar");
   });
 
   test("previews the computed amount without letting the operator pick it", async () => {
-    await mount({ billableAmount: 12000, open: true });
+    await mount({ open: true });
 
     // The confirmation is an AlertDialog: focus trapped and announceable by screen
     // readers.

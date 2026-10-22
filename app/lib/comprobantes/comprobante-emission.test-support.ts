@@ -18,7 +18,7 @@ import {
   ultimoAutorizado,
 } from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import type { RecordComprobanteInput } from "@/lib/comprobantes/comprobantes.server";
-import type { FacturaCEmissionDeps } from "@/lib/comprobantes/emit-factura-c.server";
+import type { ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
 
 /**
  * ARCA approving a `Factura C` that follows `ultimoAutorizado`. The lookup is
@@ -42,12 +42,46 @@ export function fakeBilling(
   };
 }
 
+/**
+ * ARCA authorizing number `cbteNro` of whichever series it is asked about, so
+ * an invoice and its notes, or two units' invoices, can be emitted in one test
+ * without colliding on `(ptoVta, cbteTipo, cbteNro)`.
+ */
+export function approvingNumber(
+  cbteNro: number,
+  cae = "41124578989845",
+): ArcaBillingPort {
+  return fakeBilling({
+    getLastVoucher: vi.fn(async (): Promise<LastVoucherResultDto> => ({
+      ...ultimoAutorizado,
+      cbteNro: cbteNro - 1,
+    })),
+    createVoucher: vi.fn(async (): Promise<CreateVoucherResultDto> => ({
+      ...facturaCAprobada,
+      cae,
+      response: {
+        ...facturaCAprobada.response,
+        FeDetResp: {
+          FECAEDetResponse: [
+            {
+              ...facturaCAprobada.response.FeDetResp!.FECAEDetResponse![0],
+              CbteDesde: cbteNro,
+              CbteHasta: cbteNro,
+              CAE: cae,
+            },
+          ],
+        },
+      },
+    })),
+  });
+}
+
 // Emission deps with a mocked ARCA client (zero network) and a fixed `cbteFch`,
 // so as not to depend on the clock.
 export function emissionDeps(
   billing: ArcaBillingPort,
   timeouts?: ArcaTimeouts,
-): FacturaCEmissionDeps & { billing: ArcaBillingPort } {
+): ComprobanteEmissionDeps & { billing: ArcaBillingPort } {
   return {
     billing,
     client: new ArcaClient(billing, timeouts),

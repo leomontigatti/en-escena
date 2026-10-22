@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  deriveRetainedAmount,
   calculateDepositAmount,
   calculateTotalAmount,
   deriveMinimumFinancialStatus,
@@ -324,5 +325,27 @@ describe("deriveMinimumFinancialStatus", () => {
 
   test("is deposit pending without inscriptions, which cannot compete either", () => {
     expect(deriveMinimumFinancialStatus([])).toBe("depositPending");
+  });
+});
+
+describe("deriveRetainedAmount", () => {
+  test("retains the deposit, or what the row holds when that is less", () => {
+    expect(
+      deriveRetainedAmount({ allocatedAmount: 10000, depositAmount: 3000 }),
+    ).toBe(3000);
+    expect(
+      deriveRetainedAmount({ allocatedAmount: 1000, depositAmount: 3000 }),
+    ).toBe(1000);
+  });
+
+  // No price resolves for the row any more: it must not block the credit
+  // note, and it may not retain more than it holds.
+  test("retains what the row holds once no price says what its deposit was", () => {
+    expect(
+      deriveRetainedAmount({ allocatedAmount: 0, depositAmount: null }),
+    ).toBe(0);
+    expect(
+      deriveRetainedAmount({ allocatedAmount: 2000, depositAmount: null }),
+    ).toBe(2000);
   });
 });

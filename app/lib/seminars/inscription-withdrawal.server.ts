@@ -19,6 +19,9 @@ import {
   paymentAllocations,
   seminarInscriptions,
 } from "@/db/schema";
+import { seminarAnchor } from "@/lib/comprobantes/anchor";
+import { lockComprobanteAnchor } from "@/lib/comprobantes/anchor-lock.server";
+import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Executor = Transaction | typeof db;
@@ -78,23 +81,57 @@ export async function removeSeminarInscriptionFromRoster(
   executor: Executor,
   inscriptionId: string,
 ): Promise<{ withdrawn: boolean }> {
-  const evidence = await findSeminarInscriptionsWithEvidence(
-    [inscriptionId],
-    executor,
-  );
+  return await executor.transaction(async (tx) => {
+    await lockInscriptionComprobanteAnchor(tx, inscriptionId);
 
-  if (!evidence.has(inscriptionId)) {
-    await executor
-      .delete(seminarInscriptions)
+    const evidence = await findSeminarInscriptionsWithEvidence(
+      [inscriptionId],
+      tx,
+    );
+
+    if (!evidence.has(inscriptionId)) {
+      await tx
+        .delete(seminarInscriptions)
+        .where(eq(seminarInscriptions.id, inscriptionId));
+
+      return { withdrawn: false };
+    }
+
+    await tx
+      .update(seminarInscriptions)
+      .set({ withdrawnAt: new Date() })
       .where(eq(seminarInscriptions.id, inscriptionId));
 
-    return { withdrawn: false };
-  }
+    return { withdrawn: true };
+  });
+}
 
-  await executor
-    .update(seminarInscriptions)
-    .set({ withdrawnAt: new Date() })
+/**
+ * Waits for a comprobante emission on the inscription's `(seminar, academy)`
+ * unit. An unpaid inscription has no evidence until a debit note's line
+ * lands on it, so deciding while that emission waits on ARCA would delete the
+ * row the authorized document is about to name.
+ */
+async function lockInscriptionComprobanteAnchor(
+  tx: Transaction,
+  inscriptionId: string,
+): Promise<void> {
+  const [unit] = await tx
+    .select({
+      academyId: seminarInscriptionPerson.academyId,
+      seminarId: seminarInscriptions.seminarId,
+    })
+    .from(seminarInscriptions)
+    .innerJoin(
+      seminarInscriptionPerson,
+      eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
+    )
     .where(eq(seminarInscriptions.id, inscriptionId));
 
-  return { withdrawn: true };
+  if (unit) {
+    await lockComprobanteAnchor(
+      tx,
+      seminarAnchor(unit.seminarId, unit.academyId),
+    );
+  }
 }

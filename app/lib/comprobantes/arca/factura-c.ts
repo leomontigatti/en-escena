@@ -11,12 +11,12 @@ export type ArcaVoucher = Parameters<
 // Civil` (VAT-exempt → class C) and the recipient is an anonymous final
 // consumer.
 export const FACTURA_C_CBTE_TIPO = 11;
-// `Nota de crédito C`: the mirror comprobante that annuls a `Factura C`
-// (#328/#449). It is built via `buildNotaCreditoCVoucher` (nota-credito.ts),
-// reusing the class C base plus the `CbtesAsoc` array.
+// `Nota de crédito C`: the amendment that credits a negative delta on a
+// `Factura C` (ADR-0014 §5), built by `buildNotaCreditoCVoucher`
+// (nota-credito.ts) on the class C base plus the `CbtesAsoc` array.
 export const NOTA_CREDITO_C_CBTE_TIPO = 13;
-// `Nota de débito C`: the amendment that bills a positive delta on a `Factura C`
-// (ADR-0014 §5). Nothing emits it yet; the identity module already reads it.
+// `Nota de débito C`: the amendment that bills a positive delta on a
+// `Factura C`, built by `buildNotaDebitoCVoucher` the same way.
 export const NOTA_DEBITO_C_CBTE_TIPO = 12;
 export const DOC_TIPO_CONSUMIDOR_FINAL = 99;
 export const DOC_NRO_CONSUMIDOR_FINAL = 0;
@@ -32,11 +32,10 @@ const ARCA_DATE_RE = /^\d{8}$/;
 
 // Service period and payment due date of a Concepto 2 comprobante, in ARCA's
 // `AAAAMMDD` format. The three go together or not at all: a service payload
-// carries all three. On emission (#479) `FchServDesde`/`FchServHasta` derive
-// from the event's dates and `FchVtoPago` from the comprobante's date; the
-// credit note mirrors all three from the comprobante it annuls. They are
-// optional in the builder because the DB-backed emission logic does not wire
-// them yet (separate sub-issue).
+// carries all three. `FchServDesde`/`FchServHasta` are the unit's own period,
+// which a note copies from the invoice it amends, and `FchVtoPago` is each
+// comprobante's own date (ADR-0014 §8). They are optional in the builder
+// because only the pre-ADR-0011 comprobante went out without them.
 export type ServiceDates = {
   fchServDesde: string;
   fchServHasta: string;
@@ -69,11 +68,11 @@ function assertArcaDate(value: string, field = "CbteFch"): void {
   }
 }
 
-// Common base of a class C comprobante to an anonymous final consumer (Invoice
-// C type 11 and `Nota de crédito C` type 13). Both share the exempt issuer, the
-// final-consumer recipient and the absence of itemized VAT; only `CbteTipo`
-// changes and, on the credit note, the `CbtesAsoc` array with the
-// comprobante it annuls (#449).
+// Common base of a class C comprobante to an anonymous final consumer
+// (`Factura C` 11, `Nota de débito C` 12 and `Nota de crédito C` 13). All three
+// share the exempt issuer, the final-consumer recipient and the absence of
+// itemized VAT; only `CbteTipo` changes and, on a note, the `CbtesAsoc` array
+// naming the invoice it amends.
 export type ClassCVoucherBase = {
   ptoVta: number;
   cbteNro: number;

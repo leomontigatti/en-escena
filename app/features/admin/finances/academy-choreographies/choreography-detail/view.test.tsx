@@ -13,6 +13,8 @@ import {
 } from "@/lib/test-support/react-dom";
 
 import { ChoreographyFinanceDetailView } from "./view";
+import type { AnchorInvoicing } from "@/features/admin/finances/comprobante-emission/shared";
+
 import type { loadChoreographyFinanceDetail } from "./server";
 
 // The loader returns a union: with no active event there is no choreography. The
@@ -393,7 +395,7 @@ function loaderDataFixture(
     comprobantes: [],
     choreography: choreographyFixture(),
     inscriptions: [inscriptionFixture({ financialStatus: "depositMet" })],
-    invoicing: invoicingFixture(),
+    invoicing: blockedInvoicing,
     priceOptions: [
       {
         amount: 10000,
@@ -407,15 +409,18 @@ function loaderDataFixture(
   };
 }
 
-function invoicingFixture(
-  overrides: Partial<ChoreographyFinanceDetailLoaderData["invoicing"]> = {},
-): ChoreographyFinanceDetailLoaderData["invoicing"] {
-  return {
-    billableAmount: 0,
-    canEmit: false,
-    ...overrides,
-  };
-}
+const blockedInvoicing: Extract<AnchorInvoicing, { status: "blocked" }> = {
+  status: "blocked",
+  invoiced: false,
+  reasons: [
+    {
+      code: "below-deposit",
+      label: "Alguna inscripción todavía no cubrió su seña.",
+    },
+  ],
+  remedy:
+    "La factura se emite cuando todas las inscripciones activas tienen precio y cubrieron su seña, y el total es mayor que cero.",
+};
 
 function choreographyFixture(
   overrides: Partial<ChoreographyRow> = {},
@@ -492,9 +497,9 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 
-  // With nothing left to bill the option is still there and still enabled:
-  // the click says why there is nothing to emit (style guide, Detail pages).
-  test('answers "Emitir factura" with nothing to bill with the blocked acknowledgment', async () => {
+  // With nothing owed the option is still there and still enabled: the click
+  // says why, in the loader's words (style guide, Detail pages).
+  test('answers "Emitir factura" with nothing owed with the blocked acknowledgment', async () => {
     await mount();
 
     await openActionsMenu();
@@ -513,18 +518,32 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
     expect(dialog?.querySelector("h2")?.textContent).toBe(
       "No se puede emitir la factura",
     );
-    expect(dialog?.textContent).toContain(
-      "No hay dinero asignado sin facturar.",
+    expect(dialog?.textContent).toContain(blockedInvoicing.reasons[0].label);
+    expect(dialog?.textContent).toContain(blockedInvoicing.remedy);
+  });
+
+  test("names the item and the dialog after the document the choreography owes", async () => {
+    await mount({
+      invoicing: { status: "ready", kind: "nota_credito_c", amount: 7000 },
+    });
+
+    await openActionsMenu();
+    await clickMenuItem("Emitir nota de crédito");
+
+    expect(document.body.textContent).toContain(
+      "¿Emitir la Nota de crédito C?",
     );
+    expect(document.body.textContent).toContain("Total a acreditar");
+    expect(document.body.textContent).toContain("7.000");
   });
 
   /**
    * Regression: recovering the emission via "Verificar ahora" persists the
-   * comprobante, so revalidation returns the choreography already billed and
-   * `canEmit` at `false`. With the dialog mounted off that flag, the `recovered`
-   * state was unmounted in the same tick it was produced and the operator never
-   * saw it. The billable is frozen on open and the dialog unmounts when it is
-   * closed, not when it loses the affordance (#577).
+   * comprobante, so revalidation returns the choreography owing nothing. With
+   * the dialog mounted off that answer, the `recovered` state was unmounted in
+   * the same tick it was produced and the operator never saw it. The plan is
+   * frozen on open and the dialog unmounts when it is closed, not when it loses
+   * the affordance (#577).
    */
   test("the emission dialog survives the choreography ceasing to be invoiceable", async () => {
     function Wrapper() {
@@ -541,10 +560,9 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
           </button>
           <ChoreographyFinanceDetailView
             loaderData={loaderDataFixture({
-              invoicing: invoicingFixture({
-                billableAmount: 12000,
-                canEmit: billable,
-              }),
+              invoicing: billable
+                ? { status: "ready", kind: "factura_c", amount: 12000 }
+                : { ...blockedInvoicing, invoiced: true },
             })}
           />
         </>

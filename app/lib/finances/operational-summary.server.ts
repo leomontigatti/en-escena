@@ -130,6 +130,43 @@ export async function readAcademyEventOperationalFinanceDetail(input: {
   };
 }
 
+/**
+ * One choreography's figures and its inscriptions, withdrawn ones included,
+ * read through the same rollup every finance surface shows. The read is the
+ * academy's whole event because the `Descuento por bailarín` counts a dancer
+ * across every choreography of it. It takes the caller's executor, so an
+ * emission reads what it bills inside the transaction that holds its lock.
+ */
+export async function readChoreographyUnitFinance(input: {
+  academyId: string;
+  choreographyId: string;
+  eventId: string;
+  executor?: Executor;
+}): Promise<{
+  financialStatus: ChoreographyFinancialStatus;
+  inscriptions: ResolvedInscription[];
+} | null> {
+  const finance = await readAcademyEventFinance({
+    academyIds: [input.academyId],
+    eventId: input.eventId,
+    executor: input.executor,
+  });
+  const row = finance.choreographyFinanceRowsByAcademy
+    .get(input.academyId)
+    ?.find((candidate) => candidate.id === input.choreographyId);
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    financialStatus: row.financialStatus,
+    inscriptions: finance.inscriptions.filter(
+      (inscription) => inscription.choreographyId === input.choreographyId,
+    ),
+  };
+}
+
 type AcademyEventFinance = {
   allocatedByAcademy: Map<string, number>;
   choreographyAcademyById: Map<string, string>;

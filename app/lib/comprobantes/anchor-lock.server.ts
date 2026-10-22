@@ -24,10 +24,12 @@ export function comprobanteAnchorLockKey(anchor: ComprobanteAnchor): string {
 }
 
 /**
- * Serialises emission per unit. What is billed is `collected − already billed`,
- * a read-then-write over rows the reader does not lock: two emissions running
- * at once would each see the same unbilled delta and each authorize a
+ * Serialises emission per unit. What is emitted is `derived total −
+ * documented`, a read-then-write over rows the reader does not lock: two
+ * emissions running at once would each see the same delta and each authorize a
  * comprobante for it, and ARCA would hold two fiscal documents for one amount.
+ * It also keeps the crediting ceiling honest: the check runs against the notes
+ * as they stand while the lock is held.
  *
  * The lock is transaction-scoped, so it is released by the commit or the
  * rollback and never by a caller that forgot. It must therefore be taken inside
