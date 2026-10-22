@@ -150,6 +150,10 @@ export async function emitWithContingency<TVoucher>(
     return notEmitted(choreography.subject);
   }
 
+  if (lookup.value.errors.length > 0) {
+    return lastNumberRefused(choreography, lookup.value.errors);
+  }
+
   const request: ArcaEmissionRequest = {
     cbteNro: lookup.value.nextCbteNro,
     cbteFch: choreography.cbteFch,
@@ -317,6 +321,21 @@ export async function abandonReservedAttempt<TVoucher>(
     };
   }
 
+  // An answer with errors carries no number: it proves nothing about how far
+  // ARCA has got, so nothing is released on it.
+  if (lookup.value.errors.length > 0) {
+    return {
+      ok: false,
+      reason: "unverified",
+      message: buildUnverifiedMessage(
+        reserved.subject,
+        attempt,
+        "consult-inconclusive",
+      ),
+      attempt,
+    };
+  }
+
   if (lookup.value.lastCbteNro < attempt.cbteNro) {
     return await releaseAbandoned(reserved);
   }
@@ -409,6 +428,27 @@ function attemptOf(reserved: ArcaAttemptedVoucher): ArcaAttemptedVoucher {
     ptoVta: reserved.ptoVta,
     cbteTipo: reserved.cbteTipo,
     cbteNro: reserved.cbteNro,
+  };
+}
+
+// ARCA answered the last-number lookup with errors instead of a number: it
+// responded and said no, so it reads as a rejection with ARCA's own reason,
+// and nothing was reserved or authorized.
+function lastNumberRefused(
+  choreography: Pick<
+    ArcaEmissionChoreography<unknown>,
+    "subject" | "ptoVta" | "cbteTipo"
+  >,
+  errors: ArcaMessage[],
+): ArcaEmissionFailure {
+  return {
+    ok: false,
+    reason: "rejected",
+    message:
+      `ARCA no informó el último número de la serie ` +
+      `${formatComprobanteSeriesLabel(choreography)}, así que no se emitió ` +
+      `${nameContingencySubject(choreography.subject)} (${errors[0]?.msg ?? "sin detalle"}).`,
+    arca: { resultado: null, errors, observaciones: [] },
   };
 }
 

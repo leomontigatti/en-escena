@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { useFetcher } from "react-router";
 
@@ -144,8 +144,17 @@ export function ArcaConfirmationDialog<TFieldValues extends FieldValues>({
  */
 function useArcaConfirmation(toastId: string) {
   const fetcher = useFetcher<ArcaConfirmationActionData>();
-  const contingency =
-    fetcher.data?.status === "warning" ? fetcher.data.contingency : null;
+  // The last contingency ARCA reported stands until ARCA reports another: an
+  // error answer is a toast about this request, not news about the attempt, so
+  // a re-check turned away as busy leaves the live attempt's alert and block.
+  const [contingency, setContingency] = useState<ComprobanteContingency | null>(
+    null,
+  );
+  useEffect(() => {
+    if (fetcher.data?.status === "warning") {
+      setContingency(fetcher.data.contingency);
+    }
+  }, [fetcher.data]);
 
   useServerActionToast(fetcher.data?.status === "error" ? fetcher.data : null, {
     toastId,

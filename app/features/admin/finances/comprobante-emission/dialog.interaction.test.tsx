@@ -247,6 +247,41 @@ describe("EmissionDialog", () => {
     expect(getButton("Cerrar")).not.toBeNull();
   });
 
+  // A busy unit answers the re-check with an error toast; the attempt is still
+  // live, so its alert and its block stay.
+  test("a re-check turned away as busy keeps the live attempt's alert and its block", async () => {
+    let answered = false;
+    await mount({
+      open: true,
+      action: async () => {
+        if (answered) {
+          return {
+            status: "error",
+            message: "Hay otra operación en curso sobre esta unidad.",
+          };
+        }
+        answered = true;
+        return { status: "warning", contingency: unverified };
+      },
+    });
+
+    await clickReactDomButton("Emitir", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
+    await clickReactDomButton("Verificar ahora");
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(toastError).toHaveBeenCalledWith(
+      "Hay otra operación en curso sobre esta unidad.",
+      { id: "comprobante-emission:error" },
+    );
+    expect(getButton("Verificar ahora")).not.toBeNull();
+    expect(emitButton().disabled).toBe(true);
+  });
+
   test("an ARCA rejection allows a retry and shows the raw errors", async () => {
     const { action } = contingencyAction({
       status: "rejected",

@@ -211,6 +211,30 @@ describe("emitWithContingency", () => {
     expect(emission.emit).not.toHaveBeenCalled();
   });
 
+  // ARCA answers an error without a number, which would otherwise read as an
+  // empty series.
+  test("a last-number answer with ARCA errors is ARCA's refusal, with its reason, and nothing is reserved", async () => {
+    const emission = choreography(
+      {},
+      fakeBilling({
+        getLastVoucher: vi.fn(async () => ({
+          ...ultimoAutorizado,
+          cbteNro: 0,
+          errors: { err: [{ code: 600, msg: "ValidacionDeToken" }] },
+        })),
+      }),
+    );
+
+    await expect(emitWithContingency(emission)).resolves.toMatchObject({
+      ok: false,
+      reason: "rejected",
+      message: expect.stringContaining("(ValidacionDeToken)"),
+      arca: { errors: [{ code: 600, msg: "ValidacionDeToken" }] },
+    });
+    expect(emission.reserve).not.toHaveBeenCalled();
+    expect(emission.emit).not.toHaveBeenCalled();
+  });
+
   // A rejected `FECAESolicitar` consumes no number (#686).
   test("ARCA rejects: it persists nothing, retires the reservation and returns the rejection detail", async () => {
     const emission = choreography({
@@ -594,6 +618,25 @@ describe("abandonReservedAttempt", () => {
     await expect(abandonReservedAttempt(attempt)).resolves.toMatchObject({
       ok: true,
       recovered: true,
+    });
+    expect(attempt.release).not.toHaveBeenCalled();
+  });
+
+  test("a last-number answer with ARCA errors releases nothing", async () => {
+    const attempt = reserved(
+      {},
+      fakeBilling({
+        getLastVoucher: vi.fn(async () => ({
+          ...ultimoAutorizado,
+          cbteNro: 0,
+          errors: { err: [{ code: 600, msg: "ValidacionDeToken" }] },
+        })),
+      }),
+    );
+
+    await expect(abandonReservedAttempt(attempt)).resolves.toMatchObject({
+      ok: false,
+      reason: "unverified",
     });
     expect(attempt.release).not.toHaveBeenCalled();
   });

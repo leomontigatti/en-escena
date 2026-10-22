@@ -84,8 +84,8 @@ export async function withComprobanteAnchorLock<T>(
  * holds the session form, `withComprobanteAnchorLock`.
  *
  * `hashtext` collapses the key into the `bigint` the lock function takes. A
- * collision between two different units costs one of them a wait, and never
- * correctness.
+ * collision between two different units costs one of them a wait, or a `busy`
+ * answer to an emission, and never correctness.
  */
 export async function lockComprobanteAnchor(
   executor: ComprobanteExecutor,
