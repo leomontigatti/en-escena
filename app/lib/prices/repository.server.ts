@@ -44,6 +44,7 @@ import {
   loadEventPriceRows,
   loadPriceRow,
   loadPriceRowForUpdate,
+  loadPriceRows,
   type PriceRow,
 } from "@/lib/prices/rows.server";
 
@@ -449,6 +450,27 @@ async function removesNeverExpiringCoverage(
  * row can stand in for it. `listPrices` and `removesNeverExpiringCoverage` both ask it, so the flag
  * the form locks on and the refusal cannot drift.
  */
+/**
+ * Whether the group type keeps a general row with no deadline: the row
+ * `removesNeverExpiringCoverage` refuses to remove while the group type has an
+ * active inscription. A registration asks it under `lockEventPrices`, because
+ * its readiness check ran before its transaction.
+ */
+export async function coversGroupType(
+  tx: EventBasesTransaction,
+  input: { eventId: string; groupType: GroupType },
+) {
+  const rows = await loadPriceRows(
+    tx,
+    and(
+      eq(prices.eventId, input.eventId),
+      eq(prices.groupType, input.groupType),
+    ),
+  );
+
+  return rows.some(isGeneralTail);
+}
+
 function isGeneralTail(
   price: Pick<PriceRow, "paymentDeadline" | "scheduleIds">,
 ) {

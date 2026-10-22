@@ -41,10 +41,8 @@ import {
   type ExperienceLevel,
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
-import {
-  coversGroupType,
-  lockEventPrices,
-} from "@/lib/prices/price-list-lock.server";
+import { lockEventPrices } from "@/lib/prices/price-list-lock.server";
+import { coversGroupType } from "@/lib/prices/repository.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

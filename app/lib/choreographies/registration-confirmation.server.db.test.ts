@@ -22,13 +22,7 @@ import { choreographyNameWriteCases } from "@/lib/choreographies/choreography-na
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
 import { getNoCompatibleCategoryRegistrationMessage } from "@/lib/choreographies/choreography-messages";
 import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
-import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
-import { uncoveredPriceDeleteError } from "@/lib/prices/guards";
-import {
-  lockEventPrices,
-  lockEventPricesForEdit,
-} from "@/lib/prices/price-list-lock.server";
-import { deletePrice } from "@/lib/prices/repository.server";
+import { lockEventPricesForEdit } from "@/lib/prices/price-list-lock.server";
 
 import {
   installDatabaseTestHooks,
@@ -833,8 +827,9 @@ async function expectRegistered(
  * Deleting a group type's general row with no deadline refuses while the
  * group type has an active inscription, and a registration needs that row.
  * Each reads what the other has not committed yet unless they serialise on the
- * event's price list: whichever comes second sees the first and refuses,
- * instead of leaving an inscription no price resolves.
+ * event's price list: a registration queued behind the deletion reads the
+ * uncovered group type and refuses, instead of leaving an inscription no price
+ * resolves. The deletion's side is `price-selection-lock.server.db.test.ts`.
  *
  * Postgres only: the fast suite's single PGlite connection serialises the
  * transactions on its own.
@@ -888,51 +883,6 @@ describe.skipIf(isPgliteTestBackend())(
           .from(choreographies)
           .where(eq(choreographies.eventId, event.id)),
       ).resolves.toEqual([]);
-    });
-
-    test("a deletion queued behind a registration refuses to uncover its group type", async () => {
-      const owner = await createAcademySession({
-        academyName: "Academia Carrera",
-        email: `carrera.${crypto.randomUUID()}@example.com`,
-      });
-      const { event, catalog } = await createOpenEventCatalog();
-      const dancer = await createDancer(owner.academyId, {
-        birthDate: "2014-05-01",
-      });
-      // No dancer yet, so no active solo inscription until the holder adds one.
-      const choreography = await createChoreographyRecord({
-        academyId: owner.academyId,
-        categoryId: catalog.childCategory.id,
-        eventId: event.id,
-        modalityId: catalog.modality.id,
-        name: "Aire",
-        scheduleCapacityId: catalog.soloScheduleCapacity.id,
-      });
-      const soloPrice = await db.query.prices.findFirst({
-        where: and(eq(prices.eventId, event.id), eq(prices.groupType, "solo")),
-      });
-
-      const removal = await runBehindAHolder({
-        waitingOn: "choreography price list lock",
-        hold: (tx) => lockEventPrices(tx, event.id),
-        contender: () => deletePrice(soloPrice!.id),
-        // What the registration inserts under the lock.
-        beforeCommit: (tx) =>
-          tx.insert(choreographyDancers).values({
-            ageAtEventStart: 12,
-            choreographyId: choreography.id,
-            dancerId: dancer.id,
-          }),
-      });
-
-      expect(removal).toEqual({
-        ok: false,
-        code: "event-bases-has-dependencies",
-        error: uncoveredPriceDeleteError,
-      });
-      await expect(
-        db.query.prices.findFirst({ where: eq(prices.id, soloPrice!.id) }),
-      ).resolves.toBeDefined();
     });
   },
 );

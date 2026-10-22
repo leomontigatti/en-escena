@@ -1,5 +1,5 @@
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -52,7 +52,8 @@ import {
   getEventLocalDateParts,
 } from "@/lib/choreographies/registration-resolution.server";
 import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
-import { lockEventPricesForEdit } from "@/lib/prices/price-list-lock.server";
+import { uncoveredPriceDeleteError } from "@/lib/prices/guards";
+import { deletePrice } from "@/lib/prices/repository.server";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { GroupType } from "@/lib/events/group-types";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
@@ -574,15 +575,31 @@ describe("saving a draft of the choreography detail", () => {
   );
 
   describe.skipIf(isPgliteTestBackend())("racing a price edit", () => {
-    // The save can make an inscription of a group type active, which is what
-    // the price editor asks before uncovering one: an edit that commits after
-    // the save has to see it, so the save waits on an edit in flight.
-    test("waits for a price edit in flight before adding the new group type", async () => {
+    // The save makes an inscription of the new group type active, which is
+    // what deleting that group type's general row asks first: a deletion that
+    // starts while the save is in flight has to wait for it and see the
+    // inscription, instead of uncovering the group type under it.
+    test("a deletion of the new group type's general row waits for the save and refuses", async () => {
       const scenario = await createDraftScenario({ slug: "carrera-precio" });
+      const duoTail = await db.query.prices.findFirst({
+        where: and(
+          eq(prices.eventId, scenario.event.id),
+          eq(prices.groupType, "duo"),
+          isNull(prices.paymentDeadline),
+        ),
+      });
+      let removal: ReturnType<typeof deletePrice> | undefined;
 
+      // The holder parks the save on the choreography's row lock, once it has
+      // taken what it takes first; the deletion starts behind it.
       const response = await runBehindAHolder({
-        waitingOn: "choreography price list lock",
-        hold: (tx) => lockEventPricesForEdit(tx, scenario.event.id),
+        waitingOn: "choreography row lock",
+        hold: (tx) =>
+          tx
+            .select({ id: choreographies.id })
+            .from(choreographies)
+            .where(eq(choreographies.id, scenario.choreography.id))
+            .for("update"),
         contender: () =>
           scenario.saveDraft(
             scenario.draft({
@@ -590,12 +607,21 @@ describe("saving a draft of the choreography detail", () => {
               scheduleCapacityId: scenario.catalog.duoScheduleCapacity.id,
             }),
           ),
+        beforeCommit: async () => {
+          removal = deletePrice(duoTail!.id);
+          await waitUntilQueuedOrSettled(removal);
+        },
       });
 
       expect(response).toMatchObject({ status: "success" });
-      await expect(scenario.readSaved()).resolves.toMatchObject({
-        groupType: "duo",
+      await expect(removal).resolves.toEqual({
+        ok: false,
+        code: "event-bases-has-dependencies",
+        error: uncoveredPriceDeleteError,
       });
+      await expect(
+        db.query.prices.findFirst({ where: eq(prices.id, duoTail!.id) }),
+      ).resolves.toBeDefined();
     });
   });
 
@@ -1110,4 +1136,30 @@ async function createTargetModality(
     soloCapacity,
     submodality,
   };
+}
+
+/**
+ * Resolves once `pending` waits on an advisory lock, or once it has settled
+ * without waiting: the moment a contention test can let the holder go knowing
+ * the second contender either queued or ran.
+ */
+async function waitUntilQueuedOrSettled(pending: Promise<unknown>) {
+  let settled = false;
+
+  void pending.then(
+    () => (settled = true),
+    () => (settled = true),
+  );
+
+  for (let attempt = 0; attempt < 500 && !settled; attempt += 1) {
+    const [row] = await db.execute<{ waiting: number }>(
+      sql`select count(*)::int as waiting from pg_stat_activity where wait_event_type = 'Lock' and wait_event = 'advisory'`,
+    );
+
+    if (Number(row?.waiting ?? 0) > 0) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
 }

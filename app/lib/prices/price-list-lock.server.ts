@@ -1,10 +1,4 @@
-import { and, eq } from "drizzle-orm";
-
 import { db } from "@/db";
-import { prices } from "@/db/schema";
-import type { GroupType } from "@/lib/events/group-types";
-import { hasNeverExpiringPrice } from "@/lib/events/never-expiring-price";
-import { loadPriceRows } from "@/lib/prices/rows.server";
 import { lockEvent } from "@/lib/shared/event-advisory-locks.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -16,7 +10,8 @@ type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
  * (`lockEventPricesForEdit`) before its guards ask whether a group type has an
  * active inscription, so whichever comes second sees what the first committed:
  * the edit finds the inscription and refuses to uncover its group type, and a
- * registration finds the group type uncovered (`coversGroupType`) and refuses.
+ * registration finds the group type uncovered (`coversGroupType`, in
+ * `repository.server.ts`) and refuses.
  *
  * Taken first in the writer's transaction, before the schedule lock: a price
  * edit that changes the schedules a price covers writes rows that point at the
@@ -40,27 +35,4 @@ export async function lockEventPricesForEdit(tx: Transaction, eventId: string) {
     mode: "exclusive",
     space: "choreographyPriceList",
   });
-}
-
-/**
- * Whether the group type keeps a general row with no deadline, the one the
- * price editor refuses to remove while the group type has an active
- * inscription. Read under `lockEventPrices` by a registration, whose readiness
- * check ran before its transaction.
- */
-export async function coversGroupType(
-  tx: Transaction,
-  input: { eventId: string; groupType: GroupType },
-) {
-  const rows = await loadPriceRows(
-    tx,
-    and(
-      eq(prices.eventId, input.eventId),
-      eq(prices.groupType, input.groupType),
-    ),
-  );
-
-  return hasNeverExpiringPrice(
-    rows.filter((row) => row.scheduleIds.length === 0),
-  );
 }
