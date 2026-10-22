@@ -22,9 +22,7 @@ export type BulkRowState =
   | { status: "skipped"; reasons: string[] }
   | { status: "pending" }
   | { status: "emitting" }
-  // `number` is `null` on one recovered by re-checking the attempt that
-  // halted the run: the re-check answers that it is recorded, not its number.
-  | { status: "emitted"; number: string | null; recovered: boolean }
+  | { status: "emitted"; number: string; recovered: boolean }
   | { status: "failed"; message: string }
   | { status: "untried" };
 
@@ -157,7 +155,9 @@ export function stopBulkRun(run: BulkRun): BulkRun {
 
 /**
  * What the re-checking or abandoning of the halting attempt answered. A
- * recovered one is the halted row's comprobante, recorded after all.
+ * recovery is not credited to the halted row: the attempt that blocked the
+ * series may be another unit's, and the re-check does not say whose. The row
+ * stays to retry, and planning again tells whether it still owes.
  */
 export function updateBulkHalt(
   run: BulkRun,
@@ -171,9 +171,9 @@ export function updateBulkHalt(
 
   return contingency.status === "recovered"
     ? withRow(halted, run.halt.choreographyId, {
-        status: "emitted",
-        number: null,
-        recovered: true,
+        status: "failed",
+        message:
+          "Se recuperó el comprobante que frenó la emisión. Reintentá para ver lo que todavía se debe.",
       })
     : halted;
 }

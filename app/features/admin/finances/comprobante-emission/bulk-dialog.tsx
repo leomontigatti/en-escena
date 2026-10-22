@@ -556,9 +556,7 @@ function BulkRowStatus({ state }: { state: BulkRowState | undefined }) {
         <div className="flex flex-col items-start gap-1">
           <Badge variant="success">Emitida</Badge>
           <span className="text-xs text-muted-foreground tabular-nums">
-            {state.number === null
-              ? "Recuperada de ARCA"
-              : `N° ${state.number}`}
+            N° {state.number}
           </span>
         </div>
       );

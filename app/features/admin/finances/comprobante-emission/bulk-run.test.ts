@@ -149,7 +149,9 @@ describe("bulk emission run", () => {
     expect(run.rows.b).toEqual({ status: "untried" });
   });
 
-  test("re-checking the halting attempt into a recovery marks its row emitted", () => {
+  // The attempt that halted the run may be another unit's, so the recovery is
+  // not credited to the halted row: a retry plans it again.
+  test("re-checking the halting attempt into a recovery leaves its row to retry", () => {
     let run = beginBulkEmission(threeReady(), "a");
     run = settleBulkEmission(run, "a", {
       status: "warning",
@@ -163,12 +165,9 @@ describe("bulk emission run", () => {
     });
     run = updateBulkHalt(run, { status: "recovered" });
 
-    expect(run.rows.a).toEqual({
-      status: "emitted",
-      number: null,
-      recovered: true,
-    });
-    expect(unemittedBulkIds(run)).not.toContain("a");
+    expect(isBulkRunHeld(run)).toBe(false);
+    expect(run.rows.a).toMatchObject({ status: "failed" });
+    expect(unemittedBulkIds(run)).toContain("a");
   });
 
   test("what is left to retry is every planned row that did not emit", () => {
