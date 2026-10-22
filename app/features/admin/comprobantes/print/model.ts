@@ -4,11 +4,15 @@ import {
   formatComprobanteAnchorLabel,
   type ComprobanteAnchorReading,
 } from "@/lib/comprobantes/anchor-reading";
-import type { ComprobanteWithLines } from "@/lib/comprobantes/comprobantes.server";
+import type {
+  AssociatedComprobante,
+  ComprobanteAssociation,
+} from "@/lib/comprobantes/association";
+import type { ComprobanteLineDetail } from "@/lib/comprobantes/comprobante-record.server";
+import type { comprobantes } from "@/db/schema";
 import {
   formatComprobanteArcaDate,
   formatComprobanteNumber,
-  formatComprobanteStatusLabel,
 } from "@/lib/comprobantes/format";
 import {
   comprobantePrintHeader,
@@ -30,19 +34,31 @@ export type ComprobantePrintContext = {
   eventName: string;
 };
 
-// The comprobante's already loaded snapshot with its derived state, its lines
+// The comprobante's already loaded snapshot with its lines, its association
 // and the anchoring context. It is the input to the printable view's model.
-export type ComprobantePrintRecord = ComprobanteWithLines &
-  ComprobantePrintContext;
+export type ComprobantePrintRecord = typeof comprobantes.$inferSelect &
+  ComprobantePrintContext & {
+    lines: ComprobanteLineDetail[];
+    association: ComprobanteAssociation | null;
+  };
 
-// Detail line of the printed document. It carries ONE line per comprobante — no
-// quantity column and no row per dancer — so the academy gets a readable
-// document. Its description names the service sold and nothing else; what the
-// service was sold for is already in the receptor block. See
-// `buildComprobantePrintViewModel`.
+// Detail line of the printed document: one per billed inscription,
+// `Inscripción — {bailarín}` at the net amount billed for it, so the lines sum
+// to the authorized total (#657). There is no quantity column, and the
+// discount is never a line of its own. A withdrawn inscription prints like any
+// other: what was billed for it is part of the total (#600).
 export type ComprobantePrintLine = {
   description: string;
   amount: string;
+};
+
+// The `Comprobante asociado` block of a note: the invoice its `CbtesAsoc`
+// carries and, when it credits what debit notes billed, #610's leyenda naming
+// them. The leyenda never reaches ARCA (`FECAESolicitar` has no free-text
+// field), so the printed document is where it lives.
+export type ComprobantePrintAssociation = {
+  description: string;
+  legend: string | null;
 };
 
 // The printable view's model, with every text already formatted. It is the
@@ -68,41 +84,18 @@ export type ComprobantePrintViewModel = {
   servicePeriodFrom: string | null;
   servicePeriodTo: string | null;
   paymentDueDate: string | null;
+  // `null` on an invoice: the notes that adjust it are not printed on it.
+  associatedComprobante: ComprobantePrintAssociation | null;
   cae: string;
   caeVto: string;
-  // `null` on a note: only an invoice has a status.
-  statusLabel: string | null;
   authorizedLabel: string;
   qrUrl: string;
 };
 
-/**
- * The whole description of the single printed line, replacing the `porción`
- * label the line used to open with. It names **what was sold** rather than which
- * rung of a ladder the money paid, which is the whole reason `porción` had to
- * go: a comprobante now covers an arbitrary amount and can be honestly labelled
- * as neither deposit nor balance. It is what RG 1415 asks that column for — a
- * description identifying the service.
- *
- * It carries no right-hand side, per #554 decision 3 and the owner's ruling on
- * the #723 review. The choreography name was tried there and declined for the
- * reason the decision gives: the receptor block a few lines above already prints
- * `{academia} — {unidad}` (`view.tsx`), so repeating it under `Descripción`
- * describes no additional service. A seminar comprobante keeps the same constant
- * for the same reason: its receptor block already names the seminar. The noun is
- * singular because it names the concept, not a count of dancers, so it reads
- * correctly for a solo and for a group.
- *
- * It is also the noun ADR-0014 §5 gives the settled per-dancer line,
- * `Inscripción — {bailarín}`. That line is #657's, and needs one line per
- * inscription to have a dancer to name; until then the description stops at the
- * concept, so #657 appends its right-hand side and nothing else churns.
- */
-const PRINT_LINE_DESCRIPTION = "Inscripción";
-
 // Builds the printable view's model from the comprobante's immutable snapshot.
 // It is a pure read-only projection: it does NOT call ARCA and mutates nothing.
-// The legends reflect the exempt issuer (printout.ts).
+// The legends reflect the exempt issuer (printout.ts). It prints no status:
+// `Estado` changes as notes adjust an invoice, and the document does not.
 export function buildComprobantePrintViewModel(
   record: ComprobantePrintRecord,
 ): ComprobantePrintViewModel {
@@ -117,22 +110,23 @@ export function buildComprobantePrintViewModel(
     academyName: record.academyName,
     anchorLabel: formatComprobanteAnchorLabel(record.anchor),
     eventName: record.eventName,
-    lines: [
-      {
-        description: PRINT_LINE_DESCRIPTION,
-        amount: formatAmount(record.impTotal),
-      },
-    ],
+    lines: record.lines.map((line) => ({
+      description: line.description,
+      amount: formatAmount(line.amount),
+    })),
     totalAmount: formatAmount(record.impTotal),
     servicePeriodFrom: formatArcaDateOrNull(record.fchServDesde),
     servicePeriodTo: formatArcaDateOrNull(record.fchServHasta),
     paymentDueDate: formatArcaDateOrNull(record.fchVtoPago),
+    associatedComprobante:
+      record.association?.role === "note"
+        ? {
+            description: `${describeComprobante(record.association.factura)}, del ${formatComprobanteArcaDate(record.association.factura.cbteFch)}`,
+            legend: adjustmentLegend(record.association),
+          }
+        : null,
     cae: record.cae,
     caeVto: formatComprobanteArcaDate(record.caeVto),
-    statusLabel:
-      record.status === null
-        ? null
-        : formatComprobanteStatusLabel(record.status),
     authorizedLabel: COMPROBANTE_AUTHORIZED_LABEL,
     qrUrl: buildComprobanteQrUrl(record),
   };
@@ -142,4 +136,33 @@ export function buildComprobantePrintViewModel(
 // when the snapshot does not carry it.
 function formatArcaDateOrNull(value: string | null): string | null {
   return value === null ? null : formatComprobanteArcaDate(value);
+}
+
+function describeComprobante(comprobante: AssociatedComprobante): string {
+  return `${comprobantePrintHeader(comprobante.cbteTipo).title} N° ${formatComprobanteNumber(comprobante)}`;
+}
+
+// "Ajusta la Nota de Débito C N° … , asociada a la Factura C N° …", in the
+// plural when the credit note covers what several debit notes billed. Every
+// debit note is class C and anchored at the same invoice, so the title is said
+// once.
+function adjustmentLegend(
+  association: Extract<ComprobanteAssociation, { role: "note" }>,
+): string | null {
+  const notes = association.adjustedDebitNotes;
+
+  if (notes.length === 0) {
+    return null;
+  }
+
+  const numbers = notes.map((note) => formatComprobanteNumber(note));
+  const factura = describeComprobante(association.factura);
+
+  if (numbers.length === 1) {
+    return `Ajusta la Nota de Débito C N° ${numbers[0]}, asociada a la ${factura}.`;
+  }
+
+  const listed = `${numbers.slice(0, -1).join(", ")} y ${numbers.at(-1)}`;
+
+  return `Ajusta las Notas de Débito C N° ${listed}, asociadas a la ${factura}.`;
 }

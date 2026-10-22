@@ -82,11 +82,7 @@ export async function reserveCorrelative(
         receptorDocNro: input.receptorDocNro,
         receptorIvaConditionId: input.receptorIvaConditionId,
         associatedComprobanteId: input.associatedComprobanteId ?? null,
-        lines: input.lines.map((line) => ({
-          amount: line.amount,
-          choreographyInscriptionId: line.choreographyInscriptionId ?? null,
-          seminarInscriptionId: line.seminarInscriptionId ?? null,
-        })),
+        lines: input.lines,
       },
     })
     .onConflictDoNothing({
@@ -264,8 +260,12 @@ export async function findReservedInscriptionIds(
     payload.lines.flatMap((line) => {
       const id =
         kind === "choreography"
-          ? line.choreographyInscriptionId
-          : line.seminarInscriptionId;
+          ? "choreographyInscriptionId" in line
+            ? line.choreographyInscriptionId
+            : null
+          : "seminarInscriptionId" in line
+            ? line.seminarInscriptionId
+            : null;
 
       return id !== null && wanted.has(id) ? [id] : [];
     }),

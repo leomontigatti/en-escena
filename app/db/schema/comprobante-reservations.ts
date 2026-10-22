@@ -41,11 +41,11 @@ export type ComprobanteReservationPayload = {
   receptorDocNro: string;
   receptorIvaConditionId: number;
   associatedComprobanteId: string | null;
-  lines: Array<{
-    amount: number;
-    choreographyInscriptionId: string | null;
-    seminarInscriptionId: string | null;
-  }>;
+  // Each line names exactly one inscription, as a comprobante's does.
+  lines: Array<
+    | { amount: number; choreographyInscriptionId: string }
+    | { amount: number; seminarInscriptionId: string }
+  >;
 };
 
 // `ComprobanteReservation` — a correlative taken before `FECAESolicitar`

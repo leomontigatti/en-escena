@@ -1,5 +1,5 @@
 {
-  "id": "e0975116-784d-4554-b7b4-302b94efea0a",
+  "id": "1bc79954-1ddc-4ffe-aac3-75b3fb792934",
   "prevId": "7943de12-73ce-456a-ae73-2e92d201f6a4",
   "version": "7",
   "dialect": "postgresql",
@@ -3787,7 +3787,7 @@
           "tableTo": "en_escena_choreography_dancer",
           "columnsFrom": ["choreography_inscription_id"],
           "columnsTo": ["id"],
-          "onDelete": "set null",
+          "onDelete": "no action",
           "onUpdate": "no action"
         },
         "comprobante_inscription_seminar_fk": {
@@ -3796,7 +3796,7 @@
           "tableTo": "en_escena_seminar_inscription",
           "columnsFrom": ["seminar_inscription_id"],
           "columnsTo": ["id"],
-          "onDelete": "set null",
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -3804,9 +3804,9 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "comprobante_inscription_at_most_one_target": {
-          "name": "comprobante_inscription_at_most_one_target",
-          "value": "num_nonnulls(\"en_escena_comprobante_inscription\".\"choreography_inscription_id\", \"en_escena_comprobante_inscription\".\"seminar_inscription_id\") <= 1"
+        "comprobante_inscription_exactly_one_target": {
+          "name": "comprobante_inscription_exactly_one_target",
+          "value": "num_nonnulls(\"en_escena_comprobante_inscription\".\"choreography_inscription_id\", \"en_escena_comprobante_inscription\".\"seminar_inscription_id\") = 1"
         }
       },
       "isRLSEnabled": true
@@ -4117,176 +4117,6 @@
         "comprobante_exactly_one_anchor": {
           "name": "comprobante_exactly_one_anchor",
           "value": "num_nonnulls(\"en_escena_comprobante\".\"choreography_id\", \"en_escena_comprobante\".\"seminar_id\") = 1"
-        }
-      },
-      "isRLSEnabled": true
-    },
-    "public.en_escena_comprobante_reservation": {
-      "name": "en_escena_comprobante_reservation",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "varchar(255)",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "pto_vta": {
-          "name": "pto_vta",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cbte_tipo": {
-          "name": "cbte_tipo",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cbte_nro": {
-          "name": "cbte_nro",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "choreography_id": {
-          "name": "choreography_id",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "seminar_id": {
-          "name": "seminar_id",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "academy_id": {
-          "name": "academy_id",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "event_id": {
-          "name": "event_id",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "imp_total": {
-          "name": "imp_total",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cbte_fch": {
-          "name": "cbte_fch",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "state": {
-          "name": "state",
-          "type": "en_escena_comprobante_reservation_state",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'unverified'"
-        },
-        "taken_imp_total": {
-          "name": "taken_imp_total",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "taken_cbte_fch": {
-          "name": "taken_cbte_fch",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "payload": {
-          "name": "payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        }
-      },
-      "indexes": {
-        "comprobante_reservation_series_unique": {
-          "name": "comprobante_reservation_series_unique",
-          "columns": [
-            {
-              "expression": "pto_vta",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "cbte_tipo",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "comprobante_reservation_choreography_fk": {
-          "name": "comprobante_reservation_choreography_fk",
-          "tableFrom": "en_escena_comprobante_reservation",
-          "tableTo": "en_escena_choreography",
-          "columnsFrom": ["choreography_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "comprobante_reservation_seminar_fk": {
-          "name": "comprobante_reservation_seminar_fk",
-          "tableFrom": "en_escena_comprobante_reservation",
-          "tableTo": "en_escena_seminar",
-          "columnsFrom": ["seminar_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "comprobante_reservation_academy_fk": {
-          "name": "comprobante_reservation_academy_fk",
-          "tableFrom": "en_escena_comprobante_reservation",
-          "tableTo": "en_escena_academy",
-          "columnsFrom": ["academy_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "comprobante_reservation_event_fk": {
-          "name": "comprobante_reservation_event_fk",
-          "tableFrom": "en_escena_comprobante_reservation",
-          "tableTo": "en_escena_event",
-          "columnsFrom": ["event_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "comprobante_reservation_exactly_one_anchor": {
-          "name": "comprobante_reservation_exactly_one_anchor",
-          "value": "num_nonnulls(\"en_escena_comprobante_reservation\".\"choreography_id\", \"en_escena_comprobante_reservation\".\"seminar_id\") = 1"
         }
       },
       "isRLSEnabled": true
@@ -5966,11 +5796,6 @@
       "name": "en_escena_comprobante_issuer_iva_condition",
       "schema": "public",
       "values": ["exento"]
-    },
-    "public.en_escena_comprobante_reservation_state": {
-      "name": "en_escena_comprobante_reservation_state",
-      "schema": "public",
-      "values": ["unverified", "number-taken"]
     },
     "public.en_escena_criterion_kind": {
       "name": "en_escena_criterion_kind",
