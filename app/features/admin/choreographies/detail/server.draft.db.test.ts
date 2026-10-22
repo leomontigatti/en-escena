@@ -52,6 +52,7 @@ import {
   getEventLocalDateParts,
 } from "@/lib/choreographies/registration-resolution.server";
 import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
+import { lockEventPricesForEdit } from "@/lib/prices/price-list-lock.server";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { GroupType } from "@/lib/events/group-types";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
@@ -571,6 +572,32 @@ describe("saving a draft of the choreography detail", () => {
       });
     },
   );
+
+  describe.skipIf(isPgliteTestBackend())("racing a price edit", () => {
+    // The save can make an inscription of a group type active, which is what
+    // the price editor asks before uncovering one: an edit that commits after
+    // the save has to see it, so the save waits on an edit in flight.
+    test("waits for a price edit in flight before adding the new group type", async () => {
+      const scenario = await createDraftScenario({ slug: "carrera-precio" });
+
+      const response = await runBehindAHolder({
+        waitingOn: "choreography price list lock",
+        hold: (tx) => lockEventPricesForEdit(tx, scenario.event.id),
+        contender: () =>
+          scenario.saveDraft(
+            scenario.draft({
+              dancerIds: [scenario.ana.id, scenario.bea.id],
+              scheduleCapacityId: scenario.catalog.duoScheduleCapacity.id,
+            }),
+          ),
+      });
+
+      expect(response).toMatchObject({ status: "success" });
+      await expect(scenario.readSaved()).resolves.toMatchObject({
+        groupType: "duo",
+      });
+    });
+  });
 
   describe.skipIf(isPgliteTestBackend())("racing a deposit", () => {
     test("refuses the group type when money crossing the deposit commits while the save waits", async () => {
