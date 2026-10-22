@@ -494,7 +494,8 @@ async function buildRejectionMessage(
       ),
     );
 
-    if (!lookup.ok) {
+    // An answer with errors has no last number to compare ours with.
+    if (!lookup.ok || lookup.value.errors.length > 0) {
       return (
         `ARCA no autorizó ${subject}: el número o la fecha no son los que siguen ` +
         `en la serie ${series} (código 10016), y no pudimos consultar cuál de los dos. ` +

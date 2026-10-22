@@ -61,7 +61,7 @@ export function ArcaConfirmationDialog<TFieldValues extends FieldValues>({
   /** Shown under the description: what is about to be billed, say. */
   children?: ReactNode;
   confirmIcon: LucideIcon;
-  /** The verb from the title: `Emitir` for `¿Emitir la Factura C?`. */
+  /** The verb from the title: `Emitir` for `¿Emitir el comprobante?`. */
   confirmLabel: string;
   confirmValue: string;
   description: ReactNode;

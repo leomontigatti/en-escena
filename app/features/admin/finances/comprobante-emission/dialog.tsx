@@ -10,7 +10,6 @@ import {
   comprobanteKindCbteTipo,
   formatComprobanteKindLabel,
 } from "@/lib/comprobantes/kind";
-import { lowercaseFirst } from "@/lib/shared/utils";
 
 import {
   abandonReservationIntent,
@@ -33,8 +32,8 @@ type ReadyInvoicing = Extract<AnchorInvoicing, { status: "ready" }>;
  * mounts when the unit owes a document.
  *
  * The one thing the operator chooses is the date (ADR-0014 §5): today unless
- * they back-date it, down to the floor of the document's series, which the
- * field names. The server checks it again under the lock.
+ * they back-date it, down to the floor of the document's series, the earliest
+ * day the calendar offers. The server checks it again under the lock.
  */
 export function EmissionDialog({
   invoicing,
@@ -59,13 +58,13 @@ export function EmissionDialog({
       confirmIcon={Check}
       confirmLabel="Emitir"
       confirmValue={emitComprobanteConfirmValue}
-      description={`Vas a emitir una ${lowercaseFirst(label)} por ${formatAmount(invoicing.amount)}. ${irreversibilityNotes[invoicing.kind]}`}
+      description={irreversibilityNotes[invoicing.kind]}
       form={form}
       intent={emitComprobanteIntent}
       onOpenChange={onOpenChange}
       open={open}
       recheckIntent={recheckComprobanteIntent}
-      title={`¿Emitir la ${label}?`}
+      title="¿Emitir el comprobante?"
       toastId="comprobante-emission:error"
     >
       {/* What was previewed travels with the confirmation: the server
@@ -82,8 +81,7 @@ export function EmissionDialog({
           latestSelectableDate: parseDateOnly(invoicing.cbteFch.max),
         }}
         control={form.control}
-        description={`Desde el ${invoicing.cbteFch.floorDescription}.`}
-        label="Fecha del comprobante"
+        label="Fecha"
         name="cbteFch"
       />
     </ArcaConfirmationDialog>
@@ -116,13 +114,15 @@ function parseDateOnly(value: string): Date {
 }
 
 // What undoes the document once it carries a CAE: a later note, never an edit.
+// The preview names the document and its amount, so the description is only
+// this.
 const irreversibilityNotes: Record<ReadyInvoicing["kind"], string> = {
   factura_c:
-    "Una vez emitida, sólo una nota de crédito puede acreditar lo facturado.",
+    "Una vez emitido, sólo una nota de crédito puede acreditar lo facturado.",
   nota_debito_c:
-    "Una vez emitida, sólo una nota de crédito puede acreditar lo debitado.",
+    "Una vez emitido, sólo una nota de crédito puede acreditar lo debitado.",
   nota_credito_c:
-    "Una vez emitida, sólo una nota de débito puede volver a facturar lo acreditado.",
+    "Una vez emitido, sólo una nota de débito puede volver a facturar lo acreditado.",
 };
 
 /**

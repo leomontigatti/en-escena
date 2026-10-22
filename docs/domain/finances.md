@@ -1102,9 +1102,9 @@ action yet (#1712).
   emission dialog, down to its series' floor: `max(last CbteFch this app recorded
 in that series, today − 10)` — ARCA's 10016 refuses a date earlier than the
   series' last, a ratchet each authorization raises for good, and services take
-  ten days back at most. Never after today. The dialog shows the floor and what
-  sets it, naming the series, and the emitter refuses a date outside it before
-  ARCA is called.
+  ten days back at most. Never after today. The dialog's calendar offers only
+  the days in between; a date outside them is refused with the floor, what sets
+  it and the series, and the emitter refuses it again before ARCA is called.
 - A comprobante is emitted as a **service** (WSFEv1 `Concepto` 2). The service
   period is the unit's own: a choreography bills the event's span; a seminar is
   taught on one day, so both ends read the seminar's date. `FchVtoPago` is the

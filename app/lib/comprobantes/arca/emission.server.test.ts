@@ -438,6 +438,33 @@ describe("emitWithContingency", () => {
     });
   });
 
+  // A lookup ARCA answers with errors carries no last number to compare with.
+  test("a 10016 rejection whose follow-up lookup errors does not guess which axis failed", async () => {
+    const getLastVoucher = vi
+      .fn(async (): Promise<LastVoucherResultDto> => ultimoAutorizado)
+      .mockResolvedValueOnce(ultimoAutorizado)
+      .mockResolvedValueOnce({
+        ...ultimoAutorizado,
+        cbteNro: 0,
+        errors: { err: [{ code: 600, msg: "ValidacionDeToken" }] },
+      });
+
+    const outcome = await emitWithContingency(
+      choreography(
+        {
+          emit: vi.fn(async () => parseCreateVoucherResult(facturaCRechazada)),
+        },
+        fakeBilling({ getLastVoucher }),
+      ),
+    );
+
+    expect(outcome).toMatchObject({
+      ok: false,
+      reason: "rejected",
+      message: expect.stringContaining("no pudimos consultar cuál de los dos"),
+    });
+  });
+
   // #686: ARCA sends 10197 in `Observaciones` with no `Errors` node at all.
   test("a 10197 refusal with only Observaciones is a rejection that names the missing associated comprobante", async () => {
     const emission = choreography({

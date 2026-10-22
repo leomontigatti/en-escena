@@ -1,7 +1,7 @@
 import { format } from "date-fns/format";
 import { es } from "date-fns/locale";
 import { CalendarIcon, XIcon } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import {
   Controller,
   type Control,
@@ -50,7 +50,6 @@ type DateOnlyFieldBaseProps = {
   /** Offers the clear action, for a field whose empty value means something. */
   clearable?: boolean;
   className?: string;
-  description?: ReactNode;
   disabled?: boolean;
   error?: string;
   errorClassName?: string;
@@ -103,7 +102,6 @@ function DateOnlyFieldControl({
   calendarBounds,
   clearable,
   className,
-  description,
   disabled = false,
   error,
   errorClassName,
@@ -123,7 +121,6 @@ function DateOnlyFieldControl({
   return (
     <SharedFieldLayout
       className={className}
-      description={description}
       disabled={disabled}
       error={error}
       errorClassName={errorClassName}
