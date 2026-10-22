@@ -1139,7 +1139,11 @@ action yet (#1712).
   `CbtesAsoc` carries only the invoice and the leyenda never reaches ARCA
   (#610). Which debit notes it names is derived from the lines: those emitted
   before the credit note that billed a positive amount for an inscription it
-  credits.
+  credits. The link is deliberately not stored (decided on #1710): storing it
+  would first need a rule for whether a credit consumes the invoice's amount or
+  the debit note's. The derivation can name too many debit notes, never too
+  few: one an earlier credit note already reversed is named again when the same
+  inscription is credited a second time.
 - **The anchor reads as one of two units on every surface.** A
   choreography reads as its name; a seminar reads
   `Seminario {instructor}, {fecha}`, because a seminar has no name of its own.
