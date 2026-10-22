@@ -17,15 +17,18 @@ const seminarPriceListLockSpace = 1;
 /**
  * The lock on an event's seminar price list, taken **shared** by a money write
  * before it reads the list to store a row on an inscription (the allocation
- * dialog, the `Pagar seña` / `Pagar saldo` presets). The price editor takes it
- * exclusive (`lockEventSeminarPricesForEdit`), so whichever comes second sees
- * what the first committed: an edit finds the row stored and refuses, and a
- * write charges by the edited list.
+ * dialog, the `Pagar seña` / `Pagar saldo` presets), and by a registration
+ * before it reads whether the list covers every participant cell
+ * (`registerSeminarInscription`). The price editor takes it exclusive
+ * (`lockEventSeminarPricesForEdit`), so whichever comes second sees what the
+ * first committed: an edit finds the row stored, or an active inscription in
+ * the cell it would uncover, and refuses; a write charges by the edited list;
+ * a registration refuses an uncovered one.
  *
  * The list rather than its rows, because a row created while a write is in
  * flight is one the write can pick up, and nothing exists yet to lock on it.
- * Shared because the writes only read the list: two charges in the same event
- * do not wait on each other here.
+ * Shared because the writes only read the list: two charges or registrations
+ * in the same event do not wait on each other here.
  *
  * Taken after the seminar locks (and a preset's inscription locks) and before
  * the pool lock; the editor takes no lock before this one and waits on none
