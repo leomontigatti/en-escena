@@ -1,24 +1,8 @@
 import type { ReactNode } from "react";
 
 import { AdminEmptyState } from "@/components/admin/resource-layout";
-import {
-  ClientDataTable,
-  type DataTableColumn,
-} from "@/components/shared/data-table";
-import { DataTableLink } from "@/components/shared/data-table-link";
-import { Badge } from "@/components/ui/badge";
+import { ComprobantesTable } from "@/features/admin/comprobantes/comprobantes-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  formatComprobanteArcaDate,
-  formatComprobanteNumber,
-} from "@/lib/comprobantes/format";
-import {
-  comprobanteKindBadgeVariant,
-  formatComprobanteKindInitials,
-  formatComprobanteKindLabel,
-  signedComprobanteAmount,
-} from "@/lib/comprobantes/kind";
-import { formatAmount } from "@/lib/finances/formatters";
 
 import type { AnchorComprobanteRow } from "./server";
 
@@ -55,64 +39,9 @@ export function FinancialDetailTabs({
             description="Podés hacerlo desde el menú de acciones cuando haya algo cobrado para facturar."
           />
         ) : (
-          <ClientDataTable
-            rows={comprobantes}
-            columns={comprobanteColumns}
-            getRowKey={(row) => row.id}
-            searchPlaceholder="Buscar comprobantes"
-            // A unit holds an invoice and the few notes that amend it, so
-            // there is nothing to search or page through.
-            hideSearch
-            hidePagination
-            emptyMessage="No hay comprobantes para mostrar."
-          />
+          <ComprobantesTable rows={comprobantes} />
         )}
       </TabsContent>
     </Tabs>
   );
 }
-
-// No status column: the comprobante's detail, one click away, carries it.
-const comprobanteColumns: DataTableColumn<AnchorComprobanteRow>[] = [
-  {
-    id: "numero",
-    header: "N.°",
-    width: 30,
-    className: "font-medium tabular-nums",
-    cell: (row) => (
-      <DataTableLink recordTitle to={`/administracion/comprobantes/${row.id}`}>
-        {formatComprobanteNumber(row)}
-      </DataTableLink>
-    ),
-  },
-  {
-    id: "tipo",
-    header: "Tipo",
-    width: 20,
-    cell: (row) => (
-      <Badge
-        variant={comprobanteKindBadgeVariant(row.cbteTipo)}
-        title={formatComprobanteKindLabel(row.cbteTipo)}
-      >
-        {formatComprobanteKindInitials(row.cbteTipo)}
-      </Badge>
-    ),
-  },
-  {
-    id: "fecha",
-    header: "Fecha",
-    width: 25,
-    className: "tabular-nums",
-    cell: (row) => formatComprobanteArcaDate(row.cbteFch),
-  },
-  {
-    id: "importe",
-    header: "Importe",
-    width: 25,
-    className: "text-right tabular-nums",
-    headerClassName: "text-right",
-    // A credit note takes off what the invoice billed, so it reads negative
-    // and the column reads as what the unit is invoiced for.
-    cell: (row) => formatAmount(signedComprobanteAmount(row)),
-  },
-];
