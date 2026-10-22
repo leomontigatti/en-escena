@@ -29,6 +29,7 @@ import {
   seminarPricesMissingMessage,
   seminarStartedMessage,
 } from "@/lib/seminars/registration-refusals";
+import { lockEventSeminarPrices } from "@/lib/seminar-prices/price-locks.server";
 import { hasSeminarRegistrationPrices } from "@/lib/seminar-prices/repository.server";
 import { hasSeminarStarted } from "@/lib/seminars/registration-window";
 import { getSeminarReservationEndsAt } from "@/lib/seminars/seminar-reservations";
@@ -177,6 +178,11 @@ async function findRegistrationRefusal(
   if (hasSeminarStarted(seminar, input.now)) {
     return failure("started", seminarStartedMessage);
   }
+
+  // Under the price list's lock: a price edit refuses to uncover a cell while
+  // the event has an active inscription, so an edit that commits first is read
+  // here, and one that comes second sees this inscription.
+  await lockEventSeminarPrices(tx, input.eventId);
 
   if (!(await hasSeminarRegistrationPrices(input.eventId, tx))) {
     return failure("prices-missing", seminarPricesMissingMessage);

@@ -92,7 +92,8 @@ export async function listSeminarPrices(
  */
 export async function hasSeminarRegistrationPrices(
   eventId: string,
-  // A registration reads it under its own transaction.
+  // A registration reads it under its own transaction, holding the price
+  // list's lock (`lockEventSeminarPrices`).
   executor: Pick<typeof db, "select"> = db,
 ) {
   const rows = await executor
@@ -154,11 +155,12 @@ export async function updateSeminarPrice(
     return validation;
   }
 
-  // The dependency guard reads which inscriptions stored the row, so it runs
-  // under the price list's lock: the writes that store a seminar price take it
-  // too (`lockEventSeminarPrices`), and one that commits while this edit is in
-  // flight is seen here instead of being left on a row the edit changed. The
-  // coverage guard is not serialised against a registration this way.
+  // The guards read which inscriptions stored the row and whether the event
+  // has an active one, so they run under the price list's lock: the writes
+  // that store a seminar price and the registrations take it too
+  // (`lockEventSeminarPrices`), and one that commits while this edit is in
+  // flight is seen here instead of being left on a row the edit changed, or in
+  // a cell the edit uncovered.
   return await db.transaction(async (tx) => {
     const locked = await loadSeminarPriceUnderLock(
       tx,
