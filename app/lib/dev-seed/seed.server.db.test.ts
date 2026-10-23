@@ -15,6 +15,7 @@ import {
   presentations,
   professors,
   scores,
+  seminarInscriptions,
   submodalities,
   user,
   voteCodes,
@@ -122,7 +123,7 @@ describe("dev seed", () => {
     ]);
   });
 
-  test("opens registrations on the active event and registers five choreographies for the academy", async () => {
+  test("opens registrations on the active event and registers six choreographies for the academy", async () => {
     await seedDevData({ now });
 
     const seededEvents = await db.query.events.findMany({
@@ -157,6 +158,7 @@ describe("dev seed", () => {
       orderBy: asc(choreographies.name),
     });
     expect(registered.map(({ name }) => name)).toEqual([
+      "Bruma",
       "Luna de Papel",
       "Marea Alta",
       "Río Arriba",
@@ -187,7 +189,10 @@ describe("dev seed", () => {
     ]);
     await expect(
       readEstadoCells(activeEvent.id, "retirada"),
-    ).resolves.toMatchObject([{ name: "Marea Alta", estado: "Retirada" }]);
+    ).resolves.toMatchObject([
+      { name: "Marea Alta", estado: "Retirada" },
+      { name: "Bruma", estado: "Retirada" },
+    ]);
   });
 
   // The detail page's player streams the music through the storage route, so
@@ -333,7 +338,8 @@ describe("dev seed", () => {
     const academyPayments = await db.query.payments.findMany({
       where: eq(payments.academyId, academy.id),
     });
-    expect(academyPayments).toHaveLength(1);
+    // The second pays the seminar inscriptions.
+    expect(academyPayments).toHaveLength(2);
 
     // Each paid inscription covers the 30% deposit of its 25000 price, which
     // locks the price in the money dialog and makes the choreography orderable.
@@ -342,12 +348,47 @@ describe("dev seed", () => {
     }
     // Its withdrawal retained the 7500 deposit and released the rest (#1065).
     await expect(allocatedTo("Marea Alta")).resolves.toEqual([7500]);
+    // Withdrawn the way rows were before that: all of it kept, 2500 above the
+    // deposit, for the one-time cleanup and the dialog's `de más`.
+    await expect(allocatedTo("Bruma")).resolves.toEqual([10000]);
 
     // One schedule is evaluated, so its numbered presentations are frozen
     // while the morning block stays open to correction.
     await expect(frozenChoreographyNames(activeEvent.id)).resolves.toEqual([
       "Río Arriba",
       "Viento Sur",
+    ]);
+  });
+
+  // The seminar side of a withdrawal: one inscription withdrawn and holding
+  // its 10000 deposit, and one still active, for the removal confirmations.
+  test("leaves one seminar inscription withdrawn on its deposit and one active", async () => {
+    await seedDevData({ now });
+
+    const inscriptions = await db
+      .select({
+        firstName: dancers.firstName,
+        id: seminarInscriptions.id,
+        withdrawnAt: seminarInscriptions.withdrawnAt,
+      })
+      .from(seminarInscriptions)
+      .innerJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
+      .orderBy(asc(dancers.firstName));
+
+    expect(
+      await Promise.all(
+        inscriptions.map(async (inscription) => ({
+          allocated: await readInscriptionAllocatedAmount(db, {
+            id: inscription.id,
+            kind: "seminar",
+          }),
+          firstName: inscription.firstName,
+          withdrawn: inscription.withdrawnAt !== null,
+        })),
+      ),
+    ).toEqual([
+      { allocated: 10000, firstName: "Ana", withdrawn: true },
+      { allocated: 10000, firstName: "Bea", withdrawn: false },
     ]);
   });
 

@@ -35,6 +35,10 @@ import {
 import { deleteSeededRows } from "@/lib/dev-seed/delete-seeded-rows.server";
 import { invoiceChoreography } from "@/lib/dev-seed/demo-invoice.server";
 import {
+  seedSeminarWithdrawal,
+  stampLegacyWithdrawal,
+} from "@/lib/dev-seed/demo-withdrawals.server";
+import {
   removeOrphanedMusic,
   uploadDemoMusic,
 } from "@/lib/dev-seed/demo-music.server";
@@ -196,6 +200,13 @@ export async function seedDevData(input: {
     professorId: roster.luz,
     scheduleCapacityId: catalog.morningCapacity.id,
   });
+  const legacyWithdrawnChoreographyId = await registerSolo({
+    ...registration,
+    name: "Bruma",
+    dancerId: roster.flor,
+    professorId: roster.luz,
+    scheduleCapacityId: catalog.morningCapacity.id,
+  });
   await coverDeposits({
     academyId: academy.id,
     eventId: activeEvent.id,
@@ -206,6 +217,14 @@ export async function seedDevData(input: {
   if (removal !== "withdrawn") {
     throw new Error(`Dev seed expected a withdrawal, got "${removal}".`);
   }
+  await stampLegacyWithdrawal(legacyWithdrawnChoreographyId, input.now);
+  await seedSeminarWithdrawal({
+    academyId: academy.id,
+    eventId: activeEvent.id,
+    now: input.now,
+    roster,
+    scheduledDate: catalog.scheduledDate,
+  });
   // Music is what these three were missing to read `Completa`. It goes in
   // before the judging, which closes the music of an evaluated choreography.
   for (const choreographyId of [
@@ -482,10 +501,10 @@ async function createRoster(academyId: string) {
     );
   }
 
-  const [ana, bea, caro, dani, eli] = dancerIds;
+  const [ana, bea, caro, dani, eli, flor] = dancerIds;
   const [luz, nora] = professorIds;
 
-  return { ana, bea, caro, dani, eli, luz, nora };
+  return { ana, bea, caro, dani, eli, flor, luz, nora };
 }
 
 type SeedRegistration = {
