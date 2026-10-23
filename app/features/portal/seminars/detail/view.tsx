@@ -356,20 +356,6 @@ function RegisterInscriptionDialog({
             value={registerPortalSeminarInscriptionIntent}
           />
           <input type="hidden" name="seminarId" value={seminar.id} />
-          {/* Only a registration that gets a place reserves it, so a full
-              seminar promises no deadline: the page's `Cupo completo` says
-              what happens instead. */}
-          {seminar.isFull ? null : (
-            <Alert variant="info">
-              <Info aria-hidden="true" />
-              <AlertTitle>Reserva de lugar</AlertTitle>
-              <AlertDescription>
-                {seminar.startsBeforePaymentDeadline
-                  ? "Tenés hasta que empiece el seminario para enviar el pago del derecho de inscripción. Si no lo enviás en ese plazo, la inscripción pierde su lugar."
-                  : "Tenés 48 horas para enviar el pago del derecho de inscripción. Si no lo enviás en ese plazo, la inscripción pierde su lugar."}
-              </AlertDescription>
-            </Alert>
-          )}
           <FieldGroup>
             <ComboboxField
               control={form.control}
@@ -387,6 +373,20 @@ function RegisterInscriptionDialog({
               priceAmount={pickedPerson.priceAmount}
               requiredDepositPercentage={seminar.requiredDepositPercentage}
             />
+          )}
+          {/* Only a registration that gets a place reserves it, so a full
+              seminar promises no deadline: the page's `Cupo completo` says
+              what happens instead. */}
+          {seminar.isFull ? null : (
+            <Alert variant="info">
+              <Info aria-hidden="true" />
+              <AlertTitle>Reserva de lugar</AlertTitle>
+              <AlertDescription>
+                {seminar.startsBeforePaymentDeadline
+                  ? "Tenés hasta que empiece el seminario para enviar el pago del derecho de inscripción. Si no lo enviás en ese plazo, la inscripción pierde su lugar."
+                  : "Tenés 48 horas para enviar el pago del derecho de inscripción. Si no lo enviás en ese plazo, la inscripción pierde su lugar."}
+              </AlertDescription>
+            </Alert>
           )}
 
           <DialogFooter>
