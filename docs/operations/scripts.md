@@ -113,5 +113,18 @@ session runs, and when, is [Validation](../agents/validation.md).
 ## One-off SQL
 
 Not `pnpm` scripts — `.sql` files under `scripts/`, run with `psql`. They are
-read-only checks tied to a specific migration and are deleted once it has
-shipped. There are none right now.
+read-only checks tied to a specific migration, or a one-time data fix, and are
+deleted once they have run in production.
+
+| File                                      | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ⚠️ `scripts/release-withdrawn-excess.sql` | The #1065 cleanup for production: one transaction that releases what the 7 rows withdrawn before #1065 hold above their deposit, the figures `release-withdrawn-excess.ts --apply` produced on a production copy of 2026-10-23. Every figure is checked first, and so is every other withdrawn inscription: if production moved since, or a row withdrawn between the copy and the deploy holds money, it raises and rolls back, and the plan is regenerated from a newer copy. A write: run once the deploy has finished, passing its end as `-v deployed_at=…`, with the user's go-ahead, by the command in its header. |
+
+## One-off scripts
+
+TypeScript under `scripts/`, run with `node --env-file-if-exists=.env --import tsx
+<script>`, and deleted once they have run in production.
+
+| Script | Purpose |
+| --- | --- |
+| ⚠️ `scripts/release-withdrawn-excess.ts` | The #1065 cleanup: releases to `Saldo disponible` what every withdrawn inscription holds above the deposit it retains, newest payment first. A dry run by default, which lists each row and rolls it back; `--apply` releases it. Idempotent. Production has no route for it: its figures became `release-withdrawn-excess.sql`. |

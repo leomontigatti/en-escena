@@ -4,7 +4,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import {
   allocateToSeminarInscription,
-  removeFromSeminarInscription,
+  releaseRetainedSeminarInscriptionDeposit,
 } from "@/lib/finances/seminar-inscription-allocation.server";
 import { removeSeminarInscriptionFromRoster } from "@/lib/seminars/inscription-withdrawal.server";
 import { loader } from "@/routes/administracion.finanzas_.seminarios";
@@ -70,9 +70,8 @@ describe("`/administracion/finanzas/seminarios`", () => {
     );
     await removeSeminarInscriptionFromRoster(db, fixture.anaInscriptionId);
     await removeSeminarInscriptionFromRoster(db, fixture.nicolasInscriptionId);
-    await removeFromSeminarInscription({
+    await releaseRetainedSeminarInscriptionDeposit({
       academyId: fixture.northAcademyId,
-      amount: 5000,
       eventId: fixture.eventId,
       inscriptionId: fixture.nicolasInscriptionId,
       seminarId: fixture.brunoSeminarId,

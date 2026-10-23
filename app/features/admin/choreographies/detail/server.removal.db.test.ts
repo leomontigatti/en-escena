@@ -7,6 +7,7 @@ import {
   choreographyDancers,
   choreographyProfessors,
   presentations,
+  prices,
 } from "@/db/schema";
 import {
   createAcademySession,
@@ -567,7 +568,7 @@ describe("administrative choreography detail: access, rename, delete and withdra
     ).resolves.toMatchObject([{ choreographyId: empty.id, orderNumber: 7 }]);
   });
 
-  test("withdraws a choreography holding money, keeps every allocation and leaves the available balance untouched", async () => {
+  test("withdraws a choreography holding money, and each inscription it withdraws retains its deposit and releases the rest", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Con Dinero",
       email: "admin.coreografias.dinero.academia@example.com",
@@ -587,13 +588,18 @@ describe("administrative choreography detail: access, rename, delete and withdra
       scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
-    // One inscription holds the deposit; the other holds nothing and is
-    // withdrawn all the same, with the very same timestamp.
+    // One inscription holds more than its deposit, on the price it stores;
+    // the other holds nothing and is withdrawn all the same, with the very
+    // same timestamp.
+    const soloPrice = await db.query.prices.findFirst({
+      where: eq(prices.eventId, event.id),
+    });
     const paid = await createSelectedPriceInscriptionForTest({
       academyId: owner.academyId,
       allocatedAmount: 5000,
       choreographyId: funded.id,
       eventId: event.id,
+      selectedPriceId: soloPrice?.id,
     });
     const unpaid = await createSelectedPriceInscriptionForTest({
       academyId: owner.academyId,
@@ -649,20 +655,29 @@ describe("administrative choreography detail: access, rename, delete and withdra
       [paid.id, unpaid.id, removedEarlier.id].sort(),
     );
 
-    // No money moved: the allocations stay on their inscriptions instead of
-    // flowing back into `Saldo disponible`.
+    // #1065: the paid row keeps its 3000 deposit (30 % of the solo 10000) and the
+    // 2000 above it goes back to `Saldo disponible`; the row withdrawn earlier
+    // holds less than its deposit and keeps it all.
     const allocations = await db.query.paymentAllocations.findMany();
     expect(
       allocations
-        .map((allocation) => allocation.choreographyInscriptionId)
+        .map((allocation) => [
+          allocation.choreographyInscriptionId,
+          allocation.amount,
+        ])
         .sort(),
-    ).toEqual([paid.id, removedEarlier.id].sort());
+    ).toEqual(
+      [
+        [paid.id, 3000],
+        [removedEarlier.id, 1000],
+      ].sort(),
+    );
     await expect(
       readAcademyAvailableBalance(db, {
         academyId: owner.academyId,
         eventId: event.id,
       }),
-    ).resolves.toBe(balanceBefore);
+    ).resolves.toBe(balanceBefore + 2000);
   });
 
   // The dialog was rendered while the choreography was still empty; the money

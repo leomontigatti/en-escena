@@ -1,9 +1,14 @@
-import { and, inArray, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { findReservedInscriptionIds } from "@/lib/comprobantes/reservation.server";
-import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-target.server";
 import {
+  choreographyTarget,
+  restrictedChoreographyInscriptionId,
+} from "@/lib/finances/allocation-target.server";
+import { releaseAboveRetainedDeposit } from "@/lib/finances/withdrawal-retention.server";
+import {
+  choreographies,
   choreographyDancers,
   comprobanteInscriptions,
   paymentAllocations,
@@ -63,8 +68,10 @@ export async function findInscriptionsWithEvidence(
 /**
  * Takes inscriptions off the roster, choosing once, here, between a physical
  * delete and a withdrawal: without evidence the row goes —it documents
- * nothing— and with evidence `withdrawnAt` is marked and the row keeps the money
- * on it. A withdrawal is final: re-adding the dancer inserts a new row.
+ * nothing— and with evidence `withdrawnAt` is marked and the row retains its
+ * deposit, everything above it released to `Saldo disponible` in the same
+ * transaction (#1065). A withdrawal is final: re-adding the dancer inserts a
+ * new row.
  *
  * The choice is never revisited. Unallocating later does not touch this row: a
  * deferred delete would reintroduce the cascade just avoided and would turn
@@ -93,5 +100,41 @@ export async function removeInscriptionsFromRoster(
       .update(choreographyDancers)
       .set({ withdrawnAt: new Date() })
       .where(inArray(choreographyDancers.id, withdrawnIds));
+    await releaseAboveRetainedDeposits(executor, withdrawnIds);
+  }
+}
+
+/**
+ * The money side of withdrawing choreography inscriptions: each one releases
+ * what it holds above its deposit. Shared by roster removal and `Eliminar
+ * coreografía`, which withdraws every inscription still active at once.
+ */
+export async function releaseAboveRetainedDeposits(
+  executor: Executor,
+  inscriptionIds: string[],
+): Promise<void> {
+  if (inscriptionIds.length === 0) {
+    return;
+  }
+
+  const owners = await executor
+    .select({
+      academyId: choreographies.academyId,
+      eventId: choreographies.eventId,
+      id: choreographyDancers.id,
+    })
+    .from(choreographyDancers)
+    .innerJoin(
+      choreographies,
+      eq(choreographies.id, choreographyDancers.choreographyId),
+    )
+    .where(inArray(choreographyDancers.id, inscriptionIds));
+
+  for (const owner of owners) {
+    await releaseAboveRetainedDeposit(executor, {
+      academyId: owner.academyId,
+      eventId: owner.eventId,
+      target: choreographyTarget(owner.id),
+    });
   }
 }

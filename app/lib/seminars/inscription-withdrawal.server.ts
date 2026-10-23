@@ -18,10 +18,12 @@ import {
   comprobanteInscriptions,
   paymentAllocations,
   seminarInscriptions,
+  seminars,
 } from "@/db/schema";
 import { seminarAnchor } from "@/lib/comprobantes/anchor";
 import { lockComprobanteAnchor } from "@/lib/comprobantes/anchor-lock.server";
 import { findReservedInscriptionIds } from "@/lib/comprobantes/reservation.server";
+import { releaseAboveRetainedDeposit } from "@/lib/finances/withdrawal-retention.server";
 import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -75,8 +77,9 @@ export async function findSeminarInscriptionsWithEvidence(
  * Takes one inscription off the seminar's roster, choosing here and only here:
  * without evidence the row goes — it documents nothing, and keeping it would
  * force the two partial unique indexes to be relaxed — and with evidence
- * `withdrawnAt` is stamped and everything else is left alone, money, stored
- * price row and `createdAt` included.
+ * `withdrawnAt` is stamped and the row retains its deposit, everything above it
+ * released to `Saldo disponible` in the same transaction (#1065). The stored
+ * price row and `createdAt` are left alone.
  *
  * The choice is never revisited: de-allocating a withdrawn row later does not
  * delete it, exactly as on the choreography side.
@@ -86,7 +89,17 @@ export async function removeSeminarInscriptionFromRoster(
   inscriptionId: string,
 ): Promise<{ withdrawn: boolean }> {
   return await executor.transaction(async (tx) => {
-    await lockInscriptionComprobanteAnchor(tx, inscriptionId);
+    const unit = await readInscriptionUnit(tx, inscriptionId);
+
+    // An unpaid inscription has no evidence until a debit note's line lands
+    // on it, so deciding while that emission waits on ARCA would delete the
+    // row the authorized document is about to name.
+    if (unit) {
+      await lockComprobanteAnchor(
+        tx,
+        seminarAnchor(unit.seminarId, unit.academyId),
+      );
+    }
 
     const evidence = await findSeminarInscriptionsWithEvidence(
       [inscriptionId],
@@ -106,36 +119,41 @@ export async function removeSeminarInscriptionFromRoster(
       .set({ withdrawnAt: new Date() })
       .where(eq(seminarInscriptions.id, inscriptionId));
 
+    if (unit) {
+      await releaseAboveRetainedDeposit(tx, {
+        academyId: unit.academyId,
+        eventId: unit.eventId,
+        target: { id: inscriptionId, kind: "seminar" },
+      });
+    }
+
     return { withdrawn: true };
   });
 }
 
 /**
- * Waits for a comprobante emission on the inscription's `(seminar, academy)`
- * unit. An unpaid inscription has no evidence until a debit note's line
- * lands on it, so deciding while that emission waits on ARCA would delete the
- * row the authorized document is about to name.
+ * The `(seminar, academy)` unit the inscription belongs to, and the event whose
+ * pool its money is in.
  */
-async function lockInscriptionComprobanteAnchor(
+async function readInscriptionUnit(
   tx: Transaction,
   inscriptionId: string,
-): Promise<void> {
+): Promise<
+  { academyId: string; eventId: string; seminarId: string } | undefined
+> {
   const [unit] = await tx
     .select({
       academyId: seminarInscriptionPerson.academyId,
+      eventId: seminars.eventId,
       seminarId: seminarInscriptions.seminarId,
     })
     .from(seminarInscriptions)
+    .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
     .innerJoin(
       seminarInscriptionPerson,
       eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
     )
     .where(eq(seminarInscriptions.id, inscriptionId));
 
-  if (unit) {
-    await lockComprobanteAnchor(
-      tx,
-      seminarAnchor(unit.seminarId, unit.academyId),
-    );
-  }
+  return unit;
 }

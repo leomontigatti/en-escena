@@ -55,10 +55,16 @@ import { countSeminarPlacesShort } from "@/lib/seminars/seminar-places";
 import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
 
 import {
+  lockTargetRow,
   readInscriptionAllocatedAmount,
   spreadFromPool,
   unwindToPool,
 } from "./allocation-pool.server";
+import {
+  partialRetainedReleaseMessage,
+  toCobroResult,
+} from "./withdrawal-retention-refusals";
+import { releaseRetainedDeposit } from "./withdrawal-retention.server";
 import {
   runCobro,
   type CobroResult,
@@ -373,6 +379,10 @@ export async function removeFromSeminarInscription(
       return context;
     }
 
+    if (context.inscription.withdrawn) {
+      return { ok: false, message: partialRetainedReleaseMessage };
+    }
+
     return await unwindToPool(tx, {
       academyId: input.academyId,
       amount: input.amount,
@@ -390,6 +400,10 @@ export async function releaseSeminarInscriptionExcess(
     const context = await loadSeminarMoneyContext(tx, input);
     if (!context.ok) {
       return context;
+    }
+
+    if (context.inscription.withdrawn) {
+      return { ok: false, message: partialRetainedReleaseMessage };
     }
 
     const thresholds = await readSeminarInscriptionThresholds(tx, {
@@ -425,6 +439,37 @@ export async function releaseSeminarInscriptionExcess(
       target: { id: input.inscriptionId, kind: "seminar" },
     });
   });
+}
+
+/**
+ * The medical case on a withdrawn seminar inscription: its whole retained deposit
+ * goes back to `Saldo disponible`, with no amount to choose (#1065).
+ */
+export async function releaseRetainedSeminarInscriptionDeposit(
+  input: SeminarInscriptionMoneyInput,
+): Promise<CobroResult> {
+  return await runCobro(async (tx) => {
+    const context = await loadSeminarMoneyContext(tx, input);
+    if (!context.ok) {
+      return context;
+    }
+
+    if (!context.inscription.withdrawn) {
+      return { ok: false, message: "Esta inscripción no está retirada." };
+    }
+
+    return toCobroResult(
+      await releaseRetainedDeposit(tx, seminarPoolTarget(input)),
+    );
+  });
+}
+
+function seminarPoolTarget(input: SeminarInscriptionMoneyInput) {
+  return {
+    academyId: input.academyId,
+    eventId: input.eventId,
+    target: { id: input.inscriptionId, kind: "seminar" as const },
+  };
 }
 
 /**
@@ -538,6 +583,7 @@ type SeminarMoneyContext =
         forParticipants: boolean;
         id: string;
         selectedPriceId: string | null;
+        withdrawn: boolean;
       };
       seminar: LockedSeminar;
     };
@@ -558,6 +604,9 @@ async function loadSeminarMoneyContext(
     return { ok: false, message: seminarNotFoundMessage };
   }
 
+  // Under the row lock a withdrawal holds while it stamps the row and
+  // releases its excess, so `withdrawn` cannot go stale before the money moves.
+  await lockTargetRow(tx, { id: input.inscriptionId, kind: "seminar" });
   const [inscription] = await tx
     .select({
       academyId: seminarInscriptionPerson.academyId,
@@ -566,6 +615,7 @@ async function loadSeminarMoneyContext(
       individualId: seminarInscriptions.individualId,
       professorId: seminarInscriptions.professorId,
       selectedPriceId: seminarInscriptions.selectedPriceId,
+      withdrawnAt: seminarInscriptions.withdrawnAt,
     })
     .from(seminarInscriptions)
     .innerJoin(
@@ -599,6 +649,7 @@ async function loadSeminarMoneyContext(
       forParticipants: isParticipating(inscription, participation),
       id: inscription.id,
       selectedPriceId: inscription.selectedPriceId,
+      withdrawn: inscription.withdrawnAt !== null,
     },
     seminar,
   };

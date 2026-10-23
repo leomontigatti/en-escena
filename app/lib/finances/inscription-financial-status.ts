@@ -60,6 +60,11 @@ export type InscriptionThresholds = {
    * that resolves them hands it on without a second lookup.
    */
   waived?: boolean;
+  /**
+   * Off the roster (ADR-0014 §6): it owes nothing and retains its deposit, so the
+   * write path refuses money onto it, as the read path shows it owing none.
+   */
+  withdrawn?: boolean;
 };
 
 /** Everything an inscription derives from its money, in a single read. */
@@ -258,7 +263,7 @@ export function deriveInscriptionFinancialFigures(input: {
 
 /**
  * A withdrawn inscription's total is **what remains allocated to it, not zero**:
- * the deposit may be forfeited, and the allocation that stays is the record of that
+ * its retained deposit, and the allocation that stays is the record of that
  * retention. Money and obligation become one statement, and three consequences
  * fall out of that single rule rather than being enforced one by one:
  *
@@ -297,17 +302,17 @@ function deriveWithdrawnInscriptionFigures(input: {
  * What a withdrawn inscription **retains**: exactly its deposit, the price of the
  * `derecho de inscripción` the reglamento's clause says withdrawal never returns
  * (#674, #1065), or what it holds when that is less. The medical case needs no
- * branch: the administrator releases the deposit with `Quitar dinero`, the row
- * holds nothing, and it retains nothing.
+ * branch: the administrator releases the whole deposit, the row holds nothing, and
+ * it retains nothing.
  *
  * A row no price resolves for any more has no deposit to measure: it retains
  * what it holds, which credits less rather than more and never leaves the
  * unit's credit note waiting on a price nobody can set on a withdrawn row.
  *
  * It is what a withdrawal's credit note is measured by, `línea facturada −
- * retenido`. The row's `Total` above still reads everything it holds, so money
- * above the deposit shows on the row until it is released; #1065 releases it at
- * withdrawal, after which the two agree.
+ * retenido`, and what the withdrawal itself releases down to
+ * (`withdrawal-retention.server.ts`), so the row's `Total` above, everything it
+ * holds, is this same figure.
  */
 export function deriveRetainedAmount(input: {
   allocatedAmount: number;

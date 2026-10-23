@@ -11,7 +11,10 @@ import { choreographyHasComprobantes } from "@/lib/comprobantes/comprobantes.ser
 import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
 import { deleteChoreographyPresentation } from "@/lib/presentations/presentation-queries.server";
 
-import { findInscriptionsWithEvidence } from "./inscription-withdrawal.server";
+import {
+  findInscriptionsWithEvidence,
+  releaseAboveRetainedDeposits,
+} from "./inscription-withdrawal.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Executor = Transaction | typeof db;
@@ -21,8 +24,9 @@ export type ChoreographyRemovalOutcome = "deleted" | "evaluated" | "withdrawn";
 /**
  * Removing a choreography is one administrative action with two outcomes, the
  * same choice roster removal makes for a single dancer: without evidence the
- * rows go, and with evidence the choreography survives as a withdrawn one that
- * keeps its money exactly where it was allocated.
+ * rows go, and with evidence the choreography survives as a withdrawn one whose
+ * inscriptions each retain their deposit, the rest released to `Saldo
+ * disponible` in the same transaction.
  *
  * The outcome is decided here, inside the transaction and under a `FOR UPDATE`
  * on the choreography row, and not from what the dialog was rendered with:
@@ -117,7 +121,7 @@ export async function removeChoreography(
       .update(choreographies)
       .set({ withdrawnAt, updatedAt: withdrawnAt })
       .where(eq(choreographies.id, choreographyId));
-    await tx
+    const withdrawnInscriptions = await tx
       .update(choreographyDancers)
       .set({ withdrawnAt })
       .where(
@@ -125,7 +129,15 @@ export async function removeChoreography(
           eq(choreographyDancers.choreographyId, choreographyId),
           isNull(choreographyDancers.withdrawnAt),
         ),
-      );
+      )
+      .returning({ id: choreographyDancers.id });
+
+    // Each inscription this withdrawal took retains its deposit and releases the
+    // rest (#1065); the ones withdrawn earlier released theirs back then.
+    await releaseAboveRetainedDeposits(
+      tx,
+      withdrawnInscriptions.map((inscription) => inscription.id),
+    );
 
     return "withdrawn";
   });

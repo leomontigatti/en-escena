@@ -1,12 +1,14 @@
 import type { AllocationTargetKind } from "@/lib/finances/allocation-target.server";
 
-// The three money gestures of an inscription, shared by the two financial
-// details because they are the same gestures on the same pool. All of them name
-// an inscription and an amount and never a payment: which payment the money
-// comes from or goes back to is the pool rules' answer.
+// The money gestures of an inscription, shared by the two financial details
+// because they are the same gestures on the same pool. None of them names a
+// payment: which payment the money comes from or goes back to is the pool
+// rules' answer. The last one is a withdrawn row's only removal: all of its
+// retained deposit, with no amount (#1065).
 export const allocateInscriptionIntent = "allocate-inscription";
 export const removeInscriptionMoneyIntent = "remove-inscription-money";
 export const releaseInscriptionExcessIntent = "release-inscription-excess";
+export const releaseRetainedDepositIntent = "release-retained-deposit";
 
 /**
  * The field that says which kind of inscription the dialog is about. It travels

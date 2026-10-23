@@ -56,13 +56,23 @@
  * Both halves take it **after** the seminar and inscription locks their callers
  * already hold, never before one of them, so it adds no lock order to deadlock
  * on. The payment edit and deletion take it first, holding nothing yet; the
- * academy merge takes it before its academy lock, and touches none of the rows
- * a spread locks ahead of the pool.
+ * academy merge takes it before its academy lock and then moves choreography
+ * rows. A withdrawal holds the choreography row, then the inscription rows it
+ * stamps, then the pool for its release; every money write that reads whether
+ * a row is withdrawn takes that inscription row before the pool too, so either
+ * it waits for the withdrawal and sees the stamp, or the withdrawal waits for
+ * it. The one known cycle is a merge racing a withdrawal on the academy it
+ * removes: Postgres aborts one of them and no money moves (#1065 review).
  */
 
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 
-import { choreographyDancers, paymentAllocations, payments } from "@/db/schema";
+import {
+  choreographyDancers,
+  paymentAllocations,
+  payments,
+  seminarInscriptions,
+} from "@/db/schema";
 import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
 import { resolvePaymentAvailableAmount } from "@/lib/finances/payment-available-amount.server";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
@@ -122,6 +132,24 @@ const thresholdReaders: Record<AllocationTargetKind, ThresholdReader> = {
   choreography: readInscriptionThresholds,
   seminar: readSeminarInscriptionThresholds,
 };
+
+/**
+ * The two thresholds of one target, read by the reader its kind owns. The
+ * withdrawal's release (`withdrawal-retention.server.ts`) measures the deposit it
+ * retains with it, so it cannot read a deposit the allocation guard does not.
+ */
+export async function readTargetThresholds(
+  tx: Executor,
+  movement: Omit<PoolMovement, "amount">,
+): Promise<InscriptionThresholds | undefined> {
+  const thresholds = await thresholdReaders[movement.target.kind](tx, {
+    academyId: movement.academyId,
+    eventId: movement.eventId,
+    inscriptionIds: [movement.target.id],
+  });
+
+  return thresholds.get(movement.target.id);
+}
 
 /**
  * Funds an inscription with money from the academy's `Saldo disponible`.
@@ -400,16 +428,13 @@ async function assertNoActiveOverAllocation(
 ): Promise<
   { ok: false; message: string } | { ok: true; allocatedAmount: number }
 > {
-  if (input.target.kind === "choreography") {
-    // The lock the waiver takes (`inscription-waiver.server.ts`), taken before
-    // the row is read: an allocation and a waiver racing for one inscription
-    // are serialized, and whichever comes second sees the other's write.
-    await tx
-      .select({ id: choreographyDancers.id })
-      .from(choreographyDancers)
-      .where(eq(choreographyDancers.id, input.target.id))
-      .for("update");
-  }
+  // The inscription's row lock, taken before the row is read. On a
+  // choreography target it is the lock the waiver takes
+  // (`inscription-waiver.server.ts`); on both kinds it is the one a withdrawal
+  // holds while it stamps the row and releases its excess, so an allocation
+  // racing a withdrawal either lands first, and is released with the rest, or
+  // reads the row withdrawn and is refused.
+  await lockTargetRow(tx, input.target);
 
   const thresholds = await thresholdReaders[input.target.kind](tx, {
     academyId: input.academyId,
@@ -420,6 +445,15 @@ async function assertNoActiveOverAllocation(
 
   if (!inscriptionThresholds) {
     return { ok: false, message: "No encontramos esa inscripción." };
+  }
+
+  // A withdrawn row owes nothing: it retains its deposit, which only ever goes
+  // back to `Saldo disponible` (#1065), so nothing is allocated onto it.
+  if (inscriptionThresholds.withdrawn) {
+    return {
+      ok: false,
+      message: "Esta inscripción está retirada: no se le puede asignar dinero.",
+    };
   }
 
   if (inscriptionThresholds.waived) {
@@ -455,6 +489,26 @@ async function assertNoActiveOverAllocation(
   }
 
   return { ok: true, allocatedAmount };
+}
+
+/** `FOR UPDATE` on the inscription row a target names, of either kind. */
+export async function lockTargetRow(
+  tx: Executor,
+  target: AllocationTarget,
+): Promise<void> {
+  if (target.kind === "choreography") {
+    await tx
+      .select({ id: choreographyDancers.id })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.id, target.id))
+      .for("update");
+  } else {
+    await tx
+      .select({ id: seminarInscriptions.id })
+      .from(seminarInscriptions)
+      .where(eq(seminarInscriptions.id, target.id))
+      .for("update");
+  }
 }
 
 /**

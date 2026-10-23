@@ -13,6 +13,7 @@ import { z } from "zod";
 import {
   calculateTotalAmount,
   deriveInscriptionFinancialFigures,
+  deriveRetainedAmount,
   hasCrossedDepositThreshold,
   type InscriptionFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
@@ -53,10 +54,12 @@ export type InscriptionRow = {
   overAllocatedAmount: number | null;
   owedBalanceAmount: number | null;
   owedDepositAmount: number | null;
+  /** Off the roster: what it holds is its retained deposit (#1065). */
+  withdrawn: boolean;
 };
 
 export type InscriptionMoneyDialogShape =
-  "releaseExcess" | "waived" | "remove" | "allocate";
+  "withdrawn" | "releaseExcess" | "waived" | "remove" | "allocate";
 
 export type OwedAgainstPrice = {
   owedBalanceAmount: number | null;
@@ -64,9 +67,10 @@ export type OwedAgainstPrice = {
 };
 
 /**
- * Which shape the row opens on. The excess outranks everything: an
- * over-allocated row is fully paid too, and the only sane act on it is getting
- * the surplus off. A waived row (`Bonificada`) opens on its waiver: nothing can
+ * Which shape the row opens on. A withdrawn row outranks everything: what it
+ * holds is its retained deposit, which has two outcomes and no amount (#1065). The
+ * excess outranks the rest: an over-allocated row is fully paid too, and the
+ * only sane act on it is getting the surplus off. A waived row (`Bonificada`) opens on its waiver: nothing can
  * be allocated to it. A row that owes nothing and holds money opens on removal,
  * because allocating onto it would be refused.
  */
@@ -77,8 +81,13 @@ export function readInscriptionMoneyDialogShape(
     | "financialStatus"
     | "overAllocatedAmount"
     | "owedBalanceAmount"
+    | "withdrawn"
   >,
 ): InscriptionMoneyDialogShape {
+  if (inscription.withdrawn) {
+    return "withdrawn";
+  }
+
   if ((inscription.overAllocatedAmount ?? 0) > 0) {
     return "releaseExcess";
   }
@@ -90,6 +99,23 @@ export function readInscriptionMoneyDialogShape(
   return inscription.owedBalanceAmount === 0 && inscription.allocatedAmount > 0
     ? "remove"
     : "allocate";
+}
+
+/**
+ * What a withdrawn row retains, and what it holds above that: nothing once its
+ * withdrawal released it, and something only on a row withdrawn before that
+ * release existed, or whose deposit moved down since. The same function the
+ * credit note is measured by, so the dialog names the figure the NC leaves.
+ */
+export function readWithdrawnFigures(
+  inscription: Pick<InscriptionRow, "allocatedAmount" | "depositAmount">,
+): { excessAmount: number; retainedAmount: number } {
+  const retainedAmount = deriveRetainedAmount(inscription);
+
+  return {
+    excessAmount: inscription.allocatedAmount - retainedAmount,
+    retainedAmount,
+  };
 }
 
 /**

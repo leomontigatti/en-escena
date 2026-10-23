@@ -172,6 +172,51 @@ describe("administrative choreography roster editing", () => {
     expect(saved?.groupType).toBe("grupal");
   });
 
+  // #1065: the withdrawal retains exactly the deposit (30 % of the grupal 25000)
+  // and releases the rest to `Saldo disponible`, newest payment first.
+  test("releases what a removed dancer holds above the deposit, newest payment first", async () => {
+    const scenario = await createGrupalRemovalScenario({
+      academyName: "Academia Roster Excedente",
+      email: "roster.excedente.academia@example.com",
+    });
+    const older = await createPayment(scenario, { amount: 6000 });
+    const newer = await createPayment(scenario, {
+      amount: 4000,
+      paymentNumber: 2,
+    });
+    await db.insert(paymentAllocations).values(
+      [older, newer].map((payment) => ({
+        academyId: scenario.academyId,
+        amount: payment.amount,
+        eventId: scenario.event.id,
+        choreographyInscriptionId: scenario.inscriptionA.id,
+        paymentId: payment.id,
+      })),
+    );
+
+    await expect(
+      submitRoster({
+        choreographyId: scenario.choreography.id,
+        dancerIds: scenario.remainingDancerIds,
+      }),
+    ).resolves.toMatchObject({ status: "success" });
+
+    const allocations = await db.query.paymentAllocations.findMany({
+      where: eq(
+        paymentAllocations.choreographyInscriptionId,
+        scenario.inscriptionA.id,
+      ),
+    });
+    expect(
+      allocations
+        .map(({ amount, paymentId }) => ({ amount, paymentId }))
+        .sort((left, right) => right.amount - left.amount),
+    ).toEqual([
+      { amount: 6000, paymentId: older.id },
+      { amount: 1500, paymentId: newer.id },
+    ]);
+  });
+
   test("withdraws a removed dancer whose inscription has a comprobante line", async () => {
     const scenario = await createRemovalScenario({
       academyName: "Academia Roster Facturada",
@@ -1048,19 +1093,22 @@ async function createGrupalRemovalScenario(input: {
   };
 }
 
-async function createPayment(scenario: {
-  academyId: string;
-  event: { id: string };
-}) {
+async function createPayment(
+  scenario: {
+    academyId: string;
+    event: { id: string };
+  },
+  input: { amount?: number; paymentNumber?: number } = {},
+) {
   const [payment] = await db
     .insert(payments)
     .values({
       academyId: scenario.academyId,
-      amount: 3000,
+      amount: input.amount ?? 3000,
       eventId: scenario.event.id,
       paymentDate: "2026-03-20",
       paymentMethod: "transferencia",
-      paymentNumber: 1,
+      paymentNumber: input.paymentNumber ?? 1,
     })
     .returning();
 

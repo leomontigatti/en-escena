@@ -1,6 +1,7 @@
 import {
   allocateToSeminarInscription,
   readSeminarInscriptionMoneyTarget,
+  releaseRetainedSeminarInscriptionDeposit,
   releaseSeminarInscriptionExcess,
   removeFromSeminarInscription,
 } from "@/lib/finances/seminar-inscription-allocation.server";
@@ -11,6 +12,7 @@ import {
   readMoneyAmount,
   readPickedPriceId,
   releaseInscriptionExcessIntent,
+  releaseRetainedDepositIntent,
   removeInscriptionMoneyIntent,
 } from "./intents";
 
@@ -22,6 +24,7 @@ export type SeminarMoneyAnswer =
 const successMessages: Record<string, string> = {
   [allocateInscriptionIntent]: "Dinero asignado.",
   [releaseInscriptionExcessIntent]: "Excedente liberado.",
+  [releaseRetainedDepositIntent]: "Seña liberada.",
   [removeInscriptionMoneyIntent]: "Dinero quitado.",
 };
 
@@ -29,17 +32,18 @@ const seminarMoneyIntents: readonly string[] = [
   allocateInscriptionIntent,
   removeInscriptionMoneyIntent,
   releaseInscriptionExcessIntent,
+  releaseRetainedDepositIntent,
 ];
 
 /**
- * The three money gestures of a seminar inscription, for every screen that
+ * The money gestures of a seminar inscription, for every screen that
  * mounts the money dialog on one: the `(seminar, academy)` detail and the
  * event-wide seminar inscriptions list. The form names the inscription and
  * nothing else; its academy and its seminar are read off it, so the action
  * does not depend on which screen it was posted from.
  *
  * The gestures differ only in what they read off the form: an amount for two
- * of them and nothing at all for the release, whose figure is computed.
+ * of them and nothing at all for the two releases, whose figure is computed.
  * A screen about one `(seminar, academy)` pair passes it as `expectedScope`,
  * and an inscription outside it is refused as one the screen does not hold;
  * the event-wide list passes nothing.
@@ -82,6 +86,12 @@ export async function runSeminarInscriptionMoneyIntent(input: {
 
   if (intent === releaseInscriptionExcessIntent) {
     const released = await releaseSeminarInscriptionExcess(target);
+
+    return answer(intent, released);
+  }
+
+  if (intent === releaseRetainedDepositIntent) {
+    const released = await releaseRetainedSeminarInscriptionDeposit(target);
 
     return answer(intent, released);
   }

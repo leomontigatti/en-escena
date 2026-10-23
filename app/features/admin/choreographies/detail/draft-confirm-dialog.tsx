@@ -1,5 +1,6 @@
-import { Check } from "lucide-react";
+import { Check, TriangleAlert } from "lucide-react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { formatAmount } from "@/lib/finances/formatters";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
@@ -53,13 +54,17 @@ export function ConfirmDraftDialog({
                 <li key={dancer.id}>{dancer.name}: inscripción retirada</li>
               ))}
             </ul>
-            <p>
-              {withdrawnDancers.length === 1
-                ? "Su inscripción tiene dinero asignado o un comprobante emitido, así que no se borra: conserva el dinero y sigue en el comprobante."
-                : "Sus inscripciones tienen dinero asignado o un comprobante emitido, así que no se borran: conservan el dinero y siguen en el comprobante."}{" "}
-              El retiro es definitivo: volver a agregar al bailarín crea una
-              inscripción nueva, sin dinero.
-            </p>
+            <Alert variant="warning">
+              <TriangleAlert aria-hidden="true" />
+              <AlertTitle>Antes de dar de baja</AlertTitle>
+              <AlertDescription>
+                {withdrawnDancers.length === 1
+                  ? "Su inscripción tiene dinero asignado o un comprobante emitido, así que no se borra: conserva su seña, lo que tenga por encima vuelve al saldo disponible de la academia y sigue en el comprobante."
+                  : "Sus inscripciones tienen dinero asignado o un comprobante emitido, así que no se borran: cada una conserva su seña, lo que tengan por encima vuelve al saldo disponible de la academia y siguen en el comprobante."}{" "}
+                El retiro es definitivo: volver a agregar al bailarín crea una
+                inscripción nueva, sin dinero.
+              </AlertDescription>
+            </Alert>
           </div>
         ) : null}
       </div>
