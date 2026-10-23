@@ -24,19 +24,15 @@ import {
   unwindToPool,
   type PoolMovement,
 } from "./allocation-pool.server";
-import type {
-  CobroResult,
-  Executor,
-} from "./choreography-cobro-support.server";
+import type { Executor } from "./choreography-cobro-support.server";
 
 export type WithdrawnTarget = Omit<PoolMovement, "amount">;
 
-/**
- * `Quitar dinero` with an amount, on a withdrawn row: an amount in between the
- * two outcomes is what the clause forbids, so the writers refuse it by name.
- */
-export const partialRetainedReleaseMessage =
-  "De una inscripción retirada se libera toda la seña retenida o nada.";
+/** Why a release on a withdrawn row had nothing to do; the caller words it. */
+export type RetentionRefusal = "no-excess" | "nothing-retained";
+
+export type RetentionResult =
+  { ok: true } | { ok: false; reason: RetentionRefusal };
 
 /**
  * Releases what a withdrawn inscription holds above the deposit it retains,
@@ -46,77 +42,76 @@ export const partialRetainedReleaseMessage =
 export async function releaseAboveRetainedDeposit(
   tx: Executor,
   withdrawn: WithdrawnTarget,
-): Promise<CobroResult> {
-  // The pool's lock first, which `unwindToPool` re-enters: the figure is read
-  // under the lock every other movement of this money takes.
-  await lockAcademyPools(tx, [withdrawn]);
-  const excess = await readExcessAboveRetained(tx, withdrawn);
-
-  return excess > 0
-    ? await unwindToPool(tx, { ...withdrawn, amount: excess })
-    : { ok: true };
+): Promise<void> {
+  await releaseDownTo(tx, withdrawn, "deposit");
 }
 
 /**
- * `Liberar el excedente` on a withdrawn row: what it holds above its deposit, for
- * a row withdrawn before the release at withdrawal existed, or whose deposit moved
- * down since. Refused when there is none, like the active row's excess.
+ * `Liberar el excedente` on a withdrawn row: what it holds above its deposit,
+ * for a row withdrawn before the release at withdrawal existed, or whose
+ * deposit moved down since (a row below its deposit is not price-locked, so its
+ * effective price can). Refused when there is none, like the active row's.
  */
 export async function releaseWithdrawnExcess(
   tx: Executor,
   withdrawn: WithdrawnTarget,
-): Promise<CobroResult> {
-  await lockAcademyPools(tx, [withdrawn]);
-  const excess = await readExcessAboveRetained(tx, withdrawn);
-
-  return excess > 0
-    ? await unwindToPool(tx, { ...withdrawn, amount: excess })
-    : {
-        ok: false,
-        message: "Esta inscripción no tiene excedente para liberar.",
-      };
+): Promise<RetentionResult> {
+  return (await releaseDownTo(tx, withdrawn, "deposit")) > 0
+    ? { ok: true }
+    : { ok: false, reason: "no-excess" };
 }
 
 /**
- * What a withdrawn inscription holds above what it retains: zero once the
- * withdrawal has released it, and more only when its deposit moved down afterwards
- * (a row below its deposit is not price-locked, so its effective price can).
- */
-async function readExcessAboveRetained(
-  tx: Executor,
-  withdrawn: WithdrawnTarget,
-): Promise<number> {
-  const [thresholds, allocatedAmount] = await Promise.all([
-    readTargetThresholds(tx, withdrawn),
-    readInscriptionAllocatedAmount(tx, withdrawn.target),
-  ]);
-
-  return (
-    allocatedAmount -
-    deriveRetainedAmount({
-      allocatedAmount,
-      depositAmount: thresholds?.depositAmount ?? null,
-    })
-  );
-}
-
-/**
- * The medical case: the whole retained deposit goes back to `Saldo disponible`,
- * and the row retains nothing. All of it or nothing, so there is no amount.
+ * The medical case: the whole retained deposit goes back to `Saldo
+ * disponible`, and the row retains nothing. All of it or nothing, so there is
+ * no amount.
  */
 export async function releaseRetainedDeposit(
   tx: Executor,
   withdrawn: WithdrawnTarget,
-): Promise<CobroResult> {
+): Promise<RetentionResult> {
+  return (await releaseDownTo(tx, withdrawn, "nothing")) > 0
+    ? { ok: true }
+    : { ok: false, reason: "nothing-retained" };
+}
+
+/**
+ * Unwinds the row down to what it keeps, its retained deposit or nothing, and
+ * answers how much it released. The pool's lock comes first, and `unwindToPool`
+ * re-enters it: the figure is read under the lock every other movement of this
+ * money takes, so the unwind cannot fall short; if it ever does, the
+ * transaction must not commit as if the money had moved.
+ */
+async function releaseDownTo(
+  tx: Executor,
+  withdrawn: WithdrawnTarget,
+  keep: "deposit" | "nothing",
+): Promise<number> {
   await lockAcademyPools(tx, [withdrawn]);
   const allocatedAmount = await readInscriptionAllocatedAmount(
     tx,
     withdrawn.target,
   );
+  const keptAmount =
+    keep === "nothing"
+      ? 0
+      : deriveRetainedAmount({
+          allocatedAmount,
+          depositAmount:
+            (await readTargetThresholds(tx, withdrawn))?.depositAmount ?? null,
+        });
+  const releasedAmount = allocatedAmount - keptAmount;
 
-  if (allocatedAmount === 0) {
-    return { ok: false, message: "Esta inscripción no retiene dinero." };
+  if (releasedAmount > 0) {
+    const unwound = await unwindToPool(tx, {
+      ...withdrawn,
+      amount: releasedAmount,
+    });
+
+    if (!unwound.ok) {
+      throw new Error(unwound.message);
+    }
   }
 
-  return await unwindToPool(tx, { ...withdrawn, amount: allocatedAmount });
+  return releasedAmount;
 }

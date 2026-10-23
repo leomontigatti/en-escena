@@ -120,17 +120,11 @@ export async function removeSeminarInscriptionFromRoster(
       .where(eq(seminarInscriptions.id, inscriptionId));
 
     if (unit) {
-      const released = await releaseAboveRetainedDeposit(tx, {
+      await releaseAboveRetainedDeposit(tx, {
         academyId: unit.academyId,
         eventId: unit.eventId,
         target: { id: inscriptionId, kind: "seminar" },
       });
-
-      // Unwinding what was just read under the pool's lock cannot fall
-      // short; if it ever does, the withdrawal must not commit as if it had.
-      if (!released.ok) {
-        throw new Error(released.message);
-      }
     }
 
     return { withdrawn: true };

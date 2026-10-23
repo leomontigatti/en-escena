@@ -55,12 +55,16 @@ import { countSeminarPlacesShort } from "@/lib/seminars/seminar-places";
 import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
 
 import {
+  lockTargetRow,
   readInscriptionAllocatedAmount,
   spreadFromPool,
   unwindToPool,
 } from "./allocation-pool.server";
 import {
   partialRetainedReleaseMessage,
+  toCobroResult,
+} from "./withdrawal-retention-refusals";
+import {
   releaseRetainedDeposit,
   releaseWithdrawnExcess,
 } from "./withdrawal-retention.server";
@@ -402,7 +406,9 @@ export async function releaseSeminarInscriptionExcess(
     }
 
     if (context.inscription.withdrawn) {
-      return await releaseWithdrawnExcess(tx, seminarPoolTarget(input));
+      return toCobroResult(
+        await releaseWithdrawnExcess(tx, seminarPoolTarget(input)),
+      );
     }
 
     const thresholds = await readSeminarInscriptionThresholds(tx, {
@@ -457,7 +463,9 @@ export async function releaseRetainedSeminarInscriptionDeposit(
       return { ok: false, message: "Esta inscripción no está retirada." };
     }
 
-    return await releaseRetainedDeposit(tx, seminarPoolTarget(input));
+    return toCobroResult(
+      await releaseRetainedDeposit(tx, seminarPoolTarget(input)),
+    );
   });
 }
 
@@ -601,6 +609,9 @@ async function loadSeminarMoneyContext(
     return { ok: false, message: seminarNotFoundMessage };
   }
 
+  // Under the row lock a withdrawal holds while it stamps the row and
+  // releases its excess, so `withdrawn` cannot go stale before the money moves.
+  await lockTargetRow(tx, { id: input.inscriptionId, kind: "seminar" });
   const [inscription] = await tx
     .select({
       academyId: seminarInscriptionPerson.academyId,

@@ -8,6 +8,7 @@ import {
   presentations,
 } from "@/db/schema";
 import { choreographyHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
+import { lockAcademyPools } from "@/lib/finances/allocation-pool.server";
 import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
 import { deleteChoreographyPresentation } from "@/lib/presentations/presentation-queries.server";
 
@@ -48,7 +49,10 @@ export async function removeChoreography(
 ): Promise<ChoreographyRemovalOutcome> {
   return await db.transaction(async (tx) => {
     const [owner] = await tx
-      .select({ eventId: choreographies.eventId })
+      .select({
+        academyId: choreographies.academyId,
+        eventId: choreographies.eventId,
+      })
       .from(choreographies)
       .where(eq(choreographies.id, choreographyId));
 
@@ -64,6 +68,12 @@ export async function removeChoreography(
       .from(events)
       .where(eq(events.id, owner.eventId))
       .for("no key update");
+
+    // The academy's pool, which a withdrawal's release takes, before the
+    // choreography's row lock: the academy merge takes the pools first and
+    // then moves the choreography rows, so taking them the other way round
+    // would let each wait on the other.
+    await lockAcademyPools(tx, [owner]);
 
     const [locked] = await tx
       .select({ withdrawnAt: choreographies.withdrawnAt })

@@ -618,9 +618,6 @@ describe("SeminarDetailView `Inscriptos`", () => {
     // with everything on it.
     expect(dialog?.textContent).not.toContain("Esta acción es irreversible.");
     expect(dialog?.textContent).toContain("queda retirada del seminario");
-    expect(dialog?.textContent).toContain(
-      "La inscripción conserva su seña, lo que tenga por encima vuelve al saldo disponible de la academia y el lugar que tenía queda libre.",
-    );
     expect(dialog?.textContent).toContain("¿Retirar la inscripción?");
     expect(
       Array.from(dialog?.querySelectorAll("button") ?? []).map((button) =>

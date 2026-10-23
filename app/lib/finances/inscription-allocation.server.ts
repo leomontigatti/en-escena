@@ -53,12 +53,16 @@ import {
   restrictedChoreographyInscriptionId,
 } from "./allocation-target.server";
 import {
+  lockTargetRow,
   readInscriptionAllocatedAmount,
   spreadFromPool,
   unwindToPool,
 } from "./allocation-pool.server";
 import {
   partialRetainedReleaseMessage,
+  toCobroResult,
+} from "./withdrawal-retention-refusals";
+import {
   releaseRetainedDeposit,
   releaseWithdrawnExcess,
 } from "./withdrawal-retention.server";
@@ -351,7 +355,9 @@ export async function releaseInscriptionExcess(
     }
 
     if (context.inscription.withdrawn) {
-      return await releaseWithdrawnExcess(tx, inscriptionPoolTarget(input));
+      return toCobroResult(
+        await releaseWithdrawnExcess(tx, inscriptionPoolTarget(input)),
+      );
     }
 
     const thresholds = await readInscriptionThresholds(tx, {
@@ -405,7 +411,9 @@ export async function releaseRetainedInscriptionDeposit(
       return { ok: false, message: "Esta inscripción no está retirada." };
     }
 
-    return await releaseRetainedDeposit(tx, inscriptionPoolTarget(input));
+    return toCobroResult(
+      await releaseRetainedDeposit(tx, inscriptionPoolTarget(input)),
+    );
   });
 }
 
@@ -633,6 +641,9 @@ async function loadInscriptionMoneyContext(
     return { ok: false, message: choreographyNotFoundMessage };
   }
 
+  // Under the row lock a withdrawal holds while it stamps the row and
+  // releases its excess, so `withdrawn` cannot go stale before the money moves.
+  await lockTargetRow(tx, choreographyTarget(input.inscriptionId));
   const inscription = await tx.query.choreographyDancers.findFirst({
     columns: { id: true, selectedPriceId: true, withdrawnAt: true },
     where: and(

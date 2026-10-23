@@ -11,6 +11,8 @@
  * excess, which is how it reaches the outcome that keeps the deposit.
  */
 
+import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import type { AllocationTargetKind } from "@/lib/finances/allocation-target.server";
@@ -41,6 +43,9 @@ export function WithdrawnInscriptionDialog({
   const fetcher = useMoneyWriteFetcher(onOpenChange);
   const formAction = useOptionalFormAction();
   const isSaving = fetcher.state !== "idle";
+  // Which release is in flight, so its button and not the other one shows the
+  // spinner.
+  const [submittedIntent, setSubmittedIntent] = useState<string | null>(null);
   const { excessAmount, retainedAmount } = readWithdrawnFigures(inscription);
   const holdsMoney = inscription.allocatedAmount > 0;
 
@@ -61,6 +66,9 @@ export function WithdrawnInscriptionDialog({
             // The button that submitted carries the intent, so the two
             // releases share one form and its target fields.
             const submitter = (event.nativeEvent as SubmitEvent).submitter;
+            setSubmittedIntent(
+              submitter instanceof HTMLButtonElement ? submitter.value : null,
+            );
             void fetcher.submit(
               submitter instanceof HTMLButtonElement
                 ? submitter
@@ -86,6 +94,12 @@ export function WithdrawnInscriptionDialog({
                 variant="outline"
                 disabled={isSaving}
               >
+                <SubmitIcon
+                  isSaving={
+                    isSaving &&
+                    submittedIntent === releaseInscriptionExcessIntent
+                  }
+                />
                 Liberar excedente {formatAmount(excessAmount)}
               </Button>
             ) : null}
@@ -106,7 +120,12 @@ export function WithdrawnInscriptionDialog({
                   variant="destructive"
                   disabled={isSaving}
                 >
-                  <SubmitIcon isSaving={isSaving} />
+                  <SubmitIcon
+                    isSaving={
+                      isSaving &&
+                      submittedIntent === releaseRetainedDepositIntent
+                    }
+                  />
                   {excessAmount > 0 ? "Liberar todo" : "Liberar"}{" "}
                   {formatAmount(inscription.allocatedAmount)}
                 </Button>

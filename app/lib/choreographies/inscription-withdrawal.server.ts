@@ -131,16 +131,10 @@ export async function releaseAboveRetainedDeposits(
     .where(inArray(choreographyDancers.id, inscriptionIds));
 
   for (const owner of owners) {
-    const released = await releaseAboveRetainedDeposit(executor, {
+    await releaseAboveRetainedDeposit(executor, {
       academyId: owner.academyId,
       eventId: owner.eventId,
       target: choreographyTarget(owner.id),
     });
-
-    // Unwinding what was just read under the pool's lock cannot fall short;
-    // if it ever does, the withdrawal must not commit with the money in place.
-    if (!released.ok) {
-      throw new Error(released.message);
-    }
   }
 }
