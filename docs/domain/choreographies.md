@@ -319,7 +319,7 @@ What the dialog announced is advisory.
 - The page survives a reload of the tab: the step is `?paso=` in the URL and the answers stay in the tab's `sessionStorage`, keyed by academy and event, until the choreography is saved or the registration cancelled. A reload drops the people and options no longer offered, lands on the first step whose answers are incomplete, and resolves the dancers again before any step after them.
 - If the level is required, registration cannot advance or confirm until academy chooses one. An optional level cannot advance either until a level or `Sin nivel` is picked; the server accepts a grupal with no level.
 - Professors are selected after the category step, before summary; registration requires at least one.
-- Registration summary shows operational data only, not price or financial info.
+- The registration summary shows operational data and one financial row, `Precio por bailarín`: the price row that applies today to the group type and schedule, split into `Derecho de inscripción` and `Derecho de participación` (#1705). It quotes nothing when no row applies, and no discount, balance or status.
 - The summary lists every dancer and professor by name, with their count, and each answer has a way back to the step that gave it; the category has none, since it follows from the dancers. Where the category admits levels it shows `Nivel de experiencia` with the chosen level or `Sin nivel`.
 - Registration does not create dancers or professors inline.
 - Music file is not uploaded during initial registration; it remains pending operational data.

@@ -61,16 +61,26 @@ export function formatExperienceLevelSummary(
   );
 }
 
+/** The schedule the registration goes into: the only one, or the one chosen. */
+export function findChosenScheduleOption(
+  resolution: RegistrationResolution,
+  scheduleCapacityId: string,
+) {
+  return resolution.schedule.status === "auto"
+    ? resolution.schedule.options[0]
+    : resolution.schedule.options.find(
+        (option) => option.id === scheduleCapacityId,
+      );
+}
+
 export function formatScheduleSummary(
   resolution: RegistrationResolution,
   scheduleCapacityId: string,
 ) {
-  const selectedOption =
-    resolution.schedule.status === "auto"
-      ? resolution.schedule.options[0]
-      : resolution.schedule.options.find(
-          (option) => option.id === scheduleCapacityId,
-        );
+  const selectedOption = findChosenScheduleOption(
+    resolution,
+    scheduleCapacityId,
+  );
 
   if (!selectedOption) {
     return "Pendiente";

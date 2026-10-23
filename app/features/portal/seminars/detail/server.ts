@@ -1,6 +1,13 @@
+import { eq } from "drizzle-orm";
+
+import { db } from "@/db";
+import { seminarPrices } from "@/db/schema";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
+import { selectCurrentSeminarPriceRow } from "@/lib/finances/seminar-inscription-price";
+import { readEventParticipation } from "@/lib/participation/participation.server";
 import { getPortalActiveEventContext } from "@/lib/portal/event-context.server";
-import { hasSeminarRegistrationPrices } from "@/lib/seminar-prices/repository.server";
+import { hasCompleteSeminarPriceCells } from "@/lib/seminar-prices/participant-cells";
+import type { SeminarPriceRow } from "@/lib/seminar-prices/repository.server";
 import {
   deleteSeminarInscriptionForAcademy,
   registerSeminarInscription,
@@ -15,7 +22,10 @@ import {
 } from "@/lib/seminars/inscription-rosters.server";
 import { readLinkedIndividualSeminarInscriptions } from "@/lib/seminars/linked-individual-inscriptions.server";
 import { hasSeminarStarted } from "@/lib/seminars/registration-window";
-import { getSeminar } from "@/lib/seminars/repository.server";
+import {
+  getSeminar,
+  type SeminarListItem,
+} from "@/lib/seminars/repository.server";
 import { doesSeminarStartBeforePaymentDeadline } from "@/lib/seminars/seminar-reservations";
 import {
   resolveInscriptionStatusBadge,
@@ -31,10 +41,12 @@ import {
   deletePortalSeminarInscriptionIntent,
   parsePortalSeminarPersonValue,
   registerPortalSeminarInscriptionIntent,
+  type PortalSeminarPersonOption,
 } from "../shared";
 import type {
   PortalSeminarDetailActionData,
   PortalSeminarDetailLoaderData,
+  PortalSeminarDetailPersonOption,
 } from "./shared";
 
 const seminarNotFoundMessage = "No encontramos ese seminario.";
@@ -63,14 +75,15 @@ export async function loadPortalSeminarDetail(input: {
     throw new Response(seminarNotFoundMessage, { status: 404 });
   }
 
-  // The price list is an event-level fact, so it is asked of the event rather
+  // The price list is an event-level fact, so it is read of the event rather
   // than of the seminar: while a participant cell has no deadline-less `Común`
-  // row, every seminar of the event is closed to registration.
+  // row, every seminar of the event is closed to registration. The same rows
+  // price each person the dialog offers.
   const now = new Date();
   const [
     inscriptions,
     people,
-    hasRegistrationPrices,
+    priceRows,
     financeRows,
     linkedIndividualInscriptions,
   ] = await Promise.all([
@@ -79,7 +92,9 @@ export async function loadPortalSeminarDetail(input: {
       eventId: activeEvent.id,
     }),
     listSeminarPersonOptionsForAcademy(academy.id),
-    hasSeminarRegistrationPrices(activeEvent.id),
+    db.query.seminarPrices.findMany({
+      where: eq(seminarPrices.eventId, activeEvent.id),
+    }),
     readSeminarInscriptionFinanceRows(
       { academyId: academy.id, eventId: activeEvent.id, seminarId },
       now,
@@ -99,6 +114,13 @@ export async function loadPortalSeminarDetail(input: {
   const registeredPersonIds = new Set(
     seminarInscriptions.map((inscription) => inscription.personId),
   );
+  // A person the academy already has actively registered is off the picker;
+  // one whose row was withdrawn is offered, and registering them inserts a
+  // new row beside the withdrawn one.
+  const pickablePeople = await withTodayPriceAmounts(
+    people.filter((person) => !registeredPersonIds.has(person.id)),
+    { eventId: activeEvent.id, priceRows, seminar },
+  );
 
   return {
     seminar: {
@@ -107,8 +129,9 @@ export async function loadPortalSeminarDetail(input: {
       scheduledDate: seminar.scheduledDate,
       startTime: seminar.startTime,
       hasStarted: hasSeminarStarted(seminar, now),
-      hasRegistrationPrices,
+      hasRegistrationPrices: hasCompleteSeminarPriceCells(priceRows),
       isFull: seminar.availablePlaces === 0,
+      requiredDepositPercentage: seminar.requiredDepositPercentage,
       startsBeforePaymentDeadline: doesSeminarStartBeforePaymentDeadline(
         seminar,
         now,
@@ -134,11 +157,46 @@ export async function loadPortalSeminarDetail(input: {
         status: null,
       })),
     ],
-    // A person the academy already has actively registered is off the picker;
-    // one whose row was withdrawn is offered, and registering them inserts a
-    // new row beside the withdrawn one.
-    people: people.filter((person) => !registeredPersonIds.has(person.id)),
+    people: pickablePeople,
   };
+}
+
+/**
+ * What registering each person would cost today: the row of the seminar's kind
+ * in their participant cell (`readSeminarParticipation`'s rule for a roster
+ * row), which is the row an unpriced inscription of theirs resolves to. The
+ * dialog quotes it, split, before the academy confirms (#1705).
+ */
+async function withTodayPriceAmounts(
+  people: PortalSeminarPersonOption[],
+  input: {
+    eventId: string;
+    priceRows: SeminarPriceRow[];
+    seminar: Pick<SeminarListItem, "kind">;
+  },
+): Promise<PortalSeminarDetailPersonOption[]> {
+  const participation = await readEventParticipation(db, {
+    dancerIds: people
+      .filter((person) => person.kind === "dancer")
+      .map((person) => person.id),
+    eventId: input.eventId,
+    professorIds: people
+      .filter((person) => person.kind === "professor")
+      .map((person) => person.id),
+  });
+
+  return people.map((person) => ({
+    ...person,
+    priceAmount:
+      selectCurrentSeminarPriceRow({
+        forParticipants: (person.kind === "dancer"
+          ? participation.dancerIds
+          : participation.professorIds
+        ).has(person.id),
+        priceRows: input.priceRows,
+        seminarKind: input.seminar.kind,
+      })?.amount ?? null,
+  }));
 }
 
 /**

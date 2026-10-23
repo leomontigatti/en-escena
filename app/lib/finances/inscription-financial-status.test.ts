@@ -8,6 +8,7 @@ import {
   deriveInscriptionFinancialFigures,
   deriveInscriptionFinancialStatus,
   resolveInscriptionStatusBadge,
+  splitInscriptionPrice,
 } from "./inscription-financial-status";
 
 // Deposit 3000, total 10000: the two thresholds of every edge case.
@@ -53,6 +54,25 @@ describe("calculateDepositAmount", () => {
         requiredDepositPercentage: 30,
       }),
     ).toBe(before);
+  });
+});
+
+describe("splitInscriptionPrice", () => {
+  test("names the deposit threshold as the registration fee and the rest as the participation fee, adding up to the price", () => {
+    // 30% of 8335 is 2500.5 and 70% is 5834.5: rounding each share on its own
+    // would quote 8336 for a price of 8335.
+    expect(
+      splitInscriptionPrice({
+        priceAmount: 8335,
+        requiredDepositPercentage: 30,
+      }),
+    ).toEqual({
+      participationFeeAmount: 5834,
+      registrationFeeAmount: calculateDepositAmount({
+        priceAmount: 8335,
+        requiredDepositPercentage: 30,
+      }),
+    });
   });
 });
 

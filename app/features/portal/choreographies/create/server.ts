@@ -1,4 +1,8 @@
+import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
+
+import { db } from "@/db";
+import { events } from "@/db/schema";
 
 import { getChoreographyRegistrationInitialOptions } from "@/lib/events/bases.server";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
@@ -14,7 +18,10 @@ import {
   type CalculationActionData,
   type CreateActionData,
 } from "@/features/portal/choreographies/create/flow";
+import type { PortalRegistrationPricing } from "@/features/portal/choreographies/create/shared";
 import { getPortalChoreographyCreationAvailability } from "@/lib/portal/choreography-creation-availability";
+import { loadEventPriceRows } from "@/lib/prices/rows.server";
+import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
 import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
@@ -36,12 +43,17 @@ export async function loadCreateChoreographyRouteData(request: Request) {
   // active people, which is what creation has always shown. The pickers sort
   // case-insensitively, which is the order the list modules used before, so
   // switching readers keeps the order creation has always shown too.
-  const [activeDancers, activeProfessors, registrationBaseOptions] =
-    await Promise.all([
-      listDancerOptionsForChoreography(academy.id, []),
-      listProfessorOptionsForChoreography(academy.id, []),
-      getChoreographyRegistrationInitialOptions(eventId),
-    ]);
+  const [
+    activeDancers,
+    activeProfessors,
+    registrationBaseOptions,
+    registrationPricing,
+  ] = await Promise.all([
+    listDancerOptionsForChoreography(academy.id, []),
+    listProfessorOptionsForChoreography(academy.id, []),
+    getChoreographyRegistrationInitialOptions(eventId),
+    loadRegistrationPricing(eventId),
+  ]);
 
   // The same rule that disables the list's button: a page reached by its URL
   // while registration is not possible would be a wizard that cannot be saved.
@@ -60,6 +72,36 @@ export async function loadCreateChoreographyRouteData(request: Request) {
     activeProfessors,
     eventId,
     registrationBaseOptions,
+    registrationPricing,
+  };
+}
+
+/** The price list the summary quotes from, slimmed to what the choice reads. */
+async function loadRegistrationPricing(
+  eventId: string,
+): Promise<PortalRegistrationPricing> {
+  const [priceRows, event] = await Promise.all([
+    loadEventPriceRows(db, eventId),
+    db.query.events.findFirst({
+      columns: { requiredDepositPercentage: true },
+      where: eq(events.id, eventId),
+    }),
+  ]);
+
+  if (!event) {
+    throw redirect(choreographiesListPath);
+  }
+
+  return {
+    businessDate: getBusinessDateOnly(),
+    priceRows: priceRows.map((row) => ({
+      id: row.id,
+      amount: row.amount,
+      groupType: row.groupType,
+      paymentDeadline: row.paymentDeadline,
+      scheduleIds: row.scheduleIds,
+    })),
+    requiredDepositPercentage: event.requiredDepositPercentage,
   };
 }
 

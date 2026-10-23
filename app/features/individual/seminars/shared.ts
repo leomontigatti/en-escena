@@ -36,6 +36,9 @@ export type IndividualSeminarRow = {
    * prices it, which a seminar open for registration rules out.
    */
   priceAmount: number | null;
+  /** The seminar's own `Seña (%)`, which splits the price into its
+   * `Derecho de inscripción` and `Derecho de participación`. */
+  requiredDepositPercentage: number;
   hasStarted: boolean;
   /** Covered and reserved inscriptions already fill the quota: a new
    * registration gets no place until one is freed. It closes nothing. */

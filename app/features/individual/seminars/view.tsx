@@ -2,6 +2,7 @@ import { Check, Info, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { useFetcher } from "react-router";
 
+import { PortalInscriptionPrice } from "@/components/portal/inscription-price";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { BlockedActionDialog } from "@/components/shared/blocked-action-dialog";
@@ -345,9 +346,9 @@ function SeminarDialog({
 }
 
 /**
- * The confirmation of a registration: the seminar, what it costs, how long
- * the place is held and, through a `Vinculado` link, that its academy will see
- * it. The dialog stays open while the request is in flight, so a refusal is
+ * The confirmation of a registration: the seminar, what it costs and the two
+ * components of that price, how long the place is held and, through a
+ * `Vinculado` link, that its academy will see it. The dialog stays open while the request is in flight, so a refusal is
  * read beside the seminar it was about; once the inscription appears on the
  * row, the page closes it.
  */
@@ -379,20 +380,20 @@ function RegisterDialog({
             value={registerIndividualSeminarInscriptionIntent}
           />
           <input type="hidden" name="seminarId" value={seminar.id} />
-          <dl className="grid grid-cols-[1fr_auto] gap-x-4 text-sm">
-            <dt className="text-muted-foreground">Precio</dt>
-            <dd className="text-right font-medium tabular-nums">
-              {formatPrice(seminar)}
-            </dd>
-          </dl>
+          {seminar.priceAmount === null ? null : (
+            <PortalInscriptionPrice
+              priceAmount={seminar.priceAmount}
+              requiredDepositPercentage={seminar.requiredDepositPercentage}
+            />
+          )}
           <AlertStack>
             {seminar.isFull ? (
               <Alert variant="warning">
                 <TriangleAlert aria-hidden="true" />
                 <AlertTitle>Cupo completo</AlertTitle>
                 <AlertDescription>
-                  Podés inscribirte igual, pero tu seña no se cubre hasta que se
-                  libere un lugar.
+                  Podés inscribirte igual, pero tu derecho de inscripción no se
+                  cubre hasta que se libere un lugar.
                 </AlertDescription>
               </Alert>
             ) : (
@@ -401,8 +402,8 @@ function RegisterDialog({
                 <AlertTitle>Reserva de lugar</AlertTitle>
                 <AlertDescription>
                   {seminar.startsBeforePaymentDeadline
-                    ? "Tenés hasta que empiece el seminario para enviar el pago de la seña. Si no lo enviás en ese plazo, la inscripción pierde su lugar."
-                    : "Tenés 48 horas para enviar el pago de la seña. Si no lo enviás en ese plazo, la inscripción pierde su lugar."}
+                    ? "Tenés hasta que empiece el seminario para enviar el pago del derecho de inscripción. Si no lo enviás en ese plazo, la inscripción pierde su lugar."
+                    : "Tenés 48 horas para enviar el pago del derecho de inscripción. Si no lo enviás en ese plazo, la inscripción pierde su lugar."}
                 </AlertDescription>
               </Alert>
             )}

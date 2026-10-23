@@ -136,6 +136,7 @@ function toSeminarFacts(seminar: SeminarListItem, now: Date): SeminarFacts {
     instructorName: seminar.instructorName,
     scheduledDate: seminar.scheduledDate,
     startTime: seminar.startTime,
+    requiredDepositPercentage: seminar.requiredDepositPercentage,
     hasStarted: hasSeminarStarted(seminar, now),
     isFull: seminar.availablePlaces === 0,
     startsBeforePaymentDeadline: doesSeminarStartBeforePaymentDeadline(

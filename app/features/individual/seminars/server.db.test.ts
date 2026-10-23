@@ -152,6 +152,8 @@ describe("the individual's `Seminarios`", () => {
           scheduledDate: "2099-10-10",
           startTime: "18:30",
           priceAmount: ordinaryPrice,
+          requiredDepositPercentage:
+            defaultSeminarFacts.requiredDepositPercentage,
           hasStarted: false,
           isFull: false,
           startsBeforePaymentDeadline: false,
