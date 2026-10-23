@@ -919,7 +919,7 @@ seña)`; one holding less keeps what it has and owes nothing more. Inaction now
 - **Rows withdrawn before this held everything.** A one-time cleanup that ships
   with the change releases what each of them holds above its seña, through the
   same release, rather than a release-the-excess button that would live on for a
-  case the withdrawal no longer produces.
+  case the withdrawal no longer produces. It ran in production on 2026-10-23.
 
 What it fixes on the fiscal side: with the retained amount fixed at withdrawal,
 `NC = línea facturada − retenido` is known the moment the row is withdrawn, so

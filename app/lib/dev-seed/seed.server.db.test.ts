@@ -348,8 +348,8 @@ describe("dev seed", () => {
     }
     // Its withdrawal retained the 7500 deposit and released the rest (#1065).
     await expect(allocatedTo("Marea Alta")).resolves.toEqual([7500]);
-    // Withdrawn the way rows were before that: all of it kept, 2500 above the
-    // deposit, for the one-time cleanup and the dialog's `de más`.
+    // Withdrawn without that release: all of it kept, 2500 above the deposit,
+    // for the dialog's `de más`.
     await expect(allocatedTo("Bruma")).resolves.toEqual([10000]);
 
     // One schedule is evaluated, so its numbered presentations are frozen
