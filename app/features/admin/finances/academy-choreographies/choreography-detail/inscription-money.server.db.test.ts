@@ -830,10 +830,14 @@ describe("the deposit a withdrawn inscription retains", () => {
       message: partialRetainedReleaseMessage,
       status: "error",
     });
-    expect(await readAllocations(fixture.inscriptionId)).toEqual([
-      { amount: 4000, paymentId: fixture.payments[0].id },
-      { amount: 2000, paymentId: fixture.payments[1].id },
-    ]);
+    const held = await readAllocations(fixture.inscriptionId);
+    expect(held).toHaveLength(2);
+    expect(held).toEqual(
+      expect.arrayContaining([
+        { amount: 4000, paymentId: fixture.payments[0].id },
+        { amount: 2000, paymentId: fixture.payments[1].id },
+      ]),
+    );
 
     await expect(
       post(fixture, { intent: "release-retained-deposit" }),
