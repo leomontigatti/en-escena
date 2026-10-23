@@ -29,7 +29,6 @@ import {
   lockScheduleAcceptance,
   priceDivergenceScheduleCapacityMessage,
 } from "@/lib/choreographies/schedule-capacity-lock.server";
-import { lockAcademyPools } from "@/lib/finances/allocation-pool.server";
 import { hasGroupTypePinnedInscription } from "@/lib/finances/choreography-price-divergence-guard.server";
 import {
   isExperienceLevel,
@@ -118,13 +117,6 @@ export async function saveChoreographyDraft(input: {
         tx,
         choreographyAnchor(input.choreography.id),
       );
-      // A dancer withdrawn here releases what is above their deposit, which
-      // takes the academy's pool lock. Taken now, before the choreography's
-      // row lock, in the order the academy merge takes them (pools, then the
-      // rows it moves), so the two cannot each hold what the other waits on.
-      await lockAcademyPools(tx, [
-        { academyId: input.choreography.academyId, eventId: input.eventId },
-      ]);
     }
 
     return await writeDraft({

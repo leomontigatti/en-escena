@@ -57,6 +57,18 @@ export async function mergeAcademies(input: {
     // moves payments and allocations between them, and a spread already
     // reading one of them finishes first. Taken ahead of the academy lock,
     // because a spread holding its pool lock needs the academy row to insert.
+    //
+    // The removed academy's choreography rows come before them, by id: a
+    // withdrawal (`Eliminar coreografía`, a roster save) holds a choreography
+    // row and then takes the pool to release what its inscriptions hold above
+    // their deposit, so the merge, which moves those rows, takes them in the
+    // same order.
+    await tx
+      .select({ id: choreographies.id })
+      .from(choreographies)
+      .where(eq(choreographies.academyId, input.removedId))
+      .orderBy(asc(choreographies.id))
+      .for("update");
     const eventRows = await tx.select({ id: events.id }).from(events);
     await lockAcademyPools(
       tx,
