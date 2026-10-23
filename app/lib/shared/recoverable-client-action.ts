@@ -32,6 +32,16 @@ function isUnexpectedActionError(data: unknown): data is UnexpectedActionError {
 }
 
 /**
+ * Whether a result is the generic failure itself, the one a throw became, as
+ * opposed to an error the action returned on purpose. A caller that must tell
+ * "the server refused" from "nobody knows what happened" asks this; matching
+ * by shape cannot, since both read `{ status: "error", message }`.
+ */
+function isThrownActionResult(data: unknown): boolean {
+  return data === unexpectedActionError;
+}
+
+/**
  * Wraps a route's `serverAction` so an unexpected failure becomes a returned
  * error result instead of an error the router routes to the boundary, which
  * would unmount the open dialog or form together with the typed values.
@@ -57,6 +67,7 @@ async function recoverableClientAction<Result>(
 
 export {
   type UnexpectedActionError,
+  isThrownActionResult,
   isUnexpectedActionError,
   recoverableClientAction,
 };

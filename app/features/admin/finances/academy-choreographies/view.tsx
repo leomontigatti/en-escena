@@ -34,6 +34,8 @@ import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
+import { BulkEmissionBlockedDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
+import { BulkEmissionDialog } from "@/features/admin/finances/comprobante-emission/bulk-dialog";
 import { FinancePresetDialog } from "./preset-dialog";
 import { financePresetLabels, type FinancePresetTarget } from "./presets";
 import { SeminarPresetDialog } from "./seminar-preset-dialog";
@@ -101,6 +103,14 @@ export function AcademyFinancesRouteView({
       ? null
       : { stage: initialPresetStage, target: presetTargetOf(activeTab) },
   );
+  // The selection a bulk emission was opened on, and whether a live
+  // reservation blocked it then: both held, so the run keeps its rows and its
+  // dialog whatever the list reads after each emission, a reservation the run
+  // itself left behind included.
+  const [bulkEmission, setBulkEmission] = useState<{
+    ids: string[];
+    blockedReason: string | null;
+  } | null>(null);
   const activeTarget = presetTargetOf(activeTab);
   const canCollect =
     activeTarget === "seminars"
@@ -155,6 +165,22 @@ export function AcademyFinancesRouteView({
             }
           >
             {financePresetLabels.balance}
+          </DropdownMenuItem>
+          {/* The choreographies' only: it acts on the choreography tab's
+              selection, and a seminar unit emits from its own detail. */}
+          <DropdownMenuItem
+            disabled={
+              activeTarget !== "choreographies" ||
+              !choreographyTotals.hasSelection
+            }
+            onSelect={() =>
+              setBulkEmission({
+                ids: choreographyTotals.selectedRows.map((row) => row.id),
+                blockedReason: loaderData.bulkEmission.blocked?.reason ?? null,
+              })
+            }
+          >
+            Emitir comprobantes
           </DropdownMenuItem>
         </ResourceActionsMenu>
       }
@@ -238,6 +264,22 @@ export function AcademyFinancesRouteView({
           }
           selectedRows={choreographyTotals.selectedRows}
           stage={preset.stage}
+        />
+      ) : null}
+      {bulkEmission?.blockedReason ? (
+        <BulkEmissionBlockedDialog
+          onOpenChange={() => setBulkEmission(null)}
+          open
+          reason={bulkEmission.blockedReason}
+        />
+      ) : null}
+      {bulkEmission && bulkEmission.blockedReason === null ? (
+        <BulkEmissionDialog
+          bulkEmission={loaderData.bulkEmission}
+          choreographies={loaderData.choreographyFinanceRows}
+          onOpenChange={() => setBulkEmission(null)}
+          open
+          selectedIds={bulkEmission.ids}
         />
       ) : null}
       {preset?.target === "seminars" && seminarTotals.hasSelection ? (

@@ -1,14 +1,37 @@
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
+import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { choreographies, events, scheduleCapacities } from "@/db/schema";
 import {
   readFinanceAcademy,
   readFinanceAcademyId,
 } from "@/features/admin/finances/academy.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
+import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import { deriveUnitBillingStatus } from "@/lib/comprobantes/anchor-billing";
-import { readAcademyAnchorBilling } from "@/lib/comprobantes/anchor-billing.server";
+import {
+  deriveAcademyAnchorBilling,
+  readAcademyAnchorDocuments,
+} from "@/lib/comprobantes/anchor-billing.server";
+import type { ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
+import { getComprobanteEmissionDeps } from "@/lib/comprobantes/emission-config.server";
+import type { BulkEmission } from "@/features/admin/finances/comprobante-emission/bulk";
+import { readChoreographyBulkEmission } from "@/features/admin/finances/comprobante-emission/bulk.server";
+import {
+  handleAbandonReservation,
+  handleBulkEmitComprobante,
+  handleRecheckComprobante,
+} from "@/features/admin/finances/comprobante-emission/handlers.server";
+import {
+  abandonReservationIntent,
+  emitComprobanteIntent,
+  recheckComprobanteIntent,
+} from "@/features/admin/finances/comprobante-emission/shared";
+import {
+  bulkChoreographyIdField,
+  type BulkEmissionActionData,
+} from "@/features/admin/finances/comprobante-emission/bulk";
 import { calculateDepositAmount } from "@/lib/finances/inscription-financial-status";
 import { loadEventPriceRows } from "@/lib/prices/rows.server";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
@@ -88,19 +111,34 @@ export async function loadAcademyFinances(input: {
           }),
         ]);
 
-  // Each unit's comprobante status, the second badge of its `Estado`.
-  const billing =
+  // Each unit's comprobante status, the second badge of its `Estado`, and
+  // what a bulk emission would emit for each choreography, off one read of
+  // the academy's comprobantes.
+  const documents =
     eventContext.selectedEventId === null
       ? undefined
-      : await readAcademyAnchorBilling({
+      : await readAcademyAnchorDocuments({
           academyId: academy.id,
           eventId: eventContext.selectedEventId,
-          choreographyInscriptions: financeDetail.inscriptions,
-          seminarInscriptions: financeDetail.seminarInscriptions,
         });
+  const billing =
+    documents &&
+    deriveAcademyAnchorBilling({
+      documents,
+      choreographyInscriptions: financeDetail.inscriptions,
+      seminarInscriptions: financeDetail.seminarInscriptions,
+    });
+  const bulkEmission: BulkEmission = documents
+    ? await readChoreographyBulkEmission({
+        rows: financeDetail.choreographyFinanceRows,
+        inscriptions: financeDetail.inscriptions,
+        documents: documents.choreographies,
+      })
+    : emptyBulkEmission();
 
   return {
     academy,
+    bulkEmission,
     choreographyFinanceRows: financeDetail.choreographyFinanceRows.map(
       (row) => ({
         ...row,
@@ -142,7 +180,9 @@ export async function loadAcademyFinances(input: {
 export async function handleAcademyFinancesAction(input: {
   params: { academyId?: string };
   request: Request;
-}): Promise<AcademyFinancesActionData | never> {
+  // Injectable emission inputs: the tests pass a mocked ARCA client.
+  resolveEmissionDeps?: () => ComprobanteEmissionDeps;
+}): Promise<AcademyFinancesActionData | BulkEmissionActionData | never> {
   await requireAdminPanelWriter(input.request);
   const academyId = readFinanceAcademyId(input.params);
   const eventContext = await loadEventContext(input.request);
@@ -155,7 +195,20 @@ export async function handleAcademyFinancesAction(input: {
   }
 
   const formData = await readFormData(input.request);
-  const preset = financePresetAction(String(formData.get("intent") ?? ""));
+  const intent = String(formData.get("intent") ?? "");
+
+  if (emissionIntents.has(intent)) {
+    return await runBulkEmissionIntent({
+      academyId,
+      eventId: eventContext.selectedEventId,
+      formData,
+      intent,
+      resolveEmissionDeps:
+        input.resolveEmissionDeps ?? getComprobanteEmissionDeps,
+    });
+  }
+
+  const preset = financePresetAction(intent);
 
   if (preset === null) {
     throw new Response("Acción no soportada.", { status: 400 });
@@ -187,6 +240,67 @@ export async function handleAcademyFinancesAction(input: {
   return {
     status: "success",
     message: `${financePresetLabels[stage]}: asignamos lo que adeudaban ${target === "seminars" ? "los seminarios elegidos" : "las coreografías elegidas"}.`,
+  };
+}
+
+const emissionIntents = new Set([
+  emitComprobanteIntent,
+  recheckComprobanteIntent,
+  abandonReservationIntent,
+]);
+
+/**
+ * One request of a bulk emission (#617), and the two ways out of the attempt
+ * that halted it: the detail's own intents, posted from the list for the
+ * choreography the run is on. The choreography must be this academy's; the
+ * emitter checks the event.
+ */
+async function runBulkEmissionIntent(input: {
+  academyId: string;
+  eventId: string;
+  formData: FormData;
+  intent: string;
+  resolveEmissionDeps: () => ComprobanteEmissionDeps;
+}): Promise<BulkEmissionActionData> {
+  const choreographyId = String(
+    input.formData.get(bulkChoreographyIdField) ?? "",
+  ).trim();
+  const [choreography] = choreographyId
+    ? await db
+        .select({ academyId: choreographies.academyId })
+        .from(choreographies)
+        .where(eq(choreographies.id, choreographyId))
+    : [];
+
+  if (choreography?.academyId !== input.academyId) {
+    return { status: "error", message: choreographyNotFoundMessage };
+  }
+
+  const context = {
+    anchor: choreographyAnchor(choreographyId),
+    eventId: input.eventId,
+    formData: input.formData,
+    resolveEmissionDeps: input.resolveEmissionDeps,
+  };
+
+  if (input.intent === emitComprobanteIntent) {
+    return await handleBulkEmitComprobante(context);
+  }
+
+  // Neither redirects: re-checking and abandoning answer in place, and the
+  // detail URL they take is only used on the emission's happy path.
+  const detailed = { ...context, detailUrl: "" };
+
+  return input.intent === recheckComprobanteIntent
+    ? await handleRecheckComprobante(detailed)
+    : await handleAbandonReservation(detailed);
+}
+
+function emptyBulkEmission(): BulkEmission {
+  return {
+    plans: {},
+    cbteFch: { today: "", floors: {} },
+    blocked: null,
   };
 }
 

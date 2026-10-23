@@ -670,7 +670,7 @@ const confirmationShared = {
     },
     messages: {
       inline:
-        "Use a confirmation from app/components/shared (`ConfirmationDialog`, `DeleteDialog`, `WithdrawDialog`, `BlockedActionDialog`, `ArcaConfirmationDialog`) instead of an `AlertDialog` in a view: the shared one owns the question, the footer and the pending state, so every confirmation reads and behaves the same. A new kind of confirmation gets its own component there (style guide, Destructive actions).",
+        "Use a confirmation from app/components/shared (`ConfirmationDialog`, `DeleteDialog`, `WithdrawDialog`, `BlockedActionDialog`, `ArcaConfirmationDialog`, `BulkRunDialog`) instead of an `AlertDialog` in a view: the shared one owns the question, the footer and the pending state, so every confirmation reads and behaves the same. A new kind of confirmation gets its own component there (style guide, Destructive actions).",
     },
     schema: [],
   },

@@ -93,7 +93,7 @@ export async function readAnchorBilling(input: {
  * adds the academy's comprobantes and their lines, two queries whatever the
  * number of units, and hands each unit to `deriveAnchorBilling`.
  */
-export async function readAcademyAnchorBilling(input: {
+async function readAcademyAnchorBilling(input: {
   academyId: string;
   // Narrows the read to one anchor, for a financial detail.
   anchor?: ComprobanteAnchor;
@@ -102,6 +102,28 @@ export async function readAcademyAnchorBilling(input: {
   seminarInscriptions: readonly SeminarUnitInscription[];
   today?: string;
 }): Promise<AcademyAnchorBilling> {
+  return deriveAcademyAnchorBilling({
+    ...input,
+    documents: await readAcademyAnchorDocuments(input),
+  });
+}
+
+/**
+ * Every comprobante of one academy in one event, with what its lines document,
+ * grouped by the unit it belongs to and in emission order: the side of the
+ * delta the documents hold, for the finance list to read the billing status
+ * and plan a bulk emission off one read.
+ */
+export type AcademyAnchorDocuments = {
+  choreographies: Map<string, DocumentedComprobante[]>;
+  seminars: Map<string, DocumentedComprobante[]>;
+};
+
+export async function readAcademyAnchorDocuments(input: {
+  academyId: string;
+  anchor?: ComprobanteAnchor;
+  eventId: string;
+}): Promise<AcademyAnchorDocuments> {
   // Only what the delta reads: the kind, the total, the star and the lines.
   const rows = await db
     .select({
@@ -141,9 +163,9 @@ export async function readAcademyAnchorBilling(input: {
               rows.map((row) => row.id),
             ),
           );
-  const documentsByUnit = {
-    choreographies: new Map<string, DocumentedComprobante[]>(),
-    seminars: new Map<string, DocumentedComprobante[]>(),
+  const documentsByUnit: AcademyAnchorDocuments = {
+    choreographies: new Map(),
+    seminars: new Map(),
   };
 
   for (const row of rows) {
@@ -171,17 +193,27 @@ export async function readAcademyAnchorBilling(input: {
     units.set(unitId, documents);
   }
 
+  return documentsByUnit;
+}
+
+/** `readAcademyAnchorBilling` over documents already read. */
+export function deriveAcademyAnchorBilling(input: {
+  documents: AcademyAnchorDocuments;
+  choreographyInscriptions: readonly ChoreographyUnitInscription[];
+  seminarInscriptions: readonly SeminarUnitInscription[];
+  today?: string;
+}): AcademyAnchorBilling {
   const today = input.today ?? getBusinessDateOnly();
 
   return {
     choreographies: readUnits(
-      documentsByUnit.choreographies,
+      input.documents.choreographies,
       input.choreographyInscriptions,
       (inscription) => inscription.choreographyId,
       today,
     ),
     seminars: readUnits(
-      documentsByUnit.seminars,
+      input.documents.seminars,
       input.seminarInscriptions,
       (inscription) => inscription.seminarId,
       today,
