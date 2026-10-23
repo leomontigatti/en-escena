@@ -17,11 +17,11 @@ import { createSeminar } from "@/lib/seminars/repository.server";
 // withdrawn the old way, and the seminar side.
 
 /**
- * Withdrawn the way a row was before #1065, with no release: it keeps all
- * 10000 and so holds 2500 above its 7500 deposit, the state
- * `scripts/release-withdrawn-excess.ts` cleans up and the withdrawn row's
- * dialog names as `de más`. Stamped directly, because no path withdraws like
- * that any more.
+ * A withdrawn row holding more than its deposit: it keeps all 10000, 2500
+ * above its 7500 deposit, the state the withdrawn row's dialog names as
+ * `de más` (a row reaches it when its deposit moves down after the
+ * withdrawal). Stamped directly, the way a row was withdrawn before #1065,
+ * because no path withdraws like that any more.
  */
 export async function stampLegacyWithdrawal(choreographyId: string, now: Date) {
   await db

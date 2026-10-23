@@ -942,10 +942,9 @@ money dialog has no amount field: it says the money is the retained deposit and 
 one `Liberar` for all of it. `Quitar dinero` with an amount is refused there, and so
 is any allocation: the row owes nothing, and the write path agrees with the read
 path that it does, and so is releasing just the excess. The rows withdrawn before the
-release existed held more than their deposit; a one-time cleanup that ships with it,
-`scripts/release-withdrawn-excess.ts` (a dry run, then `--apply`), released what they
-held above it, through the same release; production gets its figures as one checked
-transaction, `scripts/release-withdrawn-excess.sql`. A row whose deposit moved down since its
+release existed held more than their deposit; on 2026-10-23 a one-time cleanup released
+what they held above it in production, through the same release, and so brought each
+down to its deposit (its script is in git history at be14194d). A row whose deposit moved down since its
 withdrawal (a row below its deposit is not price-locked) can still hold more; its
 dialog says so, and its one `Liberar` still takes all of it.
 
