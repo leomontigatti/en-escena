@@ -1,6 +1,7 @@
 import { PortalPageHeader } from "@/components/portal/ui";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ChoreographyStatusBadge } from "@/components/shared/choreography-status-badge";
+import { resolveChoreographyLocks } from "@/lib/choreographies/choreography-locks";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { OperationalStatusSummary } from "@/features/portal/choreographies/detail/operational-status-summary";
 import { ChoreographyMusicEditorForm } from "@/features/portal/choreographies/detail/music-editor-form";
@@ -18,11 +19,16 @@ export function PortalChoreographyDetailRouteView({
   loaderData,
   actionData,
 }: PortalChoreographyDetailRouteViewProps) {
-  // A withdrawn choreography is read-only in the portal, music included, so the
-  // `Falta cargar …` alert would ask the academy for something it cannot do.
+  // Once the academy's pending data is closed — withdrawn, or evaluated — the
+  // `Falta cargar …` alert would ask it for something it cannot do.
+  const { choreography } = loaderData;
   const hasOperationalStatusAlert =
-    !loaderData.choreography.isWithdrawn &&
-    loaderData.choreography.operationalStatus.pendingItems.length > 0;
+    !resolveChoreographyLocks({
+      actor: "academy",
+      isEvaluated: choreography.isEvaluated,
+      isWithdrawn: choreography.isWithdrawn,
+    }).pendingOperationalChoreographyData.locked &&
+    choreography.operationalStatus.pendingItems.length > 0;
 
   return (
     <section

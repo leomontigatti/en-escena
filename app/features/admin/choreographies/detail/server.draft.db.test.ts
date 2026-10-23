@@ -36,7 +36,13 @@ import {
   invalidExperienceLevelMessage,
   noCompatibleCategoryModalityMessage,
 } from "@/lib/choreographies/choreography-messages";
-import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-locks";
+import {
+  evaluatedChoreographyMessage,
+  withdrawnChoreographyMessage,
+} from "@/lib/choreographies/choreography-locks";
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
+import { findChoreographyDetail } from "@/features/admin/choreographies/detail/choreography-queries.server";
+import { saveChoreographyDraft } from "@/features/admin/choreographies/detail/draft-save.server";
 import {
   createAcademySession,
   createDancer,
@@ -846,6 +852,49 @@ describe("saving a draft of the choreography detail", () => {
       groupType: "solo",
       name: "Otro Nombre",
     });
+  });
+
+  // The action reads the choreography before the save takes its row lock, so
+  // a withdrawal that commits in between is only seen under the lock.
+  test("refuses a save whose choreography was withdrawn after it was read", async () => {
+    const scenario = await createDraftScenario({ slug: "retirada-en-vuelo" });
+    const draft = scenario.draft({
+      dancerIds: [scenario.ana.id, scenario.bea.id],
+      scheduleCapacityId: scenario.catalog.duoScheduleCapacity.id,
+    });
+    const preview = await scenario.resolveDraft(draft);
+    const readBeforeTheWithdrawal = await findChoreographyDetail({
+      choreographyId: scenario.choreography.id,
+      selectedEventId: scenario.event.id,
+    });
+
+    await withdrawChoreographyForTest(scenario.choreography.id);
+
+    const response = await saveChoreographyDraft({
+      choreography: readBeforeTheWithdrawal!,
+      eventId: scenario.event.id,
+      formData: toChoreographyDraftFormData({
+        draft,
+        intent: saveChoreographyDraftIntent,
+        previewedCategoryId: preview.category?.id ?? null,
+      }),
+    });
+
+    expect(response).toEqual({
+      message: withdrawnChoreographyMessage,
+      status: "error",
+    });
+    await expect(
+      db
+        .select({ id: choreographyDancers.id })
+        .from(choreographyDancers)
+        .where(
+          and(
+            eq(choreographyDancers.choreographyId, scenario.choreography.id),
+            isNull(choreographyDancers.withdrawnAt),
+          ),
+        ),
+    ).resolves.toEqual([]);
   });
 
   test("writes whether the choreography is evaluated as professional", async () => {

@@ -26,6 +26,7 @@ import {
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
 import { buildDancerBirthDateScheduleMoveMessages } from "@/lib/choreographies/dancer-birthdate-messages";
 import { createAcademySession } from "@/lib/choreographies/registration.test-support";
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import {
   experienceLevelLabels,
   isExperienceLevel,
@@ -178,6 +179,52 @@ describe("dancer birth date choreography correction", () => {
     await expectDancerAgeLink(preserveChoreography.id, correctedDancer.id, 15);
     await expectDancerAgeLink(clearChoreography.id, correctedDancer.id, 15);
     await expectDancerAgeLink(presentedChoreography.id, correctedDancer.id, 12);
+  });
+
+  test("leaves a withdrawn choreography where it was", async () => {
+    const academy = await createAcademySession({
+      academyName: "Academia Retiro",
+      email: "admin.birthdate.withdrawn@example.com",
+    });
+    const correctedDancer = await createDancer(academy.academyId, {
+      firstName: "Rita",
+      lastName: "Retirada",
+      birthDate: "2014-05-01",
+    });
+    const catalog = await createCorrectionCatalog({
+      categoryRequiresLevelOnOlderRange: true,
+      eventName: "Retirada",
+    });
+    const withdrawnChoreography = await createLinkedChoreography({
+      academyId: academy.academyId,
+      categoryId: catalog.youngerCategory.id,
+      eventId: catalog.event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Retirada",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+    });
+
+    await db.insert(choreographyDancers).values({
+      choreographyId: withdrawnChoreography.id,
+      dancerId: correctedDancer.id,
+      ageAtEventStart: 12,
+    });
+    await withdrawChoreographyForTest(withdrawnChoreography.id);
+    await db
+      .update(dancers)
+      .set({ birthDate: "2011-05-01" })
+      .where(eq(dancers.id, correctedDancer.id));
+
+    await expect(recalculateInTransaction(correctedDancer.id)).resolves.toEqual(
+      { ok: true, recategorisedChoreographies: [], scheduleMoves: [] },
+    );
+    await expectChoreographyState(withdrawnChoreography.id, {
+      categoryId: catalog.youngerCategory.id,
+      categoryCalculationMode: "oldest",
+      categoryAgeBasis: 12,
+      experienceLevelId: catalog.level.id,
+    });
   });
 
   test("refuses a correction that would leave the solo without a category", async () => {

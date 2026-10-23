@@ -67,24 +67,31 @@ describe("PortalChoreographyDetailRouteView", () => {
     expect(takingPart).not.toContain("no puede modificarse");
   });
 
-  // The alert asks the academy to load what is missing, and a withdrawn
-  // choreography accepts nothing: only an administrator brings it back.
-  test("hides the pending-items alert while the choreography is withdrawn", () => {
-    const markup = renderChoreographyDetail({
-      loaderData: choreographyDetailLoaderData({
-        choreography: choreographyDetailRow({
-          isWithdrawn: true,
-          operationalStatus: {
-            code: "incomplete",
-            pendingItems: ["experienceLevel", "professors"],
-          },
+  // The alert asks the academy to load what is missing, and neither a
+  // withdrawn nor an evaluated choreography accepts it any more.
+  test.each([
+    { isEvaluated: false, isWithdrawn: true, state: "withdrawn" },
+    { isEvaluated: true, isWithdrawn: false, state: "evaluated" },
+  ])(
+    "hides the pending-items alert while the choreography is $state",
+    (facts) => {
+      const markup = renderChoreographyDetail({
+        loaderData: choreographyDetailLoaderData({
+          choreography: choreographyDetailRow({
+            isEvaluated: facts.isEvaluated,
+            isWithdrawn: facts.isWithdrawn,
+            operationalStatus: {
+              code: "incomplete",
+              pendingItems: ["experienceLevel", "professors"],
+            },
+          }),
         }),
-      }),
-    });
+      });
 
-    expect(markup).not.toContain("Faltan cargar");
-    expect(markup).not.toContain("Falta cargar");
-  });
+      expect(markup).not.toContain("Faltan cargar");
+      expect(markup).not.toContain("Falta cargar");
+    },
+  );
 
   // #1265: the portal reads in the same order as the administration detail,
   // and the dancers show the age they were placed with.

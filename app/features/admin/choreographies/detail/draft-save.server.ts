@@ -404,6 +404,7 @@ async function writeDraft(input: {
       professionalEvaluation: choreographies.professionalEvaluation,
       scheduleCapacityId: choreographies.scheduleCapacityId,
       scheduleId: choreographies.scheduleId,
+      withdrawnAt: choreographies.withdrawnAt,
     })
     .from(choreographies)
     .where(eq(choreographies.id, choreography.id))
@@ -415,20 +416,22 @@ async function writeDraft(input: {
     return refuse(divergedResolutionMessage);
   }
 
-  if (isStructuralDraft(choreography, draft, write.resolution)) {
-    // The evaluation is asked again under the row lock: a judge's score that
-    // landed after the preview closes the structure all the same.
-    const reason = readDataLockReason(
-      resolveChoreographyLocks({
-        actor: "admin",
-        isEvaluated: await hasEvaluatedPresentation(choreography.id, tx),
-        isWithdrawn: choreography.isWithdrawn,
-      }).lockedChoreographyData,
-    );
+  // Both states are asked again under the row lock: a withdrawal or a judge's
+  // score that committed after the action read the choreography closes the
+  // save all the same. A withdrawal closes even the name.
+  const locks = resolveChoreographyLocks({
+    actor: "admin",
+    isEvaluated: await hasEvaluatedPresentation(choreography.id, tx),
+    isWithdrawn: locked.withdrawnAt !== null,
+  });
+  const reason = readDataLockReason(
+    isStructuralDraft(choreography, draft, write.resolution)
+      ? locks.lockedChoreographyData
+      : locks.rename,
+  );
 
-    if (reason) {
-      return refuse(adminLockRefusals[reason]);
-    }
+  if (reason) {
+    return refuse(adminLockRefusals[reason]);
   }
 
   if (await isGroupTypePinned(input)) {
