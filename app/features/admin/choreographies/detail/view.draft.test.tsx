@@ -37,6 +37,7 @@ import {
   updateReactDomForm,
   waitFor,
 } from "@/lib/test-support/react-dom";
+import { resolveChoreographyLocks } from "@/lib/choreographies/choreography-locks";
 
 const renderer = createReactDomTestRenderer();
 
@@ -624,6 +625,11 @@ function buildLoaderData(
       outcome: "deleted",
     },
     draft: input.draft ?? buildPreview(),
+    locks: resolveChoreographyLocks({
+      actor: input.canEdit === false ? "auditor" : "admin",
+      isEvaluated: input.isEvaluated ?? false,
+      isWithdrawn: false,
+    }),
     modality: {
       blockers: [],
       options: [

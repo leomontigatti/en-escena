@@ -6,6 +6,11 @@ import {
   assertPortalChoreographyFound,
   portalOwnedChoreographyWhere,
 } from "@/lib/choreographies/choreography-access.server";
+import {
+  academyPendingOperationalRefusals,
+  readDataLockReason,
+  resolveChoreographyLocks,
+} from "@/lib/choreographies/choreography-locks";
 import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
 
 export type UpdateChoreographyProfessionalEvaluationResult =
@@ -45,25 +50,27 @@ export async function updateChoreographyProfessionalEvaluation(input: {
       return { ok: true };
     }
 
-    if (found.withdrawnAt) {
-      return {
-        ok: false,
-        message:
-          "No podés cambiar cómo se evalúa porque la coreografía está retirada.",
-      };
-    }
-
+    // The presentations are locked before the evaluation is read, against a
+    // judge's save, which locks the presentation it scores.
     await tx
       .select({ id: presentations.id })
       .from(presentations)
       .where(eq(presentations.choreographyId, input.choreographyId))
       .for("update");
 
-    if (await hasEvaluatedPresentation(input.choreographyId, tx)) {
+    const reason = readDataLockReason(
+      resolveChoreographyLocks({
+        actor: "academy",
+        isEvaluated: await hasEvaluatedPresentation(input.choreographyId, tx),
+        isWithdrawn: found.withdrawnAt !== null,
+      }).pendingOperationalChoreographyData,
+    );
+
+    if (reason) {
       return {
         ok: false,
         message:
-          "No podés cambiar cómo se evalúa porque la coreografía ya fue evaluada.",
+          academyPendingOperationalRefusals.professionalEvaluation[reason],
       };
     }
 

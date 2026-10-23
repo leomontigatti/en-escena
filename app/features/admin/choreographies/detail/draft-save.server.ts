@@ -5,10 +5,12 @@ import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import { lockComprobanteAnchor } from "@/lib/comprobantes/anchor-lock.server";
 import { choreographies, choreographyDancers } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
+import { groupTypePinnedPriceMessage } from "@/lib/choreographies/choreography-messages";
 import {
-  evaluatedChoreographyMessage,
-  groupTypePinnedPriceMessage,
-} from "@/lib/choreographies/choreography-messages";
+  adminLockRefusals,
+  readDataLockReason,
+  resolveChoreographyLocks,
+} from "@/lib/choreographies/choreography-locks";
 import { validateChoreographyName } from "@/lib/choreographies/choreography-name";
 import { syncRosterInscriptions } from "@/lib/choreographies/choreography-roster-admin.server";
 import {
@@ -402,6 +404,7 @@ async function writeDraft(input: {
       professionalEvaluation: choreographies.professionalEvaluation,
       scheduleCapacityId: choreographies.scheduleCapacityId,
       scheduleId: choreographies.scheduleId,
+      withdrawnAt: choreographies.withdrawnAt,
     })
     .from(choreographies)
     .where(eq(choreographies.id, choreography.id))
@@ -413,11 +416,22 @@ async function writeDraft(input: {
     return refuse(divergedResolutionMessage);
   }
 
-  if (
-    isStructuralDraft(choreography, draft, write.resolution) &&
-    (await hasEvaluatedPresentation(choreography.id, tx))
-  ) {
-    return refuse(evaluatedChoreographyMessage);
+  // Both states are asked again under the row lock: a withdrawal or a judge's
+  // score that committed after the action read the choreography closes the
+  // save all the same. A withdrawal closes even the name.
+  const locks = resolveChoreographyLocks({
+    actor: "admin",
+    isEvaluated: await hasEvaluatedPresentation(choreography.id, tx),
+    isWithdrawn: locked.withdrawnAt !== null,
+  });
+  const reason = readDataLockReason(
+    isStructuralDraft(choreography, draft, write.resolution)
+      ? locks.lockedChoreographyData
+      : locks.rename,
+  );
+
+  if (reason) {
+    return refuse(adminLockRefusals[reason]);
   }
 
   if (await isGroupTypePinned(input)) {
@@ -430,7 +444,10 @@ async function writeDraft(input: {
     return placement;
   }
 
-  await writeDraftPeople(input);
+  await writeDraftPeople({
+    ...input,
+    isStructureLocked: locks.lockedChoreographyData.locked,
+  });
   await tx
     .update(choreographies)
     .set({
@@ -503,11 +520,13 @@ async function isGroupTypePinned(input: {
 async function writeDraftPeople(input: {
   choreography: ChoreographyDetail;
   draft: ChoreographyDraft;
+  /** As read under the row lock: the preview is older than the write. */
+  isStructureLocked: boolean;
   tx: Transaction;
   write: DraftWrite;
 }) {
   const { choreography, draft, tx, write } = input;
-  const { changes, preview, resolvedDancers } = write.resolution;
+  const { changes, resolvedDancers } = write.resolution;
 
   if (changes.classification) {
     await syncRosterInscriptions({
@@ -516,7 +535,7 @@ async function writeDraftPeople(input: {
       resolvedDancers,
       tx,
     });
-  } else if (preview.structuralLock === null) {
+  } else if (!input.isStructureLocked) {
     await normalizeActiveInscriptionAges(tx, {
       choreographyId: choreography.id,
     });

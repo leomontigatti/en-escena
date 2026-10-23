@@ -40,6 +40,7 @@ import {
 import { getEventBases, type EventBases } from "@/lib/events/bases.server";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
 import type { ChoreographyGroupType } from "@/lib/finances/operational-summary-calculations.server";
+import { resolveChoreographyLocks } from "@/lib/choreographies/choreography-locks";
 import { findEvaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.server";
 
 type DatabaseExecutor = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -560,11 +561,9 @@ export async function loadLinkedChoreographyEventBasesForDancerBirthDateCorrecti
 }
 
 /**
- * The choreographies a birth-date correction may re-place the dancer in: the
- * active inscriptions they belong to, minus the ones already evaluated. The
- * evaluated ones are filtered in memory and not in the `where`, because being
- * evaluated is not a column of the choreography any more but an answer the
- * seam gives — see evaluation-lock.server.ts.
+ * The choreographies a birth-date correction may re-place the dancer in: its
+ * active inscriptions, minus the ones whose structure is locked. Being
+ * evaluated is the seam's answer, not a column, so it is filtered in memory.
  */
 async function listEligibleChoreographies(
   executor: QueryExecutor,
@@ -585,6 +584,7 @@ async function listEligibleChoreographies(
       groupType: choreographies.groupType,
       scheduleId: choreographies.scheduleId,
       correctedDancerCompetitiveAge: choreographyDancers.ageAtEventStart,
+      withdrawnAt: choreographies.withdrawnAt,
     })
     .from(choreographyDancers)
     .innerJoin(
@@ -600,7 +600,14 @@ async function listEligibleChoreographies(
     executor,
   );
 
-  return rows.filter((row) => !evaluatedIds.has(row.choreographyId));
+  return rows.filter(
+    (row) =>
+      !resolveChoreographyLocks({
+        actor: "admin",
+        isEvaluated: evaluatedIds.has(row.choreographyId),
+        isWithdrawn: row.withdrawnAt !== null,
+      }).lockedChoreographyData.locked,
+  );
 }
 
 function toExperienceLevelValue(value: string | null) {

@@ -32,11 +32,17 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import { choreographyNameWriteCases } from "@/lib/choreographies/choreography-name.test-support";
 import {
-  evaluatedChoreographyMessage,
   groupTypePinnedPriceMessage,
   invalidExperienceLevelMessage,
   noCompatibleCategoryModalityMessage,
 } from "@/lib/choreographies/choreography-messages";
+import {
+  evaluatedChoreographyMessage,
+  withdrawnChoreographyMessage,
+} from "@/lib/choreographies/choreography-locks";
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
+import { findChoreographyDetail } from "@/features/admin/choreographies/detail/choreography-queries.server";
+import { saveChoreographyDraft } from "@/features/admin/choreographies/detail/draft-save.server";
 import {
   createAcademySession,
   createDancer,
@@ -749,6 +755,38 @@ describe("saving a draft of the choreography detail", () => {
     });
   });
 
+  // Once evaluated, the stored ages are what the dancers competed with: an
+  // evaluation that lands after the action read the choreography keeps them.
+  test("keeps the stored ages on a rename saved after a late evaluation", async () => {
+    const scenario = await createDraftScenario({ slug: "edad-evaluada" });
+    await db
+      .update(choreographyDancers)
+      .set({ ageAtEventStart: 3 })
+      .where(eq(choreographyDancers.choreographyId, scenario.choreography.id));
+    const draft = scenario.draft({ name: "Otro nombre" });
+    const readBeforeTheEvaluation = await findChoreographyDetail({
+      choreographyId: scenario.choreography.id,
+      selectedEventId: scenario.event.id,
+    });
+
+    evaluatedChoreographyIds.add(scenario.choreography.id);
+
+    const response = await saveChoreographyDraft({
+      choreography: readBeforeTheEvaluation!,
+      eventId: scenario.event.id,
+      formData: toChoreographyDraftFormData({
+        draft,
+        intent: saveChoreographyDraftIntent,
+        previewedCategoryId: scenario.catalog.teenCategory.id,
+      }),
+    });
+
+    expect(response).toMatchObject({ status: "success" });
+    await expect(scenario.readInscriptions()).resolves.toEqual([
+      expect.objectContaining({ ageAtEventStart: 3 }),
+    ]);
+  });
+
   test("stores a name in the form the portal registration stores it, and refuses what it refuses (#764)", async () => {
     const scenario = await createDraftScenario({ slug: "regla-del-nombre" });
 
@@ -846,6 +884,49 @@ describe("saving a draft of the choreography detail", () => {
       groupType: "solo",
       name: "Otro Nombre",
     });
+  });
+
+  // The action reads the choreography before the save takes its row lock, so
+  // a withdrawal that commits in between is only seen under the lock.
+  test("refuses a save whose choreography was withdrawn after it was read", async () => {
+    const scenario = await createDraftScenario({ slug: "retirada-en-vuelo" });
+    const draft = scenario.draft({
+      dancerIds: [scenario.ana.id, scenario.bea.id],
+      scheduleCapacityId: scenario.catalog.duoScheduleCapacity.id,
+    });
+    const preview = await scenario.resolveDraft(draft);
+    const readBeforeTheWithdrawal = await findChoreographyDetail({
+      choreographyId: scenario.choreography.id,
+      selectedEventId: scenario.event.id,
+    });
+
+    await withdrawChoreographyForTest(scenario.choreography.id);
+
+    const response = await saveChoreographyDraft({
+      choreography: readBeforeTheWithdrawal!,
+      eventId: scenario.event.id,
+      formData: toChoreographyDraftFormData({
+        draft,
+        intent: saveChoreographyDraftIntent,
+        previewedCategoryId: preview.category?.id ?? null,
+      }),
+    });
+
+    expect(response).toEqual({
+      message: withdrawnChoreographyMessage,
+      status: "error",
+    });
+    await expect(
+      db
+        .select({ id: choreographyDancers.id })
+        .from(choreographyDancers)
+        .where(
+          and(
+            eq(choreographyDancers.choreographyId, scenario.choreography.id),
+            isNull(choreographyDancers.withdrawnAt),
+          ),
+        ),
+    ).resolves.toEqual([]);
   });
 
   test("writes whether the choreography is evaluated as professional", async () => {

@@ -22,7 +22,7 @@ import {
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
-import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
+import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-locks";
 import { compatibleScheduleSelectionRequiredMessage } from "@/lib/choreographies/choreography-roster.shared";
 import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";

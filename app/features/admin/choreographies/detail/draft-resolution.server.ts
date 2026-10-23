@@ -1,11 +1,15 @@
 import { db } from "@/db";
 import { loadEventPriceRows } from "@/lib/prices/rows.server";
 import {
-  evaluatedChoreographyMessage,
   groupTypePinnedPriceMessage,
   noCompatibleCategoryModalityMessage,
   noCompatibleCategoryRosterMessage,
 } from "@/lib/choreographies/choreography-messages";
+import {
+  adminLockRefusals,
+  readDataLockReason,
+  resolveChoreographyLocks,
+} from "@/lib/choreographies/choreography-locks";
 import { isChoreographyNameChanged } from "@/lib/choreographies/choreography-name";
 import { readRosterDancers } from "@/lib/choreographies/choreography-roster-dancers.server";
 import { haveSameIds } from "@/lib/choreographies/choreography-roster.shared";
@@ -97,7 +101,16 @@ export async function resolveChoreographyDraft(input: {
   const { choreography, draft } = input;
   const changes = readDraftChanges(choreography, draft);
 
-  if (choreography.isEvaluated) {
+  // Only the evaluation locks the draft: a withdrawn choreography accepts no
+  // intent at all (server.ts), and its read-only page keeps showing the
+  // placement it had rather than a collapsed one.
+  const structure = resolveChoreographyLocks({
+    actor: "admin",
+    isEvaluated: choreography.isEvaluated,
+    isWithdrawn: choreography.isWithdrawn,
+  }).lockedChoreographyData;
+
+  if (readDataLockReason(structure) === "evaluated-presentation") {
     return resolveLockedDraft({ changes, choreography });
   }
 
@@ -362,7 +375,7 @@ function resolveLockedDraft(input: {
         options: [{ id: assigned.id, isFull: false, label: assigned.label }],
         selectedId: assigned.id,
       },
-      structuralLock: evaluatedChoreographyMessage,
+      structuralLock: adminLockRefusals["evaluated-presentation"],
       submodality: {
         options:
           choreography.submodalityId && choreography.submodalityName

@@ -13,6 +13,15 @@ import {
 import { choreographiesPath } from "@/lib/choreographies/admin-paths";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import {
+  choreographyDeleteLockCopy,
+  readDataLockReason,
+  resolveChoreographyLocks,
+  toChoreographyLockActor,
+  withdrawnChoreographyMessage,
+  type ChoreographyCapabilityLock,
+  type ChoreographyLocks,
+} from "@/lib/choreographies/choreography-locks";
+import {
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
 } from "@/lib/choreographies/choreography-roster-options.server";
@@ -62,6 +71,8 @@ export type ChoreographyDetailLoaderData = {
   backToList: string;
   canEdit: boolean;
   choreography: ChoreographyDetail;
+  /** The viewer's locks: what the page offers and why the rest is closed. */
+  locks: ChoreographyLocks;
   deletion: {
     blockers: ChoreographyDeleteBlocker[];
     canDelete: boolean;
@@ -87,24 +98,31 @@ export type ChoreographyDetailLoaderData = {
 
 const unsupportedActionMessage = "Acción no soportada.";
 
-const withdrawnChoreographyIsReadOnlyMessage =
-  "Esta coreografía está retirada y no se puede modificar. Para que vuelva a participar, registrá una nueva.";
-
 /**
- * The hidden controls are not the rule: a withdrawn choreography accepts
- * nothing, whoever posts to it, because the withdrawal is final. Its money is
- * handled from the finance surfaces, which write against the inscriptions and
- * not here.
+ * The hidden controls are not the rule: the name is the last thing any state
+ * leaves open to the administrator, so a choreography whose name is closed —
+ * a withdrawn one, whose withdrawal is final — accepts no intent, whoever
+ * posts to it. Its money is handled from the finance surfaces, which write
+ * against the inscriptions and not here.
  */
 function assertChoreographyAcceptsIntent(input: {
   choreography: ChoreographyDetail;
 }) {
-  if (!input.choreography.isWithdrawn) {
+  if (!resolveAdministratorLocks(input.choreography).rename.locked) {
     return;
   }
 
-  throw new Response(withdrawnChoreographyIsReadOnlyMessage, {
+  throw new Response(withdrawnChoreographyMessage, {
     status: 403,
+  });
+}
+
+/** What the administrator, the one actor of every intent here, may change. */
+function resolveAdministratorLocks(choreography: ChoreographyDetail) {
+  return resolveChoreographyLocks({
+    actor: "admin",
+    isEvaluated: choreography.isEvaluated,
+    isWithdrawn: choreography.isWithdrawn,
   });
 }
 
@@ -129,12 +147,17 @@ export async function loadChoreographyDetailRouteData(input: {
   });
   const choreographyId = choreography.id;
 
-  // A withdrawn choreography accepts no edit whoever the user is: the
-  // withdrawal is final, so every field the view gates on `canEdit` goes
-  // read-only while the stamp is there.
-  const canEdit = canWriteInAdminPanel(user.role) && !choreography.isWithdrawn;
+  const canWrite = canWriteInAdminPanel(user.role);
+  const locks = resolveChoreographyLocks({
+    actor: toChoreographyLockActor(canWrite),
+    isEvaluated: choreography.isEvaluated,
+    isWithdrawn: choreography.isWithdrawn,
+  });
+  // The name is the last thing any state leaves open, so while it is open the
+  // form is live; each field narrows it by its own capability.
+  const canEdit = !locks.rename.locked;
+  const blockers = toDeleteBlockers(locks.delete);
   const [
-    blockers,
     availableDancers,
     availableProfessors,
     savedDraft,
@@ -142,7 +165,6 @@ export async function loadChoreographyDetailRouteData(input: {
     modalityOptions,
     removalOutcome,
   ] = await Promise.all([
-    getChoreographyDeleteBlockers(choreography),
     listDancerOptionsForChoreography(
       choreography.academyId,
       choreography.dancers.map((dancer) => dancer.id),
@@ -172,14 +194,15 @@ export async function loadChoreographyDetailRouteData(input: {
     choreography,
     deletion: {
       blockers,
-      canDelete: blockers.length === 0,
-      isOffered: canWriteInAdminPanel(user.role),
+      canDelete: !locks.delete.locked,
+      isOffered: canWrite,
       // What the dialog announces, and only that: the write re-decides under
       // the choreography's row lock, so money landing between the render and
       // the click still leads to a withdrawal.
       outcome: removalOutcome,
     },
     draft: savedDraft.preview,
+    locks,
     modality: {
       // A deposit does not close the field: it is listed as a
       // blocker-in-waiting, because it only refuses the save when the draft
@@ -285,7 +308,7 @@ export async function handleChoreographyDetailAction(input: {
  * rendered the dialog with cannot go stale between the render and the click.
  */
 async function deleteChoreography(choreography: ChoreographyDetail) {
-  if (getChoreographyDeleteBlockers(choreography).length > 0) {
+  if (resolveAdministratorLocks(choreography).delete.locked) {
     throw evaluatedPresentationResponse();
   }
 
@@ -304,23 +327,18 @@ function evaluatedPresentationResponse() {
   });
 }
 
-function getChoreographyDeleteBlockers(
-  choreography: Pick<ChoreographyDetail, "isEvaluated" | "isWithdrawn">,
+/**
+ * The blocked `Eliminar`'s reasons: the state that closed it. The role is not
+ * one — the auditor is offered no `Eliminar` to explain.
+ */
+function toDeleteBlockers(
+  lock: ChoreographyCapabilityLock,
 ): ChoreographyDeleteBlocker[] {
-  if (choreography.isWithdrawn) {
-    return [{ code: "withdrawn", label: "La coreografía está retirada." }];
-  }
+  const reason = readDataLockReason(lock);
 
-  if (!choreography.isEvaluated) {
-    return [];
-  }
-
-  return [
-    {
-      code: "evaluated-presentation",
-      label: "La presentación ya fue evaluada.",
-    },
-  ];
+  return reason === null
+    ? []
+    : [{ code: reason, label: choreographyDeleteLockCopy[reason].label }];
 }
 
 /**

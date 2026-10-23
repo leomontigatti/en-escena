@@ -173,6 +173,7 @@ schedule resolution and operational completion.
 - Feature modules: `app/features/portal/choreographies/list/`, `app/features/portal/choreographies/create/`, `app/features/portal/choreographies/detail/`
 - Server modules: `app/features/portal/choreographies/list/server.ts`, `app/features/portal/choreographies/create/server.ts`, `app/lib/portal/choreographies.server.ts`, `app/features/portal/choreographies/detail/server.ts`, `app/lib/choreographies/registration-resolution.server.ts`, `app/lib/choreographies/registration-confirmation.server.ts`
 - UI modules: `app/features/portal/choreographies/list/view.tsx`, `app/features/portal/choreographies/create/page.tsx`, `app/features/portal/choreographies/create/steps.tsx`, `app/features/portal/choreographies/detail/view.tsx`, `app/features/portal/choreographies/detail/music-editor-form.tsx`
+- Locks: `app/lib/choreographies/choreography-locks.ts`, shared with `Admin Choreographies`.
 - Tests: `app/features/portal/choreographies/detail/server.db.test.ts`, `app/lib/choreographies/registration-resolution.server.db.test.ts`, `app/lib/choreographies/registration-confirmation.server.db.test.ts`, `app/features/portal/choreographies/list/server.db.test.ts`, `app/features/portal/choreographies/create/flow.test.ts`, `app/features/portal/choreographies/create/server.db.test.ts`, `app/features/portal/choreographies/create/page.render.test.tsx`, `app/features/portal/choreographies/request-flow.render.test.tsx`, `app/features/portal/choreographies/detail/view.test.tsx`
 
 ## Portal Seminars
@@ -229,6 +230,7 @@ the choreography detail under it.
 - Routes: `app/routes/administracion.coreografias.tsx` (list), `app/routes/administracion.coreografias_.$choreographyId.tsx` (detail)
 - Feature modules: `app/features/admin/choreographies/list/`, `app/features/admin/choreographies/detail/`, `app/features/admin/choreographies/operational-status.server.ts` (the status the list labels each row with)
 - Shared modules: `app/lib/choreographies/admin-paths.ts` builds every admin choreography address. `app/lib/admin/choreographies/` stays as the persistence and filter boundary because it is still useful beyond the route adapter.
+- Locks: `app/lib/choreographies/choreography-locks.ts` (`resolveChoreographyLocks`) decides what each actor may change on a choreography and owns each reason's copy; the admin detail, its draft save and delete, and the portal music and `Evaluar como profesional` all read it. Its decision table is `app/lib/choreographies/choreography-locks.test.ts`.
 - Tests: `app/features/admin/choreographies/list/server.db.test.ts`, `app/features/admin/choreographies/list/view.test.tsx`, `app/lib/admin/choreographies/choreographies-route.server.db.test.ts`, `app/lib/admin/choreographies/choreographies-route-filters.server.db.test.ts`
 
 ## Admin Roster
