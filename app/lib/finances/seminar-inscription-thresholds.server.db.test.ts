@@ -317,7 +317,7 @@ describe("the academy's figures over both kinds", () => {
     expect(detail.summary.totalPaidAmount).toBe(0);
   });
 
-  test("keeps a withdrawn seminar row in the money and out of the count and the status", async () => {
+  test("keeps a withdrawn seminar row in the money and out of the count, and reads the emptied unit as withdrawn", async () => {
     const fixture = await seedSeminarPricingFixture({ seminarKind: "regular" });
     await db
       .update(seminarInscriptions)
@@ -344,13 +344,14 @@ describe("the academy's figures over both kinds", () => {
       allocatedAmount: prices.regularParticipant / 2,
       registrationCount: 0,
     });
-    // Nothing is owed on a withdrawn row, and the unit has no active row left
-    // to lower its status below the empty reading.
+    // Nothing is owed on a withdrawn row, and with no active row left the unit
+    // reads `Retirada`, not `Seña pendiente` beside $0 owed (#1725).
     expect(seminarRow.owedDepositAmount).toEqual({
       amount: 0,
       status: "complete",
     });
-    expect(seminarRow.financialStatus).toBe("depositPending");
+    expect(seminarRow.withdrawn).toBe(true);
+    expect(seminarRow.financialStatus).toBe("paidInFull");
   });
 });
 

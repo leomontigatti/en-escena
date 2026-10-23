@@ -281,6 +281,56 @@ describe("buildChoreographyOperationalFinanceRow", () => {
     expect(row.financialStatus).toBe("paidInFull");
   });
 
+  // #1725: the roster can empty through its inscriptions' withdrawals while
+  // the choreography stays registered.
+  test.each([
+    {
+      // Paid in full, then withdrew: the deposit is retained.
+      allocatedAmount: 10000,
+      case: "a dancer who paid",
+      totalAmount: 3000,
+    },
+    { allocatedAmount: 0, case: "a dancer who never paid", totalAmount: 0 },
+  ])(
+    "reads a choreography whose whole roster withdrew as withdrawn: $case",
+    ({ allocatedAmount, totalAmount }) => {
+      const row = buildChoreographyOperationalFinanceRow({
+        choreography,
+        inscriptions: [
+          resolvedInscription({
+            allocatedAmount,
+            id: "i1",
+            owedBalanceAmount: 0,
+            owedDepositAmount: 0,
+            totalAmount,
+            withdrawn: true,
+          }),
+        ],
+      });
+
+      // `Seña pendiente` beside $0 owed asked for a deposit nobody is left to
+      // pay; the row reads `Retirada`, as its inscription does.
+      expect(row.withdrawn).toBe(true);
+      expect(row.financialStatus).toBe("paidInFull");
+      expect(row.registrationCount).toBe(0);
+      expect(row.allocatedAmount).toBe(allocatedAmount);
+      expect(row.totalAmount).toEqual({
+        amount: totalAmount,
+        status: "complete",
+      });
+    },
+  );
+
+  test("reads a choreography nobody has registered for yet as owing its deposit", () => {
+    const row = buildChoreographyOperationalFinanceRow({
+      choreography,
+      inscriptions: [],
+    });
+
+    expect(row.withdrawn).toBe(false);
+    expect(row.financialStatus).toBe("depositPending");
+  });
+
   test("keeps a withdrawn choreography in the money rollup and out of the status one", () => {
     const row = buildChoreographyOperationalFinanceRow({
       choreography: { ...choreography, withdrawn: true },

@@ -192,6 +192,25 @@ describe("readParticipationRows", () => {
     ]);
   });
 
+  // #1725: the finance lists read a choreography whose whole roster withdrew
+  // `Retirada`, but the choreography itself is still registered and nobody is
+  // left to dance it, so the order keeps flagging it as it did.
+  test("keeps flagging a choreography whose whole roster withdrew", async () => {
+    const { addChoreography, event } = await seedEvent();
+    const emptied = await addChoreography({ name: "Sin elenco" });
+
+    await db
+      .update(choreographyDancers)
+      .set({ withdrawnAt: new Date("2026-04-09T12:00:00Z") })
+      .where(eq(choreographyDancers.choreographyId, emptied.id));
+
+    const rows = await readParticipationRows(event.id);
+
+    expect(rows.map((row) => [row.withdrawn, row.financialStatus])).toEqual([
+      [false, "depositPending"],
+    ]);
+  });
+
   test("marks a withdrawn choreography, at its number or without one", async () => {
     const { addChoreography, event } = await seedEvent();
     const performing = await addChoreography({ name: "En escena" });
