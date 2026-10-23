@@ -27,13 +27,24 @@ export function formatLongBusinessDate(date: Date) {
   return longBusinessDateFormatter.format(date);
 }
 
+// Built once, like the formatters above: constructing one costs ~20 times a
+// `format` call, and the price readers ask for today once per inscription.
+const businessDateOnlyFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: BUSINESS_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+const businessTimeOnlyFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: BUSINESS_TIME_ZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
 export function getBusinessDateOnly(now: Date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: BUSINESS_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
+  const parts = businessDateOnlyFormatter.formatToParts(now);
   const partMap = new Map(parts.map((part) => [part.type, part.value]));
 
   return `${partMap.get("year")}-${partMap.get("month")}-${partMap.get("day")}`;
@@ -41,10 +52,5 @@ export function getBusinessDateOnly(now: Date = new Date()) {
 
 /** The time of day in business time, `HH:MM` on a 24-hour clock. */
 export function getBusinessTimeOnly(now: Date = new Date()) {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: BUSINESS_TIME_ZONE,
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).format(now);
+  return businessTimeOnlyFormatter.format(now);
 }
