@@ -59,7 +59,8 @@ type SeminarFinanceDetailViewProps = {
  *
  * `Emitir factura` lives in the header menu exactly as it does there, and it is
  * the only entry point to seminar invoicing: it bills every inscription this
- * academy holds in this seminar, and there is no bulk action for either kind.
+ * academy holds in this seminar. The bulk emission of the academy's finance
+ * list covers choreographies only.
  */
 export function SeminarFinanceDetailView({
   loaderData,

@@ -197,6 +197,39 @@ export function deriveAnchorDelta<
 }
 
 /**
+ * What `planAnchorEmission` reads, from a unit as the academy's rollup resolved
+ * it and the comprobantes it holds. The emitter plans one unit under its lock
+ * and the finance list plans every unit of a bulk emission off it, so both
+ * read the unit the same way.
+ */
+export function deriveAnchorObligation<
+  TComprobante extends DocumentedComprobante,
+>(input: {
+  financialStatus: InscriptionFinancialStatus;
+  inscriptions: ReadonlyArray<
+    Parameters<typeof deriveOwedAmount>[0] & { id: string }
+  >;
+  comprobantes: readonly TComprobante[];
+}): Parameters<typeof planAnchorEmission<TComprobante>>[0] {
+  return {
+    // With no active inscription left the minimum has nothing to read, and
+    // the anchor is `Señada` vacuously (#657), as a withdrawn choreography
+    // already reads: what its withdrawn rows retain is still owed, and the
+    // zero-total check is what refuses an empty roster.
+    financialStatus: input.inscriptions.some(
+      (inscription) => !inscription.withdrawn,
+    )
+      ? input.financialStatus
+      : "paidInFull",
+    inscriptions: input.inscriptions.map((inscription) => ({
+      id: inscription.id,
+      owed: deriveOwedAmount(inscription),
+    })),
+    comprobantes: input.comprobantes,
+  };
+}
+
+/**
  * What one inscription owes now, as the delta counts it: its derived total,
  * and on a withdrawn row the deposit it retains rather than whatever it still
  * holds (ADR-0014 §6, #1065).

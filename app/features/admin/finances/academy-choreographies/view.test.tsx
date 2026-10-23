@@ -300,7 +300,7 @@ describe("AcademyFinancesRouteView", () => {
   // selection has nothing to act on. But the menu is not hidden for that: a
   // button that comes and goes does not teach what can be done here, so it stays
   // in sight with both presets disabled.
-  test("keeps the actions menu visible and disables both presets without a selection", async () => {
+  test("keeps the actions menu visible and disables its list actions without a selection", async () => {
     await renderListIntoDocument();
 
     expect(findButton("Acciones", { exact: true })).toBeDefined();
@@ -310,10 +310,11 @@ describe("AcademyFinancesRouteView", () => {
     expect(menuItemDisabledState()).toEqual([
       { label: financePresetLabels.deposit, disabled: true },
       { label: financePresetLabels.balance, disabled: true },
+      { label: "Emitir comprobantes", disabled: true },
     ]);
   });
 
-  test("enables both presets once choreographies are selected", async () => {
+  test("enables the list actions once choreographies are selected", async () => {
     await renderListIntoDocument();
 
     const checkboxes = getRenderedCheckboxes();
@@ -325,12 +326,13 @@ describe("AcademyFinancesRouteView", () => {
     expect(menuItemDisabledState()).toEqual([
       { label: financePresetLabels.deposit, disabled: false },
       { label: financePresetLabels.balance, disabled: false },
+      { label: "Emitir comprobantes", disabled: false },
     ]);
   });
 
   // The presets act on the open tab's selection: a choreography selection out
   // of sight never enables them on the seminar tab, and the seminar one in
-  // sight does.
+  // sight does. `Emitir comprobantes` is the choreographies' only.
   test("acts on the seminar selection on the seminar tab", async () => {
     await renderListIntoDocument({
       loaderData: academyFinancesLoaderDataFixture({
@@ -345,6 +347,7 @@ describe("AcademyFinancesRouteView", () => {
     expect(menuItemDisabledState()).toEqual([
       { label: financePresetLabels.deposit, disabled: true },
       { label: financePresetLabels.balance, disabled: true },
+      { label: "Emitir comprobantes", disabled: true },
     ]);
 
     await closeActionsMenu();
@@ -354,6 +357,7 @@ describe("AcademyFinancesRouteView", () => {
     expect(menuItemDisabledState()).toEqual([
       { label: financePresetLabels.deposit, disabled: false },
       { label: financePresetLabels.balance, disabled: false },
+      { label: "Emitir comprobantes", disabled: true },
     ]);
   });
 
@@ -1487,6 +1491,11 @@ function academyFinancesLoaderDataFixture(
       id: "academy_1",
       name: "Academia Centro",
       phone: "11-5555-5555",
+    },
+    bulkEmission: {
+      plans: {},
+      cbteFch: { today: "2026-07-22", floors: {} },
+      blocked: null,
     },
     choreographyFinanceRows: [
       choreographyFinanceRowFixture({

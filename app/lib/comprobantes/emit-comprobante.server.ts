@@ -38,13 +38,12 @@ import {
   type ComprobanteWithLines,
 } from "./comprobantes.server";
 import {
-  deriveOwedAmount,
+  deriveAnchorObligation,
   emissionRefusalLabel,
   planAnchorEmission,
   type DocumentedComprobante,
   type EmissionPlan,
   type EmissionRefusal,
-  type OwedInscription,
   type PlannedLine,
 } from "./emission-plan";
 import { comprobanteKindCbteTipo, type KnownComprobanteKind } from "./kind";
@@ -320,13 +319,31 @@ export async function readAnchorEmissionPlan(
     return plan;
   }
 
+  return {
+    ...plan,
+    cbteFch: await readKindCbteFchBounds({
+      ptoVta: input.ptoVta,
+      kind: plan.kind,
+    }),
+  };
+}
+
+/**
+ * The dates a document of `kind` may carry today, read the way the emitter
+ * checks them: for one unit's preview, or for every kind a bulk emission
+ * plans.
+ */
+export async function readKindCbteFchBounds(input: {
+  ptoVta: number | null;
+  kind: KnownComprobanteKind;
+}): Promise<CbteFchBounds & { today: string }> {
   const today = getBusinessDateOnly();
   const bounds = await readCbteFchBounds(
-    { ptoVta: input.ptoVta, cbteTipo: comprobanteKindCbteTipo(plan.kind) },
+    { ptoVta: input.ptoVta, cbteTipo: comprobanteKindCbteTipo(input.kind) },
     today,
   );
 
-  return { ...plan, cbteFch: { ...bounds, today } };
+  return { ...bounds, today };
 }
 
 async function readCbteFchBounds(
@@ -585,24 +602,13 @@ async function readAnchorObligation(
     listAnchorComprobantes(input.anchor, executor),
   ]);
 
-  return {
-    // With no active inscription left the minimum has nothing to read, and
-    // the anchor is `Señada` vacuously (#657), as a withdrawn choreography
-    // already reads: what its withdrawn rows retain is still owed, and the
-    // zero-total check is what refuses an empty roster.
-    financialStatus: unit.inscriptions.some(
-      (inscription) => !inscription.withdrawn,
-    )
-      ? unit.financialStatus
-      : ("paidInFull" as const),
-    inscriptions: unit.inscriptions.map((inscription): OwedInscription => ({
-      id: inscription.id,
-      owed: deriveOwedAmount(inscription),
-    })),
+  return deriveAnchorObligation({
+    financialStatus: unit.financialStatus,
+    inscriptions: unit.inscriptions,
     comprobantes: comprobantes.map((comprobante) =>
       toDocumented(input.anchor, comprobante),
     ),
-  };
+  });
 }
 
 async function readUnitFinance(

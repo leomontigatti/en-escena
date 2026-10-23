@@ -35,3 +35,29 @@ export function EmissionBlockedDialog({
     />
   );
 }
+
+/**
+ * What `Emitir comprobantes` opens instead of the plan while a reservation is
+ * live (#617 §7): every emission in its series would halt on it, so the block
+ * is read before the run rather than met in it.
+ */
+export function BulkEmissionBlockedDialog({
+  onOpenChange,
+  open,
+  reason,
+}: {
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  reason: string;
+}) {
+  return (
+    <BlockedActionDialog
+      description="Abrí el detalle financiero de esa unidad y emití desde ahí: el aviso que aparece permite verificar el intento en ARCA o abandonarlo."
+      onOpenChange={onOpenChange}
+      open={open}
+      reasons={<ReasonList reasons={[reason]} />}
+      reasonsTitle="Hay un intento sin resolver"
+      title="No se pueden emitir comprobantes"
+    />
+  );
+}

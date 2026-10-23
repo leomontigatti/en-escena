@@ -1,7 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 
 import { ArcaConfirmationDialog } from "@/components/shared/arca-confirmation-dialog";
 import { DateOnlyField } from "@/components/shared/date-only-field";
@@ -11,6 +10,11 @@ import {
   formatComprobanteKindLabel,
 } from "@/lib/comprobantes/kind";
 
+import {
+  emissionCalendarBounds,
+  emissionDateSchema,
+  type EmissionDateValues,
+} from "./emission-date";
 import {
   abandonReservationIntent,
   emitComprobanteConfirmValue,
@@ -47,8 +51,13 @@ export function EmissionDialog({
   const label = formatComprobanteKindLabel(
     comprobanteKindCbteTipo(invoicing.kind),
   );
+  const bounds = {
+    floor: invoicing.cbteFch.floor,
+    max: invoicing.cbteFch.max,
+    description: invoicing.cbteFch.floorDescription,
+  };
   const form = useForm<EmissionDateValues>({
-    resolver: zodResolver(emissionDateSchema(invoicing.cbteFch)),
+    resolver: zodResolver(emissionDateSchema(bounds)),
     defaultValues: { cbteFch: invoicing.cbteFch.today },
   });
 
@@ -73,44 +82,13 @@ export function EmissionDialog({
       <input type="hidden" name="amount" value={invoicing.amount} />
       <EmissionPreview invoicing={invoicing} label={label} />
       <DateOnlyField
-        calendarBounds={{
-          defaultMonth: parseDateOnly(invoicing.cbteFch.today),
-          startMonth: parseDateOnly(invoicing.cbteFch.floor),
-          endMonth: parseDateOnly(invoicing.cbteFch.max),
-          earliestSelectableDate: parseDateOnly(invoicing.cbteFch.floor),
-          latestSelectableDate: parseDateOnly(invoicing.cbteFch.max),
-        }}
+        calendarBounds={emissionCalendarBounds(invoicing.cbteFch.today, bounds)}
         control={form.control}
         label="Fecha"
         name="cbteFch"
       />
     </ArcaConfirmationDialog>
   );
-}
-
-type EmissionDateValues = z.input<ReturnType<typeof emissionDateSchema>>;
-
-// The bounds the server enforces, so a date it would refuse is caught before
-// the submit; the calendar already offers no other day.
-function emissionDateSchema(bounds: ReadyInvoicing["cbteFch"]) {
-  return z.object({
-    cbteFch: z
-      .string()
-      .min(1, "Este campo es obligatorio.")
-      .refine((value) => value <= bounds.max, {
-        message: "La fecha no puede ser posterior a hoy.",
-      })
-      .refine((value) => value >= bounds.floor, {
-        message: `La fecha no puede ser anterior al ${bounds.floorDescription}.`,
-      }),
-  });
-}
-
-// A business date `AAAA-MM-DD` as the calendar's local midnight.
-function parseDateOnly(value: string): Date {
-  const [year, month, day] = value.split("-").map(Number);
-
-  return new Date(year, month - 1, day);
 }
 
 // What undoes the document once it carries a CAE: a later note, never an edit.

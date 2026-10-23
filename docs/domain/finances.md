@@ -1122,8 +1122,31 @@ and its amount; the operator cannot choose another. The confirmation carries
 the previewed kind and amount, and the emitter, planning again under the lock,
 refuses rather than emit a document that changed since. With nothing owed the item
 stays (`Emitir factura` before the invoice, `Emitir nota` after) and opens a
-dialog saying why, in the words the server refuses with. There is no bulk
-action yet (#1712).
+dialog saying why, in the words the server refuses with.
+
+**Bulk emission** (#617) is the academy finance list's `Emitir comprobantes`,
+over the `Coreografías` tab's selection; seminar units emit from their own
+detail only. It is not a batch: the browser sends one emission per choreography,
+one after the other, each the detail's own request and checks, so each emits
+whatever its choreography owes. There is no server-side job because ARCA's
+numbering is sequential anyway and no request then nears the proxy's timeout;
+the cost accepted is that closing the tab stops the run.
+
+- **The confirmation is a plan, not a commitment.** It is read off the
+  emitter's own plan and names every choreography left out and why; each
+  emission plans again under its lock, so a plan that moved costs that row a
+  refusal, never a document. There is no cap: the time a run may take is stated
+  instead.
+- **One date for the run**, bounded by the latest floor among the series the
+  plan emits in; every emission checks it again against its own.
+- **Nothing cancels an emission already sent**, since ARCA may authorize it
+  anyway (ADR-0012): stopping waits for the one in flight. A rejection frees its
+  number and the run goes on; a live reservation, or a request whose outcome
+  never came back, stops it, and the reservation is resolved in place.
+- **Nothing about a run is persisted, and nothing resumes it.** A choreography
+  already documented owes nothing, so planning again is resuming.
+- **A live reservation blocks the action before it starts**, naming the attempt,
+  so another admin reads the block instead of meeting it mid-run.
 
 - **Emission is serialised per anchor.** Before it reads anything it plans by,
   an emission takes a Postgres advisory lock keyed on the anchor — the
@@ -1244,11 +1267,6 @@ in that series, today − 10)` — ARCA's 10016 refuses a date earlier than the
   that reason: the block is the application's to state, in Spanish, not the
   database's to resolve by destroying the evidence.
 
-> **Specified, not built.** The rest of ADR-0014 §5, owned by the last slice
-> of [#657](https://github.com/leomontigatti/en-escena/issues/657): **bulk
-> emission** (#1712). The delta as the comprobante status and the 15-day clock
-> are built ("The comprobante status").
->
 > `Nota de crédito C` and `Nota de débito C` are verified against ARCA's
 > homologation environment (#686).
 
