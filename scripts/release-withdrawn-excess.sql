@@ -9,15 +9,16 @@
 -- Every figure is checked before it is written: each inscription is still
 -- withdrawn, holds what the copy held and keeps the deposit its stored price
 -- makes; each allocation still has the amount the copy had, in the pool it
--- locks; and no other withdrawn inscription, of either kind, holds more than
--- its deposit. Anything else raises and the whole transaction rolls back, so a
--- production that moved since the copy is left untouched and the plan is
--- regenerated from a newer copy. It takes the inscription rows and then the
--- pool locks, the order the app's money writers take them in. Run after the
--- deploy has finished, once the previous release no longer serves, with the
--- superuser (a write):
+-- locks; and no other withdrawn inscription, of either kind, holds money the
+-- copy did not account for: a row withdrawn after the copy and before the
+-- deploy finished, or a settled row holding more than it did. Anything else
+-- raises and the whole transaction rolls back, so a production that moved since
+-- the copy is left untouched and the plan is regenerated from a newer copy. It
+-- takes the inscription rows and then the pool locks, the order the app's money
+-- writers take them in. Run after the deploy has finished, once the previous
+-- release no longer serves, with the superuser (a write):
 --
---   ssh root@rylai 'docker exec -i c24udczenueosjssymgxuhgf psql -U postgres -d enescena -v ON_ERROR_STOP=1' < scripts/release-withdrawn-excess.sql
+--   ssh root@rylai "docker exec -i c24udczenueosjssymgxuhgf psql -U postgres -d enescena -v ON_ERROR_STOP=1 -v deployed_at='<when the deploy finished, ISO 8601 with offset>'" < scripts/release-withdrawn-excess.sql
 --
 -- Delete it, with the TypeScript script and its module, once it has run.
 
@@ -56,6 +57,45 @@ insert into withdrawn_excess_allocation values
   ('492fc7ec-7b55-49e7-b222-d2fdbbbeabb0', 'c2da300e-c048-4aef-9195-81063f750732', 53000, 15900),
   ('d06f13b5-4c4f-439f-8183-819a2ac441b2', 'fc809b10-a77b-41fb-9b6e-9f7785965ba8', 37100, 0);
 
+-- The window the copy cannot see: from the copy's last withdrawal to the
+-- moment the deploy finished, which the run passes in (`-v deployed_at=...`).
+-- Without it psql leaves the variable unreplaced and the statement fails.
+create temporary table withdrawn_excess_window on commit drop as
+select
+  timestamptz '2026-10-21 20:20:58.037+00' as copied_at,
+  :'deployed_at'::timestamptz as deployed_at;
+
+-- The other withdrawn rows holding money on the copy, already on their
+-- deposit: what each held then.
+create temporary table withdrawn_excess_settled (
+  inscription_id varchar primary key,
+  held_amount integer not null
+) on commit drop;
+
+insert into withdrawn_excess_settled values
+  ('0d3f6736-d61b-40b6-b7c0-b6b86eed2f8f', 8400),
+  ('104538f7-1d29-428e-8419-0d2f13475999', 9000),
+  ('17ec8b74-8586-43ad-8e1e-ae8c255c1672', 9000),
+  ('3c1e24d6-a219-4b81-8dd7-54de64756f5a', 15900),
+  ('42d2a800-b40f-4284-91a1-f53b4ade25a5', 9000),
+  ('50b639bd-b59b-427a-9e40-77712dbad934', 6900),
+  ('57feb558-8283-4231-8e59-924c0d3eaf28', 13200),
+  ('583770a4-da19-4888-9393-2a5ef514adbc', 9000),
+  ('608db61c-bd18-4152-9b50-805763c7bd3e', 15900),
+  ('8839a533-5fa9-49dc-b216-d610652d64ac', 12600),
+  ('a0a3d918-b21c-41d5-ba80-78f0be4104ef', 8400),
+  ('abb0751a-4d76-4d5e-87bb-c3c8f05de97c', 6900),
+  ('b4cfd974-5936-4e1e-95c7-85c56bc59575', 15300),
+  ('d2893c85-b7b2-4cad-9881-586aa25e793a', 7500),
+  ('d808553a-f2ca-4ee6-a26e-be70c0e479b5', 6900),
+  ('e12e500a-5027-45a3-ab8d-cb936fc8032a', 15900),
+  ('e3efcea3-c8ef-4d41-afaa-59352ffd8d49', 8400),
+  ('ecb2b552-08d5-46c2-9d3e-c8e4f478affa', 6900),
+  ('f5ae7ec6-cea1-44cd-affd-114764ac5e0e', 8400),
+  ('f5fcf5f7-0f3d-4c27-a3d1-b696663da0dc', 12600),
+  ('f64f626e-1082-474d-b49b-480e87102233', 9000),
+  ('fba57c70-13f3-4ee2-ad52-aedd0ded8b7b', 12600);
+
 do $$
 declare
   planned record;
@@ -85,45 +125,46 @@ begin
     perform pg_advisory_xact_lock(hashtext(pool_key));
   end loop;
 
-  -- The plan is the whole of it: a row withdrawn since the copy by the
-  -- previous release, which released nothing, would hold more than its deposit
-  -- and be missed. Rows the new release withdrew hold their deposit or less. A
-  -- row with no stored price can still be past its deposit (a preset funds it
-  -- at the effective price without storing one), and SQL cannot resolve that
-  -- price, so such a row stops the run for a check by hand.
+  -- The plan is the whole of it. Every withdrawn row on the copy is either
+  -- planned or settled, and a settled row can only have lost money since (a
+  -- release of all of it). A row the previous release withdrew after the copy
+  -- released nothing and may hold an excess no one measured, so any such row
+  -- holding money stops the run for a check by hand. Rows the new release
+  -- withdraws, after the deploy finished, released their excess as they were
+  -- withdrawn.
   for planned in
-    select withdrawn.inscription_id, withdrawn.held_now, withdrawn.deposit
+    select withdrawn.inscription_id, withdrawn.held_now, withdrawn.withdrawn_at
     from (
-      select dancer.id as inscription_id,
-        sum(allocation.amount) as held_now,
-        round(price.amount::numeric * event.required_deposit_percentage / 100.0) as deposit
+      select dancer.id as inscription_id, dancer.withdrawn_at,
+        sum(allocation.amount) as held_now
       from en_escena_choreography_dancer dancer
       join en_escena_payment_allocation allocation
         on allocation.choreography_inscription_id = dancer.id
-      join en_escena_choreography choreography on choreography.id = dancer.choreography_id
-      join en_escena_event event on event.id = choreography.event_id
-      left join en_escena_price price on price.id = dancer.selected_price_id
       where dancer.withdrawn_at is not null
-      group by dancer.id, price.amount, event.required_deposit_percentage
+      group by dancer.id, dancer.withdrawn_at
       union all
-      select inscription.id,
-        sum(allocation.amount),
-        round(price.amount::numeric * seminar.required_deposit_percentage / 100.0)
+      select inscription.id, inscription.withdrawn_at, sum(allocation.amount)
       from en_escena_seminar_inscription inscription
       join en_escena_payment_allocation allocation
         on allocation.seminar_inscription_id = inscription.id
-      join en_escena_seminar seminar on seminar.id = inscription.seminar_id
-      left join en_escena_seminar_price price on price.id = inscription.selected_price_id
       where inscription.withdrawn_at is not null
-      group by inscription.id, price.amount, seminar.required_deposit_percentage
+      group by inscription.id, inscription.withdrawn_at
     ) withdrawn
-    where (withdrawn.deposit is null or withdrawn.held_now > withdrawn.deposit)
-      and withdrawn.inscription_id not in (
+    cross join withdrawn_excess_window window_bounds
+    left join withdrawn_excess_settled settled
+      on settled.inscription_id = withdrawn.inscription_id
+    where withdrawn.inscription_id not in (
         select inscription_id from withdrawn_excess_inscription
       )
+      and withdrawn.withdrawn_at < window_bounds.deployed_at
+      and (
+        withdrawn.withdrawn_at > window_bounds.copied_at
+        or settled.held_amount is null
+        or withdrawn.held_now > settled.held_amount
+      )
   loop
-    raise exception 'withdrawn inscription % holds % against a deposit of % and is not in the plan: check it and regenerate the plan',
-      planned.inscription_id, planned.held_now, coalesce(planned.deposit::text, 'no stored price');
+    raise exception 'withdrawn inscription % (withdrawn %) holds % and is neither planned nor settled on the copy: check it and regenerate the plan',
+      planned.inscription_id, planned.withdrawn_at, planned.held_now;
   end loop;
 
   -- Each planned deposit is still what the row's stored price and its event's
