@@ -755,6 +755,38 @@ describe("saving a draft of the choreography detail", () => {
     });
   });
 
+  // Once evaluated, the stored ages are what the dancers competed with: an
+  // evaluation that lands after the action read the choreography keeps them.
+  test("keeps the stored ages on a rename saved after a late evaluation", async () => {
+    const scenario = await createDraftScenario({ slug: "edad-evaluada" });
+    await db
+      .update(choreographyDancers)
+      .set({ ageAtEventStart: 3 })
+      .where(eq(choreographyDancers.choreographyId, scenario.choreography.id));
+    const draft = scenario.draft({ name: "Otro nombre" });
+    const readBeforeTheEvaluation = await findChoreographyDetail({
+      choreographyId: scenario.choreography.id,
+      selectedEventId: scenario.event.id,
+    });
+
+    evaluatedChoreographyIds.add(scenario.choreography.id);
+
+    const response = await saveChoreographyDraft({
+      choreography: readBeforeTheEvaluation!,
+      eventId: scenario.event.id,
+      formData: toChoreographyDraftFormData({
+        draft,
+        intent: saveChoreographyDraftIntent,
+        previewedCategoryId: scenario.catalog.teenCategory.id,
+      }),
+    });
+
+    expect(response).toMatchObject({ status: "success" });
+    await expect(scenario.readInscriptions()).resolves.toEqual([
+      expect.objectContaining({ ageAtEventStart: 3 }),
+    ]);
+  });
+
   test("stores a name in the form the portal registration stores it, and refuses what it refuses (#764)", async () => {
     const scenario = await createDraftScenario({ slug: "regla-del-nombre" });
 

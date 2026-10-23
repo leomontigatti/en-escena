@@ -444,7 +444,10 @@ async function writeDraft(input: {
     return placement;
   }
 
-  await writeDraftPeople(input);
+  await writeDraftPeople({
+    ...input,
+    isStructureLocked: locks.lockedChoreographyData.locked,
+  });
   await tx
     .update(choreographies)
     .set({
@@ -517,11 +520,13 @@ async function isGroupTypePinned(input: {
 async function writeDraftPeople(input: {
   choreography: ChoreographyDetail;
   draft: ChoreographyDraft;
+  /** As read under the row lock: the preview is older than the write. */
+  isStructureLocked: boolean;
   tx: Transaction;
   write: DraftWrite;
 }) {
   const { choreography, draft, tx, write } = input;
-  const { changes, preview, resolvedDancers } = write.resolution;
+  const { changes, resolvedDancers } = write.resolution;
 
   if (changes.classification) {
     await syncRosterInscriptions({
@@ -530,7 +535,7 @@ async function writeDraftPeople(input: {
       resolvedDancers,
       tx,
     });
-  } else if (preview.structuralLock === null) {
+  } else if (!input.isStructureLocked) {
     await normalizeActiveInscriptionAges(tx, {
       choreographyId: choreography.id,
     });
