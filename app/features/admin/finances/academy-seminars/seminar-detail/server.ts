@@ -160,6 +160,7 @@ export async function loadSeminarFinanceDetail(input: {
       registrationCount: seminarFinanceRow.registrationCount,
       scheduledDate: seminarFinanceRow.scheduledDate,
       totalAmount: seminarFinanceRow.totalAmount,
+      withdrawn: seminarFinanceRow.withdrawn,
     },
     selectedEventId: eventId,
   };

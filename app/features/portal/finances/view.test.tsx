@@ -265,6 +265,32 @@ describe("PortalAcademyFinancesRouteView", () => {
     expect(columnValues("Estado")).toEqual(["Señada", "Retirada"]);
   });
 
+  // #1725: the academy's unit whose whole roster withdrew reads as its rows do.
+  test("badges a seminar unit whose roster withdrew `Retirada`, and filters by it", async () => {
+    await renderPortalFinances(
+      renderer,
+      portalFinancesLoaderDataFixture({
+        seminarFinanceRows: [
+          seminarFinanceRowFixture({
+            financialStatus: "depositMet",
+            id: "seminar_1",
+          }),
+          seminarFinanceRowFixture({
+            financialStatus: "paidInFull",
+            id: "seminar_2",
+            instructorName: "Nicolás Prado",
+            registrationCount: 0,
+            withdrawn: true,
+          }),
+        ],
+      }),
+      "/portal/finanzas?tipo=seminarios&estado=withdrawn",
+    );
+
+    expect(columnValues("Seminario")).toEqual(["Nicolás Prado"]);
+    expect(columnValues("Estado")).toEqual(["Retirada"]);
+  });
+
   test("filters the list down to the withdrawn choreographies on `Retirada`", async () => {
     await renderPortalFinances(
       renderer,
@@ -483,6 +509,7 @@ function seminarFinanceRowFixture(
     registrationCount: 2,
     scheduledDate: "2026-10-10",
     totalAmount: { amount: 5000, status: "complete" },
+    withdrawn: false,
     ...overrides,
   };
 }
