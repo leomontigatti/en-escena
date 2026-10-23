@@ -67,7 +67,7 @@ create temporary table withdrawn_excess_window on commit drop as
 select
   timestamptz '2026-10-21 20:20:58.037+00' as copied_at,
   :'deployed_at'::timestamptz as deployed_at,
-  :'deployed_at' ~ '(Z|[+-][0-9]{2}(:?[0-9]{2})?)$' as has_offset;
+  :'deployed_at' ~ '[T ][0-9]{2}:[0-9]{2}(:[0-9]{2}([.][0-9]+)?)?(Z|[+-][0-9]{2}(:?[0-9]{2})?)$' as has_offset;
 
 -- The other withdrawn rows holding money on the copy, each already on its
 -- deposit: what each held then, which was its deposit.
@@ -107,7 +107,7 @@ declare
   pool_key text;
 begin
   if not (select has_offset from withdrawn_excess_window) then
-    raise exception 'deployed_at needs its offset (Z or -03:00)';
+    raise exception 'deployed_at needs a time and its offset (2026-10-23T18:30:00-03:00)';
   end if;
   if not (
     select copied_at < deployed_at and deployed_at <= now()
@@ -183,6 +183,12 @@ begin
 
   -- A settled row still keeps the deposit it held: its stored price was not
   -- changed under it, which would leave the same money above a lower deposit.
+  select count(*) into changed
+  from withdrawn_excess_settled settled
+  join en_escena_choreography_dancer dancer on dancer.id = settled.inscription_id;
+  if changed <> 22 then
+    raise exception 'expected 22 settled choreography inscriptions, found %', changed;
+  end if;
   for planned in
     select settled.inscription_id, settled.held_amount,
       round(price.amount::numeric * event.required_deposit_percentage / 100.0) as deposit
