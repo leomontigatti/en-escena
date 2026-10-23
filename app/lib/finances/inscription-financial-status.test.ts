@@ -68,10 +68,7 @@ describe("splitInscriptionPrice", () => {
       }),
     ).toEqual({
       participationFeeAmount: 5834,
-      registrationFeeAmount: calculateDepositAmount({
-        priceAmount: 8335,
-        requiredDepositPercentage: 30,
-      }),
+      registrationFeeAmount: 2501,
     });
   });
 });
