@@ -18,7 +18,7 @@
 -- writers take them in. Run after the deploy has finished, once the previous
 -- release no longer serves, with the superuser (a write):
 --
---   ssh root@rylai "docker exec -i c24udczenueosjssymgxuhgf psql -U postgres -d enescena -v ON_ERROR_STOP=1 -v deployed_at='<when the deploy finished, ISO 8601 with offset>'" < scripts/release-withdrawn-excess.sql
+--   ssh root@rylai "docker exec -i c24udczenueosjssymgxuhgf psql -U postgres -d enescena -v ON_ERROR_STOP=1 -v deployed_at='<when the previous release stopped serving, ISO 8601 with offset; later is safe>'" < scripts/release-withdrawn-excess.sql
 --
 -- Delete it, with the TypeScript script and its module, once it has run.
 
@@ -58,15 +58,19 @@ insert into withdrawn_excess_allocation values
   ('d06f13b5-4c4f-439f-8183-819a2ac441b2', 'fc809b10-a77b-41fb-9b6e-9f7785965ba8', 37100, 0);
 
 -- The window the copy cannot see: from the copy's last withdrawal to the
--- moment the deploy finished, which the run passes in (`-v deployed_at=...`).
--- Without it psql leaves the variable unreplaced and the statement fails.
+-- moment the previous release stopped serving, which the run passes in
+-- (`-v deployed_at=...`, with its offset). Only a late value is safe: an
+-- early one leaves the previous release's last withdrawals unchecked, a late
+-- one at worst refuses a withdrawal the new release made. Without it psql
+-- leaves the variable unreplaced and the statement fails.
 create temporary table withdrawn_excess_window on commit drop as
 select
   timestamptz '2026-10-21 20:20:58.037+00' as copied_at,
-  :'deployed_at'::timestamptz as deployed_at;
+  :'deployed_at'::timestamptz as deployed_at,
+  :'deployed_at' ~ '(Z|[+-][0-9]{2}(:?[0-9]{2})?)$' as has_offset;
 
--- The other withdrawn rows holding money on the copy, already on their
--- deposit: what each held then.
+-- The other withdrawn rows holding money on the copy, each already on its
+-- deposit: what each held then, which was its deposit.
 create temporary table withdrawn_excess_settled (
   inscription_id varchar primary key,
   held_amount integer not null
@@ -102,6 +106,16 @@ declare
   changed integer;
   pool_key text;
 begin
+  if not (select has_offset from withdrawn_excess_window) then
+    raise exception 'deployed_at needs its offset (Z or -03:00)';
+  end if;
+  if not (
+    select copied_at < deployed_at and deployed_at <= now()
+    from withdrawn_excess_window
+  ) then
+    raise exception 'deployed_at must fall between the copy and now';
+  end if;
+
   perform 1
   from en_escena_choreography_dancer dancer
   join withdrawn_excess_inscription plan on plan.inscription_id = dancer.id
@@ -165,6 +179,23 @@ begin
   loop
     raise exception 'withdrawn inscription % (withdrawn %) holds % and is neither planned nor settled on the copy: check it and regenerate the plan',
       planned.inscription_id, planned.withdrawn_at, planned.held_now;
+  end loop;
+
+  -- A settled row still keeps the deposit it held: its stored price was not
+  -- changed under it, which would leave the same money above a lower deposit.
+  for planned in
+    select settled.inscription_id, settled.held_amount,
+      round(price.amount::numeric * event.required_deposit_percentage / 100.0) as deposit
+    from withdrawn_excess_settled settled
+    join en_escena_choreography_dancer dancer on dancer.id = settled.inscription_id
+    join en_escena_choreography choreography on choreography.id = dancer.choreography_id
+    join en_escena_event event on event.id = choreography.event_id
+    left join en_escena_price price on price.id = dancer.selected_price_id
+  loop
+    if planned.deposit is distinct from planned.held_amount then
+      raise exception 'settled inscription % has deposit %, it held % on the copy: check it and regenerate the plan',
+        planned.inscription_id, planned.deposit, planned.held_amount;
+    end if;
   end loop;
 
   -- Each planned deposit is still what the row's stored price and its event's
