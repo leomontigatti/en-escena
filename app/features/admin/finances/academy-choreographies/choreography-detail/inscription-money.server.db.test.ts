@@ -26,7 +26,7 @@ import { createSavedEvent } from "@/lib/test-support/events";
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
 
 import { removeChoreography } from "@/lib/choreographies/choreography-removal.server";
-import { releaseWithdrawnExcess } from "@/lib/finances/withdrawn-excess-cleanup.server";
+import { partialRetainedReleaseMessage } from "@/lib/finances/withdrawal-retention-refusals";
 
 import { loadChoreographyFinanceDetail } from "./server";
 
@@ -809,10 +809,10 @@ describe("the deposit a withdrawn inscription retains", () => {
     expect(await readAllocations(fixture.inscriptionId)).toEqual([]);
   });
 
-  // A row withdrawn before the release at withdrawal existed still holds what
-  // it held. The dialog has no release of just the excess; the one-time cleanup
-  // brings the row down to its deposit, newest payment first.
-  test("leaves the excess of a row withdrawn earlier to the one-time cleanup, which a dry run does not move", async () => {
+  // A row can hold more than its deposit when it was withdrawn without the
+  // release at withdrawal. The dialog has no release of just the excess: its
+  // one `Liberar` takes all of it.
+  test("refuses to release just the excess of a withdrawn row, and releases all of it", async () => {
     const fixture = await seedInscription([4000, 4000]);
     await post(fixture, {
       intent: "allocate-inscription",
@@ -826,25 +826,22 @@ describe("the deposit a withdrawn inscription retains", () => {
 
     await expect(
       post(fixture, { intent: "release-inscription-excess" }),
-    ).resolves.toMatchObject({ status: "error" });
-
-    const release = expect.objectContaining({
-      heldAmount: 6000,
-      inscriptionId: fixture.inscriptionId,
-      kind: "choreography",
-      releasedAmount: 3000,
+    ).resolves.toMatchObject({
+      message: partialRetainedReleaseMessage,
+      status: "error",
     });
-    await expect(releaseWithdrawnExcess({ apply: false })).resolves.toEqual([
-      release,
-    ]);
-    expect(await readAllocations(fixture.inscriptionId)).toHaveLength(2);
+    const held = await readAllocations(fixture.inscriptionId);
+    expect(held).toHaveLength(2);
+    expect(held).toEqual(
+      expect.arrayContaining([
+        { amount: 4000, paymentId: fixture.payments[0].id },
+        { amount: 2000, paymentId: fixture.payments[1].id },
+      ]),
+    );
 
-    await expect(releaseWithdrawnExcess({ apply: true })).resolves.toEqual([
-      release,
-    ]);
-    expect(await readAllocations(fixture.inscriptionId)).toEqual([
-      { amount: 3000, paymentId: fixture.payments[0].id },
-    ]);
-    await expect(releaseWithdrawnExcess({ apply: true })).resolves.toEqual([]);
+    await expect(
+      post(fixture, { intent: "release-retained-deposit" }),
+    ).resolves.toMatchObject({ status: 302 });
+    expect(await readAllocations(fixture.inscriptionId)).toEqual([]);
   });
 });

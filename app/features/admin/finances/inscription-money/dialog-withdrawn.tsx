@@ -9,8 +9,7 @@
  * A row can still hold more than its deposit when the deposit moved down after
  * the withdrawal (a row below its deposit is not price-locked). The description
  * says so, and the one release still takes all of it: the rows withdrawn before
- * #1065 were brought down to their deposit once, by
- * `scripts/release-withdrawn-excess.ts`.
+ * #1065 were brought down to their deposit once, in production.
  */
 
 import { Button } from "@/components/ui/button";
