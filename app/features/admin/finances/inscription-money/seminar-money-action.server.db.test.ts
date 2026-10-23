@@ -13,6 +13,7 @@ import {
   seminarInscriptionFinancesUrl,
   type EventSeminarFinanceFixture,
 } from "@/lib/admin/finances/seminar-finances.test-support";
+import { partialRetainedReleaseMessage } from "@/lib/finances/withdrawal-retention-refusals";
 import { removeSeminarInscription } from "@/lib/seminars/inscriptions.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -264,7 +265,10 @@ describe("the deposit a withdrawn seminar inscription retains", () => {
       intent: "release-inscription-excess",
     });
 
-    expect(released).toMatchObject({ status: "error" });
+    expect(released).toMatchObject({
+      message: partialRetainedReleaseMessage,
+      status: "error",
+    });
     expect(await readAllocatedAmount(fixture.anaInscriptionId)).toBe(15000);
   });
 });

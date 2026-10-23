@@ -26,6 +26,7 @@ import { createSavedEvent } from "@/lib/test-support/events";
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
 
 import { removeChoreography } from "@/lib/choreographies/choreography-removal.server";
+import { partialRetainedReleaseMessage } from "@/lib/finances/withdrawal-retention-refusals";
 
 import { loadChoreographyFinanceDetail } from "./server";
 
@@ -825,8 +826,14 @@ describe("the deposit a withdrawn inscription retains", () => {
 
     await expect(
       post(fixture, { intent: "release-inscription-excess" }),
-    ).resolves.toMatchObject({ status: "error" });
-    expect(await readAllocations(fixture.inscriptionId)).toHaveLength(2);
+    ).resolves.toMatchObject({
+      message: partialRetainedReleaseMessage,
+      status: "error",
+    });
+    expect(await readAllocations(fixture.inscriptionId)).toEqual([
+      { amount: 4000, paymentId: fixture.payments[0].id },
+      { amount: 2000, paymentId: fixture.payments[1].id },
+    ]);
 
     await expect(
       post(fixture, { intent: "release-retained-deposit" }),

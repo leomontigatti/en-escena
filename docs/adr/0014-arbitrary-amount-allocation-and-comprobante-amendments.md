@@ -919,7 +919,7 @@ seña)`; one holding less keeps what it has and owes nothing more. Inaction now
 - **Rows withdrawn before this held everything.** A one-time cleanup that ships
   with the change releases what each of them holds above its seña, through the
   same release, rather than a release-the-excess button that would live on for a
-  case the withdrawal no longer produces. It ran in production on 2026-10-23.
+  case the withdrawal no longer produces.
 
 What it fixes on the fiscal side: with the retained amount fixed at withdrawal,
 `NC = línea facturada − retenido` is known the moment the row is withdrawn, so
@@ -937,3 +937,11 @@ Rejected:
   clause cannot.
 - **A warning on the event bases screen when the percentage moves.** The
   percentage is the component by definition, so there is nothing to compare.
+
+## Amendment (2026-10-23): the one-time cleanup ran
+
+The cleanup the 2026-10-22 correction ships ran in production on 2026-10-23: it
+released 219100 across the 7 rows withdrawn before that correction, each down to
+its seña, and was then removed from the code (#1735; its script stays in git
+history at be14194d). A withdrawn row can still hold more than its seña when its
+seña moves down after the withdrawal; its one release still takes all of it.
