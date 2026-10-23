@@ -1,6 +1,18 @@
 import { URLSearchParams as nodeURLSearchParams } from "node:url";
+import { setTimeout as nextMacrotask } from "node:timers/promises";
+import { afterAll } from "vitest";
 
 if (typeof window !== "undefined") {
+  // Closing a Radix dialog, popover or select queues its last focus step on
+  // `setTimeout(0)`. When a file's last `afterEach` closes one, the worker can
+  // tear jsdom down before that timer runs, and the callback then throws on the
+  // closed window (`dispatchEvent ... parameter 1 is not of type 'Event'`),
+  // reported against the file (#1682). Waiting one macrotask after the file's
+  // hooks lets every 0 ms timer queued before it run first. The wait comes from
+  // `node:timers/promises`, which `vi.useFakeTimers` leaves real (Vitest 5), so
+  // a file that leaves fake timers on does not hang this hook.
+  afterAll(() => nextMacrotask(0));
+
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
