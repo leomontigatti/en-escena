@@ -349,7 +349,7 @@ A duplicate that got past the guards above is merged from the panel, by an admin
 
 ## Choreography Locks
 
-The locks are decided in one place, `resolveChoreographyLocks` (`app/lib/choreographies/choreography-locks.ts`): for one choreography and one actor (`academy`, `admin` or `auditor`), whether each of `rename`, `lockedChoreographyData`, `pendingOperationalChoreographyData` and `delete` is open, and the reason when it is not. The reasons are the two states below, `withdrawn` and `evaluated-presentation`, and the actor's role; a state wins over the role, so the auditor and the administrator are told the same thing. Every screen, action guard and blocked-action dialog reads from it, and the Spanish copy for each reason lives beside it.
+A lock is closed by a state of the choreography (withdrawn, or evaluated) or by the actor's role, and the state is what is reported: the auditor and the administrator are told the same thing about the same choreography.
 
 - `Datos bloqueados de coreografía` include name, modality, submodality, group type and category. Modality, schedule capacity and experience level are not academy-editable either, but they are not fully blocked: the administrator can correct or reassign each of them under the conditions below.
 - Delete and register again is the last resort for an unpaid choreography that is not evaluated — one holding money is withdrawn instead of deleted, so it is not a correction path at all — not the ordinary correction path: modality, submodality, experience level, schedule capacity and the roster are all corrected on the choreography detail. It remains the answer when what has to change is none of those.

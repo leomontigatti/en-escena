@@ -7,6 +7,7 @@ import {
   events,
   presentations,
 } from "@/db/schema";
+import { resolveChoreographyLocks } from "@/lib/choreographies/choreography-locks";
 import { choreographyHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
 import { deleteChoreographyPresentation } from "@/lib/presentations/presentation-queries.server";
@@ -93,7 +94,13 @@ export async function removeChoreography(
 
     // Competitive history is never lost: a scored or disqualified presentation
     // leaves the choreography neither deletable nor withdrawable.
-    if (await hasEvaluatedPresentation(choreographyId, tx)) {
+    const deletion = resolveChoreographyLocks({
+      actor: "admin",
+      isEvaluated: await hasEvaluatedPresentation(choreographyId, tx),
+      isWithdrawn: false,
+    }).delete;
+
+    if (deletion.locked) {
       return "evaluated";
     }
 

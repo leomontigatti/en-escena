@@ -416,8 +416,8 @@ async function writeDraft(input: {
   }
 
   if (isStructuralDraft(choreography, draft, write.resolution)) {
-    // Asked again under the row lock: a judge's score that landed after the
-    // preview closes the structure all the same.
+    // The evaluation is asked again under the row lock: a judge's score that
+    // landed after the preview closes the structure all the same.
     const reason = readDataLockReason(
       resolveChoreographyLocks({
         actor: "admin",
