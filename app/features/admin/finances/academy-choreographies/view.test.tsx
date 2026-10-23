@@ -1238,6 +1238,35 @@ describe("AcademyFinancesRouteView", () => {
     ]);
   });
 
+  // #1725: a seminar unit whose whole roster withdrew is not a unit owing its
+  // deposit; it reads as its rows do, and the same option finds it.
+  test("badges a seminar unit whose roster withdrew `Retirada`, and filters by it", async () => {
+    await renderListIntoDocument({
+      initialEntry:
+        "/administracion/finanzas/academy_1?tipo=seminarios&estado=withdrawn",
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [
+          seminarFinanceRowFixture({
+            financialStatus: "depositMet",
+            id: "seminar_1",
+          }),
+          seminarFinanceRowFixture({
+            financialStatus: "paidInFull",
+            id: "seminar_2",
+            instructorName: "Nicolás Prado",
+            registrationCount: 0,
+            withdrawn: true,
+          }),
+        ],
+      }),
+    });
+
+    expect(columnValues("Seminario")).toEqual(["Nicolás Prado"]);
+    expect(statusBadges()).toEqual([
+      [{ text: "Retirada", destructive: false }],
+    ]);
+  });
+
   test("filters the list down to the withdrawn choreographies on `Retirada`", async () => {
     await renderListIntoDocument({
       initialEntry: "/administracion/finanzas/academy_1?estado=withdrawn",
@@ -1588,6 +1617,7 @@ function seminarFinanceRowFixture(
     registrationCount: 2,
     scheduledDate: "2026-10-10",
     totalAmount: { amount: 20000, status: "complete" },
+    withdrawn: false,
     ...overrides,
   };
 }

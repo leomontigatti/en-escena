@@ -195,6 +195,7 @@ function resolveSeminarStatus(row: SeminarFinanceRow) {
     anomalies: row.anomalies,
     financialStatus: row.financialStatus,
     linkedIndividual: row.linkedIndividualsOnly,
+    withdrawn: row.withdrawn,
   });
 }
 

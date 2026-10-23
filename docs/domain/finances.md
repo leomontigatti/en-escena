@@ -109,10 +109,16 @@ move under an academy when a sibling roster changes a discount tier.
 - It is a minimum and **not a watermark**. The watermark it replaced let a
   choreography with a straggler read `Señada`, and `deriveChoreographyNeedsAttention`
   existed only to compensate for that; both are gone.
-- A choreography with no active inscriptions reads `Seña pendiente` — unless it
-  is itself withdrawn, which is the only way it gets there.
+- A choreography with no inscriptions at all reads `Seña pendiente`: nobody has
+  registered for it yet.
 - Withdrawn inscriptions are excluded from this rollup and from the
   choreography's `registrationCount`. They stay in the money rollup.
+- A choreography whose **every** inscription is withdrawn, while it stays
+  registered itself, reads `Retirada` as its rows do, with `paidInFull`
+  underneath and a `registrationCount` of `0` (#1725). Nobody is left to pay the
+  deposit `Seña pendiente` would ask for. A `(seminar, academy)` unit whose
+  every inscription is withdrawn reads the same way, on every list and detail
+  that badges it, and the `Estado` filter's `Retirada` finds both.
 - A **withdrawn choreography** is cut the same way one level up: its retained
   money stays in its own rollup and in its academy's totals, and it is out of
   the status rollup and out of every count, so its `registrationCount` is `0`

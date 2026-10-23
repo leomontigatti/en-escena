@@ -317,6 +317,7 @@ function resolveSeminarStatus(row: SeminarFinanceRow) {
   return resolveInscriptionStatusBadge({
     anomalies: row.anomalies,
     financialStatus: row.financialStatus,
+    withdrawn: row.withdrawn,
   });
 }
 

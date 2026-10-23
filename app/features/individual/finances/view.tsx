@@ -60,6 +60,7 @@ function SeminarStatusBadge({ row }: { row: SeminarFinanceRow }) {
       status={resolveInscriptionStatusBadge({
         anomalies: row.anomalies,
         financialStatus: row.financialStatus,
+        withdrawn: row.withdrawn,
       })}
     />
   );
