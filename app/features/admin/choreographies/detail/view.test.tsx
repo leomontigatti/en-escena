@@ -18,6 +18,7 @@ import {
   findButton,
   getTitleBadgeTexts,
 } from "@/lib/test-support/react-dom";
+import { resolveChoreographyLocks } from "@/lib/choreographies/choreography-locks";
 
 type DetailViewProps = Parameters<typeof ChoreographyDetailRouteView>[0];
 
@@ -662,6 +663,11 @@ function buildLoaderData(
       outcome: "deleted",
     },
     draft: buildSavedPreview(choreography),
+    locks: resolveChoreographyLocks({
+      actor: overrides.canEdit === false ? "auditor" : "admin",
+      isEvaluated: choreography.isEvaluated,
+      isWithdrawn: choreography.isWithdrawn,
+    }),
     modality: {
       blockers: [],
       options: [

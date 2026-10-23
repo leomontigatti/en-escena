@@ -23,6 +23,8 @@ import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { getAssetKindHelperText } from "@/lib/storage/asset-kinds";
 
+import { choreographyDeleteLockCopy } from "@/lib/choreographies/choreography-locks";
+
 import { ChoreographyDetailAlerts } from "./detail-alerts";
 import { ConfirmDraftDialog } from "./draft-confirm-dialog";
 import {
@@ -31,7 +33,6 @@ import {
 } from "./draft-fields";
 import type { ChoreographyDetailLoaderData } from "./server";
 import {
-  choreographyDeleteBlockedCopy,
   deleteChoreographyIntent,
   describeChoreographyRemoval,
   type ChoreographyViewActionData,
@@ -103,13 +104,11 @@ export function ChoreographyDetailRouteView({
 
       {deleteBlocker ? (
         <BlockedActionDialog
-          description={choreographyDeleteBlockedCopy[deleteBlocker].description}
+          description={choreographyDeleteLockCopy[deleteBlocker].description}
           onOpenChange={setIsDeleteDialogOpen}
           open={isDeleteDialogOpen}
-          reasons={choreographyDeleteBlockedCopy[deleteBlocker].reason}
-          reasonsTitle={
-            choreographyDeleteBlockedCopy[deleteBlocker].reasonsTitle
-          }
+          reasons={choreographyDeleteLockCopy[deleteBlocker].reason}
+          reasonsTitle={choreographyDeleteLockCopy[deleteBlocker].reasonsTitle}
           title="No se puede eliminar la coreografía"
         />
       ) : null}

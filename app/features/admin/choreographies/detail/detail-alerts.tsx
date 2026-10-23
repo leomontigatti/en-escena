@@ -6,7 +6,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   evaluatedChoreographyAlert,
   evaluatedChoreographyNotice,
-} from "@/lib/choreographies/choreography-messages";
+  readDataLockReason,
+} from "@/lib/choreographies/choreography-locks";
 
 import type { ChoreographyDetailLoaderData } from "./server";
 
@@ -35,6 +36,9 @@ export function ChoreographyDetailAlerts({
   loaderData: ChoreographyDetailLoaderData;
 }) {
   const choreography = loaderData.choreography;
+  const isEvaluated =
+    readDataLockReason(loaderData.locks.lockedChoreographyData) ===
+    "evaluated-presentation";
   // The level is open whenever the category declares levels and the structure
   // is: that is the only way to complete a choreography left without one.
   const canChooseExperienceLevel =
@@ -52,7 +56,7 @@ export function ChoreographyDetailAlerts({
           evaluated closes the choreography; merely holding a number does not —
           the administrator may keep correcting it, and the only thing worth
           saying is that the correction can echo on the participation list. */}
-      {choreography.isEvaluated ? (
+      {isEvaluated ? (
         <Alert variant="info">
           <Info aria-hidden="true" />
           <AlertTitle>{evaluatedChoreographyAlert.title}</AlertTitle>
@@ -107,7 +111,7 @@ export function ChoreographyDetailAlerts({
           <AlertDescription>
             La edad con la que se ubicó esta coreografía quedó fuera del rango
             que admite {choreography.categoryName}.
-            {formatCategoryAgeMismatchAction(choreography.isEvaluated)}
+            {formatCategoryAgeMismatchAction(isEvaluated)}
           </AlertDescription>
         </Alert>
       ) : null}

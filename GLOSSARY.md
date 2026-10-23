@@ -222,11 +222,11 @@ Academy portal flow to change the permitted data of an already registered choreo
 _Avoid_: `choreographyRegistration`, administrative correction
 
 **`lockedChoreographyData`** — ui: "Datos bloqueados de coreografía"
-Data of a choreography the academy cannot change when the event rules or its financial/competitive state lock them.
+Data of a choreography the academy never changes, and the administrator only until the choreography is evaluated or withdrawn: modality, submodality, roster, category, level and schedule capacity. A capability of `resolveChoreographyLocks`; money locks none of it (ADR-0009).
 _Avoid_: `pendingOperationalChoreographyData`, financial data
 
 **`pendingOperationalChoreographyData`** — ui: "Datos operativos pendientes de coreografía"
-Data of a choreography that can be completed without changing calculation, capacity or competitive placement.
+Data of a choreography that can be completed without changing calculation, capacity or competitive placement: music and professors. A capability of `resolveChoreographyLocks`, open to the academy until the choreography is evaluated or withdrawn.
 _Avoid_: `lockedChoreographyData`, financial data
 
 **`musicFile`** — ui: "Archivo de música"

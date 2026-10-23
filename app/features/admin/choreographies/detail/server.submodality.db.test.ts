@@ -10,7 +10,7 @@ import {
   createEventRecord,
   date,
 } from "@/features/portal/choreographies/test-support/db";
-import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
+import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-locks";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import {

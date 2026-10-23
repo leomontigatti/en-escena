@@ -32,11 +32,11 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import { choreographyNameWriteCases } from "@/lib/choreographies/choreography-name.test-support";
 import {
-  evaluatedChoreographyMessage,
   groupTypePinnedPriceMessage,
   invalidExperienceLevelMessage,
   noCompatibleCategoryModalityMessage,
 } from "@/lib/choreographies/choreography-messages";
+import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-locks";
 import {
   createAcademySession,
   createDancer,

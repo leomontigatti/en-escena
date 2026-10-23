@@ -1,4 +1,3 @@
-import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
 import type {
   ChoreographyRegistrationOperationResolution,
   ResolvedRegistrationDancer,
@@ -17,20 +16,6 @@ export type ChoreographyDancerOption = {
   lastName: string;
   active: boolean;
 };
-
-type DancerEditingBlockReason = "evaluated";
-
-type DancerEditingEligibility =
-  | {
-      canEdit: true;
-      reasonCode: null;
-      reasonText: null;
-    }
-  | {
-      canEdit: false;
-      reasonCode: DancerEditingBlockReason;
-      reasonText: string;
-    };
 
 type ChoreographyDancerScheduleOption =
   ChoreographyRegistrationOperationResolution["schedule"] extends {
@@ -117,26 +102,6 @@ type ResolvedChoreographyCategory = {
   id: string | null;
   name: string | null;
 };
-
-export function getDancerEditingEligibility(input: {
-  isEvaluated: boolean;
-}): DancerEditingEligibility {
-  if (input.isEvaluated) {
-    return {
-      canEdit: false,
-      reasonCode: "evaluated",
-      // The evaluated lock speaks with one sentence everywhere, roster
-      // included: the choreography is closed as a whole, not field by field.
-      reasonText: evaluatedChoreographyMessage,
-    };
-  }
-
-  return {
-    canEdit: true,
-    reasonCode: null,
-    reasonText: null,
-  };
-}
 
 /**
  * The category of a resolution as the roster form reads it, which is the only

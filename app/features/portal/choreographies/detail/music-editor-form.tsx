@@ -18,7 +18,13 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
-import { evaluatedChoreographyAlert } from "@/lib/choreographies/choreography-messages";
+import {
+  evaluatedChoreographyAlert,
+  readDataLockReason,
+  resolveChoreographyLocks,
+  withdrawnChoreographyAlert,
+  type ChoreographyDataLockReason,
+} from "@/lib/choreographies/choreography-locks";
 import { emptyExperienceLevelLabel } from "@/lib/choreographies/experience-level-requirement";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 import {
@@ -46,12 +52,15 @@ export function ChoreographyMusicEditorForm({
   loaderData: PortalChoreographyMusicLoaderData;
 }) {
   const choreography = loaderData.choreography;
-  // A withdrawn choreography is read-only for the academy, music included: it
-  // is not taking part, and only an administrator can bring it back.
   const musicLock = readMusicLock({
-    isEvaluated: choreography.isEvaluated,
     isEventReadOnly: loaderData.eventContext.isReadOnly,
-    isWithdrawn: choreography.isWithdrawn,
+    reason: readDataLockReason(
+      resolveChoreographyLocks({
+        actor: "academy",
+        isEvaluated: choreography.isEvaluated,
+        isWithdrawn: choreography.isWithdrawn,
+      }).pendingOperationalChoreographyData,
+    ),
   });
   const canEditMusic = musicLock === null;
   const {
@@ -393,27 +402,22 @@ function ChoreographyReadOnlyFields({
  * event are the administration's to undo.
  */
 function readMusicLock(state: {
-  isEvaluated: boolean;
   isEventReadOnly: boolean;
-  isWithdrawn: boolean;
+  reason: ChoreographyDataLockReason | null;
 }) {
-  if (state.isEvaluated) {
+  if (state.reason === "evaluated-presentation") {
     return evaluatedChoreographyAlert;
   }
 
-  if (state.isWithdrawn && state.isEventReadOnly) {
+  if (state.reason === "withdrawn" && state.isEventReadOnly) {
     return {
       description: "Un retiro es definitivo, así que no puede modificarse.",
       title: "Esta coreografía está retirada y el evento ya no está activo",
     };
   }
 
-  if (state.isWithdrawn) {
-    return {
-      description:
-        "Un retiro es definitivo, así que no puede modificarse. Para que vuelva a participar, registrá una coreografía nueva.",
-      title: "Esta coreografía está retirada",
-    };
+  if (state.reason === "withdrawn") {
+    return withdrawnChoreographyAlert;
   }
 
   if (state.isEventReadOnly) {

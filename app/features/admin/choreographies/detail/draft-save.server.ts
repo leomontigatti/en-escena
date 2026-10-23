@@ -5,10 +5,12 @@ import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import { lockComprobanteAnchor } from "@/lib/comprobantes/anchor-lock.server";
 import { choreographies, choreographyDancers } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
+import { groupTypePinnedPriceMessage } from "@/lib/choreographies/choreography-messages";
 import {
-  evaluatedChoreographyMessage,
-  groupTypePinnedPriceMessage,
-} from "@/lib/choreographies/choreography-messages";
+  adminLockRefusals,
+  readDataLockReason,
+  resolveChoreographyLocks,
+} from "@/lib/choreographies/choreography-locks";
 import { validateChoreographyName } from "@/lib/choreographies/choreography-name";
 import { syncRosterInscriptions } from "@/lib/choreographies/choreography-roster-admin.server";
 import {
@@ -413,11 +415,20 @@ async function writeDraft(input: {
     return refuse(divergedResolutionMessage);
   }
 
-  if (
-    isStructuralDraft(choreography, draft, write.resolution) &&
-    (await hasEvaluatedPresentation(choreography.id, tx))
-  ) {
-    return refuse(evaluatedChoreographyMessage);
+  if (isStructuralDraft(choreography, draft, write.resolution)) {
+    // Asked again under the row lock: a judge's score that landed after the
+    // preview closes the structure all the same.
+    const reason = readDataLockReason(
+      resolveChoreographyLocks({
+        actor: "admin",
+        isEvaluated: await hasEvaluatedPresentation(choreography.id, tx),
+        isWithdrawn: choreography.isWithdrawn,
+      }).lockedChoreographyData,
+    );
+
+    if (reason) {
+      return refuse(adminLockRefusals[reason]);
+    }
   }
 
   if (await isGroupTypePinned(input)) {

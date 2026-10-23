@@ -6,6 +6,11 @@ import {
   assertPortalChoreographyFound,
   portalOwnedChoreographyWhere,
 } from "@/lib/choreographies/choreography-access.server";
+import {
+  academyPendingOperationalRefusals,
+  readDataLockReason,
+  resolveChoreographyLocks,
+} from "@/lib/choreographies/choreography-locks";
 import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
 import { formatUploadRejection } from "@/lib/storage/asset-kinds";
 import type { ChoreographyMusicStorage } from "@/lib/storage/choreography-music.server";
@@ -17,24 +22,23 @@ export type UpdateChoreographyMusicResult =
   { ok: true } | { ok: false; message: string };
 
 /**
- * The two states that close the music for the academy. A withdrawn
- * choreography is not taking part, so only an administrator restoring it opens
- * it again; an evaluated one is history. The withdrawal is asked first because
- * it is free, and the two cannot coexist anyway.
+ * The academy's lock on its pending operational data, as the music refuses
+ * it: a withdrawn choreography is not taking part, so only an administrator
+ * restoring it opens it again; an evaluated one is history.
  */
 async function findMusicEditingLock(input: {
   choreographyId: string;
   withdrawnAt: Date | null;
 }): Promise<string | null> {
-  if (input.withdrawnAt) {
-    return "No podés editar la música porque la coreografía está retirada.";
-  }
+  const reason = readDataLockReason(
+    resolveChoreographyLocks({
+      actor: "academy",
+      isEvaluated: await hasEvaluatedPresentation(input.choreographyId),
+      isWithdrawn: input.withdrawnAt !== null,
+    }).pendingOperationalChoreographyData,
+  );
 
-  if (await hasEvaluatedPresentation(input.choreographyId)) {
-    return "No podés editar la música porque la coreografía ya fue evaluada.";
-  }
-
-  return null;
+  return reason ? academyPendingOperationalRefusals.music[reason] : null;
 }
 
 export async function updateChoreographyMusic(input: {
