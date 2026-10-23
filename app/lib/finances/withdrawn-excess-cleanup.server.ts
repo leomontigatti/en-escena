@@ -46,7 +46,6 @@ type WithdrawnRow = Omit<
   "heldAmount" | "releasedAmount"
 >;
 
-/** Every withdrawn row it released money from, with how much. */
 export async function releaseWithdrawnExcess(input: {
   apply: boolean;
 }): Promise<WithdrawnExcessRelease[]> {
@@ -107,7 +106,6 @@ async function releaseRowExcess(
   }
 }
 
-/** The withdrawn inscriptions of either kind that still hold any money. */
 async function readWithdrawnRowsHoldingMoney(): Promise<WithdrawnRow[]> {
   const rows = await db
     .selectDistinct({

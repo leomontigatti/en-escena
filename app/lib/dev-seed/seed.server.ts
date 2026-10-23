@@ -33,6 +33,7 @@ import {
   DEV_SEED_PASSWORD,
 } from "@/lib/dev-seed/accounts";
 import { deleteSeededRows } from "@/lib/dev-seed/delete-seeded-rows.server";
+import { expectOk } from "@/lib/dev-seed/expect-ok";
 import { invoiceChoreography } from "@/lib/dev-seed/demo-invoice.server";
 import {
   seedSeminarWithdrawal,
@@ -642,15 +643,4 @@ async function judgeAfternoonSchedule(input: {
     }),
     "score the afternoon presentation",
   );
-}
-
-function expectOk<Result extends { ok: boolean }>(
-  result: Result,
-  step: string,
-): Extract<Result, { ok: true }> {
-  if (!result.ok) {
-    throw new Error(`Dev seed could not ${step}: ${JSON.stringify(result)}`);
-  }
-
-  return result as Extract<Result, { ok: true }>;
 }

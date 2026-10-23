@@ -2,6 +2,7 @@ import { format } from "date-fns/format";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
+import { expectOk } from "@/lib/dev-seed/expect-ok";
 import { choreographies, choreographyDancers } from "@/db/schema";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
 import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
@@ -121,15 +122,4 @@ export async function seedSeminarWithdrawal(input: {
     }),
     "withdraw a seminar inscription",
   );
-}
-
-function expectOk<Result extends { ok: boolean }>(
-  result: Result,
-  step: string,
-): Extract<Result, { ok: true }> {
-  if (!result.ok) {
-    throw new Error(`Dev seed could not ${step}: ${JSON.stringify(result)}`);
-  }
-
-  return result as Extract<Result, { ok: true }>;
 }
