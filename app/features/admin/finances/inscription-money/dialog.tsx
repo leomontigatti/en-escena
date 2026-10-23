@@ -5,6 +5,7 @@
  *
  * | Row                            | What opens                                    |
  * | ------------------------------ | --------------------------------------------- |
+ * | withdrawn                      | Its retained deposit: release all of it, no amount |
  * | over-allocated                 | Release the excess. One button, nothing else.  |
  * | waived (`Bonificada`)          | The waiver, and the way to take it off         |
  * | nothing owed, money on it      | Remove money, prefilled with everything        |
@@ -87,6 +88,7 @@ import {
   useWaiverGesture,
   WaiverBlockedDialog,
 } from "./dialog-waiver";
+import { WithdrawnInscriptionDialog } from "./dialog-withdrawn";
 import {
   allocateInscriptionIntent,
   releaseInscriptionExcessIntent,
@@ -111,6 +113,16 @@ export function InscriptionMoneyDialog({
 }) {
   const shape = readInscriptionMoneyDialogShape(inscription);
   const [removing, setRemoving] = useState(shape === "remove");
+
+  if (shape === "withdrawn") {
+    return (
+      <WithdrawnInscriptionDialog
+        inscription={inscription}
+        onOpenChange={onOpenChange}
+        targetKind={targetKind}
+      />
+    );
+  }
 
   if (shape === "releaseExcess") {
     return (

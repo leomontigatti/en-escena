@@ -237,6 +237,7 @@ export async function readSeminarInscriptionThresholds(
       depositAmount: resolution.thresholds.depositAmount,
       priceRow: resolution.priceRow,
       totalAmount: resolution.thresholds.totalAmount,
+      withdrawn: resolution.withdrawn,
     });
   }
 

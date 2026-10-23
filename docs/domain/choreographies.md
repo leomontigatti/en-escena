@@ -152,8 +152,10 @@ the roster"):
 - **Withdrawal** otherwise. The choreography is stamped `withdrawnAt`, **every**
   inscription still active is stamped with the **same** timestamp value in the
   same transaction — including the ones holding no money — and the choreography
-  survives as a `Coreografía retirada`. **No money moves.** Inscriptions
-  withdrawn individually beforehand keep their own earlier stamp.
+  survives as a `Coreografía retirada`. Each inscription it withdraws **retains
+  its deposit** and releases what it holds above it to `Saldo disponible`, in the
+  same transaction ([finances.md](finances.md#withdrawal-from-the-roster)).
+  Inscriptions withdrawn individually beforehand keep their own earlier stamp.
 
 The outcome is decided inside the write's transaction, under a `FOR UPDATE` on
 the choreography row, so money allocated between the dialog and the click still

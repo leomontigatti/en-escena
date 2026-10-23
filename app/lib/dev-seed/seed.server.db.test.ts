@@ -337,14 +337,11 @@ describe("dev seed", () => {
 
     // Each paid inscription covers the 30% deposit of its 25000 price, which
     // locks the price in the money dialog and makes the choreography orderable.
-    for (const name of [
-      "Luna de Papel",
-      "Viento Sur",
-      "Río Arriba",
-      "Marea Alta",
-    ]) {
+    for (const name of ["Luna de Papel", "Viento Sur", "Río Arriba"]) {
       await expect(allocatedTo(name)).resolves.toEqual([10000]);
     }
+    // Its withdrawal retained the 7500 deposit and released the rest (#1065).
+    await expect(allocatedTo("Marea Alta")).resolves.toEqual([7500]);
 
     // One schedule is evaluated, so its numbered presentations are frozen
     // while the morning block stays open to correction.

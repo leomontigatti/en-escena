@@ -885,3 +885,51 @@ Rejected:
   out**, the case it was written for. Once #1065 releases the excess at
   withdrawal, a revival is no longer a clean undo: the money has to be
   allocated again either way.
+
+## Correction (2026-10-22): a withdrawal retains exactly the seña, released at withdrawal
+
+Appended, not edited in place. §6 said "Nothing cascades; the admin deallocates
+and emits deliberately" and "The admin chooses the amount in the deallocation
+dialog", and accepted that "inaction is the harshest outcome". All three are
+withdrawn. The decisions (owner, 2026-10-06, 2026-10-07 and 2026-10-22;
+[#1065](https://github.com/leomontigatti/en-escena/issues/1065), with the
+constraints [#674](https://github.com/leomontigatti/en-escena/issues/674) fixed on
+2026-10-21):
+
+- **The retained amount is the seña, by definition.** `requiredDepositPercentage`
+  is the _derecho de inscripción_ of §6's precio-desagregado clause, 30 % in the
+  clause the advisor approved; there is no second setting to compare it with.
+  Retaining more than that component is money held with no price behind it, which
+  forfeits the clause's defence, so the amount is no longer the administrator's
+  to choose.
+- **The retention happens at withdrawal, and it moves money.** In the same
+  transaction that stamps `withdrawnAt` (one dancer, `Eliminar coreografía`, or a
+  seminar inscription from either side) whatever the row holds above its seña is
+  released to `Saldo disponible`, newest-first. The row keeps `min(allocated,
+seña)`; one holding less keeps what it has and owes nothing more. Inaction now
+  retains the seña and nothing else, not everything the row held.
+- **A withdrawn row has exactly two outcomes**: keep the whole retained seña, or
+  release all of it (the medical case of #674). Never an amount in between, and
+  no reason is asked for, because the clause must not condition the retention on
+  an excuse. The dialog loses its amount on a withdrawn row and offers one
+  release of everything.
+- **The write path agrees with the read path.** A withdrawn row owes nothing, and
+  allocating onto it is refused, where the guard used to measure it against its
+  price `Total`.
+
+What it fixes on the fiscal side: with the retained amount fixed at withdrawal,
+`NC = línea facturada − retenido` is known the moment the row is withdrawn, so
+the 15-día clock counts against a known figure, and the row's derived total and
+the credit note's retained figure are one number. Releasing the seña later grows
+the credit note owed; that is §5's documented-versus-derived delta.
+
+Rejected:
+
+- **Capping the dialog's amount at the seña and keeping it hand-editable below**
+  (the issue's first proposal). Any amount between zero and the seña is an
+  outcome the clause does not have.
+- **Retaining through the dialog instead of at withdrawal.** It leaves the
+  excess on the row until someone acts, which is the inaction §6 accepted and the
+  clause cannot.
+- **A warning on the event bases screen when the percentage moves.** The
+  percentage is the component by definition, so there is nothing to compare.

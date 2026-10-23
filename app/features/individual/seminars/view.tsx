@@ -460,7 +460,7 @@ function RemovalDialog({
     return (
       <WithdrawDialog
         confirmLabel="Retirar"
-        consequence="El dinero que la inscripción tiene asignado queda como está y, si ya tenía la seña cubierta, su lugar se libera. El retiro es definitivo: si te volvés a inscribir, se crea una inscripción nueva, sin dinero."
+        consequence="La inscripción conserva su seña y lo que tenga por encima vuelve a tu saldo disponible. Si ya tenía la seña cubierta, su lugar se libera. El retiro es definitivo: si te volvés a inscribir, se crea una inscripción nueva, sin dinero."
         description={`Tu inscripción ya tiene dinero asignado, así que no se borra: queda retirada del seminario de ${instructorName}.`}
         intentValue={deleteIndividualSeminarInscriptionIntent}
         onOpenChange={onOpenChange}

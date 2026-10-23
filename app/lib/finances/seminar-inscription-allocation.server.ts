@@ -60,6 +60,11 @@ import {
   unwindToPool,
 } from "./allocation-pool.server";
 import {
+  partialRetainedReleaseMessage,
+  releaseRetainedDeposit,
+  releaseWithdrawnExcess,
+} from "./withdrawal-retention.server";
+import {
   runCobro,
   type CobroResult,
   type Executor,
@@ -373,6 +378,10 @@ export async function removeFromSeminarInscription(
       return context;
     }
 
+    if (context.inscription.withdrawn) {
+      return { ok: false, message: partialRetainedReleaseMessage };
+    }
+
     return await unwindToPool(tx, {
       academyId: input.academyId,
       amount: input.amount,
@@ -390,6 +399,10 @@ export async function releaseSeminarInscriptionExcess(
     const context = await loadSeminarMoneyContext(tx, input);
     if (!context.ok) {
       return context;
+    }
+
+    if (context.inscription.withdrawn) {
+      return await releaseWithdrawnExcess(tx, seminarPoolTarget(input));
     }
 
     const thresholds = await readSeminarInscriptionThresholds(tx, {
@@ -425,6 +438,35 @@ export async function releaseSeminarInscriptionExcess(
       target: { id: input.inscriptionId, kind: "seminar" },
     });
   });
+}
+
+/**
+ * The medical case on a withdrawn seminar inscription: its whole retained deposit
+ * goes back to `Saldo disponible`, with no amount to choose (#1065).
+ */
+export async function releaseRetainedSeminarInscriptionDeposit(
+  input: SeminarInscriptionMoneyInput,
+): Promise<CobroResult> {
+  return await runCobro(async (tx) => {
+    const context = await loadSeminarMoneyContext(tx, input);
+    if (!context.ok) {
+      return context;
+    }
+
+    if (!context.inscription.withdrawn) {
+      return { ok: false, message: "Esta inscripción no está retirada." };
+    }
+
+    return await releaseRetainedDeposit(tx, seminarPoolTarget(input));
+  });
+}
+
+function seminarPoolTarget(input: SeminarInscriptionMoneyInput) {
+  return {
+    academyId: input.academyId,
+    eventId: input.eventId,
+    target: { id: input.inscriptionId, kind: "seminar" as const },
+  };
 }
 
 /**
@@ -538,6 +580,7 @@ type SeminarMoneyContext =
         forParticipants: boolean;
         id: string;
         selectedPriceId: string | null;
+        withdrawn: boolean;
       };
       seminar: LockedSeminar;
     };
@@ -566,6 +609,7 @@ async function loadSeminarMoneyContext(
       individualId: seminarInscriptions.individualId,
       professorId: seminarInscriptions.professorId,
       selectedPriceId: seminarInscriptions.selectedPriceId,
+      withdrawnAt: seminarInscriptions.withdrawnAt,
     })
     .from(seminarInscriptions)
     .innerJoin(
@@ -599,6 +643,7 @@ async function loadSeminarMoneyContext(
       forParticipants: isParticipating(inscription, participation),
       id: inscription.id,
       selectedPriceId: inscription.selectedPriceId,
+      withdrawn: inscription.withdrawnAt !== null,
     },
     seminar,
   };

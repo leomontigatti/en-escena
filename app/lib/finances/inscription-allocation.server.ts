@@ -1,7 +1,9 @@
 /**
  * The write side of the money dialogs on the choreography financial detail:
  * putting an arbitrary amount on one inscription, taking an arbitrary amount
- * off it, and releasing exactly what it holds above its `Total`.
+ * off it, and releasing exactly what it holds above its `Total`. On a withdrawn
+ * inscription only the two outcomes of its retained deposit remain: release what
+ * is above it, or release all of it (`withdrawal-retention.server.ts`).
  *
  * All three go through the pool rules and **none of them lets the administrator
  * name a payment**: `spreadFromPool` consumes the academy's payments
@@ -55,6 +57,11 @@ import {
   spreadFromPool,
   unwindToPool,
 } from "./allocation-pool.server";
+import {
+  partialRetainedReleaseMessage,
+  releaseRetainedDeposit,
+  releaseWithdrawnExcess,
+} from "./withdrawal-retention.server";
 import {
   hasCrossedStoredDepositThreshold,
   loadCandidatePriceRow,
@@ -321,6 +328,10 @@ export async function removeFromInscription(
       return context;
     }
 
+    if (context.inscription.withdrawn) {
+      return { ok: false, message: partialRetainedReleaseMessage };
+    }
+
     return await unwindInscription(tx, { ...input, amount: input.amount });
   });
 }
@@ -337,6 +348,10 @@ export async function releaseInscriptionExcess(
     const context = await loadInscriptionMoneyContext(tx, input);
     if (!context.ok) {
       return context;
+    }
+
+    if (context.inscription.withdrawn) {
+      return await releaseWithdrawnExcess(tx, inscriptionPoolTarget(input));
     }
 
     const thresholds = await readInscriptionThresholds(tx, {
@@ -370,6 +385,36 @@ export async function releaseInscriptionExcess(
       amount: figures.overAllocatedAmount,
     });
   });
+}
+
+/**
+ * The medical case on a withdrawn inscription: its whole retained deposit goes
+ * back to `Saldo disponible`. There is no amount, because the clause allows no
+ * outcome between keeping all of it and releasing all of it.
+ */
+export async function releaseRetainedInscriptionDeposit(
+  input: InscriptionMoneyInput,
+): Promise<CobroResult> {
+  return await runCobro(async (tx) => {
+    const context = await loadInscriptionMoneyContext(tx, input);
+    if (!context.ok) {
+      return context;
+    }
+
+    if (!context.inscription.withdrawn) {
+      return { ok: false, message: "Esta inscripción no está retirada." };
+    }
+
+    return await releaseRetainedDeposit(tx, inscriptionPoolTarget(input));
+  });
+}
+
+function inscriptionPoolTarget(input: InscriptionMoneyInput) {
+  return {
+    academyId: input.academyId,
+    eventId: input.eventId,
+    target: choreographyTarget(input.inscriptionId),
+  };
 }
 
 /**
@@ -559,7 +604,11 @@ type InscriptionMoneyContext =
   | {
       ok: true;
       choreography: { groupType: string; scheduleId: string };
-      inscription: { id: string; selectedPriceId: string | null };
+      inscription: {
+        id: string;
+        selectedPriceId: string | null;
+        withdrawn: boolean;
+      };
     };
 
 /**
@@ -585,7 +634,7 @@ async function loadInscriptionMoneyContext(
   }
 
   const inscription = await tx.query.choreographyDancers.findFirst({
-    columns: { id: true, selectedPriceId: true },
+    columns: { id: true, selectedPriceId: true, withdrawnAt: true },
     where: and(
       eq(choreographyDancers.id, input.inscriptionId),
       eq(choreographyDancers.choreographyId, input.choreographyId),
@@ -602,6 +651,10 @@ async function loadInscriptionMoneyContext(
       groupType: choreographyRow.groupType,
       scheduleId: resolveChoreographyPricingScheduleId(choreographyRow),
     },
-    inscription,
+    inscription: {
+      id: inscription.id,
+      selectedPriceId: inscription.selectedPriceId,
+      withdrawn: inscription.withdrawnAt !== null,
+    },
   };
 }

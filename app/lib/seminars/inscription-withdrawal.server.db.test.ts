@@ -10,8 +10,12 @@ import {
 } from "@/db/schema";
 import { createDancer } from "@/lib/choreographies/registration.test-support";
 import {
+  readAcademyAvailableBalance,
+  readInscriptionAllocatedAmount,
+} from "@/lib/finances/allocation-pool.server";
+import {
   allocateToSeminarInscription,
-  removeFromSeminarInscription,
+  releaseRetainedSeminarInscriptionDeposit,
 } from "@/lib/finances/seminar-inscription-allocation.server";
 import {
   deleteSeminarInscriptionForAcademy,
@@ -167,6 +171,20 @@ function readInscription(inscriptionId: string) {
   });
 }
 
+function readAllocated(inscriptionId: string) {
+  return readInscriptionAllocatedAmount(db, {
+    id: inscriptionId,
+    kind: "seminar",
+  });
+}
+
+function readBalance(fixture: Fixture) {
+  return readAcademyAvailableBalance(db, {
+    academyId: fixture.academyId,
+    eventId: fixture.eventId,
+  });
+}
+
 describe("removing a seminar inscription", () => {
   test("deletes an unfunded row and withdraws a funded one, on the academy's side", async () => {
     const fixture = await seedFixture();
@@ -221,6 +239,44 @@ describe("removing a seminar inscription", () => {
     await expect(
       countCoveredSeminarInscriptions(fixture.seminarId),
     ).resolves.toBe(0);
+  });
+
+  // #1065: the withdrawal retains the deposit (the seminar's 50 % of 20000) and
+  // releases the rest to `Saldo disponible`, from either side.
+  test("releases what a withdrawn row holds above its deposit, on both sides", async () => {
+    const fixture = await seedFixture(3);
+    const byAcademy = await registerCovered(fixture, fixture.people[0].id);
+    const byAdministration = await registerCovered(
+      fixture,
+      fixture.people[1].id,
+    );
+    const belowDeposit = expectRegistered(
+      await register(fixture, fixture.people[2].id),
+    );
+    await allocate(fixture, { amount: 5000, inscriptionId: byAcademy });
+    await allocate(fixture, { amount: 2000, inscriptionId: byAdministration });
+    await allocate(fixture, { amount: 4000, inscriptionId: belowDeposit });
+    const balanceBefore = await readBalance(fixture);
+
+    await deleteSeminarInscriptionForAcademy({
+      academyId: fixture.academyId,
+      eventId: fixture.eventId,
+      inscriptionId: byAcademy,
+      now: beforeStart,
+    });
+    await removeSeminarInscription({
+      inscriptionId: byAdministration,
+      seminarId: fixture.seminarId,
+    });
+    await removeSeminarInscription({
+      inscriptionId: belowDeposit,
+      seminarId: fixture.seminarId,
+    });
+
+    await expect(readAllocated(byAcademy)).resolves.toBe(depositAmount);
+    await expect(readAllocated(byAdministration)).resolves.toBe(depositAmount);
+    await expect(readAllocated(belowDeposit)).resolves.toBe(4000);
+    await expect(readBalance(fixture)).resolves.toBe(balanceBefore + 7000);
   });
 
   test("refuses the academy's removal once the seminar started and administration's does not", async () => {
@@ -299,9 +355,8 @@ describe("removing a seminar inscription", () => {
       seminarId: fixture.seminarId,
     });
     await expect(
-      removeFromSeminarInscription({
+      releaseRetainedSeminarInscriptionDeposit({
         academyId: fixture.academyId,
-        amount: depositAmount,
         eventId: fixture.eventId,
         inscriptionId,
         seminarId: fixture.seminarId,
@@ -488,9 +543,8 @@ describe("deleting a seminar that has withdrawn rows", () => {
       code: "has-inscriptions",
     });
 
-    await removeFromSeminarInscription({
+    await releaseRetainedSeminarInscriptionDeposit({
       academyId: fixture.academyId,
-      amount: depositAmount,
       eventId: fixture.eventId,
       inscriptionId,
       seminarId: fixture.seminarId,

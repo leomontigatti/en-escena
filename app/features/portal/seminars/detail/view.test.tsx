@@ -289,7 +289,7 @@ describe("PortalSeminarDetailRouteView", () => {
     expect(dialog?.textContent).not.toContain("Esta acción es irreversible.");
     expect(dialog?.textContent).toContain("queda retirada del seminario");
     expect(dialog?.textContent).toContain(
-      "El dinero que la inscripción tiene asignado queda como está y, si ya tenía la seña cubierta, su lugar se libera.",
+      "La inscripción conserva su seña y lo que tenga por encima vuelve al saldo disponible de tu academia. Si ya tenía la seña cubierta, su lugar se libera.",
     );
     expect(dialog?.textContent).toContain(
       "El retiro es definitivo: si volvés a inscribir a la persona, se crea una inscripción nueva, sin dinero.",

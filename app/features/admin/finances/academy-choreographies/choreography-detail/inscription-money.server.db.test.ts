@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
-  choreographies,
   choreographyDancers,
   paymentAllocations,
   payments,
@@ -25,6 +24,8 @@ import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
+
+import { removeChoreography } from "@/lib/choreographies/choreography-removal.server";
 
 import { loadChoreographyFinanceDetail } from "./server";
 
@@ -378,48 +379,6 @@ describe("money on an inscription through the route action", () => {
     expect(inscription?.selectedPriceId).toBe(otherPrice.id);
   });
 
-  // Handling the money is the reason a withdrawn choreography survives, so the
-  // finance surface keeps writing on it while the operational one is closed.
-  test("keeps removing money from the inscription of a withdrawn choreography", async () => {
-    const fixture = await seedInscription([4000, 4000]);
-
-    await postDetailAction({
-      academyId: fixture.academyId,
-      choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
-      fields: {
-        intent: "allocate-inscription",
-        inscriptionId: fixture.inscriptionId,
-        priceId: fixture.priceId,
-        amount: "6000",
-      },
-    });
-
-    const withdrawnAt = new Date("2026-04-10T12:00:00Z");
-    await db
-      .update(choreographies)
-      .set({ withdrawnAt })
-      .where(eq(choreographies.id, fixture.choreographyId));
-    await db
-      .update(choreographyDancers)
-      .set({ withdrawnAt })
-      .where(eq(choreographyDancers.id, fixture.inscriptionId));
-
-    const response = await postDetailAction({
-      academyId: fixture.academyId,
-      choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
-      fields: {
-        intent: "remove-inscription-money",
-        inscriptionId: fixture.inscriptionId,
-        amount: "6000",
-      },
-    });
-
-    expect(response).toMatchObject({ status: 302 });
-    expect(await readAllocations(fixture.inscriptionId)).toEqual([]);
-  });
-
   test("keeps the fixed price when only part of the money is removed", async () => {
     const fixture = await seedInscription();
 
@@ -765,5 +724,110 @@ describe("waiving a whole choreography through the route action", () => {
         (inscription) => inscription.financialStatus,
       ),
     ).toEqual(["depositPending", "depositPending"]);
+  });
+});
+
+// #1065: a withdrawn inscription has exactly two outcomes, keeping its whole
+// retained deposit or releasing all of it to `Saldo disponible`.
+describe("the deposit a withdrawn inscription retains", () => {
+  /** 6000 allocated over two payments of 4000, then `Eliminar coreografía`. */
+  async function seedWithdrawn() {
+    const fixture = await seedInscription([4000, 4000]);
+
+    await postDetailAction({
+      academyId: fixture.academyId,
+      choreographyId: fixture.choreographyId,
+      eventId: fixture.eventId,
+      fields: {
+        intent: "allocate-inscription",
+        inscriptionId: fixture.inscriptionId,
+        priceId: fixture.priceId,
+        amount: "6000",
+      },
+    });
+    await expect(removeChoreography(fixture.choreographyId)).resolves.toBe(
+      "withdrawn",
+    );
+
+    return fixture;
+  }
+
+  function post(
+    fixture: Awaited<ReturnType<typeof seedInscription>>,
+    fields: Record<string, string>,
+  ) {
+    return postDetailAction({
+      academyId: fixture.academyId,
+      choreographyId: fixture.choreographyId,
+      eventId: fixture.eventId,
+      fields: { inscriptionId: fixture.inscriptionId, ...fields },
+    });
+  }
+
+  test("releases the whole retained deposit, and nothing is left on the row", async () => {
+    const fixture = await seedWithdrawn();
+    expect(await readAllocations(fixture.inscriptionId)).toEqual([
+      { amount: 3000, paymentId: fixture.payments[0].id },
+    ]);
+
+    await expect(
+      post(fixture, { intent: "release-retained-deposit" }),
+    ).resolves.toMatchObject({ status: 302 });
+
+    expect(await readAllocations(fixture.inscriptionId)).toEqual([]);
+    expect((await loadDetail(fixture)).inscriptions[0]).toMatchObject({
+      allocatedAmount: 0,
+      totalAmount: 0,
+      withdrawn: true,
+    });
+  });
+
+  test("refuses to take off part of the retained deposit", async () => {
+    const fixture = await seedWithdrawn();
+
+    await expect(
+      post(fixture, { intent: "remove-inscription-money", amount: "1000" }),
+    ).resolves.toMatchObject({ status: "error" });
+    expect(await readAllocations(fixture.inscriptionId)).toEqual([
+      { amount: 3000, paymentId: fixture.payments[0].id },
+    ]);
+  });
+
+  // The read path says a withdrawn row owes nothing; the write path agrees.
+  test("refuses to allocate money to a withdrawn inscription, below its deposit too", async () => {
+    const fixture = await seedWithdrawn();
+    await post(fixture, { intent: "release-retained-deposit" });
+
+    await expect(
+      post(fixture, {
+        intent: "allocate-inscription",
+        priceId: fixture.priceId,
+        amount: "1000",
+      }),
+    ).resolves.toMatchObject({ status: "error" });
+    expect(await readAllocations(fixture.inscriptionId)).toEqual([]);
+  });
+
+  // A row withdrawn before the release at withdrawal existed still holds what
+  // it held: releasing its excess brings it to the first outcome.
+  test("releases what a row withdrawn earlier holds above its deposit, newest payment first", async () => {
+    const fixture = await seedInscription([4000, 4000]);
+    await post(fixture, {
+      intent: "allocate-inscription",
+      priceId: fixture.priceId,
+      amount: "6000",
+    });
+    await db
+      .update(choreographyDancers)
+      .set({ withdrawnAt: new Date("2026-04-10T12:00:00Z") })
+      .where(eq(choreographyDancers.id, fixture.inscriptionId));
+
+    await expect(
+      post(fixture, { intent: "release-inscription-excess" }),
+    ).resolves.toMatchObject({ status: 302 });
+
+    expect(await readAllocations(fixture.inscriptionId)).toEqual([
+      { amount: 3000, paymentId: fixture.payments[0].id },
+    ]);
   });
 });

@@ -19,6 +19,7 @@ import {
   readInscriptionEffectivePrices,
   readInscriptionPriceOptions,
   releaseInscriptionExcess,
+  releaseRetainedInscriptionDeposit,
   removeFromInscription,
 } from "@/lib/finances/inscription-allocation.server";
 import {
@@ -44,6 +45,7 @@ import {
   readMoneyAmount,
   readPickedPriceId,
   releaseInscriptionExcessIntent,
+  releaseRetainedDepositIntent,
   removeInscriptionMoneyIntent,
 } from "@/features/admin/finances/inscription-money/intents";
 import { readFormData } from "@/lib/shared/read-form-data";
@@ -203,7 +205,8 @@ export async function handleChoreographyFinanceAction(input: {
   if (
     intent === allocateInscriptionIntent ||
     intent === removeInscriptionMoneyIntent ||
-    intent === releaseInscriptionExcessIntent
+    intent === releaseInscriptionExcessIntent ||
+    intent === releaseRetainedDepositIntent
   ) {
     const result = await runInscriptionMoneyIntent({
       academyId,
@@ -254,9 +257,9 @@ export async function handleChoreographyFinanceAction(input: {
 }
 
 /**
- * The three money gestures of an inscription, which differ only in what they
- * read off the form: an amount for two of them and nothing at all for the
- * release, whose figure is computed. Returns `null` when the write succeeded,
+ * The money gestures of an inscription, which differ only in what they read
+ * off the form: an amount for two of them and nothing at all for the two
+ * releases, whose figure is computed. Returns `null` when the write succeeded,
  * so the caller redirects; an error otherwise, which keeps the dialog open with
  * what the administrator typed.
  */
@@ -289,8 +292,10 @@ async function runInscriptionMoneyIntent(input: {
     inscriptionId,
   };
 
-  if (input.intent === releaseInscriptionExcessIntent) {
-    const result = await releaseInscriptionExcess(target);
+  const release = releaseWriters[input.intent];
+
+  if (release) {
+    const result = await release(target);
 
     return result.ok ? null : { status: "error", message: result.message };
   }
@@ -312,6 +317,13 @@ async function runInscriptionMoneyIntent(input: {
 
   return result.ok ? null : { status: "error", message: result.message };
 }
+
+/** The two gestures that read nothing off the form: their figure is computed. */
+const releaseWriters: Partial<Record<string, typeof releaseInscriptionExcess>> =
+  {
+    [releaseInscriptionExcessIntent]: releaseInscriptionExcess,
+    [releaseRetainedDepositIntent]: releaseRetainedInscriptionDeposit,
+  };
 
 function isWaiverIntent(intent: string): intent is WaiverIntent {
   return (waiverIntents as readonly string[]).includes(intent);

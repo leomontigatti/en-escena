@@ -35,6 +35,9 @@ import {
   type ComprobanteEmissionDeps,
 } from "@/lib/comprobantes/emit-comprobante.server";
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
+import { removeInscriptionsFromRoster } from "@/lib/choreographies/inscription-withdrawal.server";
+import { readAcademyAvailableBalance } from "@/lib/finances/allocation-pool.server";
+import { releaseRetainedInscriptionDeposit } from "@/lib/finances/inscription-allocation.server";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import {
   abandonReservationIntent,
@@ -1001,6 +1004,61 @@ describe("financial detail — what the documents leave pending", () => {
     expect((await session.list()).choreographyFinanceRows).toMatchObject([
       { billingStatus: "invoiced" },
     ]);
+  });
+
+  // #1065: the withdrawal releases what is above the deposit, so the money left on
+  // the row and the credit note agree from the start, and the clock reads a
+  // known figure. Releasing the deposit afterwards (the medical case) grows it.
+  test("a fully paid withdrawal keeps its deposit, frees the rest and owes the line less the deposit", async () => {
+    const seeded = await seedChoreographyWithPaidInscription({
+      academyName: "Academia Retiro Pago",
+      choreographyName: "Coreografía retiro pago",
+      email: "academia.retiro.pago@example.com",
+      paidAmount: 10000,
+    });
+    await recordValidInvoice({
+      choreographyId: seeded.choreographyId,
+      eventId: seeded.eventId,
+      inscriptionId: seeded.inscriptionId,
+      amount: 10000,
+      cbteNro: 7,
+    });
+
+    await db.transaction(async (tx) => {
+      await removeInscriptionsFromRoster(tx, [seeded.inscriptionId]);
+    });
+
+    const session = await signIn(seeded);
+    const withdrawn = await session.load();
+
+    expect(withdrawn.inscriptions[0]).toMatchObject({
+      allocatedAmount: 3000,
+      totalAmount: 3000,
+      withdrawn: true,
+    });
+    expect(withdrawn.billing).toMatchObject({
+      anomaly: "pendingCreditNote",
+      amount: 7000,
+      creditClockDays: 0,
+    });
+    await expect(
+      readAcademyAvailableBalance(db, {
+        academyId: seeded.academyId,
+        eventId: seeded.eventId,
+      }),
+    ).resolves.toBe(7000);
+
+    await releaseRetainedInscriptionDeposit({
+      academyId: seeded.academyId,
+      choreographyId: seeded.choreographyId,
+      eventId: seeded.eventId,
+      inscriptionId: seeded.inscriptionId,
+    });
+
+    expect((await session.load()).billing).toMatchObject({
+      anomaly: "pendingCreditNote",
+      amount: 10000,
+    });
   });
 
   test("before the invoice there is nothing pending", async () => {

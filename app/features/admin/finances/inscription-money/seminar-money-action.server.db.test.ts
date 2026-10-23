@@ -3,7 +3,7 @@ import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { paymentAllocations } from "@/db/schema";
+import { paymentAllocations, seminarInscriptions } from "@/db/schema";
 import { action as seminarInscriptionFinancesAction } from "@/routes/administracion.finanzas_.seminarios";
 import { action as seminarFinanceDetailAction } from "@/routes/administracion.finanzas_.$academyId_.seminarios_.$seminarId";
 import {
@@ -13,6 +13,7 @@ import {
   seminarInscriptionFinancesUrl,
   type EventSeminarFinanceFixture,
 } from "@/lib/admin/finances/seminar-finances.test-support";
+import { removeSeminarInscription } from "@/lib/seminars/inscriptions.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -186,6 +187,83 @@ describe("the seminar inscription money action", () => {
       status: "error",
     });
     expect(await readAllocatedAmount(fixture.nicolasInscriptionId)).toBe(0);
+  });
+});
+
+// #1065: a withdrawn seminar inscription keeps its whole retained deposit (half of
+// the 20000 row) or releases all of it, never an amount in between.
+describe("the deposit a withdrawn seminar inscription retains", () => {
+  /** 15000 on Ana's row, then administration's removal withdraws it. */
+  async function seedWithdrawn() {
+    const fixture = await seedEventSeminarFinanceFixture();
+    await postToList(fixture, {
+      amount: "15000",
+      inscriptionId: fixture.anaInscriptionId,
+      intent: "allocate-inscription",
+      priceId: fixture.priceId,
+    });
+    await removeSeminarInscription({
+      inscriptionId: fixture.anaInscriptionId,
+      seminarId: fixture.abrilSeminarId,
+    });
+
+    return fixture;
+  }
+
+  test("retains the deposit at withdrawal and releases all of it, refusing anything in between", async () => {
+    const fixture = await seedWithdrawn();
+    expect(await readAllocatedAmount(fixture.anaInscriptionId)).toBe(10000);
+
+    const partial = await postToList(fixture, {
+      amount: "4000",
+      inscriptionId: fixture.anaInscriptionId,
+      intent: "remove-inscription-money",
+    });
+    expect(partial).toMatchObject({ status: "error" });
+    expect(await readAllocatedAmount(fixture.anaInscriptionId)).toBe(10000);
+
+    const released = await postToList(fixture, {
+      inscriptionId: fixture.anaInscriptionId,
+      intent: "release-retained-deposit",
+    });
+    expect(released).toMatchObject({ status: "success" });
+    expect(await readAllocatedAmount(fixture.anaInscriptionId)).toBe(0);
+  });
+
+  test("refuses to allocate money to a withdrawn inscription", async () => {
+    const fixture = await seedWithdrawn();
+
+    const allocated = await postToList(fixture, {
+      amount: "1000",
+      inscriptionId: fixture.anaInscriptionId,
+      intent: "allocate-inscription",
+      priceId: fixture.priceId,
+    });
+
+    expect(allocated).toMatchObject({ status: "error" });
+    expect(await readAllocatedAmount(fixture.anaInscriptionId)).toBe(10000);
+  });
+
+  test("releases what a row withdrawn earlier holds above its deposit", async () => {
+    const fixture = await seedEventSeminarFinanceFixture();
+    await postToList(fixture, {
+      amount: "15000",
+      inscriptionId: fixture.anaInscriptionId,
+      intent: "allocate-inscription",
+      priceId: fixture.priceId,
+    });
+    await db
+      .update(seminarInscriptions)
+      .set({ withdrawnAt: new Date() })
+      .where(eq(seminarInscriptions.id, fixture.anaInscriptionId));
+
+    const released = await postToList(fixture, {
+      inscriptionId: fixture.anaInscriptionId,
+      intent: "release-inscription-excess",
+    });
+
+    expect(released).toMatchObject({ status: "success" });
+    expect(await readAllocatedAmount(fixture.anaInscriptionId)).toBe(10000);
   });
 });
 

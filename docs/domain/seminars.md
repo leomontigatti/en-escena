@@ -40,7 +40,9 @@ what runs today.
 - It carries its own **`requiredDepositPercentage`** (`Seña (%)`), a not-null
   integer from 1 to 99, 50 by default. It is the seminar's own rate, **not** the
   event's: the rate is what fixes the place, a per-seminar fact, while the price
-  list is shared across the event's seminars.
+  list is shared across the event's seminars. Like the event's, it is the
+  `derecho de inscripción` a withdrawal retains (#1065), which the reglamento's
+  clause fixes at 30 %.
 - **Both are refused while any inscription of the seminar is covered** — while
   any has reached the deposit of its stored price row — because both move the
   threshold that took a place. On the form both show the shared read-only look,
@@ -221,9 +223,10 @@ How a seminar inscription is priced from those rows:
 - **Removal goes through one chooser on both sides**
   (`app/lib/seminars/inscription-withdrawal.server.ts`): a row holding no
   allocation and no comprobante line is **physically deleted**, any other row is
-  **withdrawn** — `withdrawnAt` stamped, the money, the stored price row and the
-  `createdAt` all kept. Nothing cascades, withdrawal does not wait for
-  de-allocation, and comprobantes gate nothing. What differs between the two
+  **withdrawn** — `withdrawnAt` stamped, the stored price row and the
+  `createdAt` kept, and the row retaining its deposit while what it holds above it
+  goes back to `Saldo disponible` in the same transaction (#1065). Withdrawal
+  does not wait for de-allocation, and comprobantes gate nothing. What differs between the two
   sides is who may ask and until when, never what happens to the money.
 - The academy removes its own inscription until the seminar starts;
   administration removes any inscription at any time, including after the

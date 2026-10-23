@@ -124,6 +124,24 @@ const thresholdReaders: Record<AllocationTargetKind, ThresholdReader> = {
 };
 
 /**
+ * The two thresholds of one target, read by the reader its kind owns. The
+ * withdrawal's release (`withdrawal-retention.server.ts`) measures the deposit it
+ * retains with it, so it cannot read a deposit the allocation guard does not.
+ */
+export async function readTargetThresholds(
+  tx: Executor,
+  movement: Omit<PoolMovement, "amount">,
+): Promise<InscriptionThresholds | undefined> {
+  const thresholds = await thresholdReaders[movement.target.kind](tx, {
+    academyId: movement.academyId,
+    eventId: movement.eventId,
+    inscriptionIds: [movement.target.id],
+  });
+
+  return thresholds.get(movement.target.id);
+}
+
+/**
  * Funds an inscription with money from the academy's `Saldo disponible`.
  *
  * Consumes the payments oldest-first by payment number, creating or
@@ -420,6 +438,15 @@ async function assertNoActiveOverAllocation(
 
   if (!inscriptionThresholds) {
     return { ok: false, message: "No encontramos esa inscripción." };
+  }
+
+  // A withdrawn row owes nothing: it retains its deposit, which only ever goes
+  // back to `Saldo disponible` (#1065), so nothing is allocated onto it.
+  if (inscriptionThresholds.withdrawn) {
+    return {
+      ok: false,
+      message: "Esta inscripción está retirada: no se le puede asignar dinero.",
+    };
   }
 
   if (inscriptionThresholds.waived) {

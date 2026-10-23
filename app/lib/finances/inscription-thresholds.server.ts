@@ -173,18 +173,21 @@ export async function readInscriptionThresholds(
   const waivedInscriptionIds = new Set(
     rosterRows.filter((row) => row.waivedAt !== null).map((row) => row.id),
   );
+  const withdrawnInscriptionIds = new Set(
+    rosterRows.filter((row) => row.withdrawnAt !== null).map((row) => row.id),
+  );
 
   for (const inscriptionId of inscriptionIds) {
-    thresholds.set(
-      inscriptionId,
-      resolveInscriptionThreshold({
+    thresholds.set(inscriptionId, {
+      ...resolveInscriptionThreshold({
         allocatedAmount: allocatedByInscription.get(inscriptionId) ?? 0,
         discount: discountByInscription.get(inscriptionId),
         priceAmount: priceAmountByInscription.get(inscriptionId) ?? null,
         requiredDepositPercentage: event.requiredDepositPercentage,
         waived: waivedInscriptionIds.has(inscriptionId),
       }),
-    );
+      withdrawn: withdrawnInscriptionIds.has(inscriptionId),
+    });
   }
 
   return thresholds;

@@ -693,6 +693,78 @@ describe("DancerNameCell interaction", () => {
     expect(document.querySelector('[data-slot="dialog-content"]')).toBeNull();
   });
 
+  // #1065: a withdrawn row keeps its whole retained deposit or releases all of it,
+  // so its dialog has no amount to type and one release.
+  test("offers a withdrawn row the release of its whole retained deposit, with no amount", async () => {
+    const posted: FormData[] = [];
+    await mountAgainst(
+      async ({ request }) => {
+        posted.push(await request.formData());
+
+        return redirect("/");
+      },
+      { inscriptions: [withdrawnRow({ allocatedAmount: 3000 })] },
+    );
+
+    await clickReactDomButton("Bruno Benítez");
+
+    expect(dialogText()).toContain("$ 3.000");
+    expect(
+      document.querySelector(
+        '[data-slot="dialog-content"] input:not([type="hidden"])',
+      ),
+    ).toBeNull();
+    expect(dialogText()).not.toContain("excedente");
+
+    await clickReactDomButton("Liberar $ 3.000");
+
+    expect(posted.map((formData) => [...formData.entries()].sort())).toEqual([
+      [
+        ["inscriptionId", "inscription_orphan"],
+        ["intent", "release-retained-deposit"],
+        ["targetKind", "choreography"],
+      ],
+    ]);
+    expect(document.querySelector('[data-slot="dialog-content"]')).toBeNull();
+  });
+
+  // A row withdrawn before the release at withdrawal still holds more than its
+  // deposit: releasing the excess is how it reaches the outcome that keeps it.
+  test("offers a withdrawn row above its deposit the release of the excess beside the release of all", async () => {
+    const posted: FormData[] = [];
+    await mountAgainst(
+      async ({ request }) => {
+        posted.push(await request.formData());
+
+        return redirect("/");
+      },
+      { inscriptions: [withdrawnRow({ allocatedAmount: 6000 })] },
+    );
+
+    await clickReactDomButton("Bruno Benítez");
+
+    expect(dialogText()).toContain("Liberar todo $ 6.000");
+
+    await clickReactDomButton("Liberar excedente $ 3.000");
+
+    expect(posted.map((formData) => formData.get("intent"))).toEqual([
+      "release-inscription-excess",
+    ]);
+  });
+
+  test("offers nothing to release on a withdrawn row that retains no money", async () => {
+    await mount({ inscriptions: [withdrawnRow({ allocatedAmount: 0 })] });
+
+    await clickReactDomButton("Bruno Benítez");
+
+    expect(
+      document.querySelector(
+        '[data-slot="dialog-content"] input:not([type="hidden"])',
+      ),
+    ).toBeNull();
+    expect(dialogText()).not.toContain("Liberar");
+  });
+
   // Validation is asynchronous, so a second submit can land before the first
   // has posted: money is written once however many times it is confirmed.
   test("posts an allocation once when it is confirmed twice", async () => {
@@ -1198,6 +1270,18 @@ function dialogText(): string {
   }
 
   return dialog.textContent ?? "";
+}
+
+/** A withdrawn row as the loader derives it: its `Total` is what it holds. */
+function withdrawnRow(input: { allocatedAmount: number }): InscriptionRow {
+  return inscriptionFixture({
+    allocatedAmount: input.allocatedAmount,
+    financialStatus: "paidInFull",
+    owedBalanceAmount: 0,
+    owedDepositAmount: 0,
+    totalAmount: input.allocatedAmount,
+    withdrawn: true,
+  });
 }
 
 function inscriptionFixture(

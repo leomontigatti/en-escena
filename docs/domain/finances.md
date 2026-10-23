@@ -163,7 +163,10 @@ overAllocatedAmount = max(0, Σ allocations − totalAmount)
 - **A registered inscription is owed in full from the moment it exists.** There
   is no "not yet due" debt.
 - `requiredDepositPercentage` is an event-level `Bases del evento` setting,
-  a not-null integer defaulting to `30`.
+  a not-null integer defaulting to `30`. It **is** the reglamento's `derecho de
+inscripción` by definition (#1065, #674): the component a withdrawal retains.
+  The clause fixes it at 30 %, so another value breaks the clause's defence; the
+  app does not police it.
 - If no price resolves for an inscription, its thresholds are `null` and the
   amounts it contributes are **pending or incomplete, not zero**. The UI shows
   `Sin precio` for that cell.
@@ -655,6 +658,7 @@ dancer's name — and the dialog behind it takes its shape from what the row hol
 
 | Row                       | What opens                                         |
 | ------------------------- | -------------------------------------------------- |
+| withdrawn                 | its retained deposit: one `Liberar` for all of it  |
 | over-allocated            | `Liberar el excedente`: one click, nothing to type |
 | nothing owed, money on it | `Quitar dinero`, hinting everything allocated      |
 | anything else             | `Asignar dinero`: price and amount                 |
@@ -917,15 +921,37 @@ between two outcomes:
   its money and its comprobante line on it.
 
 The choice is made at removal and **never revisited** — de-allocating a withdrawn
-inscription afterwards does not delete it. **Nothing cascades**: the removal moves
-no money.
+inscription afterwards does not delete it.
+
+**A withdrawal retains exactly the deposit** (#1065, ADR-0014 §6 as corrected). In the
+same transaction that stamps `withdrawnAt`, whatever the inscription holds **above
+its deposit** is released to the academy's `Saldo disponible`, newest payment first
+like `Quitar dinero`, and the row keeps `min(allocated, seña)`. A row holding less
+than its deposit keeps what it has and owes nothing more. The deposit is the `derecho de
+inscripción` of the reglamento's clause (#654, #674): `requiredDepositPercentage`
+**is** that component by definition, 30 % in the clause, so nothing compares the two.
+The release lives in one place (`withdrawal-retention.server.ts`) and every
+withdrawal path calls it: roster removal, `Eliminar coreografía` and the seminar
+chooser, which serves the academy's, the individual's and administration's removal.
+
+From then on a withdrawn row has **exactly two outcomes**: it keeps its whole
+retained deposit, or the administrator releases all of it to `Saldo disponible` (the
+medical case). Never an amount in between, and the app asks for no reason, because
+the clause never conditions the retention on an excuse. So on a withdrawn row the
+money dialog has no amount field: it says the money is the retained deposit and offers
+one `Liberar` for all of it. `Quitar dinero` with an amount is refused there, and so
+is any allocation: the row owes nothing, and the write path agrees with the read
+path that it does. A row withdrawn before the release existed, or whose deposit moved
+down since (a row below its deposit is not price-locked), can hold more than its deposit;
+its dialog also offers `Liberar excedente`, which releases exactly what is above the
+deposit and so reaches the outcome that keeps it.
 
 **A withdrawal is final** (#1496). Adding the same dancer again **inserts a new
 inscription**: a new row with its own `createdAt`, priced like any new
 registration, with no money on it. The withdrawn row keeps what it retained and
-its comprobante line, as the record of the drop. If the retained money is to pay
-for the new row, the admin removes it from the withdrawn row with `Quitar
-dinero`, which returns it to `Saldo disponible`, and allocates it to the new row;
+its comprobante line, as the record of the drop. If the retained deposit is to pay
+for the new row, the admin releases it from the withdrawn row, which returns it
+to `Saldo disponible`, and allocates it to the new row;
 the credit note for the old line and the `Factura C` for the new one are separate
 documents. A revived row was the worse shape fiscally — a billed line partly
 reversed by a credit note and then valid again — and clearing `withdrawnAt`
@@ -936,8 +962,8 @@ its own, like an anomaly, and it **replaces** the status badge rather than
 joining it.
 
 **A withdrawn inscription's total is what remains allocated to it, not zero.**
-The deposit may be forfeited, and the retained allocation is the record of that
-retention. The consequences follow from that one rule:
+After the release at withdrawal that is its retained deposit, and the allocation is
+the record of that retention. The consequences follow from that one rule:
 
 - It owes nothing and cannot be over-allocated: `Saldo adeudado`, `Seña adeudada`
   and the excess are all zero, and it carries no anomalies.
@@ -981,18 +1007,18 @@ predicate" — the second kind is at least as large, and a query touching
 `choreography_dancer` without `activeInscription()` is not by itself evidence of
 a bug.
 
-**Known divergence — the write path does not know a row is withdrawn.** Only the
-read path derives the withdrawn figures; an allocation write against a withdrawn
-inscription still computes its thresholds from the price row, so the write-path
-over-allocation guard measures against a `Total` the read side does not show.
+**The write path knows a row is withdrawn.** The threshold reads the allocation
+guard uses carry `withdrawn`, and the guard refuses any money onto a withdrawn row,
+which is what the read side shows: a row that owes nothing. It used to measure a
+withdrawn row against its price `Total`, a figure the read side never showed.
 
 **Removing a whole choreography goes through the same chooser**, one level up
 (`docs/domain/choreographies.md`, "Removing a choreography"). `Eliminar
 coreografía` is never refused because of money: with no allocation and no
 `comprobante_inscription` line anywhere on it the choreography is deleted, and
 otherwise it is **withdrawn** — `choreographies.withdrawnAt` and every still
-active inscription stamped with the same timestamp value, in one transaction, no
-money moved. The choice is made under the choreography's row lock and, like the
+active inscription stamped with the same timestamp value, in one transaction, each
+of those inscriptions retaining its deposit and releasing the rest. The choice is made under the choreography's row lock and, like the
 per-dancer one, is **never revisited**: de-allocating every peso on a withdrawn
 choreography does not make it deletable. It is **final**: nothing restores it,
 and an academy that wants it back registers a new choreography.
@@ -1001,7 +1027,7 @@ A withdrawn choreography is cut like a withdrawn inscription: its retained money
 **stays in** its own and its academy's rollup, and it is **out of** the status
 rollup and out of every count, with `Retirada` replacing the financial status
 badge (see "Choreography financial status"). Its inscriptions are ordinary
-withdrawn inscriptions, so de-allocating, the invoice and the partial credit
+withdrawn inscriptions, so releasing their deposit, the invoice and the partial credit
 note their withdrawal owes all keep working on them — handling that money is the reason the
 choreography survives. The only hard lock on either outcome is an evaluated
 presentation; a comprobante is a reason to withdraw, never a reason to refuse.
@@ -1011,15 +1037,16 @@ presentation; a comprobante is a reason to withdraw, never a reason to refuse.
 removal until the seminar starts and administration keeps its removal at any
 time; a row with no allocation, no comprobante line and no live reservation
 naming it is deleted, any other is
-withdrawn with its money, its stored row and its `createdAt`. The academy
+withdrawn with its deposit, its stored row and its `createdAt`, the money above the
+deposit released in the same transaction. The academy
 therefore has an **academy-driven withdrawal** choreographies do not have. A
 withdrawn seminar inscription owes nothing beyond what it holds, exposes its
 deposit figure, reads `paidInFull` under `Retirada`, stays in the money rollup
 and is out of the status rollup and of the seminar's covered count — withdrawal
 **frees the place**. The withdrawal is final: the same person registered again is
 an ordinary registration that inserts a new row, under the seminar lock and
-the ordinary quota rule, while the withdrawn row keeps its money. De-allocating
-a withdrawn row to zero does not delete it.
+the ordinary quota rule, while the withdrawn row keeps its deposit. Releasing it
+does not delete the row.
 Reads filter withdrawn seminar rows behind the `activeSeminarInscription()` twin
 of the predicate above, with its own raw-SQL twin and no generic predicate over
 two tables.
@@ -1030,11 +1057,13 @@ its own: the withdrawn row owes what it retains, so the emitter's delta (see
 "Invoicing") credits the rest of its line. What it retains is **exactly its
 deposit**, the price of the `derecho de inscripción` the reglamento's clause never
 returns (#674, #1065), or what it holds when that is less; in the medical case
-the administrator releases the deposit with `Quitar dinero` and it retains
-nothing. A row no price resolves for any more retains what it holds. One function owns the rule (`deriveRetainedAmount`). The row's `Total`
-still reads everything it holds, so money above the deposit shows on the
-withdrawn row until it is released to `Saldo disponible`; #1065 releases it at
-withdrawal, after which the two agree.
+the administrator releases the whole deposit and it retains nothing, so the credit
+note owed grows to the whole line (the documented-versus-derived delta of §5). A
+row no price resolves for any more retains what it holds. One function owns the
+rule (`deriveRetainedAmount`), and the release at withdrawal measures by it too,
+so the row's `Total` (what it holds) and what the credit note counts as retained
+are the same figure from the moment of the withdrawal, and the 15-day clock
+starts on a known amount.
 
 The 15-day clock on the credit note a withdrawal owes counts from
 `withdrawnAt` ("The comprobante status"). Historical withdrawals from before the soft

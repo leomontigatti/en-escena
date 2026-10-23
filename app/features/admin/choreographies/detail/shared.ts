@@ -190,7 +190,7 @@ export function describeChoreographyRemoval(input: {
     ? {
         // A withdrawal is final (#1496), so the dialog says so before the
         // admin confirms it.
-        consequence: `Al retirarla también libera su cupo del cronograma${withdrawalEnding} El retiro es definitivo: para que vuelva a participar hay que registrar una coreografía nueva.`,
+        consequence: `Cada inscripción conserva su seña y lo que tenga por encima vuelve al saldo disponible de la academia. Al retirarla también libera su cupo del cronograma${withdrawalEnding} El retiro es definitivo: para que vuelva a participar hay que registrar una coreografía nueva.`,
         description:
           "Al tener dinero asignado o comprobantes emitidos, no puede eliminarse. Podés revisarla desde la lista de finanzas.",
         outcome: input.outcome,
