@@ -118,7 +118,10 @@ move under an academy when a sibling roster changes a discount tier.
   underneath and a `registrationCount` of `0` (#1725). Nobody is left to pay the
   deposit `Seña pendiente` would ask for. A `(seminar, academy)` unit whose
   every inscription is withdrawn reads the same way, on every list and detail
-  that badges it, and the `Estado` filter's `Retirada` finds both.
+  that badges it, and the `Estado` filter's `Retirada` finds both. The
+  presentation order is the exception: there the choreography is still
+  registered with nobody left to dance it, so it keeps its `Seña pendiente`
+  warning (`docs/domain/judging.md`).
 - A **withdrawn choreography** is cut the same way one level up: its retained
   money stays in its own rollup and in its academy's totals, and it is out of
   the status rollup and out of every count, so its `registrationCount` is `0`
