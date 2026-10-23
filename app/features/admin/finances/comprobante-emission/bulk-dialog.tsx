@@ -496,49 +496,49 @@ function BulkTable({
   states: Record<string, BulkRowState>;
 }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Coreografía</TableHead>
-          <TableHead>Comprobante</TableHead>
-          <TableHead>Estado</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((row) => {
-          const plan = plans[row.id];
+    // Two columns, so the narrow dialog gives the name and the reason most of
+    // its width: what a row emits reads under its name. Framed like the
+    // list's own tables.
+    <div className="rounded-lg border bg-background">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-1/2">Coreografía</TableHead>
+            <TableHead>Estado</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => {
+            const plan = plans[row.id];
 
-          return (
-            <TableRow key={row.id}>
-              <TableCell className="font-medium whitespace-normal">
-                {row.choreographyNumber === null
-                  ? row.name
-                  : `${formatEventSequenceNumber(row.choreographyNumber)} ${row.name}`}
-              </TableCell>
-              <TableCell>
-                {plan?.status === "ready" ? (
-                  <div className="flex flex-col">
-                    <span>
-                      {formatComprobanteKindLabel(
-                        comprobanteKindCbteTipo(plan.kind),
-                      )}
+            return (
+              <TableRow key={row.id}>
+                <TableCell className="align-top whitespace-normal">
+                  <div className="flex flex-col gap-1">
+                    <span className="font-medium">
+                      {row.choreographyNumber === null
+                        ? row.name
+                        : `${formatEventSequenceNumber(row.choreographyNumber)} ${row.name}`}
                     </span>
-                    <span className="text-muted-foreground tabular-nums">
-                      {formatAmount(plan.amount)}
-                    </span>
+                    {plan?.status === "ready" ? (
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {formatComprobanteKindLabel(
+                          comprobanteKindCbteTipo(plan.kind),
+                        )}{" "}
+                        · {formatAmount(plan.amount)}
+                      </span>
+                    ) : null}
                   </div>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </TableCell>
-              <TableCell className="whitespace-normal">
-                <BulkRowStatus state={states[row.id]} />
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+                </TableCell>
+                <TableCell className="align-top whitespace-normal">
+                  <BulkRowStatus state={states[row.id]} />
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
