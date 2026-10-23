@@ -88,14 +88,15 @@ begin
   -- The plan is the whole of it: a row withdrawn since the copy by the
   -- previous release, which released nothing, would hold more than its deposit
   -- and be missed. Rows the new release withdrew hold their deposit or less. A
-  -- row with no stored price never crossed its deposit (crossing it stores
-  -- the price), so it holds no excess either.
+  -- row with no stored price can still be past its deposit (a preset funds it
+  -- at the effective price without storing one), and SQL cannot resolve that
+  -- price, so such a row stops the run for a check by hand.
   for planned in
     select withdrawn.inscription_id, withdrawn.held_now, withdrawn.deposit
     from (
       select dancer.id as inscription_id,
         sum(allocation.amount) as held_now,
-        round(price.amount * event.required_deposit_percentage / 100.0) as deposit
+        round(price.amount::numeric * event.required_deposit_percentage / 100.0) as deposit
       from en_escena_choreography_dancer dancer
       join en_escena_payment_allocation allocation
         on allocation.choreography_inscription_id = dancer.id
@@ -107,7 +108,7 @@ begin
       union all
       select inscription.id,
         sum(allocation.amount),
-        round(price.amount * seminar.required_deposit_percentage / 100.0)
+        round(price.amount::numeric * seminar.required_deposit_percentage / 100.0)
       from en_escena_seminar_inscription inscription
       join en_escena_payment_allocation allocation
         on allocation.seminar_inscription_id = inscription.id
@@ -116,20 +117,20 @@ begin
       where inscription.withdrawn_at is not null
       group by inscription.id, price.amount, seminar.required_deposit_percentage
     ) withdrawn
-    where withdrawn.held_now > withdrawn.deposit
+    where (withdrawn.deposit is null or withdrawn.held_now > withdrawn.deposit)
       and withdrawn.inscription_id not in (
         select inscription_id from withdrawn_excess_inscription
       )
   loop
-    raise exception 'withdrawn inscription % holds % above its deposit % and is not in the plan: regenerate it',
-      planned.inscription_id, planned.held_now, planned.deposit;
+    raise exception 'withdrawn inscription % holds % against a deposit of % and is not in the plan: check it and regenerate the plan',
+      planned.inscription_id, planned.held_now, coalesce(planned.deposit::text, 'no stored price');
   end loop;
 
   -- Each planned deposit is still what the row's stored price and its event's
   -- percentage make it.
   for planned in
     select plan.inscription_id, plan.retained_amount,
-      round(price.amount * event.required_deposit_percentage / 100.0) as deposit
+      round(price.amount::numeric * event.required_deposit_percentage / 100.0) as deposit
     from withdrawn_excess_inscription plan
     join en_escena_choreography_dancer dancer on dancer.id = plan.inscription_id
     join en_escena_choreography choreography on choreography.id = dancer.choreography_id
