@@ -4,10 +4,13 @@ import type { ReactNode } from "react";
 import { Controller } from "react-hook-form";
 
 import { AccessNotice } from "@/components/auth/access-ui";
+import { PortalInscriptionPriceSplit } from "@/components/portal/inscription-price";
 import { ProfessionalEvaluationSwitch } from "@/components/shared/professional-evaluation-switch";
 import { Button } from "@/components/ui/button";
 import { normalizeChoreographyName } from "@/lib/choreographies/choreography-name";
 import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.server";
+import { formatAmount } from "@/lib/finances/formatters";
+import { selectApplicableInscriptionPrice } from "@/lib/finances/inscription-price";
 import {
   type CreateChoreographyForm,
   type CreateChoreographyFormValues,
@@ -15,24 +18,32 @@ import {
   type PortalResolvedRegistrationResolution,
 } from "@/features/portal/choreographies/create/flow";
 import {
+  findChosenScheduleOption,
   formatCategoryAndGroupTypeSummary,
   formatExperienceLevelSummary,
   formatModalitySummary,
   formatPeopleNames,
   formatScheduleSummary,
 } from "@/features/portal/choreographies/create/formatters";
-import type { ActiveProfessor } from "@/features/portal/choreographies/create/shared";
+import type {
+  ActiveProfessor,
+  PortalRegistrationPricing,
+} from "@/features/portal/choreographies/create/shared";
 import { StepIntro } from "@/features/portal/choreographies/create/step-intro";
 
 /**
  * Every answer with a way back to the step that gave it. The category has none:
  * it follows from the dancers, so it is changed there. Its row carries the one
  * answer asked here, `Evaluar como profesional`, in the room `Cambiar` leaves.
+ * The last row quotes what each dancer's inscription costs, split, which the
+ * reglamento needs disclosed before the academy registers (#1705); it follows
+ * from the group type and the schedule, so it has no `Cambiar` of its own.
  */
 export function ChoreographyCreationSummary({
   baseOptions,
   form,
   onEdit,
+  pricing,
   professors,
   resolution,
   values,
@@ -40,6 +51,7 @@ export function ChoreographyCreationSummary({
   baseOptions: ChoreographyRegistrationBaseOptions;
   form: CreateChoreographyForm;
   onEdit: (step: CreateChoreographyStep) => void;
+  pricing: PortalRegistrationPricing;
   professors: ActiveProfessor[];
   resolution: PortalResolvedRegistrationResolution;
   values: CreateChoreographyFormValues;
@@ -48,6 +60,11 @@ export function ChoreographyCreationSummary({
     values.professorIds.includes(professor.id),
   );
   const isScheduleChosen = resolution.schedule.status === "multiple";
+  const priceAmount = selectPricePerDancer({
+    pricing,
+    resolution,
+    scheduleCapacityId: values.scheduleCapacityId ?? "",
+  });
 
   return (
     <>
@@ -124,8 +141,52 @@ export function ChoreographyCreationSummary({
         >
           {formatPeopleNames(selectedProfessors)}
         </SummaryRow>
+        {priceAmount === null ? null : (
+          <SummaryRow label="Precio por bailarín">
+            <span className="font-medium tabular-nums">
+              {formatAmount(priceAmount)}
+            </span>
+            <PortalInscriptionPriceSplit
+              priceAmount={priceAmount}
+              requiredDepositPercentage={pricing.requiredDepositPercentage}
+            />
+          </SummaryRow>
+        )}
       </dl>
     </>
+  );
+}
+
+/**
+ * What one dancer's inscription will be charged at, read as a new inscription
+ * is: nothing stored and nothing allocated, so the row that applies today to its
+ * group type and schedule. `null` when no row applies, and the summary then
+ * quotes nothing rather than a wrong figure.
+ */
+function selectPricePerDancer(input: {
+  pricing: PortalRegistrationPricing;
+  resolution: PortalResolvedRegistrationResolution;
+  scheduleCapacityId: string;
+}): number | null {
+  const schedule = findChosenScheduleOption(
+    input.resolution,
+    input.scheduleCapacityId,
+  );
+
+  if (!schedule) {
+    return null;
+  }
+
+  return (
+    selectApplicableInscriptionPrice({
+      businessDate: input.pricing.businessDate,
+      key: {
+        choreographyScheduleId: schedule.scheduleId,
+        groupType: input.resolution.groupType,
+        scheduleCapacityScheduleId: null,
+      },
+      priceRows: input.pricing.priceRows,
+    })?.amount ?? null
   );
 }
 

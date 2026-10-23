@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 
+import { PortalInscriptionPrice } from "@/components/portal/inscription-price";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
@@ -38,22 +39,25 @@ import {
   registerPortalSeminarInscriptionIntent,
   registerPortalSeminarInscriptionSchema,
   toPortalSeminarPersonGroups,
-  type PortalSeminarPersonOption,
+  toPortalSeminarPersonValue,
   type RegisterPortalSeminarInscriptionFormValues,
 } from "../shared";
 import type {
   PortalSeminarDetailActionData,
   PortalSeminarDetailInscription,
   PortalSeminarDetailLoaderData,
+  PortalSeminarDetailPersonOption,
   PortalSeminarDetailSeminar,
 } from "./shared";
 
 /**
  * The academy's own half of a seminar: who it registered, and the two gestures
  * the poster card gave up. It reads like administration's `Inscriptos` tab —
- * one flat table, the name as its only row action. Of the money it says only
- * each row's `Estado`, which is what tells a reserved place from one that
- * lapsed; what a seminar costs is read in `Resumen financiero`.
+ * one flat table, the name as its only row action. Of a registered row's money
+ * it says only its `Estado`, which is what tells a reserved place from one that
+ * lapsed; what it costs is read in `Resumen financiero`. The registration
+ * dialog is the one place that quotes a price: the picked person's, split,
+ * before the academy confirms.
  */
 export function PortalSeminarDetailRouteView({
   actionData,
@@ -304,7 +308,7 @@ function RegisterInscriptionDialog({
 }: {
   isSubmitting: boolean;
   onClose: () => void;
-  people: PortalSeminarPersonOption[];
+  people: PortalSeminarDetailPersonOption[];
   seminar: PortalSeminarDetailSeminar;
   submit: ReturnType<typeof useFetcher>["submit"];
 }) {
@@ -314,6 +318,10 @@ function RegisterInscriptionDialog({
     defaultValues: { seminarId: seminar.id, person: "" },
   });
   const groups = toPortalSeminarPersonGroups(people);
+  const pickedValue = form.watch("person");
+  const pickedPerson = people.find(
+    (person) => toPortalSeminarPersonValue(person) === pickedValue,
+  );
 
   // The only thing the dialog holds is a pick from the roster, with no typed
   // text to lose, so closing it never asks.
@@ -348,20 +356,6 @@ function RegisterInscriptionDialog({
             value={registerPortalSeminarInscriptionIntent}
           />
           <input type="hidden" name="seminarId" value={seminar.id} />
-          {/* Only a registration that gets a place reserves it, so a full
-              seminar promises no deadline: the page's `Cupo completo` says
-              what happens instead. */}
-          {seminar.isFull ? null : (
-            <Alert variant="info">
-              <Info aria-hidden="true" />
-              <AlertTitle>Reserva de lugar</AlertTitle>
-              <AlertDescription>
-                {seminar.startsBeforePaymentDeadline
-                  ? "Tenés hasta que empiece el seminario para enviar el pago de la seña. Si no lo enviás en ese plazo, la inscripción pierde su lugar."
-                  : "Tenés 48 horas para enviar el pago de la seña. Si no lo enviás en ese plazo, la inscripción pierde su lugar."}
-              </AlertDescription>
-            </Alert>
-          )}
           <FieldGroup>
             <ComboboxField
               control={form.control}
@@ -373,6 +367,27 @@ function RegisterInscriptionDialog({
               placeholder="Elegí una persona del plantel"
             />
           </FieldGroup>
+          {/* The price follows the person: their participant cell decides it. */}
+          {pickedPerson?.priceAmount == null ? null : (
+            <PortalInscriptionPrice
+              priceAmount={pickedPerson.priceAmount}
+              requiredDepositPercentage={seminar.requiredDepositPercentage}
+            />
+          )}
+          {/* Only a registration that gets a place reserves it, so a full
+              seminar promises no deadline: the page's `Cupo completo` says
+              what happens instead. */}
+          {seminar.isFull ? null : (
+            <Alert variant="info">
+              <Info aria-hidden="true" />
+              <AlertTitle>Reserva de lugar</AlertTitle>
+              <AlertDescription>
+                {seminar.startsBeforePaymentDeadline
+                  ? "Tenés hasta que empiece el seminario para enviar el pago del derecho de inscripción. Si no lo enviás en ese plazo, la inscripción pierde su lugar."
+                  : "Tenés 48 horas para enviar el pago del derecho de inscripción. Si no lo enviás en ese plazo, la inscripción pierde su lugar."}
+              </AlertDescription>
+            </Alert>
+          )}
 
           <DialogFooter>
             <Button
@@ -384,7 +399,7 @@ function RegisterInscriptionDialog({
               Cancelar
             </Button>
             <SubmitButton
-              disabled={form.watch("person") === ""}
+              disabled={pickedValue === ""}
               isPending={isSubmitting}
             />
           </DialogFooter>

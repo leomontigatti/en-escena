@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { seminarInscriptions } from "@/db/schema";
+import { choreographyDancers, seminarInscriptions } from "@/db/schema";
 import { createLinkedIndividualUser } from "@/lib/test-support/individuals";
 import {
   createDancer,
@@ -11,6 +11,10 @@ import { activateEvent } from "@/lib/events/management.server";
 import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
+import {
+  createChoreographyRecord,
+  createEventCatalog,
+} from "@/features/portal/choreographies/test-support/db";
 import {
   createAcademySession,
   createPortalPostRequest,
@@ -148,6 +152,53 @@ describe("portal seminar detail", () => {
           { fullName: "Ana Paz", personKind: "dancer", hasMoney: false },
         ],
         people: [{ fullName: "Luz Suárez" }],
+      },
+    );
+  });
+
+  test("prices each person it may register in their own participant cell, at the seminar's rate", async () => {
+    const session = await createAcademySession({
+      academyName: "Academia Precios",
+      email: "seminario.detalle.precios@example.com",
+    });
+    const { event, seminar } = await createActiveEventWithSeminar();
+    const dancing = await createDancer(session.academyId, {
+      firstName: "Ana",
+      lastName: "Paz",
+    });
+    const professor = await createProfessor(session.academyId, {
+      firstName: "Luz",
+      lastName: "Suárez",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const choreography = await createChoreographyRecord({
+      academyId: session.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Aire",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: choreography.id,
+      dancerId: dancing.id,
+    });
+
+    // `createSeminarRegistrationPrices`: 20.000 for participants, 30.000 for
+    // everybody else.
+    await expect(loadDetail(session.cookie, seminar.id)).resolves.toMatchObject(
+      {
+        seminar: {
+          requiredDepositPercentage:
+            defaultSeminarFacts.requiredDepositPercentage,
+        },
+        people: [
+          { id: dancing.id, priceAmount: 20000 },
+          { id: professor.id, priceAmount: 30000 },
+        ],
       },
     );
   });

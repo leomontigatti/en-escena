@@ -88,6 +88,33 @@ export function calculateDepositAmount(input: {
   );
 }
 
+/** An inscription's price as the reglamento splits it (#674). */
+export type InscriptionPriceSplit = {
+  /** `Derecho de inscripción`: the deposit threshold, earned at registration. */
+  registrationFeeAmount: number;
+  /** `Derecho de participación`: the rest of the price, earned at the event. */
+  participationFeeAmount: number;
+};
+
+/**
+ * The price an academy is quoted before it registers, split into its two
+ * components. The registration fee **is** `calculateDepositAmount`, never a
+ * second percentage, and the participation fee is the remainder, so the two
+ * always add up to the price. Like the deposit it is taken on the undiscounted
+ * price.
+ */
+export function splitInscriptionPrice(input: {
+  priceAmount: number;
+  requiredDepositPercentage: number;
+}): InscriptionPriceSplit {
+  const registrationFeeAmount = calculateDepositAmount(input);
+
+  return {
+    registrationFeeAmount,
+    participationFeeAmount: input.priceAmount - registrationFeeAmount,
+  };
+}
+
 /**
  * The inscription's `Total`: the selected price minus the live
  * `Descuento por bailarín`, applied **exactly once**. There is no coalesce

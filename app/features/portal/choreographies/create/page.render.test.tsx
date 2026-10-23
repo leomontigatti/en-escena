@@ -48,6 +48,40 @@ const loaderData: CreateChoreographyRouteData = {
       { id: "submodality_1", modalityId: "modality_1", name: "Lírico" },
     ],
   },
+  registrationPricing: {
+    businessDate: "2026-04-01",
+    requiredDepositPercentage: 30,
+    priceRows: [
+      {
+        id: "price_solo",
+        amount: 40000,
+        groupType: "solo",
+        paymentDeadline: null,
+        scheduleIds: [],
+      },
+      {
+        id: "price_solo_expired",
+        amount: 10000,
+        groupType: "solo",
+        paymentDeadline: "2026-03-31",
+        scheduleIds: [],
+      },
+      {
+        id: "price_solo_special",
+        amount: 50000,
+        groupType: "solo",
+        paymentDeadline: null,
+        scheduleIds: ["schedule_capacity_2"],
+      },
+      {
+        id: "price_duo",
+        amount: 30000,
+        groupType: "duo",
+        paymentDeadline: null,
+        scheduleIds: [],
+      },
+    ],
+  },
 };
 
 type StubAnswers = {
@@ -335,6 +369,54 @@ describe("the choreography registration page", () => {
 
     expect(submissions.at(-1)?.get("experienceLevelId")).toBe("elite");
     expect(submissions.at(-1)?.get("scheduleCapacityId")).toBe("capacity_2");
+  });
+
+  test("quotes on the summary the price per dancer of the chosen schedule, split, before saving", async () => {
+    const { router } = renderPage({
+      resolve: resolved(
+        buildResolution({
+          schedule: {
+            status: "multiple",
+            canConfirm: true,
+            options: [
+              {
+                ...buildScheduleOption("capacity_1", "2026-05-02"),
+                isFull: false,
+                label: "2 de mayo de 2026 - 10:00 hs.",
+              },
+              {
+                ...buildScheduleOption("capacity_2", "2026-05-03"),
+                isFull: false,
+                label: "3 de mayo de 2026 - 10:00 hs.",
+              },
+            ],
+          },
+        }),
+      ),
+    });
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await fillFirstStep();
+    await pickDancerAndResolve("Categoría y tipo de grupo");
+    await clickLabel("3 de mayo de 2026 - 10:00 hs.");
+    await goNext();
+    await clickLabel("Luz Suárez");
+    await goNext();
+
+    // The schedule's own row wins over the general one.
+    expect(getSummaryValue("Precio por bailarín")).toBe(
+      "$ 50.000Derecho de inscripción $ 15.000 · Derecho de participación $ 35.000",
+    );
+
+    await clickReactDomButton("Cambiar Cronograma");
+    await clickLabel("2 de mayo de 2026 - 10:00 hs.");
+    await goNext();
+    await goNext();
+
+    // The general row that applies today, not the expired one.
+    expect(getSummaryValue("Precio por bailarín")).toBe(
+      "$ 40.000Derecho de inscripción $ 12.000 · Derecho de participación $ 28.000",
+    );
   });
 
   describe("for a grupal whose level is optional", () => {

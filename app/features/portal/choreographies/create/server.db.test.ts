@@ -76,6 +76,15 @@ describe("the create choreography page loader", () => {
         { id: submodality.id, modalityId: modality.id, name: "Lyrical" },
       ],
     });
+    // The summary quotes the price per dancer from these, split at the
+    // event's own rate.
+    expect(data.registrationPricing).toMatchObject({
+      priceRows: [
+        expect.objectContaining({ amount: 15000, groupType: "solo" }),
+        expect.objectContaining({ amount: 15000, groupType: "solo" }),
+      ],
+      requiredDepositPercentage: event.requiredDepositPercentage,
+    });
   });
 
   test("offers no roster person of another academy", async () => {

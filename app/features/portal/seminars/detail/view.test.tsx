@@ -8,9 +8,9 @@ import { PortalSeminarDetailRouteView } from "@/features/portal/seminars/detail/
 import type {
   PortalSeminarDetailInscription,
   PortalSeminarDetailLoaderData,
+  PortalSeminarDetailPersonOption,
   PortalSeminarDetailSeminar,
 } from "@/features/portal/seminars/detail/shared";
-import type { PortalSeminarPersonOption } from "@/features/portal/seminars/shared";
 import {
   createReactDomTestRenderer,
   getReactDomTexts,
@@ -24,7 +24,7 @@ afterEach(() => {
 
 type LoaderDataOverrides = {
   inscriptions?: PortalSeminarDetailInscription[];
-  people?: PortalSeminarPersonOption[];
+  people?: PortalSeminarDetailPersonOption[];
   seminar?: Partial<PortalSeminarDetailSeminar>;
 };
 
@@ -41,12 +41,23 @@ function buildLoaderData(
       hasRegistrationPrices: true,
       isFull: false,
       startsBeforePaymentDeadline: false,
+      requiredDepositPercentage: 40,
       ...overrides.seminar,
     },
     inscriptions: overrides.inscriptions ?? [],
     people: overrides.people ?? [
-      { id: "dancer_1", kind: "dancer", fullName: "Ana Paz" },
-      { id: "professor_1", kind: "professor", fullName: "Luz Suárez" },
+      {
+        id: "dancer_1",
+        kind: "dancer",
+        fullName: "Ana Paz",
+        priceAmount: 20000,
+      },
+      {
+        id: "professor_1",
+        kind: "professor",
+        fullName: "Luz Suárez",
+        priceAmount: 30000,
+      },
     ],
   };
 }
@@ -292,7 +303,7 @@ describe("PortalSeminarDetailRouteView", () => {
     expect(dialog?.textContent).not.toContain("$");
   });
 
-  test("opens the register dialog on the picker, with dancers and professors under their own headings and no price", async () => {
+  test("opens the register dialog on the picker, with dancers and professors under their own headings and no price until someone is picked", async () => {
     await renderDetail(buildLoaderData());
 
     await act(async () => {
@@ -309,7 +320,7 @@ describe("PortalSeminarDetailRouteView", () => {
     expect(document.activeElement).toBe(trigger);
     expect(dialog?.textContent).not.toContain("$");
     expect(dialog?.textContent).toContain(
-      "Tenés 48 horas para enviar el pago de la seña. Si no lo enviás en ese plazo, la inscripción pierde su lugar.",
+      "Tenés 48 horas para enviar el pago del derecho de inscripción. Si no lo enviás en ese plazo, la inscripción pierde su lugar.",
     );
 
     await act(async () => {
@@ -327,6 +338,29 @@ describe("PortalSeminarDetailRouteView", () => {
     ]);
   });
 
+  test("quotes the picked person's own price, split at the seminar's rate, before saving", async () => {
+    await renderDetail(buildLoaderData());
+
+    await act(async () => {
+      (findByText("button", "Inscribir") as HTMLButtonElement).click();
+    });
+    await act(async () => {
+      document
+        .querySelector<HTMLElement>('[data-slot="combobox-trigger"]')
+        ?.click();
+    });
+    await act(async () => {
+      (findByText('[role="option"]', "Luz Suárez") as HTMLElement).click();
+    });
+
+    const dialog = document.querySelector('[role="dialog"]');
+
+    expect(dialog?.textContent).toContain("$ 30.000");
+    expect(dialog?.textContent).toContain(
+      "Derecho de inscripción $ 12.000 · Derecho de participación $ 18.000",
+    );
+  });
+
   test("gives a seminar starting within 48 hours until its start instead", async () => {
     await renderDetail(
       buildLoaderData({ seminar: { startsBeforePaymentDeadline: true } }),
@@ -337,7 +371,7 @@ describe("PortalSeminarDetailRouteView", () => {
     });
 
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
-      "Tenés hasta que empiece el seminario para enviar el pago de la seña.",
+      "Tenés hasta que empiece el seminario para enviar el pago del derecho de inscripción.",
     );
   });
 

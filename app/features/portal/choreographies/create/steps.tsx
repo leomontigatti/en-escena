@@ -43,6 +43,7 @@ export function CreateChoreographyStepContent(props: StepProps) {
         <ChoreographyCreationSummary
           baseOptions={props.loaderData.registrationBaseOptions}
           form={props.wizard.form}
+          pricing={props.loaderData.registrationPricing}
           professors={props.loaderData.activeProfessors}
           resolution={props.wizard.resolution}
           values={props.wizard.values}

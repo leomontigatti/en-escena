@@ -552,6 +552,14 @@ _Avoid_: `owedDepositAmount`, total paid, `availableBalanceAmount`
 Lower threshold of an inscription: `requiredDepositPercentage` of its `selectedPrice`, computed on the **undiscounted** price so the threshold cannot move under an academy when a discount tier changes. The percentage is the event's for a choreography inscription and the seminar's own for a seminar inscription, where covering it is also what takes the place in the quota.
 _Avoid_: choreography deposit, deposit invoice, `inscriptionStage` (retired)
 
+**`registrationFee`** — ui: "Derecho de inscripción"
+The reglamento's name (#674) for the part of an inscription's price earned at registration: the same figure as its `inscriptionDepositAmount`, never a second percentage. The portal quotes it beside the `participationFee` before an inscription is registered; everywhere else the figure keeps its `Seña` names.
+_Avoid_: registration deposit, penalty, forfeit
+
+**`participationFee`** — ui: "Derecho de participación"
+The rest of an inscription's price, earned when the event or the seminar takes place: its `selectedPrice` minus its `registrationFee`, on the undiscounted price like the deposit. Quoted only beside the `registrationFee`, before registering.
+_Avoid_: balance, `owedBalanceAmount`, `inscriptionTotalAmount`
+
 **`inscriptionTotalAmount`** — ui: "Total de inscripción"
 Upper threshold of an inscription: its `selectedPrice` minus the live `dancerDiscount`, applied exactly once, with no coalesce and no third subtrahend. On a **withdrawn** inscription it is instead what remains allocated to it — not zero. Supersedes the retired `inscriptionBalanceAmount` (`base − deposit − discount`), whose two subtrahends both moved.
 _Avoid_: `inscriptionBalanceAmount` (retired), choreography balance, `availableBalanceAmount`

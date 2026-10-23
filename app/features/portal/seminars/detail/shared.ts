@@ -41,6 +41,16 @@ export type PortalSeminarDetailSeminar = {
   /** Whether the seminar starts inside the 48 hours a new registration is
    * given to send its deposit, so the dialog says "until it starts" instead. */
   startsBeforePaymentDeadline: boolean;
+  /** The seminar's own `Seña (%)`, which splits a price into its
+   * `Derecho de inscripción` and `Derecho de participación`. */
+  requiredDepositPercentage: number;
+};
+
+/** A person the academy may still register, with what registering them would
+ * cost today: their participant cell decides the row. `null` when nothing
+ * prices them, which a seminar open for registration rules out. */
+export type PortalSeminarDetailPersonOption = PortalSeminarPersonOption & {
+  priceAmount: number | null;
 };
 
 export type PortalSeminarDetailLoaderData = {
@@ -49,7 +59,7 @@ export type PortalSeminarDetailLoaderData = {
    * roster and is read on the finance surfaces instead. After them, read-only,
    * the inscriptions linked individuals made for themselves. */
   inscriptions: PortalSeminarDetailInscription[];
-  people: PortalSeminarPersonOption[];
+  people: PortalSeminarDetailPersonOption[];
 };
 
 export type PortalSeminarDetailActionData =

@@ -26,6 +26,7 @@ function buildSeminar(
     scheduledDate: "2026-10-10",
     startTime: "18:30",
     priceAmount: 30000,
+    requiredDepositPercentage: 40,
     hasStarted: false,
     isFull: false,
     startsBeforePaymentDeadline: false,
@@ -75,7 +76,7 @@ async function openSeminar(instructorName: string) {
 }
 
 describe("IndividualSeminarsView", () => {
-  test("opens the registration with the price and the reservation notice", async () => {
+  test("opens the registration with the price split at the seminar's own rate and the reservation notice", async () => {
     await renderView(buildLoaderData());
 
     await openSeminar("Abril Sosa");
@@ -83,8 +84,13 @@ describe("IndividualSeminarsView", () => {
     const dialog = document.querySelector('[role="dialog"]');
 
     expect(dialog?.textContent).toContain("$ 30.000");
+    expect(dialog?.textContent).toContain(
+      "Derecho de inscripción $ 12.000 · Derecho de participación $ 18.000",
+    );
     expect(dialog?.textContent).toContain("Reserva de lugar");
-    expect(dialog?.textContent).toContain("Tenés 48 horas");
+    expect(dialog?.textContent).toContain(
+      "Tenés 48 horas para enviar el pago del derecho de inscripción.",
+    );
     expect(dialog?.textContent).not.toContain(
       "Tu academia verá esta inscripción",
     );

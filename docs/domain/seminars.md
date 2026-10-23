@@ -235,11 +235,14 @@ How a seminar inscription is priced from those rows:
   `Esta acción es irreversible.` would be false of a row that keeps everything
   it has. It says
   the money stays allocated and the place is freed, and its button reads
-  `Retirar inscripción`. No amount appears on either side of the portal: what a
-  seminar costs is read in `Resumen financiero`. The individual's `Seminarios`
-  is the exception: it shows what each seminar costs the individual (its
-  inscription's effective price, or today's price in its participant cell before
-  it registers), because that page is where it decides to register.
+  `Retirar inscripción`. No amount appears on a registered row on either side
+  of the portal: what it costs is read in `Resumen financiero`. Two places quote
+  a price, because that is where the registration is decided: the registration
+  dialog on both sides quotes today's price in the person's participant cell
+  (on the academy's side once a person is picked) with its split into
+  `Derecho de inscripción` and `Derecho de participación` (#1705), and the
+  individual's `Seminarios` list shows what each seminar costs it (its
+  inscription's effective price, or today's price before it registers).
 - **A withdrawal is final** (#1496). Registering the same person again is an
   ordinary registration: it inserts a new row, with its own `createdAt`, no
   money and the ordinary quota rule — a reservation when a place is free, none
@@ -373,9 +376,11 @@ place for good, de-allocating below it releases both.
   event closes registration the same way. Removal is the shared delete dialog on
   a row without money and a `Retirar inscripción` confirmation on a row with it,
   which says the money stays assigned, the place is freed and the withdrawal is
-  final: re-registering creates a new inscription with no money. **No price, amount or participant reading appears on
-  any of these surfaces**, and the only deadline is the registration dialog's
-  48 hours: what a seminar costs is read in `Resumen financiero`.
+  final: re-registering creates a new inscription with no money. **No amount
+  or participant reading appears on any of these surfaces** except the
+  registration dialog's price for the picked person, split into its two
+  components, and the only deadline is the registration dialog's 48 hours: what
+  a registered seminar costs is read in `Resumen financiero`.
 - **Administration**: one more admin resource on the schedules' path. A list of
   instructor, date, time and quota with the places left on it
   (`quota − coveredCount − reservedCount`); a create page; a detail with two tabs, `Información`
