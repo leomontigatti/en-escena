@@ -944,7 +944,8 @@ is any allocation: the row owes nothing, and the write path agrees with the read
 path that it does, and so is releasing just the excess. The rows withdrawn before the
 release existed held more than their deposit; a one-time cleanup that ships with it,
 `scripts/release-withdrawn-excess.ts` (a dry run, then `--apply`), released what they
-held above it, through the same release. A row whose deposit moved down since its
+held above it, through the same release; production gets its figures as one checked
+transaction, `scripts/release-withdrawn-excess.sql`. A row whose deposit moved down since its
 withdrawal (a row below its deposit is not price-locked) can still hold more; its
 dialog says so, and its one `Liberar` still takes all of it.
 
