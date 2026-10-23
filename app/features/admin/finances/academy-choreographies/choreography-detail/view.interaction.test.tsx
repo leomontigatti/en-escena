@@ -728,30 +728,6 @@ describe("DancerNameCell interaction", () => {
     expect(document.querySelector('[data-slot="dialog-content"]')).toBeNull();
   });
 
-  // A row withdrawn before the release at withdrawal still holds more than its
-  // deposit: releasing the excess is how it reaches the outcome that keeps it.
-  test("offers a withdrawn row above its deposit the release of the excess beside the release of all", async () => {
-    const posted: FormData[] = [];
-    await mountAgainst(
-      async ({ request }) => {
-        posted.push(await request.formData());
-
-        return redirect("/");
-      },
-      { inscriptions: [withdrawnRow({ allocatedAmount: 6000 })] },
-    );
-
-    await clickReactDomButton("Bruno Benítez");
-
-    expect(dialogText()).toContain("Liberar todo $ 6.000");
-
-    await clickReactDomButton("Liberar excedente $ 3.000");
-
-    expect(posted.map((formData) => formData.get("intent"))).toEqual([
-      "release-inscription-excess",
-    ]);
-  });
-
   test("offers nothing to release on a withdrawn row that retains no money", async () => {
     await mount({ inscriptions: [withdrawnRow({ allocatedAmount: 0 })] });
 

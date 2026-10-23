@@ -13,6 +13,7 @@ import {
   seminarInscriptionFinancesUrl,
   type EventSeminarFinanceFixture,
 } from "@/lib/admin/finances/seminar-finances.test-support";
+import { releaseWithdrawnExcess } from "@/lib/finances/withdrawn-excess-cleanup.server";
 import { removeSeminarInscription } from "@/lib/seminars/inscriptions.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -244,7 +245,9 @@ describe("the deposit a withdrawn seminar inscription retains", () => {
     expect(await readAllocatedAmount(fixture.anaInscriptionId)).toBe(10000);
   });
 
-  test("releases what a row withdrawn earlier holds above its deposit", async () => {
+  // A row withdrawn before #1065 held more than its deposit: the one-time
+  // cleanup releases the excess, the dialog does not.
+  test("refuses to release just the excess of a withdrawn row, which the one-time cleanup releases", async () => {
     const fixture = await seedEventSeminarFinanceFixture();
     await postToList(fixture, {
       amount: "15000",
@@ -262,7 +265,17 @@ describe("the deposit a withdrawn seminar inscription retains", () => {
       intent: "release-inscription-excess",
     });
 
-    expect(released).toMatchObject({ status: "success" });
+    expect(released).toMatchObject({ status: "error" });
+    expect(await readAllocatedAmount(fixture.anaInscriptionId)).toBe(15000);
+
+    await expect(releaseWithdrawnExcess({ apply: true })).resolves.toEqual([
+      expect.objectContaining({
+        heldAmount: 15000,
+        inscriptionId: fixture.anaInscriptionId,
+        kind: "seminar",
+        releasedAmount: 5000,
+      }),
+    ]);
     expect(await readAllocatedAmount(fixture.anaInscriptionId)).toBe(10000);
   });
 });

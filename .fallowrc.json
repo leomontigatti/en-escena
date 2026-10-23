@@ -4,7 +4,10 @@
     "src/index.{ts,tsx,js,jsx}",
     "src/main.{ts,tsx,js,jsx}",
     "tests/db/setup-fast.ts",
-    "tests/db/setup.ts"
+    "tests/db/setup.ts",
+    // A one-off script run by hand, not through `package.json`, and deleted
+    // once it has run in production (docs/operations/scripts.md).
+    "scripts/release-withdrawn-excess.ts"
   ],
   "ignorePatterns": ["tests/setup/react-test-env.ts"],
   // `shadcn` is a devDependency on purpose: its only production use is the

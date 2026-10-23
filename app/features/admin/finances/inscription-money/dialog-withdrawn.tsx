@@ -6,12 +6,12 @@
  * one removal is `Liberar` the whole of it. The app asks for no reason: the
  * clause never conditions the retention on an excuse (#654).
  *
- * A row holding more than its deposit, withdrawn before the withdrawal released
- * the excess or whose deposit moved down since, also offers to release just that
- * excess, which is how it reaches the outcome that keeps the deposit.
+ * A row can still hold more than its deposit when the deposit moved down after
+ * the withdrawal (a row below its deposit is not price-locked). The description
+ * says so, and the one release still takes all of it: the rows withdrawn before
+ * #1065 were brought down to their deposit once, by
+ * `scripts/release-withdrawn-excess.ts`.
  */
-
-import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -26,10 +26,7 @@ import {
   useMoneyWriteFetcher,
 } from "./dialog-parts";
 import { readWithdrawnFigures, type InscriptionRow } from "./figures";
-import {
-  releaseInscriptionExcessIntent,
-  releaseRetainedDepositIntent,
-} from "./intents";
+import { releaseRetainedDepositIntent } from "./intents";
 
 export function WithdrawnInscriptionDialog({
   inscription,
@@ -43,9 +40,6 @@ export function WithdrawnInscriptionDialog({
   const fetcher = useMoneyWriteFetcher(onOpenChange);
   const formAction = useOptionalFormAction();
   const isSaving = fetcher.state !== "idle";
-  // Which release is in flight, so its button and not the other one shows the
-  // spinner.
-  const [submittedIntent, setSubmittedIntent] = useState<string | null>(null);
   const { excessAmount, retainedAmount } = readWithdrawnFigures(inscription);
   const holdsMoney = inscription.allocatedAmount > 0;
 
@@ -63,74 +57,38 @@ export function WithdrawnInscriptionDialog({
           method="post"
           onSubmit={(event) => {
             event.preventDefault();
-            // The button that submitted carries the intent, so the two
-            // releases share one form and its target fields.
-            const submitter = (event.nativeEvent as SubmitEvent).submitter;
-            setSubmittedIntent(
-              submitter instanceof HTMLButtonElement ? submitter.value : null,
-            );
-            void fetcher.submit(
-              submitter instanceof HTMLButtonElement
-                ? submitter
-                : event.currentTarget,
-              { action: formAction, method: "post" },
-            );
+            void fetcher.submit(event.currentTarget, {
+              action: formAction,
+              method: "post",
+            });
           }}
           className="flex flex-col gap-4"
         >
+          <input
+            type="hidden"
+            name="intent"
+            value={releaseRetainedDepositIntent}
+          />
           <MoneyTargetFields
             inscription={inscription}
             targetKind={targetKind}
           />
 
-          <DialogFooter
-            className={excessAmount > 0 ? "sm:justify-between" : ""}
-          >
-            {excessAmount > 0 ? (
-              <Button
-                type="submit"
-                name="intent"
-                value={releaseInscriptionExcessIntent}
-                variant="outline"
-                disabled={isSaving}
-              >
-                <SubmitIcon
-                  isSaving={
-                    isSaving &&
-                    submittedIntent === releaseInscriptionExcessIntent
-                  }
-                />
-                Liberar excedente {formatAmount(excessAmount)}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving}
+              onClick={requestClose}
+            >
+              {holdsMoney ? "Cancelar" : "Cerrar"}
+            </Button>
+            {holdsMoney ? (
+              <Button type="submit" variant="destructive" disabled={isSaving}>
+                <SubmitIcon isSaving={isSaving} />
+                Liberar {formatAmount(inscription.allocatedAmount)}
               </Button>
             ) : null}
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isSaving}
-                onClick={requestClose}
-              >
-                {holdsMoney ? "Cancelar" : "Cerrar"}
-              </Button>
-              {holdsMoney ? (
-                <Button
-                  type="submit"
-                  name="intent"
-                  value={releaseRetainedDepositIntent}
-                  variant="destructive"
-                  disabled={isSaving}
-                >
-                  <SubmitIcon
-                    isSaving={
-                      isSaving &&
-                      submittedIntent === releaseRetainedDepositIntent
-                    }
-                  />
-                  {excessAmount > 0 ? "Liberar todo" : "Liberar"}{" "}
-                  {formatAmount(inscription.allocatedAmount)}
-                </Button>
-              ) : null}
-            </div>
           </DialogFooter>
         </form>
       )}

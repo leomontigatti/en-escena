@@ -115,3 +115,12 @@ session runs, and when, is [Validation](../agents/validation.md).
 Not `pnpm` scripts — `.sql` files under `scripts/`, run with `psql`. They are
 read-only checks tied to a specific migration and are deleted once it has
 shipped. There are none right now.
+
+## One-off scripts
+
+TypeScript under `scripts/`, run with `node --env-file-if-exists=.env --import tsx
+<script>`, and deleted once they have run in production.
+
+| Script | Purpose |
+| --- | --- |
+| ⚠️ `scripts/release-withdrawn-excess.ts` | The #1065 cleanup: releases to `Saldo disponible` what every withdrawn inscription holds above the deposit it retains, newest payment first. A dry run by default, which lists each row and rolls it back; `--apply` releases it. Idempotent. Moves money: against production only with the user's go-ahead. |

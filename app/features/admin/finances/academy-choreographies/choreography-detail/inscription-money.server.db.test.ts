@@ -26,6 +26,7 @@ import { createSavedEvent } from "@/lib/test-support/events";
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
 
 import { removeChoreography } from "@/lib/choreographies/choreography-removal.server";
+import { releaseWithdrawnExcess } from "@/lib/finances/withdrawn-excess-cleanup.server";
 
 import { loadChoreographyFinanceDetail } from "./server";
 
@@ -809,8 +810,9 @@ describe("the deposit a withdrawn inscription retains", () => {
   });
 
   // A row withdrawn before the release at withdrawal existed still holds what
-  // it held: releasing its excess brings it to the first outcome.
-  test("releases what a row withdrawn earlier holds above its deposit, newest payment first", async () => {
+  // it held. The dialog has no release of just the excess; the one-time cleanup
+  // brings the row down to its deposit, newest payment first.
+  test("leaves the excess of a row withdrawn earlier to the one-time cleanup, which a dry run does not move", async () => {
     const fixture = await seedInscription([4000, 4000]);
     await post(fixture, {
       intent: "allocate-inscription",
@@ -824,10 +826,25 @@ describe("the deposit a withdrawn inscription retains", () => {
 
     await expect(
       post(fixture, { intent: "release-inscription-excess" }),
-    ).resolves.toMatchObject({ status: 302 });
+    ).resolves.toMatchObject({ status: "error" });
 
+    const release = expect.objectContaining({
+      heldAmount: 6000,
+      inscriptionId: fixture.inscriptionId,
+      kind: "choreography",
+      releasedAmount: 3000,
+    });
+    await expect(releaseWithdrawnExcess({ apply: false })).resolves.toEqual([
+      release,
+    ]);
+    expect(await readAllocations(fixture.inscriptionId)).toHaveLength(2);
+
+    await expect(releaseWithdrawnExcess({ apply: true })).resolves.toEqual([
+      release,
+    ]);
     expect(await readAllocations(fixture.inscriptionId)).toEqual([
       { amount: 3000, paymentId: fixture.payments[0].id },
     ]);
+    await expect(releaseWithdrawnExcess({ apply: true })).resolves.toEqual([]);
   });
 });

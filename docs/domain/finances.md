@@ -941,10 +941,12 @@ the clause never conditions the retention on an excuse. So on a withdrawn row th
 money dialog has no amount field: it says the money is the retained deposit and offers
 one `Liberar` for all of it. `Quitar dinero` with an amount is refused there, and so
 is any allocation: the row owes nothing, and the write path agrees with the read
-path that it does. A row withdrawn before the release existed, or whose deposit moved
-down since (a row below its deposit is not price-locked), can hold more than its deposit;
-its dialog also offers `Liberar excedente`, which releases exactly what is above the
-deposit and so reaches the outcome that keeps it.
+path that it does, and so is releasing just the excess. The rows withdrawn before the
+release existed held more than their deposit; a one-time cleanup that ships with it,
+`scripts/release-withdrawn-excess.ts` (a dry run, then `--apply`), released what they
+held above it, through the same release. A row whose deposit moved down since its
+withdrawal (a row below its deposit is not price-locked) can still hold more; its
+dialog says so, and its one `Liberar` still takes all of it.
 
 **A withdrawal is final** (#1496). Adding the same dancer again **inserts a new
 inscription**: a new row with its own `createdAt`, priced like any new

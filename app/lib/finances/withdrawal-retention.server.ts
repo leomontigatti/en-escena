@@ -28,8 +28,8 @@ import type { Executor } from "./choreography-cobro-support.server";
 
 export type WithdrawnTarget = Omit<PoolMovement, "amount">;
 
-/** Why a release on a withdrawn row had nothing to do; the caller words it. */
-export type RetentionRefusal = "no-excess" | "nothing-retained";
+/** Why the release of a withdrawn row had nothing to do; the caller words it. */
+export type RetentionRefusal = "nothing-retained";
 
 export type RetentionResult =
   { ok: true } | { ok: false; reason: RetentionRefusal };
@@ -44,21 +44,6 @@ export async function releaseAboveRetainedDeposit(
   withdrawn: WithdrawnTarget,
 ): Promise<void> {
   await releaseDownTo(tx, withdrawn, "deposit");
-}
-
-/**
- * `Liberar el excedente` on a withdrawn row: what it holds above its deposit,
- * for a row withdrawn before the release at withdrawal existed, or whose
- * deposit moved down since (a row below its deposit is not price-locked, so its
- * effective price can). Refused when there is none, like the active row's.
- */
-export async function releaseWithdrawnExcess(
-  tx: Executor,
-  withdrawn: WithdrawnTarget,
-): Promise<RetentionResult> {
-  return (await releaseDownTo(tx, withdrawn, "deposit")) > 0
-    ? { ok: true }
-    : { ok: false, reason: "no-excess" };
 }
 
 /**

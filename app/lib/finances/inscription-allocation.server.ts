@@ -62,10 +62,7 @@ import {
   partialRetainedReleaseMessage,
   toCobroResult,
 } from "./withdrawal-retention-refusals";
-import {
-  releaseRetainedDeposit,
-  releaseWithdrawnExcess,
-} from "./withdrawal-retention.server";
+import { releaseRetainedDeposit } from "./withdrawal-retention.server";
 import {
   hasCrossedStoredDepositThreshold,
   loadCandidatePriceRow,
@@ -355,9 +352,7 @@ export async function releaseInscriptionExcess(
     }
 
     if (context.inscription.withdrawn) {
-      return toCobroResult(
-        await releaseWithdrawnExcess(tx, inscriptionPoolTarget(input)),
-      );
+      return { ok: false, message: partialRetainedReleaseMessage };
     }
 
     const thresholds = await readInscriptionThresholds(tx, {
