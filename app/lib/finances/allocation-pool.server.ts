@@ -56,12 +56,13 @@
  * Both halves take it **after** the seminar and inscription locks their callers
  * already hold, never before one of them, so it adds no lock order to deadlock
  * on. The payment edit and deletion take it first, holding nothing yet; the
- * academy merge takes it before its academy lock, after the choreography rows
- * it moves, which is the order a withdrawal holds them in: the choreography
- * row, the inscription rows it stamps, then the pool for its release. Every
- * money write that reads whether a row is withdrawn takes that inscription row
- * before the pool too, so either it waits for the withdrawal and sees the
- * stamp, or the withdrawal waits for it.
+ * academy merge takes it before its academy lock and then moves choreography
+ * rows. A withdrawal holds the choreography row, then the inscription rows it
+ * stamps, then the pool for its release; every money write that reads whether
+ * a row is withdrawn takes that inscription row before the pool too, so either
+ * it waits for the withdrawal and sees the stamp, or the withdrawal waits for
+ * it. The one known cycle is a merge racing a withdrawal on the academy it
+ * removes: Postgres aborts one of them and no money moves (#1065 review).
  */
 
 import { and, asc, desc, eq, sql } from "drizzle-orm";
