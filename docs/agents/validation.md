@@ -173,10 +173,14 @@ almost all of the safety net.
 A test that fails and passes on a rerun with nothing changed is a **flake**, and
 a flake is a defect in the test: rerunning until green hides it from the next
 session. Open an issue with the test's file and name and the failing output, or
-add them to the open one, before moving on. Two causes found so far: state a
-`unit-shared` worker carries from one file to the next (below), and a fixed pause
+add them to the open one, before moving on. Three causes found so far: state a
+`unit-shared` worker carries from one file to the next (below); a fixed pause
 standing in for an outcome, where `waitFor` from
-`app/lib/test-support/react-dom.tsx` waits for the outcome itself. A "Test timed
+`app/lib/test-support/react-dom.tsx` waits for the outcome itself; and a timer
+still pending when the worker tears jsdom down, which throws on the closed window
+and is reported as an unhandled error from the worker's last file. The setup
+file waits out 0 ms timers after each jsdom file (#1682); a component that
+leaves a longer one is closed or awaited by its test. A "Test timed
 out" is the exception: it says only that the test exceeded its deadline, and
 `vitest.config.ts` already allows for load. File it and investigate the timeout.
 

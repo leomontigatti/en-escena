@@ -416,7 +416,9 @@ export function resolvePortalChoreographyStatusBadge(input: {
  * stage as choreographed?*, and for a `(seminar, academy)` pair, *does every
  * person the academy registered hold their place?*.
  *
- * A unit with no inscriptions cannot happen either: `depositPending`.
+ * A unit with no inscriptions cannot happen either: `depositPending`. One whose
+ * roster emptied through withdrawals never gets here: the rollup reads it
+ * `Retirada` (`rollUpInscriptionFinanceFigures`).
  *
  * Waived inscriptions stay out of the minimum: the unit is as far along as its
  * paying inscriptions. A unit whose every inscription is waived reads `waived`

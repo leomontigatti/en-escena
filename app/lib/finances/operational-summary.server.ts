@@ -448,6 +448,13 @@ async function readAcademyEventFinance(input: {
  * status is the same rollup every finance surface shows — this only widens the
  * scope from one academy to the whole event, for the readers that need the
  * status beside something that is not money, like the presentation order.
+ *
+ * Except for a withdrawn row, which reads `depositPending` here: its
+ * `paidInFull` is only ever meant under `Retirada`, and these readers take
+ * `Retirada` from the choreography's own `withdrawnAt`. A choreography whose
+ * whole roster withdrew is still registered there, with nobody left to dance
+ * it, so it keeps the `Seña pendiente` warning rather than reading clean
+ * (#1725). One withdrawn itself is skipped by them either way.
  */
 export async function readEventChoreographyFinancialStatuses(
   eventId: string,
@@ -457,7 +464,14 @@ export async function readEventChoreographyFinancialStatuses(
 
   return new Map(
     [...(finance?.choreographyFinanceRowsByAcademy.values() ?? [])].flatMap(
-      (rows) => rows.map((row) => [row.id, row.financialStatus] as const),
+      (rows) =>
+        rows.map(
+          (row) =>
+            [
+              row.id,
+              row.withdrawn ? "depositPending" : row.financialStatus,
+            ] as const,
+        ),
     ),
   );
 }

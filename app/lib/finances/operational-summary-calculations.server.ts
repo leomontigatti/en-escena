@@ -85,6 +85,8 @@ export type OperationalFinanceRollup = {
   owedBalanceAmount: OperationalFinanceAmount;
   owedDepositAmount: OperationalFinanceAmount;
   registrationCount: number;
+  // Every inscription of the unit is withdrawn: it reads `Retirada`, as they do.
+  withdrawn: boolean;
 };
 
 /**
@@ -132,6 +134,12 @@ export type RollupInscription = {
  * *can this happen as registered?* and a withdrawn row is no longer part of that
  * answer. The same sentence holds for a seminar's place, which is why the count
  * beside the money is the active one.
+ *
+ * A unit whose every inscription is withdrawn is withdrawn itself (#1725): it
+ * stays registered, but nobody is left to pay the deposit `Seña pendiente`
+ * would ask for. It is cut as a withdrawn choreography is, carrying
+ * `paidInFull` —the harmless maximum of a minimum rollup— under `Retirada`. A
+ * unit with no inscription at all is not: nobody has registered for it yet.
  */
 export function rollUpInscriptionFinanceFigures(
   inscriptions: readonly RollupInscription[],
@@ -158,20 +166,24 @@ export function rollUpInscriptionFinanceFigures(
   const activeInscriptions = inscriptions.filter(
     (inscription) => !inscription.withdrawn,
   );
+  const withdrawn = inscriptions.length > 0 && activeInscriptions.length === 0;
 
   return {
     allocatedAmount,
     anomalies: overAllocatedAmount > 0 ? ["overAllocated"] : [],
     basePriceAmount: basePriceAmount.build(),
     depositAmount: depositAmount.build(),
-    financialStatus: deriveMinimumFinancialStatus(
-      activeInscriptions.map((inscription) => inscription.financialStatus),
-    ),
+    financialStatus: withdrawn
+      ? "paidInFull"
+      : deriveMinimumFinancialStatus(
+          activeInscriptions.map((inscription) => inscription.financialStatus),
+        ),
     overAllocatedAmount,
     owedBalanceAmount: owedBalanceAmount.build(),
     owedDepositAmount: owedDepositAmount.build(),
     registrationCount: activeInscriptions.length,
     totalAmount: totalAmount.build(),
+    withdrawn,
   };
 }
 
@@ -326,7 +338,7 @@ export function buildChoreographyOperationalFinanceRow(input: {
     groupType: input.choreography.groupType,
     id: input.choreography.id,
     name: input.choreography.name,
-    withdrawn: input.choreography.withdrawn,
+    withdrawn: figures.withdrawn || input.choreography.withdrawn,
   };
 }
 

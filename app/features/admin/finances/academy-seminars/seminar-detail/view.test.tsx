@@ -206,6 +206,7 @@ function loaderDataFixture(
       registrationCount: 1,
       scheduledDate: "2026-10-10",
       totalAmount: { amount: 10000, status: "complete" },
+      withdrawn: false,
     },
     selectedEventId: "event_1",
     ...overrides,
