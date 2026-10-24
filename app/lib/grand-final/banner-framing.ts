@@ -34,7 +34,14 @@ type Size = { height: number; width: number };
 
 type BannerCanvas = Pick<
   CanvasRenderingContext2D,
-  "clearRect" | "restore" | "rotate" | "save" | "scale" | "translate"
+  | "clearRect"
+  | "fillRect"
+  | "fillStyle"
+  | "restore"
+  | "rotate"
+  | "save"
+  | "scale"
+  | "translate"
 > & {
   drawImage(
     image: never,
@@ -45,7 +52,6 @@ type BannerCanvas = Pick<
   ): void;
 };
 
-/** The photo as it stands after its turns: a quarter turn swaps its sides. */
 function turned(photo: Size, quarterTurns: number): Size {
   return quarterTurns % 2 === 0
     ? photo
@@ -91,7 +97,11 @@ export function drawBanner<TImage extends Size>(
   const scale =
     Math.max(frame.width / width, frame.height / height) * framing.zoom;
 
+  // The upload is a JPEG, which keeps no transparency: a transparent photo
+  // shows white in the preview as it will in the banner, not black.
   context.clearRect(0, 0, frame.width, frame.height);
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, frame.width, frame.height);
   context.save();
   context.translate(
     frame.width / 2 + framing.offsetX * frame.width,
@@ -117,4 +127,28 @@ export function sourceWidthInFrame(photo: Size, framing: BannerFraming) {
   const { height, width } = turned(photo, framing.quarterTurns);
 
   return Math.round(Math.min(width, height * frameAspect) / framing.zoom);
+}
+
+/** What a banner should weigh at most: every voter's phone fetches it. */
+const bannerBudgetBytes = 500_000;
+const bannerQualities = [0.85, 0.75, 0.65];
+
+/**
+ * The banner encoded at the best quality that fits the budget, or at the
+ * lowest one when none does: a detailed photo is encoded again, lighter.
+ */
+export async function encodeBannerWithinBudget(
+  encode: (quality: number) => Promise<Blob | null>,
+) {
+  let banner: Blob | null = null;
+
+  for (const quality of bannerQualities) {
+    banner = await encode(quality);
+
+    if (!banner || banner.size <= bannerBudgetBytes) {
+      return banner;
+    }
+  }
+
+  return banner;
 }

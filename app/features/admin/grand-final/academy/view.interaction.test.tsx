@@ -22,6 +22,7 @@ import {
   findButton,
   updateReactDomForm,
   waitFor,
+  installDataTransferStub,
 } from "@/lib/test-support/react-dom";
 
 import type {
@@ -203,7 +204,10 @@ describe("the finalist banner form", () => {
 
   // jsdom decodes no image and draws on no canvas: these stand in for the
   // browser so the editor can open a photo and hand back its JPEG.
-  function stubBrowserImaging() {
+  function stubBrowserImaging(
+    encode: (done: BlobCallback) => void = (done) =>
+      done(new Blob(["jpg"], { type: "image/jpeg" })),
+  ) {
     vi.stubGlobal(
       "Image",
       class {
@@ -215,16 +219,7 @@ describe("the finalist banner form", () => {
         }
       },
     );
-    vi.stubGlobal(
-      "DataTransfer",
-      class {
-        private picked: File[] = [];
-        items = { add: (file: File) => this.picked.push(file) };
-        get files() {
-          return this.picked;
-        }
-      },
-    );
+    installDataTransferStub();
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: () => "blob:foto",
@@ -239,9 +234,7 @@ describe("the finalist banner form", () => {
       .mockReturnValue(context as never);
     const toBlob = vi
       .spyOn(HTMLCanvasElement.prototype, "toBlob")
-      .mockImplementation((done) =>
-        done(new Blob(["jpg"], { type: "image/jpeg" })),
-      );
+      .mockImplementation(encode);
     onTestFinished(() => {
       vi.unstubAllGlobals();
       getContext.mockRestore();
@@ -251,8 +244,8 @@ describe("the finalist banner form", () => {
     });
   }
 
-  test("frames a picked picture in the editor and keeps the JPEG it makes, as a change", async () => {
-    stubBrowserImaging();
+  /** Picks a photo for the second banner and waits for the editor on it. */
+  async function pickIntoEditor() {
     await mount();
     const input = document.querySelector<HTMLInputElement>(
       'input[name="secondBanner"]',
@@ -274,7 +267,14 @@ describe("the finalist banner form", () => {
       () => findButton("Usar foto", { exact: true })?.disabled === false,
     );
 
-    expect(document.body.textContent).toContain("Encuadrá la foto");
+    return input;
+  }
+
+  test("frames a picked picture in the editor and keeps the JPEG it makes, as a change", async () => {
+    stubBrowserImaging();
+    const input = await pickIntoEditor();
+
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
     expect(saveButton()?.disabled).toBe(true);
 
     await updateReactDomForm(() => {
@@ -284,6 +284,38 @@ describe("the finalist banner form", () => {
 
     expect(input.files?.[0]?.type).toBe("image/jpeg");
     expect(saveButton()?.disabled).toBe(false);
+  });
+
+  // A cancel while the JPEG is still being made would leave the field
+  // waiting on a picture nobody wants: the footer waits with it.
+  test("locks the editor's footer while it makes the JPEG", async () => {
+    stubBrowserImaging(() => {});
+    await pickIntoEditor();
+
+    await updateReactDomForm(() => {
+      findButton("Usar foto", { exact: true })?.click();
+    });
+
+    expect(findButton("Cancelar", { exact: true })?.disabled).toBe(true);
+    expect(findButton("Usar foto", { exact: true })?.disabled).toBe(true);
+  });
+
+  // A browser short of memory makes no JPEG: the editor stays open to try
+  // again rather than closing as if it had worked.
+  test("keeps the editor open when the browser could not make the JPEG", async () => {
+    stubBrowserImaging((done) => done(null));
+    const input = await pickIntoEditor();
+
+    await updateReactDomForm(() => {
+      findButton("Usar foto", { exact: true })?.click();
+    });
+    await waitFor(
+      () => findButton("Usar foto", { exact: true })?.disabled === false,
+    );
+
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(input.files?.[0]?.name).toBe("retrato.png");
+    expect(saveButton()?.disabled).toBe(true);
   });
 
   test("tells the user why the server refused a picture", async () => {

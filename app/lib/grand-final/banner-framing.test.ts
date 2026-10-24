@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   clampBannerFraming,
   drawBanner,
+  encodeBannerWithinBudget,
   initialBannerFraming,
   sourceWidthInFrame,
 } from "@/lib/grand-final/banner-framing";
@@ -13,6 +14,7 @@ const portraitPhoto = { height: 4000, width: 3000 };
 /** Records the transform a draw applies, as a canvas would. */
 function recordingContext() {
   const drawn = {
+    background: null as null | { fill: string; height: number; width: number },
     angle: 0,
     height: 0,
     scale: 1,
@@ -23,6 +25,12 @@ function recordingContext() {
     y: 0,
   };
   const context = {
+    fillStyle: "",
+    fillRect(x: number, y: number, width: number, height: number) {
+      if (x === 0 && y === 0 && drawn.width === 0) {
+        drawn.background = { fill: String(this.fillStyle), height, width };
+      }
+    },
     clearRect: () => {},
     drawImage: (
       _image: never,
@@ -156,11 +164,48 @@ describe("framing a banner", () => {
     expect(large.right).toBeCloseTo(small.right * 4);
   });
 
+  // A JPEG keeps no transparency: a transparent PNG would turn black there in
+  // the upload while the preview showed the frame through it.
+  test("paints the frame white under the photo, in the preview as in the upload", () => {
+    const { context, drawn } = recordingContext();
+
+    drawBanner(context, portraitPhoto, frame, initialBannerFraming);
+
+    expect(drawn.background).toEqual({
+      fill: "#ffffff",
+      height: frame.height,
+      width: frame.width,
+    });
+  });
+
   // Upscaling a small crop to the 1920 px banner blurs it: the editor says so.
   test("reads how many of the photo's pixels the frame spans", () => {
     expect(sourceWidthInFrame(portraitPhoto, initialBannerFraming)).toBe(3000);
     expect(
       sourceWidthInFrame(portraitPhoto, { ...initialBannerFraming, zoom: 4 }),
     ).toBe(750);
+  });
+});
+
+// Every voter's phone fetches the banners: a detailed photo is encoded again,
+// lighter, until it fits.
+describe("encoding a banner", () => {
+  const sizedAt = (sizes: Record<number, number>) => async (quality: number) =>
+    new Blob([new Uint8Array(sizes[quality] ?? 0)]);
+
+  test("keeps the first quality whose picture fits the budget", async () => {
+    const encode = sizedAt({ 0.65: 300_000, 0.75: 450_000, 0.85: 700_000 });
+
+    const banner = await encodeBannerWithinBudget(encode);
+
+    expect(banner?.size).toBe(450_000);
+  });
+
+  test("settles for the lightest when none fits", async () => {
+    const encode = sizedAt({ 0.65: 650_000, 0.75: 800_000, 0.85: 900_000 });
+
+    const banner = await encodeBannerWithinBudget(encode);
+
+    expect(banner?.size).toBe(650_000);
   });
 });

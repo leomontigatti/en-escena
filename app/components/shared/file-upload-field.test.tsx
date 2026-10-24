@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
+import { installDataTransferStub } from "@/lib/test-support/react-dom";
 
 import { FileUploadField } from "./file-upload-field";
 
@@ -174,16 +175,7 @@ describe("FileUploadField", () => {
   // A banner is framed in an editor before it is kept: the field submits and
   // previews what the editor made, and a cancelled editor changes nothing.
   test("keeps the file prepared from the picked one, and the last one when the preparing is cancelled", async () => {
-    vi.stubGlobal(
-      "DataTransfer",
-      class {
-        private picked: File[] = [];
-        items = { add: (file: File) => this.picked.push(file) };
-        get files() {
-          return this.picked;
-        }
-      },
-    );
+    installDataTransferStub();
     const banner = new File(["jpg"], "banner.jpg", { type: "image/jpeg" });
     const prepareFile = vi.fn(async (file: File) =>
       file.name === "cancelar.png" ? null : banner,
