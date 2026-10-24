@@ -202,6 +202,25 @@ describe("the public vote page", () => {
     });
   });
 
+  // Every finalist's two banners are on the page at once, up to two dozen
+  // pictures: a phone on the venue's Wi-Fi fetches only those near the screen.
+  test("leaves the banners out of view for the browser to fetch as they near the screen", async () => {
+    await mount({
+      code: "codigo-impreso",
+      finalists,
+      roundId: "ronda-1",
+      state: "open",
+    });
+
+    const banners = [...document.querySelectorAll("img")];
+    expect(banners.map((banner) => banner.getAttribute("loading"))).toEqual([
+      "lazy",
+      "lazy",
+      "lazy",
+      "lazy",
+    ]);
+  });
+
   test("tells a refused vote in a toast", async () => {
     await mount({
       code: "codigo-impreso",

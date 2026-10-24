@@ -56,6 +56,8 @@ export function FinalistCarousel({
             <img
               alt={`Foto ${index + 1} de ${finalist.name}`}
               className="block aspect-video w-full bg-muted object-cover"
+              decoding="async"
+              loading="lazy"
               src={url}
             />
           </CarouselItem>
