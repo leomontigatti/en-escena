@@ -1,7 +1,8 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { account, user, voters } from "@/db/schema";
+import { createDefaultVoterSignIn } from "@/lib/grand-final/voter-identity-providers.server";
 import { createVoterSignIn } from "@/lib/grand-final/voter-sign-in.server";
 import {
   cookieHeaderFrom,
@@ -95,6 +96,65 @@ describe("finishing a voter's sign-in", () => {
 
     await expect(db.$count(user)).resolves.toBe(users);
     await expect(db.$count(account)).resolves.toBe(accounts);
+  });
+});
+
+// The real Google adapter, with only Google's token endpoint answered here: a
+// dependency upgrade that changes what the adapter reads off the ID token
+// fails this test instead of every vote.
+describe("finishing a sign-in with Google", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function unsignedIdToken(claims: Record<string, unknown>) {
+    const part = (value: object) =>
+      Buffer.from(JSON.stringify(value)).toString("base64url");
+
+    return `${part({ alg: "RS256", typ: "JWT" })}.${part(claims)}.firma`;
+  }
+
+  test("creates the voter with the subject of Google's ID token", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          access_token: "token-de-acceso",
+          expires_in: 3599,
+          id_token: unsignedIdToken({
+            aud: "cliente.apps.googleusercontent.com",
+            email: "votante@example.com",
+            iss: "https://accounts.google.com",
+            sub: "109876543210",
+          }),
+          token_type: "Bearer",
+        }),
+      ),
+    );
+    const signIn = createDefaultVoterSignIn({
+      BETTER_AUTH_SECRET: "secreto",
+      GOOGLE_CLIENT_ID: "cliente.apps.googleusercontent.com",
+      GOOGLE_CLIENT_SECRET: "secreto-de-google",
+      NODE_ENV: "production",
+    });
+    if (!signIn) throw new Error("Google sign-in is configured");
+    const started = await signIn.startSignIn({ redirectUri });
+    const state = new URL(
+      started.headers.get("Location") ?? "",
+    ).searchParams.get("state");
+    const request = new Request(
+      `${redirectUri}?code=codigo-de-google&state=${state}`,
+      {
+        headers: { Cookie: cookieHeaderFrom(started.headers.getSetCookie()) },
+      },
+    );
+
+    const finished = await signIn.finishSignIn(request, { redirectUri });
+
+    expect(finished.ok).toBe(true);
+    await expect(db.select().from(voters)).resolves.toEqual([
+      expect.objectContaining({ provider: "google", subject: "109876543210" }),
+    ]);
   });
 });
 
