@@ -138,16 +138,7 @@ describe("finishing a sign-in with Google", () => {
       NODE_ENV: "production",
     });
     if (!signIn) throw new Error("Google sign-in is configured");
-    const started = await signIn.startSignIn({ redirectUri });
-    const state = new URL(
-      started.headers.get("Location") ?? "",
-    ).searchParams.get("state");
-    const request = new Request(
-      `${redirectUri}?code=codigo-de-google&state=${state}`,
-      {
-        headers: { Cookie: cookieHeaderFrom(started.headers.getSetCookie()) },
-      },
-    );
+    const { request } = await startThenReturn(signIn);
 
     const finished = await signIn.finishSignIn(request, { redirectUri });
 
