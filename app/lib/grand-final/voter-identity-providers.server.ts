@@ -46,11 +46,12 @@ function createGoogleVoterIdentityProvider(credentials: {
       });
       // The ID token comes straight from Google's token endpoint over TLS,
       // which OpenID Connect Core §3.1.3.7 accepts in place of checking its
-      // signature; the adapter reads its claims.
+      // signature; the adapter reads its claims. The subject is the `sub`
+      // claim itself: the adapter's mapped user carries no id since 1.7.
       const info = await adapter.getUserInfo(tokens);
 
-      return info?.user.id
-        ? { email: info.user.email ?? null, subject: String(info.user.id) }
+      return info?.data.sub
+        ? { email: info.user.email ?? null, subject: info.data.sub }
         : null;
     },
   };
