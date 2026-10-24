@@ -237,6 +237,7 @@ function getFileUploadControlConfig(
     onValidationErrorChange,
     onValidationErrorMessageChange,
     placeholder = "",
+    prepareFile,
     previewKind = "image",
     previewSelectedFile = true,
     removeLabel = "Quitar imagen",
@@ -274,6 +275,7 @@ function getFileUploadControlConfig(
     onValidationErrorChange,
     onValidationErrorMessageChange,
     placeholder,
+    prepareFile,
     previewKind,
     previewSelectedFile,
     removeLabel,
@@ -290,6 +292,7 @@ function useFileUploadControlState(
   config: FileUploadControlConfig,
 ): FileUploadControlState {
   const inputRef = useRef<HTMLInputElement>(null);
+  const keptFileRef = useRef<File | null>(null);
   const [currentStorageKey, setCurrentStorageKey] = useState(
     config.storageKeyValue,
   );
@@ -360,11 +363,36 @@ function useFileUploadControlState(
   }
 
   function handleFileInputChange(event: ChangeEvent<HTMLInputElement>) {
-    handleSelectedFile(
-      event.currentTarget,
-      event.currentTarget.files?.[0] ?? null,
-      event,
-    );
+    const input = event.currentTarget;
+    const file = input.files?.[0] ?? null;
+
+    if (file && config.prepareFile) {
+      void handlePreparedFile(input, file, config.prepareFile);
+      return;
+    }
+
+    handleSelectedFile(input, file, event);
+  }
+
+  async function handlePreparedFile(
+    input: HTMLInputElement,
+    picked: File,
+    prepareFile: (file: File) => Promise<File | null>,
+  ) {
+    const prepared = await prepareFile(picked);
+
+    if (!prepared) {
+      // The input already took the picked file: give it back the kept one.
+      if (keptFileRef.current) {
+        setInputFile(input, keptFileRef.current);
+      } else {
+        input.value = "";
+      }
+      return;
+    }
+
+    setInputFile(input, prepared);
+    handleSelectedFile(input, prepared);
   }
 
   function handleSelectedFile(
@@ -375,6 +403,7 @@ function useFileUploadControlState(
     clearPreview();
 
     if (!file) {
+      keptFileRef.current = null;
       setSelectedFileName(null);
       config.onSelectedFileChange?.(null);
       config.onChange?.(event as ChangeEvent<HTMLInputElement>);
@@ -385,6 +414,7 @@ function useFileUploadControlState(
 
     if (validationError) {
       input.value = "";
+      keptFileRef.current = null;
       setErrorMessage(validationError);
       setSelectedFileName(null);
       config.onSelectedFileChange?.(null);
@@ -392,6 +422,7 @@ function useFileUploadControlState(
     }
 
     setErrorMessage(null);
+    keptFileRef.current = file;
     setSelectedFileName(file.name);
     if (config.previewSelectedFile) {
       setPreviewUrl(createPreviewUrl(file));
@@ -404,6 +435,8 @@ function useFileUploadControlState(
     if (inputRef.current) {
       inputRef.current.value = "";
     }
+
+    keptFileRef.current = null;
 
     setCurrentStorageKey("");
     config.onStorageKeyChange?.("");
@@ -817,4 +850,11 @@ function revokePreviewUrl(previewUrl: string) {
   ) {
     URL.revokeObjectURL(previewUrl);
   }
+}
+
+/** Puts a file in a file input, as picking it would, so the form submits it. */
+function setInputFile(input: HTMLInputElement, file: File) {
+  const transfer = new DataTransfer();
+  transfer.items.add(file);
+  input.files = transfer.files;
 }

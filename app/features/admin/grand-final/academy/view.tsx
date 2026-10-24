@@ -19,7 +19,6 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import {
-  grandFinalBannerRuleLabel,
   grandFinalBannerSlotLabels,
   grandFinalBannerSlots,
   type GrandFinalBannerSlot,
@@ -30,10 +29,11 @@ import {
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import {
-  getAssetKindHelperText,
+  getAssetKindPolicy,
   getAssetUploadFieldProps,
 } from "@/lib/storage/asset-kinds";
 
+import { useBannerEditor } from "./banner-editor";
 import {
   bannerFieldNames,
   academyGrandFinalFormSchema,
@@ -46,6 +46,10 @@ import {
 } from "./shared";
 
 const formId = "academy-grand-final-form";
+
+// Any photo: the editor frames it to the banner's shape and size, so the
+// shape rule and the size limit are never the admin's to meet.
+const bannerHelperText = `${getAssetKindPolicy("grandFinalBanner").formatListLabel}. Después de elegirla, la encuadrás.`;
 
 const noPickedBanners: Record<GrandFinalBannerSlot, boolean> = {
   first: false,
@@ -164,29 +168,18 @@ export function AcademyGrandFinalView({
           >
             <input type="hidden" name={judgeIdsPostedFieldName} value="1" />
             <JudgesField form={form} loaderData={loaderData} />
-            {loaderData.finalist
-              ? grandFinalBannerSlots.map((slot) => (
-                  <FileUploadField
-                    key={slot}
-                    control={form.control}
-                    name={bannerFieldNames[slot].storageKey}
-                    fileInputName={bannerFieldNames[slot].file}
-                    fieldLabel={grandFinalBannerSlotLabels[slot]}
-                    existingPreviewUrl={loaderData.bannerUrls[slot]}
-                    onSelectedFileChange={(file) =>
-                      setPickedBanners((picked) => ({
-                        ...picked,
-                        [slot]: file !== null,
-                      }))
-                    }
-                    label="Arrastrá o hacé click"
-                    {...getAssetUploadFieldProps("grandFinalBanner", {
-                      fieldLabel: grandFinalBannerSlotLabels[slot],
-                    })}
-                    helperText={`${grandFinalBannerRuleLabel}. ${getAssetKindHelperText("grandFinalBanner")}`}
-                  />
-                ))
-              : null}
+            {loaderData.finalist ? (
+              <BannerFields
+                form={form}
+                loaderData={loaderData}
+                onPickedChange={(slot, picked) =>
+                  setPickedBanners((current) => ({
+                    ...current,
+                    [slot]: picked,
+                  }))
+                }
+              />
+            ) : null}
           </FieldGroup>
         </form>
       </AdminResourceFormCard>
@@ -214,6 +207,45 @@ export function AcademyGrandFinalView({
         </ul>
       </ConfirmationDialog>
     </AdminResourceLayout>
+  );
+}
+
+/**
+ * The finalist's two banners. A picked photo goes through the banner editor,
+ * and the field keeps the framed picture it makes.
+ */
+function BannerFields({
+  form,
+  loaderData,
+  onPickedChange,
+}: {
+  form: UseFormReturn<AcademyGrandFinalFormValues>;
+  loaderData: AcademyGrandFinalLoaderData;
+  onPickedChange: (slot: GrandFinalBannerSlot, picked: boolean) => void;
+}) {
+  const { editBanner, editor } = useBannerEditor();
+
+  return (
+    <>
+      {grandFinalBannerSlots.map((slot) => (
+        <FileUploadField
+          key={slot}
+          control={form.control}
+          name={bannerFieldNames[slot].storageKey}
+          fileInputName={bannerFieldNames[slot].file}
+          fieldLabel={grandFinalBannerSlotLabels[slot]}
+          existingPreviewUrl={loaderData.bannerUrls[slot]}
+          onSelectedFileChange={(file) => onPickedChange(slot, file !== null)}
+          label="Arrastrá o hacé click"
+          {...getAssetUploadFieldProps("grandFinalBanner", {
+            fieldLabel: grandFinalBannerSlotLabels[slot],
+          })}
+          helperText={bannerHelperText}
+          prepareFile={editBanner}
+        />
+      ))}
+      {editor}
+    </>
   );
 }
 

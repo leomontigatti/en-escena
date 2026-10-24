@@ -1,5 +1,6 @@
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
+import { vi } from "vitest";
 
 /** What {@link createReactDomTestRenderer} hands back, for helpers that take one. */
 type ReactDomTestRenderer = ReturnType<typeof createReactDomTestRenderer>;
@@ -175,8 +176,27 @@ function getTitleBadgeTexts(markup?: string) {
   );
 }
 
+/**
+ * jsdom has no `DataTransfer`, which a field uses to put a file it made into
+ * its file input. This one holds the files added to it, which is all such a
+ * field reads back. Undo it with `vi.unstubAllGlobals()`.
+ */
+function installDataTransferStub() {
+  vi.stubGlobal(
+    "DataTransfer",
+    class {
+      private added: File[] = [];
+      items = { add: (file: File) => this.added.push(file) };
+      get files() {
+        return this.added;
+      }
+    },
+  );
+}
+
 export {
   clickReactDomButton,
+  installDataTransferStub,
   createReactDomTestRenderer,
   findButton,
   getButton,

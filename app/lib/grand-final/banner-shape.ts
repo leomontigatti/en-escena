@@ -30,8 +30,6 @@ const GRAND_FINAL_BANNER_MIN_WIDTH = 1280;
  */
 const WIDESCREEN_TOLERANCE_DIVISOR = 50;
 
-export const grandFinalBannerRuleLabel = `Horizontal 16:9, de al menos ${GRAND_FINAL_BANNER_MIN_WIDTH} px de ancho`;
-
 export type BannerShapeRejection =
   | { height: number; reason: "not-widescreen"; width: number }
   | { reason: "too-narrow"; width: number };

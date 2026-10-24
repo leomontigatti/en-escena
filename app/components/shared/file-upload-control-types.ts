@@ -34,6 +34,12 @@ export type FileUploadControlProps = Omit<ComponentProps<"input">, "type"> & {
   /** Compact only: what the empty field reads, e.g. the accepted format. */
   placeholder?: string;
   /**
+   * Turns a picked or dropped file into the one the field keeps, submits and
+   * previews, as the banner editor frames a photo; validation runs on what it
+   * returns. Null is a cancel: the field keeps what it held.
+   */
+  prepareFile?: (file: File) => Promise<File | null>;
+  /**
    * How a file is previewed: an image inside the dropzone, or a player under
    * it (the dropzone is the picker's `<label>`, so a player inside it would
    * open the picker on play). The stored file plays from `existingPreviewUrl`.
@@ -81,6 +87,7 @@ export type FileUploadControlConfig = {
   onValidationErrorChange?: (hasError: boolean) => void;
   onValidationErrorMessageChange?: (message: string | null) => void;
   placeholder: string;
+  prepareFile?: (file: File) => Promise<File | null>;
   previewKind: "audio" | "image";
   previewSelectedFile: boolean;
   removeLabel: string;
