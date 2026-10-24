@@ -22,6 +22,7 @@ function TestFileUploadField({
   offersCamera,
   onStorageKeyChange,
   onValidationErrorChange,
+  prepareFile,
   variant,
 }: {
   defaultStorageKey?: string;
@@ -32,6 +33,7 @@ function TestFileUploadField({
   offersCamera?: boolean;
   onStorageKeyChange?: (storageKey: string) => void;
   onValidationErrorChange?: (hasError: boolean) => void;
+  prepareFile?: (file: File) => Promise<File | null>;
   variant?: "dropzone" | "compact";
 }) {
   const form = useForm<TestFormValues>({
@@ -55,6 +57,7 @@ function TestFileUploadField({
       offersCamera={offersCamera}
       onStorageKeyChange={onStorageKeyChange}
       onValidationErrorChange={onValidationErrorChange}
+      prepareFile={prepareFile}
       variant={variant}
     />
   );
@@ -166,6 +169,72 @@ describe("FileUploadField", () => {
       root.unmount();
     });
     container.remove();
+  });
+
+  // A banner is framed in an editor before it is kept: the field submits and
+  // previews what the editor made, and a cancelled editor changes nothing.
+  test("keeps the file prepared from the picked one, and the last one when the preparing is cancelled", async () => {
+    vi.stubGlobal(
+      "DataTransfer",
+      class {
+        private picked: File[] = [];
+        items = { add: (file: File) => this.picked.push(file) };
+        get files() {
+          return this.picked;
+        }
+      },
+    );
+    const banner = new File(["jpg"], "banner.jpg", { type: "image/jpeg" });
+    const prepareFile = vi.fn(async (file: File) =>
+      file.name === "cancelar.png" ? null : banner,
+    );
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(<TestFileUploadField prepareFile={prepareFile} />);
+    });
+    const input =
+      container.querySelector<HTMLInputElement>('input[type="file"]');
+
+    if (!input) {
+      throw new Error("Expected file input to render.");
+    }
+
+    async function pick(name: string) {
+      await act(async () => {
+        Object.defineProperty(input, "files", {
+          configurable: true,
+          value: [new File(["foto"], name, { type: "image/png" })],
+          writable: true,
+        });
+        input?.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+
+    await pick("foto.png");
+
+    expect(prepareFile).toHaveBeenLastCalledWith(
+      expect.objectContaining({ name: "foto.png" }),
+    );
+    expect(input.files?.[0]).toBe(banner);
+    expect(container.querySelector("img")?.getAttribute("alt")).toBe(
+      "Vista previa de banner.jpg",
+    );
+
+    await pick("cancelar.png");
+
+    expect(input.files?.[0]).toBe(banner);
+    expect(container.querySelector("img")?.getAttribute("alt")).toBe(
+      "Vista previa de banner.jpg",
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+    vi.unstubAllGlobals();
   });
 });
 

@@ -7,7 +7,15 @@ import {
   RouterProvider,
   useActionData,
 } from "react-router";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  onTestFinished,
+  test,
+  vi,
+} from "vitest";
 
 import {
   createReactDomTestRenderer,
@@ -193,9 +201,59 @@ describe("the finalist banner form", () => {
     );
   });
 
-  test("counts a picked picture as a change", async () => {
-    await mount();
+  // jsdom decodes no image and draws on no canvas: these stand in for the
+  // browser so the editor can open a photo and hand back its JPEG.
+  function stubBrowserImaging() {
+    vi.stubGlobal(
+      "Image",
+      class {
+        height = 4000;
+        onload: (() => void) | null = null;
+        width = 3000;
+        set src(_url: string) {
+          queueMicrotask(() => this.onload?.());
+        }
+      },
+    );
+    vi.stubGlobal(
+      "DataTransfer",
+      class {
+        private picked: File[] = [];
+        items = { add: (file: File) => this.picked.push(file) };
+        get files() {
+          return this.picked;
+        }
+      },
+    );
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: () => "blob:foto",
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: () => {},
+    });
+    const context = new Proxy({}, { get: () => () => {} });
+    const getContext = vi
+      .spyOn(HTMLCanvasElement.prototype, "getContext")
+      .mockReturnValue(context as never);
+    const toBlob = vi
+      .spyOn(HTMLCanvasElement.prototype, "toBlob")
+      .mockImplementation((done) =>
+        done(new Blob(["jpg"], { type: "image/jpeg" })),
+      );
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+      getContext.mockRestore();
+      toBlob.mockRestore();
+      Reflect.deleteProperty(URL, "createObjectURL");
+      Reflect.deleteProperty(URL, "revokeObjectURL");
+    });
+  }
 
+  test("frames a picked picture in the editor and keeps the JPEG it makes, as a change", async () => {
+    stubBrowserImaging();
+    await mount();
     const input = document.querySelector<HTMLInputElement>(
       'input[name="secondBanner"]',
     );
@@ -207,11 +265,24 @@ describe("the finalist banner form", () => {
     await act(async () => {
       Object.defineProperty(input, "files", {
         configurable: true,
-        value: [new File(["png"], "nuevo.png", { type: "image/png" })],
+        value: [new File(["png"], "retrato.png", { type: "image/png" })],
+        writable: true,
       });
       input.dispatchEvent(new Event("change", { bubbles: true }));
     });
+    await waitFor(
+      () => findButton("Usar foto", { exact: true })?.disabled === false,
+    );
 
+    expect(document.body.textContent).toContain("Encuadrá la foto");
+    expect(saveButton()?.disabled).toBe(true);
+
+    await updateReactDomForm(() => {
+      findButton("Usar foto", { exact: true })?.click();
+    });
+    await waitFor(() => input.files?.[0]?.name === "retrato.jpg");
+
+    expect(input.files?.[0]?.type).toBe("image/jpeg");
     expect(saveButton()?.disabled).toBe(false);
   });
 
