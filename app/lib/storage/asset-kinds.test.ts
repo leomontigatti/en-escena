@@ -33,6 +33,15 @@ describe("asset kind policy", () => {
     );
   });
 
+  // The vote page loads the banners lazily, each with the link signed when
+  // the page loaded, so a voter who scrolls well into the round still gets
+  // the picture.
+  test("signs a banner link for two hours", () => {
+    expect(assetKindPolicies.grandFinalBanner.signedUrlExpiresInSeconds).toBe(
+      7200,
+    );
+  });
+
   // The volume layout and the B2 backup prefix are built from these names, so
   // renaming one is a migration, not a refactor (#571).
   test("pins the bucket of each asset kind", () => {

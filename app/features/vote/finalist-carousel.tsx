@@ -27,6 +27,10 @@ export function FinalistCarousel({
   const autoplay = useRef(Autoplay({ delay: 3000, stopOnInteraction: true }));
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
+  // The carousel clips the next picture, which a lazy image would start
+  // fetching only as it slides in; once the first is on the screen the rest
+  // load ahead of the autoplay.
+  const [firstLoaded, setFirstLoaded] = useState(false);
 
   useEffect(() => {
     if (!api) {
@@ -57,7 +61,8 @@ export function FinalistCarousel({
               alt={`Foto ${index + 1} de ${finalist.name}`}
               className="block aspect-video w-full bg-muted object-cover"
               decoding="async"
-              loading="lazy"
+              loading={index > 0 && firstLoaded ? "eager" : "lazy"}
+              onLoad={index === 0 ? () => setFirstLoaded(true) : undefined}
               src={url}
             />
           </CarouselItem>

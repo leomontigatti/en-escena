@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -219,6 +220,24 @@ describe("the public vote page", () => {
       "lazy",
       "lazy",
     ]);
+  });
+
+  // The carousel clips the second banner, so a lazy one would start loading
+  // only as it slides in: it is fetched once the first is on the screen.
+  test("fetches a finalist's second banner once the first has loaded", async () => {
+    await mount({
+      code: "codigo-impreso",
+      finalists,
+      roundId: "ronda-1",
+      state: "open",
+    });
+    const [first, second] = document.querySelectorAll("img");
+
+    await act(async () => {
+      first.dispatchEvent(new Event("load"));
+    });
+
+    expect(second.getAttribute("loading")).toBe("eager");
   });
 
   test("tells a refused vote in a toast", async () => {
