@@ -27,6 +27,12 @@ export function FinalistCarousel({
   const autoplay = useRef(Autoplay({ delay: 3000, stopOnInteraction: true }));
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
+  // The carousel clips the next picture, which a lazy image would start
+  // fetching only as it slides in; once the first has settled, loaded or
+  // failed, the rest load ahead of the autoplay. A first picture that settles
+  // before hydration fires no event, so its `complete` is read on mount too.
+  const [firstSettled, setFirstSettled] = useState(false);
+  const settleFirst = () => setFirstSettled(true);
 
   useEffect(() => {
     if (!api) {
@@ -56,6 +62,17 @@ export function FinalistCarousel({
             <img
               alt={`Foto ${index + 1} de ${finalist.name}`}
               className="block aspect-video w-full bg-muted object-cover"
+              decoding="async"
+              loading={index > 0 && firstSettled ? "eager" : "lazy"}
+              onError={index === 0 ? settleFirst : undefined}
+              onLoad={index === 0 ? settleFirst : undefined}
+              ref={
+                index === 0
+                  ? (image) => {
+                      if (image?.complete) settleFirst();
+                    }
+                  : undefined
+              }
               src={url}
             />
           </CarouselItem>

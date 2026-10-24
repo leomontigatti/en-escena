@@ -439,7 +439,8 @@ banner form under the `Gran final` list.
 - Accepted formats: JPG, PNG and WEBP, up to **10 MB**, and only a picture
   16:9 within 2% and at least **1280 px** wide, read from the file's own header
   (`image-size`, EXIF orientation honoured). Downloads go through a signed URL
-  that expires after **300** seconds.
+  that expires after **2 hours**: the vote page loads the banners lazily, as
+  the voter scrolls, all with the URLs signed when the page loaded.
 - Two objects per finalist academy within the event, at
   `events/{eventId}/grand-final/{academyId}/{first|second}-{uuid}.{ext}`. Each
   upload is a new key, never written over the one in use.

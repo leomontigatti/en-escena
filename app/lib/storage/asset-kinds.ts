@@ -107,7 +107,9 @@ export const assetKindPolicies = {
     },
     formatListLabel: "JPG, PNG o WEBP",
     maxFileSizeBytes: 10 * BYTES_PER_MEGABYTE,
-    signedUrlExpiresInSeconds: 300,
+    // Longer than the other kinds: the vote page loads the banners lazily, as
+    // the voter scrolls, all with the links signed when the page loaded.
+    signedUrlExpiresInSeconds: 2 * 60 * 60,
     subjectLabel: "El banner",
   },
   // The one photo of its document an individual (`Particular`) uploads, which

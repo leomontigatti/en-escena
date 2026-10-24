@@ -1,8 +1,17 @@
 /** @vitest-environment jsdom */
 
+import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { toast } from "sonner";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  onTestFinished,
+  test,
+  vi,
+} from "vitest";
 
 import {
   clickReactDomButton,
@@ -200,6 +209,66 @@ describe("the public vote page", () => {
       codigo: "codigo-impreso",
       roundId: "ronda-1",
     });
+  });
+
+  // Every finalist's two banners are on the page at once, up to two dozen
+  // pictures: a phone on the venue's Wi-Fi fetches only those near the screen.
+  test("leaves the banners out of view for the browser to fetch as they near the screen", async () => {
+    await mount({
+      code: "codigo-impreso",
+      finalists,
+      roundId: "ronda-1",
+      state: "open",
+    });
+
+    const banners = [...document.querySelectorAll("img")];
+    expect(banners.map((banner) => banner.getAttribute("loading"))).toEqual([
+      "lazy",
+      "lazy",
+      "lazy",
+      "lazy",
+    ]);
+  });
+
+  // The carousel clips the second banner, so a lazy one would start loading
+  // only as it slides in: it is fetched once the first is on the screen.
+  // A first banner that fails still lets the second load ahead.
+  test.each(["load", "error"])(
+    "fetches a finalist's second banner once the first has settled with %s",
+    async (settled) => {
+      await mount({
+        code: "codigo-impreso",
+        finalists,
+        roundId: "ronda-1",
+        state: "open",
+      });
+      const [first, second] = document.querySelectorAll("img");
+
+      await act(async () => {
+        first.dispatchEvent(new Event(settled));
+      });
+
+      expect(second.getAttribute("loading")).toBe("eager");
+    },
+  );
+
+  // A first banner that finished before hydration fires no `load` to listen to.
+  test("fetches a finalist's second banner when the first loaded before the page hydrated", async () => {
+    const complete = vi
+      .spyOn(HTMLImageElement.prototype, "complete", "get")
+      .mockReturnValue(true);
+    onTestFinished(() => complete.mockRestore());
+
+    await mount({
+      code: "codigo-impreso",
+      finalists,
+      roundId: "ronda-1",
+      state: "open",
+    });
+
+    expect(document.querySelectorAll("img")[1].getAttribute("loading")).toBe(
+      "eager",
+    );
   });
 
   test("tells a refused vote in a toast", async () => {
