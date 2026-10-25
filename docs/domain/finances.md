@@ -11,7 +11,7 @@ for _why_; read this for _what_. The identifier → UI term mapping is in
 ## How to read this document
 
 The settled model is larger than what is built. Half of it shipped; the invoicing half
-and the refund's correction, guards and lists are specified and not implemented.
+and the refund's guards and lists are specified and not implemented.
 Every statement here is therefore one of three things, and they are never mixed
 silently:
 
@@ -671,12 +671,19 @@ they live in one module.
   refunds newest first, never its allocations. Note the term: `Devolución` is
   reserved for the judge's private feedback audio and must not be used for
   money.
+- **Correcting a refund** is editing or deleting it, never a counter-movement,
+  from a dialog its row opens in the owner's `Movimientos` tab (a refund has no
+  page), administration only. Both go through the same write module, under the
+  pool lock: an edit is capped at the `Saldo disponible` plus the refund's own
+  current amount, so lowering or keeping the amount always saves, and a
+  deletion is never refused, raising the `Saldo disponible` by exactly its
+  amount. Its academy, event and number are fixed once it exists. Both carry the
+  version (`updatedAt`) the dialog read, and a refund that changed or was
+  deleted meanwhile is refused as changed while saving rather than overwritten.
 
 > **Specified, not built.**
-> A refund is corrected by editing (cap: `Saldo disponible` plus its own current
-> amount, re-checked under the pool lock) or deleting it; its academy and event
-> are fixed once it exists. A refund is the one subtraction the floor does not
-> hold by construction, which is why the payment edit and deletion gain a
+> A refund is the one subtraction the floor does not hold by construction,
+> which is why the payment edit and deletion gain a
 > refusal (see "Payments"). An academy merge moves the removed academy's refunds
 > with its payments. The event-wide list at `/administracion/movimientos` and the
 > portal's and an individual's own page list refunds beside payments too. Owner:

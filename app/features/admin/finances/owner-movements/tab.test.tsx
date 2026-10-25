@@ -24,6 +24,7 @@ const movements: OwnerMovementRow[] = [
     method: "efectivo",
     number: 1,
     reference: "REC-1",
+    version: "2026-04-03T12:00:00.000Z",
   },
   {
     amount: 2000,
@@ -34,6 +35,7 @@ const movements: OwnerMovementRow[] = [
     method: "transferencia",
     number: 1,
     reference: "TRX-1",
+    version: "2026-04-01T12:00:00.000Z",
   },
 ];
 
@@ -127,5 +129,81 @@ describe("OwnerMovementsTab", () => {
     await waitFor(() => submissions.length === 1);
     expect(submissions[0]?.get("intent")).toBe("register-refund");
     expect(submissions[0]?.get("amount")).toBe("1500");
+  });
+
+  test("a refund's number opens its dialog, capped at the balance plus its own amount; a payment's opens none", async () => {
+    const submissions: FormData[] = [];
+    await renderTab(submissions);
+
+    const [refundRow, paymentRow] = document.querySelectorAll("tbody tr");
+    expect(paymentRow?.querySelector("button")).toBeNull();
+
+    await clickReactDomButton("00001", { exact: true, within: refundRow });
+
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(dialog?.querySelector("h2")?.textContent).toBe("Reembolso # 00001");
+    expect(dialog?.textContent).toContain(
+      "Hasta $ 2.100, el saldo disponible más su monto actual.",
+    );
+    expect(
+      document.querySelector<HTMLInputElement>("#edit-refund-reference")?.value,
+    ).toBe("REC-1");
+    expect(
+      dialog?.querySelector("[name=academyId], [name=eventId]"),
+    ).toBeNull();
+
+    const amount = document.querySelector<HTMLInputElement>(
+      "#edit-refund-amount",
+    );
+    await updateReactDomForm(() => setInputValue(amount!, "2101"));
+    await clickReactDomButton("Guardar", { exact: true, within: dialog });
+
+    await waitFor(() =>
+      (dialog?.textContent ?? "").includes(
+        "El reembolso no puede superar $ 2.100, el saldo disponible más su monto actual.",
+      ),
+    );
+    expect(submissions).toEqual([]);
+
+    await updateReactDomForm(() => setInputValue(amount!, "2100"));
+    await clickReactDomButton("Guardar", { exact: true, within: dialog });
+
+    await waitFor(() => submissions.length === 1);
+    expect(Object.fromEntries(submissions[0]!)).toMatchObject({
+      amount: "2100",
+      intent: "update-refund",
+      refundId: "refund_1",
+      version: "2026-04-03T12:00:00.000Z",
+    });
+  });
+
+  test("deleting a refund asks first, then posts its id and version", async () => {
+    const submissions: FormData[] = [];
+    await renderTab(submissions);
+
+    const [refundRow] = document.querySelectorAll("tbody tr");
+    await clickReactDomButton("00001", { exact: true, within: refundRow });
+    await clickReactDomButton("Eliminar", {
+      exact: true,
+      within: document.querySelector('[role="dialog"]'),
+    });
+
+    const confirmation = document.querySelector('[role="alertdialog"]');
+    expect(confirmation?.textContent).toContain(
+      "Esta acción elimina el reembolso # 00001 y devuelve $ 600 al saldo disponible.",
+    );
+    expect(submissions).toEqual([]);
+
+    await clickReactDomButton("Eliminar", {
+      exact: true,
+      within: confirmation,
+    });
+
+    await waitFor(() => submissions.length === 1);
+    expect(Object.fromEntries(submissions[0]!)).toEqual({
+      intent: "delete-refund",
+      refundId: "refund_1",
+      version: "2026-04-03T12:00:00.000Z",
+    });
   });
 });

@@ -50,9 +50,15 @@ import {
   readOwnerMovements,
   type OwnerMovementRow,
 } from "@/features/admin/finances/owner-movements/server";
-import { handleRegisterRefund } from "@/features/admin/finances/refunds/server";
 import {
+  handleDeleteRefund,
+  handleRegisterRefund,
+  handleUpdateRefund,
+} from "@/features/admin/finances/refunds/server";
+import {
+  deleteRefundIntent,
   registerRefundIntent,
+  updateRefundIntent,
   type RefundActionData,
 } from "@/features/admin/finances/refunds/shared";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
@@ -207,13 +213,21 @@ export async function handleAcademyFinancesAction(input: {
   const formData = await readFormData(input.request);
   const intent = String(formData.get("intent") ?? "");
 
-  // The `Movimientos` tab's one write, with its own event and access checks.
+  // The `Movimientos` tab's writes, with their own event and access checks.
   if (intent === registerRefundIntent) {
     return await handleRegisterRefund({
       academyId,
       formData,
       request: input.request,
     });
+  }
+
+  if (intent === updateRefundIntent) {
+    return await handleUpdateRefund({ formData, request: input.request });
+  }
+
+  if (intent === deleteRefundIntent) {
+    return await handleDeleteRefund({ formData, request: input.request });
   }
 
   const eventContext = await loadEventContext(input.request);

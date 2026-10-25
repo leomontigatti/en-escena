@@ -15,7 +15,9 @@ import {
 import { choreographyTarget } from "@/lib/finances/allocation-target.server";
 import { readAcademyAvailableBalance } from "@/lib/finances/available-balance.server";
 import {
+  deleteRefund,
   registerRefund,
+  updateRefund,
   type RegisterRefundInput,
 } from "@/lib/finances/refunds.server";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
@@ -177,6 +179,167 @@ describe("registerRefund", () => {
           .orderBy(asc(payments.paymentNumber))
       ).map((payment) => payment.paymentNumber),
     ).toEqual([1, 2, 3]);
+  });
+});
+
+async function readRefund(refundId: string) {
+  const [refund] = await db
+    .select()
+    .from(refunds)
+    .where(eq(refunds.id, refundId));
+
+  if (!refund) {
+    throw new Error("Expected the refund to exist.");
+  }
+
+  return { ...refund, version: refund.updatedAt.toISOString() };
+}
+
+/** A pool of 3000 paid, nothing funded, and one refund of 1000 drawn on it. */
+async function seedRefundedPool() {
+  const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+  const { academyId } = await seedOwnerPoolForTest({
+    academyName: "Academia Correcciones",
+    event,
+    fundedAmount: 0,
+    paymentAmounts: [3000],
+  });
+  const pool = { academyId, eventId: event.id };
+  const { refundId } = await registerRefundForTest({ ...pool, amount: 1000 });
+
+  return { pool, refund: await readRefund(refundId) };
+}
+
+function editOf(
+  refund: Awaited<ReturnType<typeof readRefund>>,
+  changes: Partial<Parameters<typeof updateRefund>[0]> = {},
+): Parameters<typeof updateRefund>[0] {
+  return {
+    amount: refund.amount,
+    internalNote: refund.internalNote,
+    reference: refund.reference,
+    refundDate: refund.refundDate,
+    refundId: refund.id,
+    refundMethod: refund.refundMethod,
+    version: refund.version,
+    ...changes,
+  };
+}
+
+const changedWhileSaving = {
+  ok: false,
+  message:
+    "El reembolso cambió mientras se guardaba. Revisalo y volvé a intentarlo.",
+};
+
+describe("updateRefund", () => {
+  test("caps a raise at the `Saldo disponible` plus the refund's own amount", async () => {
+    const { pool, refund } = await seedRefundedPool();
+
+    await expect(
+      updateRefund(editOf(refund, { amount: 3001 })),
+    ).resolves.toEqual({
+      ok: false,
+      message:
+        "El reembolso no puede superar $ 3.000, el saldo disponible más su monto actual.",
+    });
+    await expect(readRefund(refund.id)).resolves.toMatchObject({
+      amount: 1000,
+    });
+
+    await expect(
+      updateRefund(editOf(refund, { amount: 3000 })),
+    ).resolves.toEqual({ ok: true });
+    await expect(readAcademyAvailableBalance(db, pool)).resolves.toBe(0);
+  });
+
+  test("always accepts lowering or keeping the amount, even with nothing free", async () => {
+    const { pool, refund } = await seedRefundedPool();
+    await registerRefundForTest({ ...pool, amount: 2000 });
+
+    await expect(updateRefund(editOf(refund))).resolves.toEqual({ ok: true });
+    const kept = await readRefund(refund.id);
+    await expect(updateRefund(editOf(kept, { amount: 400 }))).resolves.toEqual({
+      ok: true,
+    });
+    await expect(readAcademyAvailableBalance(db, pool)).resolves.toBe(600);
+  });
+
+  test("saves every editable field and leaves academy, event and number as they were", async () => {
+    const { pool, refund } = await seedRefundedPool();
+
+    await expect(
+      updateRefund(
+        editOf(refund, {
+          amount: 800,
+          internalNote: null,
+          reference: "TRX-R2",
+          refundDate: "2026-04-10",
+          refundMethod: "efectivo",
+        }),
+      ),
+    ).resolves.toEqual({ ok: true });
+
+    await expect(readRefund(refund.id)).resolves.toMatchObject({
+      academyId: pool.academyId,
+      amount: 800,
+      eventId: pool.eventId,
+      internalNote: null,
+      reference: "TRX-R2",
+      refundDate: "2026-04-10",
+      refundMethod: "efectivo",
+      refundNumber: refund.refundNumber,
+    });
+  });
+
+  test("refuses an edit over a refund someone else changed or deleted meanwhile", async () => {
+    const { refund } = await seedRefundedPool();
+
+    await expect(
+      updateRefund(editOf(refund, { amount: 900 })),
+    ).resolves.toEqual({ ok: true });
+    await expect(
+      updateRefund(editOf(refund, { amount: 700 })),
+    ).resolves.toEqual(changedWhileSaving);
+    await expect(readRefund(refund.id)).resolves.toMatchObject({ amount: 900 });
+
+    await db.delete(refunds).where(eq(refunds.id, refund.id));
+    await expect(updateRefund(editOf(refund))).resolves.toEqual(
+      changedWhileSaving,
+    );
+  });
+});
+
+describe("deleteRefund", () => {
+  test("raises the `Saldo disponible` by exactly the refund's amount", async () => {
+    const { pool, refund } = await seedRefundedPool();
+    await registerRefundForTest({ ...pool, amount: 2000 });
+    await expect(readAcademyAvailableBalance(db, pool)).resolves.toBe(0);
+
+    await expect(
+      deleteRefund({ refundId: refund.id, version: refund.version }),
+    ).resolves.toEqual({ ok: true });
+
+    await expect(readAcademyAvailableBalance(db, pool)).resolves.toBe(1000);
+    await expect(readRefunds(pool.academyId)).resolves.toMatchObject([
+      { amount: 2000 },
+    ]);
+  });
+
+  test("refuses a deletion over a refund someone else changed or deleted meanwhile", async () => {
+    const { refund } = await seedRefundedPool();
+    await updateRefund(editOf(refund, { amount: 900 }));
+
+    await expect(
+      deleteRefund({ refundId: refund.id, version: refund.version }),
+    ).resolves.toEqual(changedWhileSaving);
+    await expect(readRefund(refund.id)).resolves.toMatchObject({ amount: 900 });
+
+    const current = await readRefund(refund.id);
+    await deleteRefund({ refundId: current.id, version: current.version });
+    await expect(
+      deleteRefund({ refundId: current.id, version: current.version }),
+    ).resolves.toEqual(changedWhileSaving);
   });
 });
 

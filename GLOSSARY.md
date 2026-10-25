@@ -462,7 +462,7 @@ What an academy needs in order to pay an event: the bank identifiers of the acco
 _Avoid_: `payment`, bank settings, global account, `eventBases`
 
 **`refund`** — ui: "Reembolso"
-Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` in its own series per event — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a credit note moves what is owed; either can happen without the other. It is registered from the owner's `Movimientos` tab; correcting it by edit or delete is **specified, not built** (ADR-0014 §6, #728). Never call it `Devolución`: that term is taken by **`feedbackAudio`**, the judge's recorded feedback.
+Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` in its own series per event — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a credit note moves what is owed; either can happen without the other. It is registered from the owner's `Movimientos` tab and corrected by editing or deleting it from a dialog on its row, never by a counter-movement (ADR-0014 §6). Never call it `Devolución`: that term is taken by **`feedbackAudio`**, the judge's recorded feedback.
 _Avoid_: `Devolución`, negative `payment`, `paymentAllocation`, `nota de crédito`
 
 **`movement`** — ui: "Movimiento"

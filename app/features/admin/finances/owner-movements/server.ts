@@ -16,6 +16,8 @@ export type OwnerMovementRow = {
   /** The movement's number in its own series: payments and refunds count apart. */
   number: number;
   reference: string | null;
+  /** Its `updatedAt` as read: the version a refund's correction is checked against. */
+  version: string;
 };
 
 /**
@@ -39,6 +41,7 @@ export async function readOwnerMovements(input: {
         method: payments.paymentMethod,
         number: payments.paymentNumber,
         reference: payments.reference,
+        updatedAt: payments.updatedAt,
       })
       .from(payments)
       .where(
@@ -57,6 +60,7 @@ export async function readOwnerMovements(input: {
         method: refunds.refundMethod,
         number: refunds.refundNumber,
         reference: refunds.reference,
+        updatedAt: refunds.updatedAt,
       })
       .from(refunds)
       .where(
@@ -76,5 +80,8 @@ export async function readOwnerMovements(input: {
         right.date.localeCompare(left.date) ||
         right.createdAt.getTime() - left.createdAt.getTime(),
     )
-    .map(({ createdAt: _createdAt, ...row }) => row);
+    .map(({ createdAt: _createdAt, updatedAt, ...row }) => ({
+      ...row,
+      version: updatedAt.toISOString(),
+    }));
 }
