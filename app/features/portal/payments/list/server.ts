@@ -12,14 +12,14 @@ export async function loadPortalAcademyPayments(request: Request) {
     return {
       activeEvent: null,
       paymentInstructions: null,
-      payments: [],
+      movements: [],
     };
   }
 
   return {
     activeEvent: eventContext.activeEvent,
     paymentInstructions: eventContext.paymentInstructions,
-    payments: await readOwnerEventMovements({
+    movements: await readOwnerEventMovements({
       academyId: academy.id,
       eventId: eventContext.activeEvent.id,
     }),

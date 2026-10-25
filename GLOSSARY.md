@@ -462,7 +462,7 @@ What an academy needs in order to pay an event: the bank identifiers of the acco
 _Avoid_: `payment`, bank settings, global account, `eventBases`
 
 **`refund`** — ui: "Reembolso"
-Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` in its own series per event — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a credit note moves what is owed; either can happen without the other. It is registered from the owner's `Movimientos` tab; correcting it by edit or delete is **specified, not built** (ADR-0014 §6, #728). Never call it `Devolución`: that term is taken by **`feedbackAudio`**, the judge's recorded feedback.
+Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` in its own series per event — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a credit note moves what is owed; either can happen without the other. It is registered from the owner's `Movimientos` tab and corrected by editing or deleting it from a dialog on its row, never by a counter-movement (ADR-0014 §6). Never call it `Devolución`: that term is taken by **`feedbackAudio`**, the judge's recorded feedback.
 _Avoid_: `Devolución`, negative `payment`, `paymentAllocation`, `nota de crédito`
 
 **`movement`** — ui: "Movimiento"
@@ -470,7 +470,7 @@ Money that came in or went out for one owner in one event: a `payment` or a `ref
 _Avoid_: `paymentAllocation`, account entry, `Cuenta corriente de academia`, negative `payment`
 
 **`collection`** — ui: "Recaudación"
-The money an event received over a period: its `payment`s by payment date, read next to the `refund`s of the same period and the net of the two. It counts money that arrived, whether or not it was allocated, so it is neither what was invoiced nor what is owed. The auditor downloads it as the `Recaudación` workbook; broken down by modality it reads the payments' current allocations, with `Seminarios` and `Sin asignar` rows so it still sums to the payments. Until the workbook reads them (#728) its refunds are zero.
+The money an event received over a period: its `payment`s by payment date, read next to the `refund`s of the same period and the net of the two. It counts money that arrived, whether or not it was allocated, so it is neither what was invoiced nor what is owed. The auditor downloads it as the `Recaudación` workbook; broken down by modality it reads the payments' current allocations, with `Seminarios` and `Sin asignar` rows so it still sums to the payments. Its refunds are read by refund date and listed beside the payments; they carry no allocation, so the breakdowns leave them out.
 _Avoid_: income, sales, billing, `comprobante` totals, `availableBalanceAmount`
 
 **`comprobante`** — ui: "Factura (comprobante fiscal ARCA)"

@@ -5,13 +5,16 @@ import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
 
 export const registerRefundIntent = "register-refund";
+export const updateRefundIntent = "update-refund";
+export const deleteRefundIntent = "delete-refund";
 
 /**
- * A refund's form: a payment's, with its own date. The amount, the method
+ * A refund's fields: a payment's, with its own date. The amount, the method
  * (over the payment methods) and the two free texts read as a payment's do.
+ * Registering and editing share them; neither carries an academy or an event,
+ * which the page (on register) and the refund itself (on edit) fix.
  */
-export const registerRefundSchema = z.object({
-  intent: z.literal(registerRefundIntent),
+const refundFieldsSchema = z.object({
   refundDate: z
     .string()
     .trim()
@@ -45,7 +48,22 @@ export const registerRefundSchema = z.object({
   internalNote: registerPaymentSchema.shape.internalNote,
 });
 
+export const registerRefundSchema = refundFieldsSchema.extend({
+  intent: z.literal(registerRefundIntent),
+});
+
+/**
+ * An edit names the refund and the version it was made against
+ * (`refunds.server.ts`), so a refund that changed meanwhile is refused.
+ */
+export const updateRefundSchema = refundFieldsSchema.extend({
+  intent: z.literal(updateRefundIntent),
+  refundId: z.string().min(1),
+  version: z.string().min(1),
+});
+
 export type RegisterRefundFormValues = z.input<typeof registerRefundSchema>;
+export type UpdateRefundFormValues = z.input<typeof updateRefundSchema>;
 
 export function defaultRegisterRefundValues(): RegisterRefundFormValues {
   return {
@@ -58,11 +76,8 @@ export function defaultRegisterRefundValues(): RegisterRefundFormValues {
   };
 }
 
-export function readRegisterRefundValues(
-  formData: FormData,
-): RegisterRefundFormValues {
+function readRefundFieldValues(formData: FormData) {
   return {
-    intent: registerRefundIntent,
     refundDate: String(formData.get("refundDate") ?? "").trim(),
     amount: String(formData.get("amount") ?? "").trim(),
     refundMethod: String(formData.get("refundMethod") ?? "").trim(),
@@ -71,8 +86,28 @@ export function readRegisterRefundValues(
   };
 }
 
+export function readRegisterRefundValues(
+  formData: FormData,
+): RegisterRefundFormValues {
+  return { intent: registerRefundIntent, ...readRefundFieldValues(formData) };
+}
+
+export function readUpdateRefundValues(
+  formData: FormData,
+): UpdateRefundFormValues {
+  return {
+    intent: updateRefundIntent,
+    ...readRefundFieldValues(formData),
+    refundId: String(formData.get("refundId") ?? ""),
+    version: String(formData.get("version") ?? ""),
+  };
+}
+
 export type RefundActionData = {
-  intent: typeof registerRefundIntent;
+  intent:
+    | typeof deleteRefundIntent
+    | typeof registerRefundIntent
+    | typeof updateRefundIntent;
   message: string;
   status: "error" | "success";
 };

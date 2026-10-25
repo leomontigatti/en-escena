@@ -3,7 +3,7 @@ import { readOwnerEventMovements } from "@/lib/finances/owner-event-movements.se
 import { getPortalActiveEventPaymentInstructionsContext } from "@/lib/portal/event-context.server";
 
 /**
- * The individual's `Movimientos`: its owner row's payments in the active event and
+ * The individual's `Movimientos`: its owner row's payments and refunds in the active event and
  * how to pay, read the way the portal's `Movimientos` reads an academy's.
  */
 export async function loadIndividualPayments(request: Request) {
@@ -16,14 +16,14 @@ export async function loadIndividualPayments(request: Request) {
     return {
       activeEvent: null,
       paymentInstructions: null,
-      payments: [],
+      movements: [],
     };
   }
 
   return {
     activeEvent: eventContext.activeEvent,
     paymentInstructions: eventContext.paymentInstructions,
-    payments: await readOwnerEventMovements({
+    movements: await readOwnerEventMovements({
       academyId: individual.ownerId,
       eventId: eventContext.activeEvent.id,
     }),

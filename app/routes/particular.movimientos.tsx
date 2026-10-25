@@ -2,7 +2,7 @@ import { createDataTableShouldRevalidate } from "@/components/shared/data-table-
 import { loadIndividualPayments } from "@/features/individual/payments/server";
 import { IndividualPaymentsView } from "@/features/individual/payments/view";
 import type { IndividualRouteHandle } from "@/features/individual/shell/view";
-import { ownerPaymentFacetedFilterIds } from "@/lib/finances/owner-payment-columns";
+import { ownerMovementFacetedFilterIds } from "@/lib/finances/owner-movement-columns";
 
 import type { Route } from "./+types/particular.movimientos";
 
@@ -19,7 +19,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export const shouldRevalidate = createDataTableShouldRevalidate({
-  filterParamNames: [...ownerPaymentFacetedFilterIds],
+  filterParamNames: [...ownerMovementFacetedFilterIds],
 });
 
 export default function IndividualPaymentsRoute({
