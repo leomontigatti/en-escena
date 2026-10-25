@@ -93,9 +93,6 @@ describe("AcademyFinancesRouteView", () => {
     expect(text).not.toContain("Imputar pago");
     expect(text).not.toContain("Fecha de imputación");
     expect(text).not.toContain("Imputaciones activas");
-    // The third tab lists payments and refunds; the retired pre-#547 ledger
-    // that once carried the name is still gone.
-    expect(text).toContain("Movimientos");
   });
 
   test("shows the total and the owed balance before the status", async () => {

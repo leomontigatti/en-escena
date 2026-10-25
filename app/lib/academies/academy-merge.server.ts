@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import { academyOwner } from "@/lib/academies/owner-kind.server";
 import { lockAcademyPools } from "@/lib/finances/allocation-pool.server";
+import { nextRefundVersion } from "@/lib/finances/refunds.server";
 import { formatSpanishList } from "@/lib/shared/text-normalization";
 
 import type {
@@ -156,10 +157,11 @@ export async function mergeAcademies(input: {
       .where(eq(paymentAllocations.academyId, removed.id));
     // The academy's foreign key cascades, so a refund left behind would go
     // with the user below and the survivor's pool would read money it never
-    // handed back.
+    // handed back. Each moves to a new version, so a dialog still open on the
+    // removed academy's refund is refused rather than saved.
     await tx
       .update(refunds)
-      .set(moveTo)
+      .set({ ...moveTo, updatedAt: nextRefundVersion })
       .where(eq(refunds.academyId, removed.id));
     await tx.delete(user).where(eq(user.id, removed.userId));
 

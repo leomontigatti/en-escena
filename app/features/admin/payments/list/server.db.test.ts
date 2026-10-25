@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
@@ -10,6 +10,7 @@ import {
 } from "@/db/schema";
 import { createDancer } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
+import * as availableBalance from "@/lib/finances/available-balance.server";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createSavedEvent } from "@/lib/test-support/events";
 
@@ -350,6 +351,35 @@ describe("refunds in the admin movements list", () => {
       ownerAvailableBalanceAmount: 2000,
       reference: null,
       version: fixture.refunds[0]!.updatedAt.toISOString(),
+    });
+  });
+
+  // The dialog saves its fields against its version, so a refund edited while
+  // the page loads must not reach it with the old fields and the new version:
+  // that edit would then overwrite the other one unseen.
+  test("reads a refund row's fields and its version together", async () => {
+    const fixture = await buildMovementsFixture();
+    const refund = fixture.refunds[0]!;
+    const readBalances = availableBalance.readAvailableBalances;
+    vi.spyOn(availableBalance, "readAvailableBalances").mockImplementationOnce(
+      async (...args) => {
+        await db
+          .update(refunds)
+          .set({
+            amount: refund.amount - 100,
+            updatedAt: new Date(refund.updatedAt.getTime() + 1000),
+          })
+          .where(eq(refunds.id, refund.id));
+
+        return await readBalances(...args);
+      },
+    );
+
+    const loaderData = await loadMovementsList(await listRequest());
+
+    expect(loaderData.rows.find((row) => row.id === refund.id)).toMatchObject({
+      amount: refund.amount,
+      version: refund.updatedAt.toISOString(),
     });
   });
 

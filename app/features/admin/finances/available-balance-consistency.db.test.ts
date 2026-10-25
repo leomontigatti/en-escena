@@ -21,8 +21,8 @@ import {
   financesListRouteArgs,
   financesListUrl,
   registerPaymentForTest,
-  registerRefundForTest,
 } from "@/lib/admin/finances/finances.test-support";
+import { registerRefundForTest } from "@/lib/test-support/refunds";
 import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
 import { choreographyTarget } from "@/lib/finances/allocation-target.server";
 import {

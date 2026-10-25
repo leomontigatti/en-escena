@@ -65,7 +65,7 @@ async function seedRefund(input: {
   });
 
   if (!result.ok) {
-    throw new Error(`The test refund was refused: ${result.message}`);
+    throw new Error(`The test refund was refused: ${result.reason}`);
   }
 }
 

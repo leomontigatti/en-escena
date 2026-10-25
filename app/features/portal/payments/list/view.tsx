@@ -5,6 +5,7 @@ import { ClientDataTable } from "@/components/shared/data-table";
 import type { loadPortalAcademyPayments } from "@/features/portal/payments/list/server";
 import { PaymentInstructionsAlert } from "@/components/shared/payment-instructions-alert";
 import {
+  OwnerMovementCard,
   ownerMovementColumns,
   ownerMovementFacetedFilterIds,
   ownerMovementFacetedFilters,
@@ -73,6 +74,7 @@ export function PortalAcademyPaymentsRouteView({
         columns={ownerMovementColumns}
         facetedFilters={ownerMovementFacetedFilters}
         getRowKey={(row) => `${row.kind}:${row.id}`}
+        renderCard={(row) => <OwnerMovementCard row={row} />}
         searchPlaceholder="Buscar por referencia o número"
         initialSort={{
           columnId: "date",

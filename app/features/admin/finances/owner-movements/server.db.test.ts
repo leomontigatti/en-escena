@@ -4,9 +4,9 @@ import {
   academyFinancesRouteArgs,
   academyFinancesUrl,
   registerPaymentForTest,
-  registerRefundForTest,
   seedOwnerPoolForTest,
 } from "@/lib/admin/finances/finances.test-support";
+import { registerRefundForTest } from "@/lib/test-support/refunds";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createSavedEvent } from "@/lib/test-support/events";

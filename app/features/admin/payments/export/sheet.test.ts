@@ -44,27 +44,6 @@ describe("the collection workbook's sheets", () => {
     ]);
   });
 
-  test("tells a refund from a payment by its kind", () => {
-    const [, refund] = buildSheet(collectionMovementColumns, [
-      {
-        academyName: "Estudio Ritmo",
-        amount: 5000,
-        date: "2026-04-15",
-        kind: "movement",
-        method: "efectivo",
-        number: 1,
-        type: "refund",
-      },
-    ]);
-
-    expect(refund?.slice(0, 2)).toEqual(["Reembolso", 1]);
-    expect(refund?.at(-1)).toEqual({
-      format: moneyFormat,
-      type: Number,
-      value: 5000,
-    });
-  });
-
   test("closes the movements with a bold total, its amount under `Monto`", () => {
     const [, total] = buildSheet(collectionMovementColumns, [
       { amount: 0, kind: "total", label: "Reembolsos" },

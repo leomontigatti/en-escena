@@ -9,7 +9,7 @@ import {
   refunds,
 } from "@/db/schema";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
-import { registerRefundForTest } from "@/lib/admin/finances/finances.test-support";
+import { registerRefundForTest } from "@/lib/test-support/refunds";
 import {
   createChoreographyRecord,
   createEventCatalog,

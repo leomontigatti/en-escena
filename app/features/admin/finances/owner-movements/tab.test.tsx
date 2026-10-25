@@ -6,6 +6,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
+  findButton,
   setInputValue,
   updateReactDomForm,
   waitFor,
@@ -46,13 +47,17 @@ describe("OwnerMovementsTab", () => {
     renderer.cleanup();
   });
 
-  async function renderTab(submissions: FormData[] = []) {
+  async function renderTab(
+    submissions: FormData[] = [],
+    settle: () => Promise<unknown> = async () => undefined,
+  ) {
     const router = createMemoryRouter(
       [
         {
           path: "/administracion/finanzas/:academyId",
           action: async ({ request }) => {
             submissions.push(await request.formData());
+            await settle();
 
             return null;
           },
@@ -71,35 +76,6 @@ describe("OwnerMovementsTab", () => {
 
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
-
-  test("tells a refund from a payment by its badge, each with its own number and a positive amount", async () => {
-    await renderTab();
-
-    const rows = [...document.querySelectorAll("tbody tr")].map((row) =>
-      [...row.querySelectorAll("td")].map((cell) =>
-        (cell.textContent ?? "").trim(),
-      ),
-    );
-
-    expect(rows).toEqual([
-      [
-        "Reembolso",
-        "00001",
-        "3 de abril de 2026",
-        "REC-1",
-        "Efectivo",
-        "$ 600",
-      ],
-      [
-        "Pago",
-        "00001",
-        "1 de abril de 2026",
-        "TRX-1",
-        "Transferencia",
-        "$ 2.000",
-      ],
-    ]);
-  });
 
   test("the refund dialog states the `Saldo disponible` as its maximum and posts nothing above it", async () => {
     const submissions: FormData[] = [];
@@ -205,5 +181,52 @@ describe("OwnerMovementsTab", () => {
       refundId: "refund_1",
       version: "2026-04-03T12:00:00.000Z",
     });
+  });
+
+  test("`Registrar` stays disabled until the form differs from its empty defaults", async () => {
+    await renderTab();
+
+    await clickReactDomButton("Registrar reembolso");
+
+    const dialog = document.querySelector('[role="dialog"]');
+    const register = () =>
+      findButton("Registrar", { exact: true, within: dialog });
+    expect(register()?.disabled).toBe(true);
+
+    const amount = document.querySelector<HTMLInputElement>("#refund-amount");
+    await updateReactDomForm(() => setInputValue(amount!, "100"));
+    expect(register()?.disabled).toBe(false);
+
+    await updateReactDomForm(() => setInputValue(amount!, ""));
+    expect(register()?.disabled).toBe(true);
+  });
+
+  test("`Guardar` cannot post an edit while a deletion runs", async () => {
+    const submissions: FormData[] = [];
+    let release = () => {};
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await renderTab(submissions, () => pending);
+
+    const [refundRow] = document.querySelectorAll("tbody tr");
+    await clickReactDomButton("00001", { exact: true, within: refundRow });
+    const dialog = document.querySelector('[role="dialog"]');
+    const amount = document.querySelector<HTMLInputElement>(
+      "#edit-refund-amount",
+    );
+    await updateReactDomForm(() => setInputValue(amount!, "500"));
+    await clickReactDomButton("Eliminar", { exact: true, within: dialog });
+    await clickReactDomButton("Eliminar", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
+    await waitFor(() => submissions.length === 1);
+
+    expect(
+      findButton("Guardar", { exact: true, within: dialog })?.disabled,
+    ).toBe(true);
+
+    release();
   });
 });

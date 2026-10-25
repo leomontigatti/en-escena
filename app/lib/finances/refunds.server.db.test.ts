@@ -5,9 +5,9 @@ import { db } from "@/db";
 import { payments, refunds } from "@/db/schema";
 import {
   registerPaymentForTest,
-  registerRefundForTest,
   seedOwnerPoolForTest,
 } from "@/lib/admin/finances/finances.test-support";
+import { registerRefundForTest } from "@/lib/test-support/refunds";
 import {
   lockAcademyPools,
   spreadFromPool,
@@ -72,7 +72,8 @@ describe("registerRefund", () => {
 
     await expect(registerRefund(refundOf(pool, 1501))).resolves.toEqual({
       ok: false,
-      message: "El reembolso no puede superar el saldo disponible de $ 1.500.",
+      reason: "over-cap",
+      capAmount: 1500,
     });
     await expect(registerRefund(refundOf(pool, 1500))).resolves.toMatchObject({
       ok: true,
@@ -80,7 +81,7 @@ describe("registerRefund", () => {
     });
     await expect(registerRefund(refundOf(pool, 1))).resolves.toEqual({
       ok: false,
-      message: "No hay saldo disponible para reembolsar.",
+      reason: "no-balance",
     });
 
     await expect(readRefunds(academyId)).resolves.toMatchObject([
@@ -120,6 +121,25 @@ describe("registerRefund", () => {
       registerRefund(refundOf(pool, balanceWhenOpened)),
     ).resolves.toMatchObject({ ok: false });
     await expect(readRefunds(academyId)).resolves.toEqual([]);
+  });
+
+  test("refuses a date after today and accepts today", async () => {
+    const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+    const { academyId } = await seedOwnerPoolForTest({
+      academyName: "Academia Fecha",
+      event,
+      fundedAmount: 0,
+      paymentAmounts: [3000],
+    });
+    const pool = { academyId, eventId: event.id };
+
+    await expect(
+      registerRefund({ ...refundOf(pool, 100), refundDate: "2026-04-11" }),
+    ).resolves.toEqual({ ok: false, reason: "future-date" });
+    await expect(readRefunds(academyId)).resolves.toEqual([]);
+    await expect(
+      registerRefund({ ...refundOf(pool, 100), refundDate: "2026-04-10" }),
+    ).resolves.toMatchObject({ ok: true });
   });
 
   test("numbers refunds per event, in a series of their own beside the payments'", async () => {
@@ -207,7 +227,7 @@ async function seedRefundedPool() {
   const pool = { academyId, eventId: event.id };
   const { refundId } = await registerRefundForTest({ ...pool, amount: 1000 });
 
-  return { pool, refund: await readRefund(refundId) };
+  return { event, pool, refund: await readRefund(refundId) };
 }
 
 function editOf(
@@ -226,11 +246,7 @@ function editOf(
   };
 }
 
-const changedWhileSaving = {
-  ok: false,
-  message:
-    "El reembolso cambió mientras se guardaba. Revisalo y volvé a intentarlo.",
-};
+const changedWhileSaving = { ok: false, reason: "stale" };
 
 describe("updateRefund", () => {
   test("caps a raise at the `Saldo disponible` plus the refund's own amount", async () => {
@@ -238,11 +254,7 @@ describe("updateRefund", () => {
 
     await expect(
       updateRefund(editOf(refund, { amount: 3001 })),
-    ).resolves.toEqual({
-      ok: false,
-      message:
-        "El reembolso no puede superar $ 3.000, el saldo disponible más su monto actual.",
-    });
+    ).resolves.toEqual({ ok: false, reason: "over-cap", capAmount: 3000 });
     await expect(readRefund(refund.id)).resolves.toMatchObject({
       amount: 1000,
     });
@@ -289,6 +301,17 @@ describe("updateRefund", () => {
       refundDate: "2026-04-10",
       refundMethod: "efectivo",
       refundNumber: refund.refundNumber,
+    });
+  });
+
+  test("refuses a date after today", async () => {
+    const { refund } = await seedRefundedPool();
+
+    await expect(
+      updateRefund(editOf(refund, { refundDate: "2026-04-11" })),
+    ).resolves.toEqual({ ok: false, reason: "future-date" });
+    await expect(readRefund(refund.id)).resolves.toMatchObject({
+      refundDate: refund.refundDate,
     });
   });
 
@@ -377,5 +400,36 @@ describe.skipIf(isPgliteTestBackend())("a refund under real contention", () => {
     expect(
       (await readRefunds(academyId)).map((refund) => refund.amount),
     ).toEqual([2000]);
+  });
+
+  test("an edit that waited on the pool while the refund moved to another pool is refused", async () => {
+    const { event, refund } = await seedRefundedPool();
+    const other = await seedOwnerPoolForTest({
+      academyName: "Academia Destino",
+      event,
+      fundedAmount: 0,
+      paymentAmounts: [3000],
+    });
+
+    const result = await runBehindAHolder({
+      waitingOn: "academy pool lock",
+      hold: async (tx) => {
+        await lockAcademyPools(tx, [
+          { academyId: refund.academyId, eventId: refund.eventId },
+        ]);
+        // A move that keeps the version: only the pool check can catch it.
+        await tx
+          .update(refunds)
+          .set({ academyId: other.academyId })
+          .where(eq(refunds.id, refund.id));
+      },
+      contender: () => updateRefund(editOf(refund, { amount: 900 })),
+    });
+
+    expect(result).toEqual({ ok: false, reason: "moved" });
+    await expect(readRefund(refund.id)).resolves.toMatchObject({
+      academyId: other.academyId,
+      amount: 1000,
+    });
   });
 });

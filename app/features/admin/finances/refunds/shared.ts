@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { registerPaymentSchema } from "@/features/admin/finances/academy-choreographies/shared";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
-import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
+import { isDateOnly } from "@/lib/shared/date-only";
 
 export const registerRefundIntent = "register-refund";
 export const updateRefundIntent = "update-refund";
@@ -12,7 +12,8 @@ export const deleteRefundIntent = "delete-refund";
  * A refund's fields: a payment's, with its own date. The amount, the method
  * (over the payment methods) and the two free texts read as a payment's do.
  * Registering and editing share them; neither carries an academy or an event,
- * which the page (on register) and the refund itself (on edit) fix.
+ * which the page (on register) and the refund itself (on edit) fix. The date
+ * is read here; that it is not after today is the write module's rule.
  */
 const refundFieldsSchema = z.object({
   refundDate: z
@@ -31,14 +32,6 @@ const refundFieldsSchema = z.object({
         context.addIssue({
           code: "custom",
           message: "Ingresá una fecha válida.",
-        });
-        return;
-      }
-
-      if (isFutureDateOnly(value)) {
-        context.addIssue({
-          code: "custom",
-          message: "La fecha del reembolso no puede ser futura.",
         });
       }
     }),

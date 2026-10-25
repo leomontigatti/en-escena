@@ -162,7 +162,7 @@ export function RegisterRefundDialog({
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSaving}>
+              <Button type="submit" disabled={!isDirty || isSaving}>
                 {isSaving ? (
                   <Spinner aria-hidden="true" data-icon="inline-start" />
                 ) : null}

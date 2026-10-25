@@ -1,10 +1,12 @@
 import { readFinanceAcademy } from "@/features/admin/finances/academy.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
+import { formatAmount } from "@/lib/finances/formatters";
 import {
   deleteRefund,
   registerRefund,
   updateRefund,
+  type RefundRefusal,
 } from "@/lib/finances/refunds.server";
 
 import {
@@ -59,7 +61,10 @@ export async function handleRegisterRefund(input: {
   });
 
   if (!result.ok) {
-    return refusal(registerRefundIntent, result.message);
+    return refusal(
+      registerRefundIntent,
+      refusalMessage(result, refundAboveBalanceMessage),
+    );
   }
 
   return {
@@ -104,7 +109,14 @@ export async function handleUpdateRefund(input: {
         message: "Reembolso guardado.",
         status: "success",
       }
-    : refusal(updateRefundIntent, result.message);
+    : refusal(
+        updateRefundIntent,
+        refusalMessage(
+          result,
+          (capAmount) =>
+            `El reembolso no puede superar ${formatAmount(capAmount)}, el saldo disponible más su monto actual.`,
+        ),
+      );
 }
 
 /** Deletes a `Reembolso` from the dialog on its row: administration only. */
@@ -125,7 +137,36 @@ export async function handleDeleteRefund(input: {
         message: "Reembolso eliminado.",
         status: "success",
       }
-    : refusal(deleteRefundIntent, result.message);
+    : refusal(
+        deleteRefundIntent,
+        refusalMessage(result, refundAboveBalanceMessage),
+      );
+}
+
+/**
+ * The copy for a refusal of the write module. The cap reads differently on a
+ * registration (the `Saldo disponible`) and on an edit (which also counts the
+ * refund's own amount), so the caller words it.
+ */
+function refusalMessage(
+  refusal: RefundRefusal,
+  overCapMessage: (capAmount: number) => string,
+) {
+  switch (refusal.reason) {
+    case "future-date":
+      return "La fecha del reembolso no puede ser futura.";
+    case "moved":
+    case "stale":
+      return "El reembolso cambió mientras se guardaba. Revisalo y volvé a intentarlo.";
+    case "no-balance":
+      return "No hay saldo disponible para reembolsar.";
+    case "over-cap":
+      return overCapMessage(refusal.capAmount);
+  }
+}
+
+function refundAboveBalanceMessage(capAmount: number) {
+  return `El reembolso no puede superar el saldo disponible de ${formatAmount(capAmount)}.`;
 }
 
 function firstIssue(error: { issues: { message: string }[] }) {

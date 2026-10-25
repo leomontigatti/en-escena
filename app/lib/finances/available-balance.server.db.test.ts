@@ -7,9 +7,9 @@ import { createEventCatalog } from "@/features/portal/choreographies/test-suppor
 import {
   createAcademyFinanceChoreographyFixture,
   registerPaymentForTest,
-  registerRefundForTest,
   seedOwnerPoolForTest,
 } from "@/lib/admin/finances/finances.test-support";
+import { registerRefundForTest } from "@/lib/test-support/refunds";
 import {
   paymentAvailableAmountSql,
   readAvailableBalance,

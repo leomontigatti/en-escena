@@ -323,7 +323,10 @@ function EditRefundFooter({
       >
         Cancelar
       </Button>
-      <SubmitButton disabled={!isDirty} isPending={isSaving && !isDeleting} />
+      <SubmitButton
+        disabled={!isDirty || isDeleting}
+        isPending={isSaving && !isDeleting}
+      />
     </DialogFooter>
   );
 }

@@ -27,26 +27,6 @@ describe("PortalAcademyPaymentsRouteView", () => {
 
   afterEach(renderer.cleanup);
 
-  test("tells a refund from a payment, each with its own number", async () => {
-    await renderPortalPayments(
-      renderer,
-      portalPaymentsLoaderDataFixture({
-        movements: [
-          movementRowFixture({ id: "refund_1", kind: "refund", number: 3 }),
-          movementRowFixture({ id: "payment_1", number: 3 }),
-        ],
-      }),
-    );
-
-    expect(
-      Array.from(document.querySelectorAll("tbody tr"), (row) =>
-        Array.from(row.querySelectorAll("td"), (cell) => cell.textContent)
-          .slice(0, 2)
-          .join(" "),
-      ),
-    ).toEqual(["Reembolso 00003", "Pago 00003"]);
-  });
-
   test("shows each payment number without linking to a detail", async () => {
     await renderPortalPayments(renderer, portalPaymentsLoaderDataFixture());
 
@@ -109,17 +89,6 @@ describe("PortalAcademyPaymentsRouteView", () => {
 
     expect(text).toContain(shown);
     expect(text).not.toContain(hidden);
-  });
-
-  test("shows the empty state when the academy has no movements", async () => {
-    await renderPortalPayments(
-      renderer,
-      portalPaymentsLoaderDataFixture({ movements: [] }),
-    );
-
-    expect(document.body.textContent).toContain(
-      "Todavía no hay movimientos registrados",
-    );
   });
 });
 

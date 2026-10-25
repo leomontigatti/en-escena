@@ -6,9 +6,9 @@ import { events, refunds } from "@/db/schema";
 import {
   academyFinancesRouteArgs,
   academyFinancesUrl,
-  registerRefundForTest,
   seedOwnerPoolForTest,
 } from "@/lib/admin/finances/finances.test-support";
+import { registerRefundForTest } from "@/lib/test-support/refunds";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createAcademyUser } from "@/lib/test-support/academies";

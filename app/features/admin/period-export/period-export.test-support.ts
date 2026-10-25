@@ -199,7 +199,7 @@ export async function seedPeriodExportFixture() {
     });
 
     if (!result.ok) {
-      throw new Error(result.message);
+      throw new Error(`The test refund was refused: ${result.reason}`);
     }
 
     return result.refundId;

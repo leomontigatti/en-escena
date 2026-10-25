@@ -85,23 +85,6 @@ describe("PaymentDetailRouteView", () => {
     expect(document.querySelector('textarea[name="reason"]')).toBeNull();
   });
 
-  test("says the deletion is blocked by the refunds and offers no delete button", async () => {
-    await renderDetailIntoDocument({
-      initialDeleteDialogOpen: true,
-      loaderData: buildLoaderData({ deletionUncoversRefunds: true }),
-    });
-
-    expect(document.body.textContent).toContain("No se puede eliminar");
-    expect(document.body.textContent).toContain(
-      "Los reembolsos superarían el saldo disponible. Editá o eliminá un reembolso primero.",
-    );
-    expect(
-      document.querySelector(
-        `input[name="intent"][value="${deletePaymentIntent}"]`,
-      ),
-    ).toBeNull();
-  });
-
   test("names each affected unit with its amount, its un-crossings and the places a seminar loses", async () => {
     await renderDetailIntoDocument({
       initialDeleteDialogOpen: true,

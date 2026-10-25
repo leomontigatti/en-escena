@@ -675,14 +675,10 @@ they live in one module.
   refunds newest first, never its allocations. The portal's and an
   individual's own `Movimientos` page list the owner's refunds beside its
   payments the same way, kind badged, without either's internal note. The
-  event-wide list at `/administracion/movimientos` holds every payment and
-  refund of the active event: a `Tipo` column and facet tell them apart, the
-  method facet reads a refund's `refundMethod`, and the search, the count and
-  the page span both kinds, newest first and, within a day, in recording
-  order as on the owner's tab. Its cards read `Pagos`, `Reembolsos` and
-  `Neto` —the `Recaudación` workbook's three figures— beside the payments'
-  `Disponible`, over the whole event or over the ticked rows; a refund has no
-  `Disponible`, so the `Disponible` facet leaves refunds out. A
+  event-wide list at `/administracion/movimientos` pages both kinds as one
+  set, ordering a day's movements by recording time as the owner's tab does
+  (the workbook puts payments first); its cards read the whole event, never
+  the filtered set. A
   payment edit or deletion that would leave refunds uncovered is refused (see
   "Payments"), and an academy merge moves the removed academy's refunds with
   its payments. Note the term: `Devolución` is
@@ -697,9 +693,10 @@ they live in one module.
   pool lock: an edit is capped at the `Saldo disponible` plus the refund's own
   current amount, so lowering or keeping the amount always saves, and a
   deletion is never refused, raising the `Saldo disponible` by exactly its
-  amount. Its academy, event and number are fixed once it exists. Both carry the
-  version (`updatedAt`) the dialog read, and a refund that changed or was
-  deleted meanwhile is refused as changed while saving rather than overwritten.
+  amount. Its event and number are fixed once it exists, and its academy
+  changes only by an academy merge. Both carry the version (`updatedAt`) the
+  dialog read, and a refund that changed, was deleted or was moved by a merge
+  meanwhile is refused as changed while saving rather than overwritten.
 
 ## The money gestures
 
