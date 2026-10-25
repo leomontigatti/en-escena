@@ -961,9 +961,10 @@ deleting the payment it came from, or cutting its amount, would leave
   still never block a deletion, so §2's rejection of `paymentDeletionBlockers`
   stands: the one blocker is money that has already left.
   An academy merge moves the removed academy's refunds with its payments.
-- **A refund is read as drawing on payments newest-first**, derived and never
-  stored, the mirror of funding oldest-first. Each payment's `Disponible` and the
-  funding cap then read one figure, and their sum is `Saldo disponible`.
+- **A refund is read as drawing on each payment's free money newest-first**,
+  derived and never stored, never more from a payment than it has free: the
+  mirror of funding oldest-first. Each payment's `Disponible` and the funding
+  cap then read one figure, and their sum is `Saldo disponible`.
 - **Payments and refunds are listed together as `Movimientos`**, never with
   allocations: the event-wide admin list, a tab on the academy's finance page
   (the only place a refund is registered), and the portal's and an individual's

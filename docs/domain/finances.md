@@ -649,11 +649,13 @@ they live in one module.
 > refund code path, so `Saldo disponible` reads as `Σ payments − Σ allocations`.
 > ADR-0014 §6 specifies a `Reembolso` mirroring `Pago` — academy, event, amount,
 > date, `refundMethod` over the same method enum, `refundNumber` — that **never
-> carries allocations** and is capped at `Saldo disponible`, re-checked under the
-> pool lock. A refund names no payment: it is read as drawing on the academy's
-> payments **newest-first**, derived and never stored, so a payment's
-> `Disponible` becomes its amount minus its own allocations minus the share of
-> refunds it carries, the funding cap reads that same figure, and their sum is
+> carries allocations** and is capped at `Saldo disponible` (plus its own
+> current amount when edited), re-checked under the pool lock; its academy and
+> event are fixed once it exists. A refund names no payment: it is read as
+> drawing on each payment's **free money** (amount minus its own allocations),
+> **newest-first**, derived and never stored, so no payment carries more refund
+> than it has free. A payment's `Disponible` becomes its free money minus the
+> refund it carries, the funding cap reads that same figure, and their sum is
 > `Saldo disponible`. One module computes the figure for every reader. A refund
 > is the one subtraction the floor does not hold by construction, which is why
 > the payment edit and deletion gain a refusal (see "Payments"). An academy
