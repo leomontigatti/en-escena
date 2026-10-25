@@ -46,6 +46,15 @@ import {
   readSeminarCobroPreviews,
   type SeminarCobroPreview,
 } from "@/lib/finances/seminar-cobro-presets.server";
+import {
+  readOwnerMovements,
+  type OwnerMovementRow,
+} from "@/features/admin/finances/owner-movements/server";
+import { handleRegisterRefund } from "@/features/admin/finances/refunds/server";
+import {
+  registerRefundIntent,
+  type RefundActionData,
+} from "@/features/admin/finances/refunds/shared";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { readFormData } from "@/lib/shared/read-form-data";
 import type { PresetInscription } from "./preset-figures";
@@ -76,6 +85,7 @@ export async function loadAcademyFinances(input: {
     priceOptionsByGroupType,
     pricingScheduleIdByChoreography,
     seminarPresetPreviews,
+    movements,
   ] =
     eventContext.selectedEventId === null
       ? [
@@ -90,6 +100,7 @@ export async function loadAcademyFinances(input: {
           {} as Record<string, PresetPriceOption[]>,
           {} as Record<string, string | null>,
           {} as Record<string, SeminarCobroPreview>,
+          [] as OwnerMovementRow[],
         ]
       : await Promise.all([
           readAcademyEventOperationalFinanceDetail({
@@ -106,6 +117,10 @@ export async function loadAcademyFinances(input: {
             eventId: eventContext.selectedEventId,
           }),
           readSeminarCobroPreviews({
+            academyId: academy.id,
+            eventId: eventContext.selectedEventId,
+          }),
+          readOwnerMovements({
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
           }),
@@ -148,6 +163,8 @@ export async function loadAcademyFinances(input: {
       }),
     ),
     inscriptions: financeDetail.inscriptions.map(toPresetInscription),
+    // The `Movimientos` tab's rows: the owner's payments and refunds.
+    movements,
     priceOptionsByGroupType,
     pricingScheduleIdByChoreography,
     selectedEventId: eventContext.selectedEventId,
@@ -182,9 +199,23 @@ export async function handleAcademyFinancesAction(input: {
   request: Request;
   // Injectable emission inputs: the tests pass a mocked ARCA client.
   resolveEmissionDeps?: () => ComprobanteEmissionDeps;
-}): Promise<AcademyFinancesActionData | BulkEmissionActionData | never> {
+}): Promise<
+  AcademyFinancesActionData | BulkEmissionActionData | RefundActionData | never
+> {
   await requireAdminPanelWriter(input.request);
   const academyId = readFinanceAcademyId(input.params);
+  const formData = await readFormData(input.request);
+  const intent = String(formData.get("intent") ?? "");
+
+  // The `Movimientos` tab's one write, with its own event and access checks.
+  if (intent === registerRefundIntent) {
+    return await handleRegisterRefund({
+      academyId,
+      formData,
+      request: input.request,
+    });
+  }
+
   const eventContext = await loadEventContext(input.request);
 
   if (eventContext.selectedEventId === null) {
@@ -193,9 +224,6 @@ export async function handleAcademyFinancesAction(input: {
       message: "Activá un evento para operar las coreografías.",
     };
   }
-
-  const formData = await readFormData(input.request);
-  const intent = String(formData.get("intent") ?? "");
 
   if (emissionIntents.has(intent)) {
     return await runBulkEmissionIntent({

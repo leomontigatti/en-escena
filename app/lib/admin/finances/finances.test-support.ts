@@ -6,13 +6,19 @@ import {
   RouterProvider,
 } from "react-router";
 
+import { db } from "@/db";
+import { choreographyDancers } from "@/db/schema";
+import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
+import { choreographyTarget } from "@/lib/finances/allocation-target.server";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import {
   createChoreographyRecord,
+  createDancer,
   createEventCatalog,
 } from "@/features/portal/choreographies/test-support/db";
+import { registerRefund } from "@/lib/finances/refunds.server";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import {
   AcademyFinancesRouteView,
@@ -118,6 +124,90 @@ export async function registerPaymentForTest(input: {
     paymentMethod: "transferencia",
     reference: null,
   });
+}
+
+/** A refund through the write module, which must accept it. */
+export async function registerRefundForTest(input: {
+  academyId: string;
+  amount: number;
+  eventId: string;
+  refundDate?: string;
+}) {
+  const result = await registerRefund({
+    academyId: input.academyId,
+    amount: input.amount,
+    eventId: input.eventId,
+    internalNote: null,
+    reference: null,
+    refundDate: input.refundDate ?? "2026-04-09",
+    refundMethod: "transferencia",
+  });
+
+  if (!result.ok) {
+    throw new Error(`The test refund was refused: ${result.message}`);
+  }
+
+  return result;
+}
+
+/**
+ * An academy with a `solo` inscription at the catalogue price (10000), the
+ * given payments numbered from 1, and the given amount funded onto the
+ * inscription through the pool (oldest payment first).
+ */
+export async function seedOwnerPoolForTest(input: {
+  academyName: string;
+  catalog?: Awaited<ReturnType<typeof createEventCatalog>>;
+  event: Awaited<ReturnType<typeof createSavedEvent>>;
+  fundedAmount: number;
+  paymentAmounts: number[];
+}) {
+  const { academy, choreography } =
+    await createAcademyFinanceChoreographyFixture({
+      academyName: input.academyName,
+      catalog: input.catalog,
+      choreographyName: `${input.academyName} solo`,
+      email: `${crypto.randomUUID()}@example.com`,
+      event: input.event,
+    });
+  const academyId = academy.academy.id;
+  const dancer = await createDancer(academyId, {
+    firstName: "Ana",
+    lastName: input.academyName,
+  });
+  const [inscription] = await db
+    .insert(choreographyDancers)
+    .values({
+      ageAtEventStart: 14,
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+    })
+    .returning();
+
+  for (const [index, amount] of input.paymentAmounts.entries()) {
+    await registerPaymentForTest({
+      academyId,
+      amount: String(amount),
+      eventId: input.event.id,
+      paymentDate: `2026-04-0${index + 1}`,
+    });
+  }
+
+  if (input.fundedAmount > 0) {
+    const funded = await db.transaction((tx) =>
+      spreadFromPool(tx, {
+        academyId,
+        amount: input.fundedAmount,
+        eventId: input.event.id,
+        target: choreographyTarget(inscription!.id),
+      }),
+    );
+    if (!funded.ok) {
+      throw new Error(`The test funding was refused: ${funded.message}`);
+    }
+  }
+
+  return { academyId, inscriptionId: inscription!.id };
 }
 
 export function renderAcademyFinancesRoute(input: {

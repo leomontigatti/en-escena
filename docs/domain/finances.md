@@ -11,7 +11,7 @@ for _why_; read this for _what_. The identifier → UI term mapping is in
 ## How to read this document
 
 The settled model is larger than what is built. Half of it shipped; the invoicing half
-and the refund are specified and not implemented.
+and the refund's correction, guards and lists are specified and not implemented.
 Every statement here is therefore one of three things, and they are never mixed
 silently:
 
@@ -654,30 +654,33 @@ they live in one module.
   Taking money off refuses nothing: it only frees places
   (`docs/domain/seminars.md`, "The place").
 
+- **A refund** (`Reembolso`, `refund`) mirrors a payment — owner, event, amount,
+  date, `refundMethod` over the same method enum, optional reference and internal
+  note, and a `refundNumber` sequential within the event in a series of its own,
+  handed out under the same sequence row lock as the payment number — and
+  **never carries allocations**: it names no payment, allocation or inscription.
+  It is written only by the refund write module (`refunds.server.ts`), which
+  takes the pool lock, reads the live `Saldo disponible` and refuses a refund
+  above it; the date cannot be in the future, and registration is against the
+  active event and administration only. Since a refund names no payment, the
+  split above reads it as drawing on each payment's free money newest-first, in
+  the module and in its SQL form alike, so funding can never spend refunded
+  money. A refund changes no inscription's status, comprobante comparison or
+  15-day clock. It is registered from the `Movimientos` tab of the owner's
+  finance page, the only place to do so, which lists the owner's payments and
+  refunds newest first, never its allocations. Note the term: `Devolución` is
+  reserved for the judge's private feedback audio and must not be used for
+  money.
+
 > **Specified, not built.**
-> The `− Σ refunds` term has nothing behind it: there is no refunds table and no
-> refund code path, so `Saldo disponible` reads as `Σ payments − Σ allocations`.
-> ADR-0014 §6 specifies a `Reembolso` mirroring `Pago` — academy, event, amount,
-> date, `refundMethod` over the same method enum, `refundNumber` — that **never
-> carries allocations** and is capped at `Saldo disponible` (plus its own
-> current amount when edited), re-checked under the pool lock; its academy and
-> event are fixed once it exists. A refund names no payment: it is read as
-> drawing on each payment's **free money** (amount minus its own allocations),
-> **newest-first**, derived and never stored, so no payment carries more refund
-> than it has free. The module that owns the figure already splits a refunds
-> total that way (see "One owner for the figure" above); what is missing is the
-> refunds it would read, which today total zero, and the same draw in the
-> payments list's SQL form. A refund
-> is the one subtraction the floor does not hold by construction, which is why
-> the payment edit and deletion gain a refusal (see "Payments"). An academy
-> merge moves the removed academy's refunds with its payments. Payments
-> and refunds are listed together as `Movimientos` — the event-wide list at
-> `/administracion/movimientos`, a tab on the academy's finance page (the only
-> place a refund is registered), and the portal's and an individual's own
-> page — never with allocations. Owner:
-> [#728](https://github.com/leomontigatti/en-escena/issues/728). Note the term:
-> `Devolución` is reserved for the judge's private feedback audio and must not be
-> used for money.
+> A refund is corrected by editing (cap: `Saldo disponible` plus its own current
+> amount, re-checked under the pool lock) or deleting it; its academy and event
+> are fixed once it exists. A refund is the one subtraction the floor does not
+> hold by construction, which is why the payment edit and deletion gain a
+> refusal (see "Payments"). An academy merge moves the removed academy's refunds
+> with its payments. The event-wide list at `/administracion/movimientos` and the
+> portal's and an individual's own page list refunds beside payments too. Owner:
+> [#728](https://github.com/leomontigatti/en-escena/issues/728).
 
 ## The money gestures
 
@@ -1396,7 +1399,8 @@ and no request actions. The restriction is **permanent and role-based**.
 - The payments list is the `Movimientos` section, at `/administracion/movimientos`
   with a payment under `/administracion/movimientos/pagos/`, and the portal's
   and an individual's own payments page is `Movimientos` too. They list
-  payments only until refunds join them (see "The pool rules").
+  payments only until refunds join them (see "The pool rules"); the
+  `Movimientos` tab of an owner's finance page already lists both.
 - Panel and portal read the **same derivation**, so the portal cannot disagree
   with the panel. The primary amounts on both are `Seña adeudada`, `Saldo disponible`
   and `Saldo adeudado`.

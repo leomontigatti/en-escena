@@ -2,17 +2,14 @@ import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { choreographyDancers, payments } from "@/db/schema";
-import {
-  createDancer,
-  createEventCatalog,
-} from "@/features/portal/choreographies/test-support/db";
+import { payments } from "@/db/schema";
+import { createEventCatalog } from "@/features/portal/choreographies/test-support/db";
 import {
   createAcademyFinanceChoreographyFixture,
   registerPaymentForTest,
+  registerRefundForTest,
+  seedOwnerPoolForTest,
 } from "@/lib/admin/finances/finances.test-support";
-import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
-import { choreographyTarget } from "@/lib/finances/allocation-target.server";
 import {
   paymentAvailableAmountSql,
   readAvailableBalance,
@@ -31,68 +28,10 @@ beforeEach(() => {
   );
 });
 
-/**
- * An academy with a `solo` inscription at the catalogue price (10000), the
- * given payments numbered from 1, and the given amount funded onto the
- * inscription through the pool (oldest payment first).
- */
-async function seedOwnerPool(input: {
-  academyName: string;
-  catalog?: Awaited<ReturnType<typeof createEventCatalog>>;
-  event: Awaited<ReturnType<typeof createSavedEvent>>;
-  fundedAmount: number;
-  paymentAmounts: number[];
-}) {
-  const { academy, choreography } =
-    await createAcademyFinanceChoreographyFixture({
-      academyName: input.academyName,
-      catalog: input.catalog,
-      choreographyName: `${input.academyName} solo`,
-      email: `${crypto.randomUUID()}@example.com`,
-      event: input.event,
-    });
-  const academyId = academy.academy.id;
-  const dancer = await createDancer(academyId, {
-    firstName: "Ana",
-    lastName: input.academyName,
-  });
-  const [inscription] = await db
-    .insert(choreographyDancers)
-    .values({
-      ageAtEventStart: 14,
-      choreographyId: choreography.id,
-      dancerId: dancer.id,
-    })
-    .returning();
-
-  for (const [index, amount] of input.paymentAmounts.entries()) {
-    await registerPaymentForTest({
-      academyId,
-      amount: String(amount),
-      eventId: input.event.id,
-      paymentDate: `2026-04-0${index + 1}`,
-    });
-  }
-
-  if (input.fundedAmount > 0) {
-    const funded = await db.transaction((tx) =>
-      spreadFromPool(tx, {
-        academyId,
-        amount: input.fundedAmount,
-        eventId: input.event.id,
-        target: choreographyTarget(inscription!.id),
-      }),
-    );
-    expect(funded).toEqual({ ok: true });
-  }
-
-  return { academyId };
-}
-
 describe("readAvailableBalance", () => {
   test("reads each payment's `Disponible` summing to the owner's `Saldo disponible`", async () => {
     const event = await createSavedEvent({ requiredDepositPercentage: 30 });
-    const { academyId } = await seedOwnerPool({
+    const { academyId } = await seedOwnerPoolForTest({
       academyName: "Academia Saldo",
       event,
       fundedAmount: 2500,
@@ -118,6 +57,35 @@ describe("readAvailableBalance", () => {
     expect(balance.availableBalanceAmount).toBe(3500);
   });
 
+  test("subtracts the owner's refunds, drawn on the newest payments' free money first", async () => {
+    const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+    const { academyId } = await seedOwnerPoolForTest({
+      academyName: "Academia Reembolso",
+      event,
+      fundedAmount: 2500,
+      paymentAmounts: [1000, 2000, 3000],
+    });
+    await registerRefundForTest({ academyId, amount: 2000, eventId: event.id });
+    await registerRefundForTest({ academyId, amount: 1200, eventId: event.id });
+
+    const balance = await readAvailableBalance(db, {
+      academyId,
+      eventId: event.id,
+    });
+
+    expect(
+      balance.payments.map((payment) => [
+        payment.paymentNumber,
+        payment.paymentAvailableAmount,
+      ]),
+    ).toEqual([
+      [1, 0],
+      [2, 300],
+      [3, 0],
+    ]);
+    expect(balance.availableBalanceAmount).toBe(300);
+  });
+
   test("keeps each owner's pool to its own payments and allocations in the event", async () => {
     const event = await createSavedEvent({ requiredDepositPercentage: 30 });
     const otherEvent = await createSavedEvent({
@@ -125,14 +93,14 @@ describe("readAvailableBalance", () => {
       requiredDepositPercentage: 30,
     });
     const catalog = await createEventCatalog(event.id);
-    const first = await seedOwnerPool({
+    const first = await seedOwnerPoolForTest({
       academyName: "Academia Uno",
       catalog,
       event,
       fundedAmount: 1200,
       paymentAmounts: [2000],
     });
-    const second = await seedOwnerPool({
+    const second = await seedOwnerPoolForTest({
       academyName: "Academia Dos",
       catalog,
       event,
@@ -144,6 +112,16 @@ describe("readAvailableBalance", () => {
       amount: "9000",
       eventId: otherEvent.id,
       paymentDate: "2026-04-05",
+    });
+    await registerRefundForTest({
+      academyId: first.academyId,
+      amount: 4000,
+      eventId: otherEvent.id,
+    });
+    await registerRefundForTest({
+      academyId: second.academyId,
+      amount: 250,
+      eventId: event.id,
     });
     const academyWithoutPayments =
       await createAcademyFinanceChoreographyFixture({
@@ -172,19 +150,22 @@ describe("readAvailableBalance", () => {
       ),
     ).toEqual({
       [first.academyId]: 800,
-      [second.academyId]: 1000,
+      [second.academyId]: 750,
       [academyWithoutPayments.academy.academy.id]: 0,
     });
   });
 
   test("the payments list's SQL `Disponible` agrees with the split", async () => {
     const event = await createSavedEvent({ requiredDepositPercentage: 30 });
-    const { academyId } = await seedOwnerPool({
+    const { academyId } = await seedOwnerPoolForTest({
       academyName: "Academia SQL",
       event,
-      fundedAmount: 3200,
-      paymentAmounts: [1000, 2000, 3000],
+      fundedAmount: 1200,
+      paymentAmounts: [1000, 2000, 3000, 500],
     });
+    // Free money is [0, 1800, 3000, 500]: the refund empties the two newest
+    // payments and draws the rest from the second.
+    await registerRefundForTest({ academyId, amount: 4000, eventId: event.id });
 
     const [balance, sqlRows] = await Promise.all([
       readAvailableBalance(db, { academyId, eventId: event.id }),
@@ -197,6 +178,10 @@ describe("readAvailableBalance", () => {
         .where(eq(payments.academyId, academyId))
         .orderBy(asc(payments.paymentNumber)),
     ]);
+
+    expect(
+      balance.payments.map((payment) => payment.paymentAvailableAmount),
+    ).toEqual([0, 1300, 0, 0]);
 
     expect(
       sqlRows.map((row) => ({

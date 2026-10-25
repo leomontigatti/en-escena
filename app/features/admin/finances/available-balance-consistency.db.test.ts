@@ -21,6 +21,7 @@ import {
   financesListRouteArgs,
   financesListUrl,
   registerPaymentForTest,
+  registerRefundForTest,
 } from "@/lib/admin/finances/finances.test-support";
 import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
 import { choreographyTarget } from "@/lib/finances/allocation-target.server";
@@ -51,9 +52,9 @@ beforeEach(() => {
 type SavedEvent = Awaited<ReturnType<typeof createSavedEvent>>;
 
 /**
- * An academy with three payments and part of them funded onto a choreography
- * inscription through the pool: payment 1 spent, payment 2 partly drawn and
- * payment 3 untouched.
+ * An academy with three payments, part of them funded onto a choreography
+ * inscription through the pool (payment 1 spent, payment 2 partly drawn), and
+ * a refund that takes all of payment 3 and part of payment 2.
  */
 async function seedAcademy(event: SavedEvent) {
   const { academy, choreography } =
@@ -95,12 +96,14 @@ async function seedAcademy(event: SavedEvent) {
     }),
   );
   expect(funded).toEqual({ ok: true });
+  await registerRefundForTest({ academyId, amount: 3200, eventId: event.id });
 
   return { academyId, choreographyId: choreography.id, cookie: academy.cookie };
 }
 
 /**
- * A `Particular` with two payments and a seminar's deposit funded from them.
+ * A `Particular` with two payments, a seminar's deposit funded from them and
+ * a refund.
  */
 async function seedIndividual(event: SavedEvent) {
   await createSeminarRegistrationPrices(event.id);
@@ -152,6 +155,11 @@ async function seedIndividual(event: SavedEvent) {
     seminarId: created.seminar.id,
   });
   expect(allocated).toEqual({ ok: true });
+  await registerRefundForTest({
+    academyId: individual.ownerId,
+    amount: 1000,
+    eventId: event.id,
+  });
 
   return {
     cookie: individual.cookie,
@@ -198,9 +206,10 @@ describe("`Saldo disponible` across surfaces", () => {
     const event = await createSavedEvent({ requiredDepositPercentage: 30 });
     const academy = await seedAcademy(event);
     const individual = await seedIndividual(event);
-    // 6000 paid − 2500 funded; 17000 paid − the seminar's deposit.
-    const academyBalance = 3500;
-    const individualBalance = 17000 - individual.depositAmount;
+    // 6000 paid − 2500 funded − 3200 refunded; 17000 paid − the seminar's
+    // deposit − 1000 refunded.
+    const academyBalance = 300;
+    const individualBalance = 16000 - individual.depositAmount;
 
     const financesList = await financesListLoader(
       financesListRouteArgs(await adminRequest(financesListUrl(event.id))),
@@ -280,7 +289,7 @@ describe("`Saldo disponible` across surfaces", () => {
       event.id,
     );
 
-    expect(academyPayments).toEqual([0, 500, 3000]);
+    expect(academyPayments).toEqual([0, 300, 0]);
     expect(sum(academyPayments)).toBe(academyBalance);
     expect(sum(individualPayments)).toBe(individualBalance);
   });

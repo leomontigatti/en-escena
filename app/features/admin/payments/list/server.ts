@@ -46,8 +46,9 @@ export type PaymentsListRow = {
   academyId: string;
   academyName: string;
   amount: number;
-  // What is still free on this payment. See `paymentAvailableAmountSql`: it is
-  // the payment's own remainder, and it carries no provenance.
+  // What is still free on this payment. See `paymentAvailableAmountSql`: its
+  // own remainder less the share of the owner's refunds it carries, with no
+  // provenance.
   availableAmount: number;
   id: string;
   paymentDate: string;

@@ -24,14 +24,12 @@
  * cannot go negative —an allocation is capped against the pool and a payment's
  * amount cannot be edited below what it already funds— so the floor is a guard
  * and not a calculation.
- *
- * Refunds do not exist yet (#728), so the read passes a refunds total of zero
- * and every figure is the payment's free money.
  */
 
 import { and, eq, inArray, sql } from "drizzle-orm";
+import { alias, type AnyPgColumn } from "drizzle-orm/pg-core";
 
-import { paymentAllocations, payments } from "@/db/schema";
+import { paymentAllocations, payments, refunds } from "@/db/schema";
 
 import type { Executor } from "./choreography-cobro-support.server";
 
@@ -108,7 +106,7 @@ export async function readAvailableBalances(
     return balances;
   }
 
-  const [paymentRows, allocationRows] = await Promise.all([
+  const [paymentRows, allocationRows, refundRows] = await Promise.all([
     executor
       .select({
         academyId: payments.academyId,
@@ -137,7 +135,24 @@ export async function readAvailableBalances(
           inArray(paymentAllocations.academyId, academyIds),
         ),
       ),
+    executor
+      .select({ academyId: refunds.academyId, amount: refunds.amount })
+      .from(refunds)
+      .where(
+        and(
+          eq(refunds.eventId, input.eventId),
+          inArray(refunds.academyId, academyIds),
+        ),
+      ),
   ]);
+
+  const refundedByAcademy = new Map<string, number>();
+  for (const refund of refundRows) {
+    refundedByAcademy.set(
+      refund.academyId,
+      (refundedByAcademy.get(refund.academyId) ?? 0) + refund.amount,
+    );
+  }
 
   const allocatedByPayment = new Map<string, number>();
   for (const allocation of allocationRows) {
@@ -160,7 +175,10 @@ export async function readAvailableBalances(
   for (const [academyId, poolPayments] of paymentsByAcademy) {
     balances.set(
       academyId,
-      splitAvailableBalance({ payments: poolPayments, refundedAmount: 0 }),
+      splitAvailableBalance({
+        payments: poolPayments,
+        refundedAmount: refundedByAcademy.get(academyId) ?? 0,
+      }),
     );
   }
 
@@ -196,16 +214,29 @@ function emptyAvailableBalance(): AvailableBalance {
 
 /**
  * The SQL form of a payment's `Disponible`, for the event-wide payments list,
- * which filters, sums and paginates on it in the database. It is the split at a
- * refunds total of zero: the payment's free money. When refunds land it has to
- * draw their share as `splitAvailableBalance` does, and the module's DB test
- * pins the two forms to the same figures.
+ * which filters, sums and paginates on it in the database. It is
+ * `splitAvailableBalance` row by row: the payment's free money, less the share
+ * of the owner's refunds that the newer payments' free money did not absorb.
+ * The module's DB test pins the two forms to the same figures.
  *
  * The figure is wrapped in a second template on purpose: Drizzle leaves the
  * columns of a select field unqualified when the query has a single table, and
- * an unqualified `id` inside the subquery would resolve to the allocation's own
- * id. Columns of a nested template are always qualified.
+ * an unqualified `id` inside a subquery would resolve to the subquery's own
+ * table. Columns of a nested template are always qualified.
  */
-const paymentFreeAmountSql = sql`greatest(${payments.amount} - coalesce((select sum(${paymentAllocations.amount}) from ${paymentAllocations} where ${paymentAllocations.paymentId} = ${payments.id}), 0), 0)`;
+function freeAmountSql(payment: { amount: AnyPgColumn; id: AnyPgColumn }) {
+  return sql`greatest(${payment.amount} - coalesce((select sum(${paymentAllocations.amount}) from ${paymentAllocations} where ${paymentAllocations.paymentId} = ${payment.id}), 0), 0)`;
+}
 
-export const paymentAvailableAmountSql = sql<number>`${paymentFreeAmountSql}`;
+// Inside a template an alias renders as its bare name, so the subquery's
+// `from` names the table and the alias itself.
+const newerPaymentsAlias = "newer_payment";
+const newerPayments = alias(payments, newerPaymentsAlias);
+
+const paymentFreeAmountSql = freeAmountSql(payments);
+
+const newerPaymentsFreeAmountSql = sql`coalesce((select sum(${freeAmountSql(newerPayments)}) from ${payments} as ${sql.identifier(newerPaymentsAlias)} where ${newerPayments.eventId} = ${payments.eventId} and ${newerPayments.academyId} = ${payments.academyId} and ${newerPayments.paymentNumber} > ${payments.paymentNumber}), 0)`;
+
+const ownerRefundedAmountSql = sql`coalesce((select sum(${refunds.amount}) from ${refunds} where ${refunds.eventId} = ${payments.eventId} and ${refunds.academyId} = ${payments.academyId}), 0)`;
+
+export const paymentAvailableAmountSql = sql<number>`${paymentFreeAmountSql} - least(${paymentFreeAmountSql}, greatest(${ownerRefundedAmountSql} - ${newerPaymentsFreeAmountSql}, 0))`;
