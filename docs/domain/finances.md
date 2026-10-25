@@ -481,6 +481,14 @@ Production held no crossed row on a foreign key when this landed (#660, counted
   no reversal order, no blocking case, and no automatic refill of what the
   deletion freed.
 
+> **Specified, not built.**
+> Once refunds exist, the payment edit and deletion gain one refusal: an amount
+> cut, an academy change or a deletion that would leave the academy's
+> `Saldo disponible` below zero is refused under the pool lock, and the
+> administrator is told to edit or delete the refund first. Allocations never
+> block it; only money already refunded does. Owner:
+> [#728](https://github.com/leomontigatti/en-escena/issues/728).
+
 ## Payment instructions
 
 `Instrucciones de pago` (`paymentInstructions`) is what an academy needs in
@@ -640,8 +648,16 @@ they live in one module.
 > refund code path, so `Saldo disponible` reads as `Σ payments − Σ allocations`.
 > ADR-0014 §6 specifies a `Reembolso` mirroring `Pago` — academy, event, amount,
 > date, `refundMethod` over the same method enum, `refundNumber` — that **never
-> carries allocations** and is capped at `Saldo disponible`. Owner:
-> [#536](https://github.com/leomontigatti/en-escena/issues/536). Note the term:
+> carries allocations** and is capped at `Saldo disponible`, re-checked under the
+> pool lock. A refund names no payment: it is read as drawing on the academy's
+> payments **newest-first**, derived and never stored, so each payment's
+> `Disponible` and the funding cap read the same figure and their sum is
+> `Saldo disponible`. One module computes the figure for every reader. Payments
+> and refunds are listed together as `Movimientos` — the event-wide list at
+> `/administracion/movimientos`, a tab on the academy's finance page (the only
+> place a refund is registered), and the portal's and an individual's own
+> page — never with allocations. Owner:
+> [#728](https://github.com/leomontigatti/en-escena/issues/728). Note the term:
 > `Devolución` is reserved for the judge's private feedback audio and must not be
 > used for money.
 
