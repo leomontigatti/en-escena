@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import { academies, paymentAllocations, payments } from "@/db/schema";
+import { academies, payments } from "@/db/schema";
 import {
   createPaymentFieldNames,
   createPaymentSchema,
@@ -17,8 +17,12 @@ import {
 } from "@/lib/auth/internal-access.server";
 import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import { lockPaymentPool } from "@/lib/finances/allocation-pool.server";
+import {
+  readAvailableBalance,
+  type OwnerPool,
+  type PaymentAvailability,
+} from "@/lib/finances/available-balance.server";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
-import { resolvePaymentAvailableAmount } from "@/lib/finances/payment-available-amount.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { readFormData } from "@/lib/shared/read-form-data";
@@ -90,9 +94,9 @@ export async function loadPaymentDetail(request: Request, paymentId: string) {
     throw new Response("No encontramos ese pago.", { status: 404 });
   }
 
-  const [academyOptions, allocatedAmount, affectedUnits] = await Promise.all([
+  const [academyOptions, availability, affectedUnits] = await Promise.all([
     listPaymentAcademyOptions(),
-    sumPaymentAllocatedAmount(paymentDetail.id),
+    readPaymentAvailability(db, paymentDetail, paymentDetail.id),
     readPaymentDeletionImpact({
       academyId: paymentDetail.academyId,
       eventId: paymentDetail.eventId,
@@ -103,13 +107,8 @@ export async function loadPaymentDetail(request: Request, paymentId: string) {
   return {
     academies: academyOptions,
     affectedUnits,
-    allocatedAmount,
-    // Derived from the sum the edit guards already needed, so the detail reads
-    // one figure and not two that could disagree.
-    availableAmount: resolvePaymentAvailableAmount({
-      allocatedAmount,
-      amount: paymentDetail.amount,
-    }),
+    allocatedAmount: availability.allocatedAmount,
+    availableAmount: availability.paymentAvailableAmount,
     canWrite: canWriteInAdminPanel(user.role),
     payment: paymentDetail,
     selectedEventId: eventContext.selectedEventId ?? paymentDetail.eventId,
@@ -188,8 +187,13 @@ async function updatePayment(input: {
         return { academyId: "Seleccioná una academia válida." };
       }
 
+      const availability = await readPaymentAvailability(
+        tx,
+        payment,
+        input.paymentId,
+      );
       const accountingFieldErrors = getPaymentEditAccountingFieldErrors({
-        allocatedAmount: await sumPaymentAllocatedAmount(input.paymentId, tx),
+        allocatedAmount: availability.allocatedAmount,
         currentAcademyId: payment.academyId,
         nextAcademyId: parsed.data.academyId,
         nextAmount: Number(parsed.data.amount),
@@ -313,16 +317,26 @@ function getPaymentFormValues(payment: {
   };
 }
 
-async function sumPaymentAllocatedAmount(
+/**
+ * The payment's own line of its owner's pool, read through the one owner of
+ * `Saldo disponible`, so the detail and the edit guard read the figures every
+ * other surface reads.
+ */
+async function readPaymentAvailability(
+  executor: Executor,
+  pool: OwnerPool,
   paymentId: string,
-  executor: Executor = db,
-) {
-  const rows = await executor
-    .select({ amount: paymentAllocations.amount })
-    .from(paymentAllocations)
-    .where(eq(paymentAllocations.paymentId, paymentId));
+): Promise<PaymentAvailability> {
+  const balance = await readAvailableBalance(executor, pool);
+  const availability = balance.payments.find(
+    (payment) => payment.paymentId === paymentId,
+  );
 
-  return rows.reduce((total, allocation) => total + allocation.amount, 0);
+  if (!availability) {
+    throw new Response("No encontramos ese pago.", { status: 404 });
+  }
+
+  return availability;
 }
 
 function getPaymentEditAccountingFieldErrors(input: {

@@ -1,0 +1,211 @@
+/**
+ * The one owner of an owner's `Saldo disponible` (`availableBalanceAmount`) and
+ * of each payment's `Disponible` (`paymentAvailableAmount`). Every summary, the
+ * funding cap of the pool, and the payment edit guard read them from here, so
+ * no screen and no write can disagree about how much money is free.
+ *
+ * ```
+ * Saldo disponible = Σ payments − Σ allocations − Σ refunds
+ * ```
+ *
+ * A payment's **free money** is its amount minus what its own allocations
+ * commit. Refunds name no payment, so they are read as drawing on that free
+ * money **newest payment number first**, never more from a payment than it has
+ * free. A payment's `Disponible` is its free money minus the refund it carries,
+ * and the payments' figures sum to `Saldo disponible`. Nothing of the split is
+ * stored: it is derived on every read (`splitAvailableBalance`).
+ *
+ * **It carries no provenance.** An allocation names an inscription and an
+ * amount, never a payment, and unwinding one can return the money on a
+ * different payment than it left. So a `Disponible` reads as "how much of this
+ * payment is still free to draw", never as "this payment is unresolved".
+ *
+ * Free money is floored at zero rather than trusted to be non-negative. It
+ * cannot go negative —an allocation is capped against the pool and a payment's
+ * amount cannot be edited below what it already funds— so the floor is a guard
+ * and not a calculation.
+ *
+ * Refunds do not exist yet (#728), so the read passes a refunds total of zero
+ * and every figure is the payment's free money.
+ */
+
+import { and, eq, inArray, sql } from "drizzle-orm";
+
+import { paymentAllocations, payments } from "@/db/schema";
+
+import type { Executor } from "./choreography-cobro-support.server";
+
+/** What the split needs of one payment of the pool. */
+export type PoolPayment = {
+  allocatedAmount: number;
+  amount: number;
+  paymentId: string;
+  paymentNumber: number;
+};
+
+export type PaymentAvailability = PoolPayment & {
+  paymentAvailableAmount: number;
+};
+
+export type AvailableBalance = {
+  availableBalanceAmount: number;
+  /** Oldest first by payment number: the order funding draws in. */
+  payments: PaymentAvailability[];
+};
+
+/** One owner's pool in one event. */
+export type OwnerPool = { academyId: string; eventId: string };
+
+/**
+ * Each payment's `Disponible` and the owner's `Saldo disponible`, from the
+ * payments with their own allocations and the owner's refunds total.
+ */
+export function splitAvailableBalance(input: {
+  payments: readonly PoolPayment[];
+  refundedAmount: number;
+}): AvailableBalance {
+  const newestFirst = [...input.payments].sort(
+    (left, right) => right.paymentNumber - left.paymentNumber,
+  );
+  let undrawnRefund = input.refundedAmount;
+  const split: PaymentAvailability[] = [];
+
+  for (const payment of newestFirst) {
+    const freeAmount = Math.max(payment.amount - payment.allocatedAmount, 0);
+    const refundShare = Math.min(freeAmount, undrawnRefund);
+
+    undrawnRefund -= refundShare;
+    split.push({
+      ...payment,
+      paymentAvailableAmount: freeAmount - refundShare,
+    });
+  }
+
+  split.reverse();
+
+  return {
+    availableBalanceAmount: split.reduce(
+      (sum, payment) => sum + payment.paymentAvailableAmount,
+      0,
+    ),
+    payments: split,
+  };
+}
+
+/**
+ * The split of several owners in one event, in one read. An owner with no
+ * payment reads an empty pool. It takes the caller's executor, so a write that
+ * holds the pool lock reads what the lock protects.
+ */
+export async function readAvailableBalances(
+  executor: Executor,
+  input: { academyIds: readonly string[]; eventId: string },
+): Promise<Map<string, AvailableBalance>> {
+  const academyIds = [...new Set(input.academyIds)];
+  const balances = new Map<string, AvailableBalance>();
+
+  if (academyIds.length === 0) {
+    return balances;
+  }
+
+  const [paymentRows, allocationRows] = await Promise.all([
+    executor
+      .select({
+        academyId: payments.academyId,
+        amount: payments.amount,
+        paymentId: payments.id,
+        paymentNumber: payments.paymentNumber,
+      })
+      .from(payments)
+      .where(
+        and(
+          eq(payments.eventId, input.eventId),
+          inArray(payments.academyId, academyIds),
+        ),
+      ),
+    // Every allocation of the event, whichever kind of inscription it sits on:
+    // an owner draws on one pool, not one per kind.
+    executor
+      .select({
+        amount: paymentAllocations.amount,
+        paymentId: paymentAllocations.paymentId,
+      })
+      .from(paymentAllocations)
+      .where(
+        and(
+          eq(paymentAllocations.eventId, input.eventId),
+          inArray(paymentAllocations.academyId, academyIds),
+        ),
+      ),
+  ]);
+
+  const allocatedByPayment = new Map<string, number>();
+  for (const allocation of allocationRows) {
+    allocatedByPayment.set(
+      allocation.paymentId,
+      (allocatedByPayment.get(allocation.paymentId) ?? 0) + allocation.amount,
+    );
+  }
+
+  const paymentsByAcademy = new Map<string, PoolPayment[]>(
+    academyIds.map((academyId) => [academyId, []]),
+  );
+  for (const { academyId, ...payment } of paymentRows) {
+    paymentsByAcademy.get(academyId)?.push({
+      ...payment,
+      allocatedAmount: allocatedByPayment.get(payment.paymentId) ?? 0,
+    });
+  }
+
+  for (const [academyId, poolPayments] of paymentsByAcademy) {
+    balances.set(
+      academyId,
+      splitAvailableBalance({ payments: poolPayments, refundedAmount: 0 }),
+    );
+  }
+
+  return balances;
+}
+
+/** The split of one owner's pool in one event. */
+export async function readAvailableBalance(
+  executor: Executor,
+  pool: OwnerPool,
+): Promise<AvailableBalance> {
+  const balances = await readAvailableBalances(executor, {
+    academyIds: [pool.academyId],
+    eventId: pool.eventId,
+  });
+
+  return balances.get(pool.academyId) ?? emptyAvailableBalance();
+}
+
+/** The owner's `Saldo disponible` alone. */
+export async function readAcademyAvailableBalance(
+  executor: Executor,
+  pool: OwnerPool,
+): Promise<number> {
+  const balance = await readAvailableBalance(executor, pool);
+
+  return balance.availableBalanceAmount;
+}
+
+function emptyAvailableBalance(): AvailableBalance {
+  return { availableBalanceAmount: 0, payments: [] };
+}
+
+/**
+ * The SQL form of a payment's `Disponible`, for the event-wide payments list,
+ * which filters, sums and paginates on it in the database. It is the split at a
+ * refunds total of zero: the payment's free money. When refunds land it has to
+ * draw their share as `splitAvailableBalance` does, and the module's DB test
+ * pins the two forms to the same figures.
+ *
+ * The figure is wrapped in a second template on purpose: Drizzle leaves the
+ * columns of a select field unqualified when the query has a single table, and
+ * an unqualified `id` inside the subquery would resolve to the allocation's own
+ * id. Columns of a nested template are always qualified.
+ */
+const paymentFreeAmountSql = sql`greatest(${payments.amount} - coalesce((select sum(${paymentAllocations.amount}) from ${paymentAllocations} where ${paymentAllocations.paymentId} = ${payments.id}), 0), 0)`;
+
+export const paymentAvailableAmountSql = sql<number>`${paymentFreeAmountSql}`;

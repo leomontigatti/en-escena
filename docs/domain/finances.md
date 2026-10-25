@@ -578,6 +578,16 @@ they live in one module.
   allocation is capped against what is still free, and the one way to shrink the
   other side — editing a payment down — is floored at what that payment already
   funds. There is no subtraction that could overshoot.
+- **One owner for the figure.** `Saldo disponible` and each payment's
+  `Disponible` are computed in one module (`available-balance.server.ts`), and
+  every reader takes them from there: the finance summaries of the panel, the
+  portal and an individual's area, the funding cap, the payment detail with its
+  edit guard, and the payments list. A payment's free money is its amount minus
+  its own allocations; the split draws an owner's refunds total on that free
+  money newest payment number first, never more from a payment than it has free,
+  and what is left on each payment is its `Disponible`. The payments' figures sum
+  to `Saldo disponible`. The list filters and sums `Disponible` in SQL, so it
+  reads the module's SQL form of the same figure.
 - **Funding** — the administrator names an inscription and an amount, **never a
   payment**. The system consumes the academy's payments **oldest-first by payment
   number**, creating or incrementing the `(payment, inscription)` row until the
@@ -654,9 +664,10 @@ they live in one module.
 > event are fixed once it exists. A refund names no payment: it is read as
 > drawing on each payment's **free money** (amount minus its own allocations),
 > **newest-first**, derived and never stored, so no payment carries more refund
-> than it has free. A payment's `Disponible` becomes its free money minus the
-> refund it carries, the funding cap reads that same figure, and their sum is
-> `Saldo disponible`. One module computes the figure for every reader. A refund
+> than it has free. The module that owns the figure already splits a refunds
+> total that way (see "One owner for the figure" above); what is missing is the
+> refunds it would read, which today total zero, and the same draw in the
+> payments list's SQL form. A refund
 > is the one subtraction the floor does not hold by construction, which is why
 > the payment edit and deletion gain a refusal (see "Payments"). An academy
 > merge moves the removed academy's refunds with its payments. Payments

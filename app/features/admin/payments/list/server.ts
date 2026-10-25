@@ -5,7 +5,7 @@ import { academies, payments } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import { requireAdminPanelReader } from "@/lib/auth/internal-access.server";
-import { paymentAvailableAmountSql } from "@/lib/finances/payment-available-amount.server";
+import { paymentAvailableAmountSql } from "@/lib/finances/available-balance.server";
 import { paymentMethodValues } from "@/lib/finances/payment-methods";
 import { eventSequenceNumberDigits } from "@/lib/events/sequence-number";
 import { adminListPageSize } from "@/lib/admin/admin-list";
