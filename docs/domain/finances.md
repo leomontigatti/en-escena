@@ -522,11 +522,11 @@ and is not a `payment`.
   is a plain save.
 - **Registration readiness ignores them.** Missing instructions never block
   `Abrir inscripciones` on a `Cronograma`.
-- **Where they show**: the payments page of the `Portal de academias`, as an
+- **Where they show**: the `Movimientos` page of the `Portal de academias`, as an
   info note between the page subtitle and the payment list or its empty state,
   in the `Evento activo` only, with a copy control on the `CBU/CVU` and the
   `Alias` and the `Titular` and `CUIT` read together; and the same note above
-  the payments of an individual's `Movimientos` (see [Surfaces](#surfaces)).
+  the movements of an individual's `Movimientos` (see [Surfaces](#surfaces)).
   Nowhere else — not the academy's finances
   page, not the portal home, not any admin list.
 
@@ -668,7 +668,9 @@ they live in one module.
   money. A refund changes no inscription's status, comprobante comparison or
   15-day clock. It is registered from the `Movimientos` tab of the owner's
   finance page, the only place to do so, which lists the owner's payments and
-  refunds newest first, never its allocations. Note the term: `Devolución` is
+  refunds newest first, never its allocations. The portal's and an
+  individual's own `Movimientos` page list the owner's refunds beside its
+  payments the same way, kind badged, without either's internal note. Note the term: `Devolución` is
   reserved for the judge's private feedback audio and must not be used for
   money.
 - **Correcting a refund** is editing or deleting it, never a counter-movement,
@@ -685,8 +687,8 @@ they live in one module.
 > A refund is the one subtraction the floor does not hold by construction,
 > which is why the payment edit and deletion gain a
 > refusal (see "Payments"). An academy merge moves the removed academy's refunds
-> with its payments. The event-wide list at `/administracion/movimientos` and the
-> portal's and an individual's own page list refunds beside payments too. Owner:
+> with its payments. The event-wide list at `/administracion/movimientos` lists
+> refunds beside payments too. Owner:
 > [#728](https://github.com/leomontigatti/en-escena/issues/728).
 
 ## The money gestures
@@ -1405,9 +1407,10 @@ and no request actions. The restriction is **permanent and role-based**.
   rollup.
 - The payments list is the `Movimientos` section, at `/administracion/movimientos`
   with a payment under `/administracion/movimientos/pagos/`, and the portal's
-  and an individual's own payments page is `Movimientos` too. They list
-  payments only until refunds join them (see "The pool rules"); the
-  `Movimientos` tab of an owner's finance page already lists both.
+  and an individual's own payments page is `Movimientos` too. The portal's and
+  the individual's pages and the `Movimientos` tab of an owner's finance page
+  list payments and refunds; the event-wide list holds payments only until
+  refunds join it (see "The pool rules").
 - Panel and portal read the **same derivation**, so the portal cannot disagree
   with the panel. The primary amounts on both are `Seña adeudada`, `Saldo disponible`
   and `Saldo adeudado`.

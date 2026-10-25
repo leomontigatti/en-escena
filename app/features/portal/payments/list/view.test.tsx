@@ -17,15 +17,35 @@ import { PortalAcademyPaymentsRouteView } from "./view";
 import type { loadPortalAcademyPayments } from "./server";
 
 type LoaderData = Awaited<ReturnType<typeof loadPortalAcademyPayments>>;
-type PaymentRow = Extract<
+type MovementRow = Extract<
   LoaderData,
   { activeEvent: object }
->["payments"][number];
+>["movements"][number];
 
 describe("PortalAcademyPaymentsRouteView", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(renderer.cleanup);
+
+  test("tells a refund from a payment, each with its own number", async () => {
+    await renderPortalPayments(
+      renderer,
+      portalPaymentsLoaderDataFixture({
+        movements: [
+          movementRowFixture({ id: "refund_1", kind: "refund", number: 3 }),
+          movementRowFixture({ id: "payment_1", number: 3 }),
+        ],
+      }),
+    );
+
+    expect(
+      Array.from(document.querySelectorAll("tbody tr"), (row) =>
+        Array.from(row.querySelectorAll("td"), (cell) => cell.textContent)
+          .slice(0, 2)
+          .join(" "),
+      ),
+    ).toEqual(["Reembolso 00003", "Pago 00003"]);
+  });
 
   test("shows each payment number without linking to a detail", async () => {
     await renderPortalPayments(renderer, portalPaymentsLoaderDataFixture());
@@ -58,15 +78,15 @@ describe("PortalAcademyPaymentsRouteView", () => {
     await renderPortalPayments(
       renderer,
       portalPaymentsLoaderDataFixture({
-        payments: [
-          paymentRowFixture({
+        movements: [
+          movementRowFixture({
             id: "payment_1",
-            paymentNumber: 42,
+            number: 42,
             reference: "TRF-9",
           }),
-          paymentRowFixture({
+          movementRowFixture({
             id: "payment_2",
-            paymentNumber: 7,
+            number: 7,
             reference: "MP-4",
           }),
         ],
@@ -91,14 +111,14 @@ describe("PortalAcademyPaymentsRouteView", () => {
     expect(text).not.toContain(hidden);
   });
 
-  test("shows the empty state when the academy has no payments", async () => {
+  test("shows the empty state when the academy has no movements", async () => {
     await renderPortalPayments(
       renderer,
-      portalPaymentsLoaderDataFixture({ payments: [] }),
+      portalPaymentsLoaderDataFixture({ movements: [] }),
     );
 
     expect(document.body.textContent).toContain(
-      "Todavía no hay pagos registrados",
+      "Todavía no hay movimientos registrados",
     );
   });
 });
@@ -135,7 +155,7 @@ function portalPaymentsLoaderDataFixture(
       endsAt: new Date("2026-03-02T00:00:00Z"),
     },
     paymentInstructions: null,
-    payments: [paymentRowFixture({ id: "payment_1", reference: "TRF-9" })],
+    movements: [movementRowFixture({ id: "payment_1", reference: "TRF-9" })],
     ...overrides,
   };
 }
@@ -155,13 +175,14 @@ function paymentInstructionsFixture(
   };
 }
 
-function paymentRowFixture(overrides: Partial<PaymentRow> = {}): PaymentRow {
+function movementRowFixture(overrides: Partial<MovementRow> = {}): MovementRow {
   return {
     id: "payment",
     amount: 10000,
-    paymentDate: "2026-02-10",
-    paymentMethod: "transferencia",
-    paymentNumber: 1,
+    date: "2026-02-10",
+    kind: "payment",
+    method: "transferencia",
+    number: 1,
     reference: "TRF-9",
     ...overrides,
   };
@@ -182,7 +203,7 @@ describe("PortalAcademyPaymentsRouteView payment instructions", () => {
     await renderPortalPayments(renderer, {
       activeEvent: null,
       paymentInstructions: null,
-      payments: [],
+      movements: [],
     });
 
     expect(document.querySelector('[data-slot="alert"]')).toBeNull();
