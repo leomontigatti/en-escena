@@ -8,6 +8,7 @@ import {
   modalities,
   paymentAllocations,
   payments,
+  refunds,
 } from "@/db/schema";
 import {
   workbookResponse,
@@ -17,7 +18,10 @@ import {
   dateInPeriod,
   readPeriodExport,
 } from "@/features/admin/period-export/server";
-import { buildPeriodExportFileName } from "@/features/admin/period-export/shared";
+import {
+  buildPeriodExportFileName,
+  type ExportPeriod,
+} from "@/features/admin/period-export/shared";
 import {
   formatProvinceLabel,
   noProvinceLabel,
@@ -34,27 +38,93 @@ import {
 
 /**
  * The `Recaudación` workbook of the selected event, for the auditor: the
- * money that arrived in the period, by payment date. `Movimientos` lists each
- * payment and refund; `Por provincia` and `Por modalidad` break the same
- * payments down, so each sums to `Pagos`. `Por modalidad` reads the payments'
- * current allocations — where the money sits today, not on the payment date —
- * with `Seminarios` for seminar allocations and `Sin asignar` for free money.
- *
- * `refund` is specified but not built (#728): until it is, `Reembolsos` is
- * zero and `Movimientos` lists payments only. Refunds never carry allocations,
- * so they will appear in `Movimientos` alone.
+ * money that arrived in the period, by payment date, and the money handed
+ * back, by refund date. `Movimientos` lists each payment and refund in date
+ * order and closes with `Pagos`, `Reembolsos` and `Neto`. `Por provincia` and
+ * `Por modalidad` break the payments alone down, so each sums to `Pagos`:
+ * refunds carry no allocation. `Por modalidad` reads the payments' current
+ * allocations — where the money sits today, not on the payment date — with
+ * `Seminarios` for seminar allocations and `Sin asignar` for free money.
  */
 export async function loadCollectionExport(
   request: Request,
 ): Promise<Response> {
   const { eventId, eventName, period } = await readPeriodExport(request);
-  const inPeriod = and(
-    eq(payments.eventId, eventId),
-    dateInPeriod(payments.paymentDate, period),
+  const [rows, refundRows] = await Promise.all([
+    readPaymentRows(eventId, period),
+    readRefundRows(eventId, period),
+  ]);
+  const paymentRows = [
+    ...new Map(rows.map((row) => [row.id, row])).values(),
+  ].map(({ academyName, amount, date, method, number, province }) => ({
+    academyName,
+    amount,
+    date,
+    method,
+    number,
+    province,
+  }));
+  const allocationRows = rows.flatMap(({ allocatedAmount, modalityName }) =>
+    allocatedAmount === null ? [] : [{ amount: allocatedAmount, modalityName }],
   );
-  // One statement, so the payments and the money allocated from them are read
-  // from the same snapshot and the sheets always add up to each other.
-  const rows = await db
+  const paymentsTotal = sum(paymentRows);
+  const refundsTotal = sum(refundRows);
+  // The sort is stable: a day's payments come before its refunds, each kind
+  // in number order as read.
+  const movementRows = [
+    ...paymentRows.map(({ province: _province, ...row }) => ({
+      ...row,
+      kind: "movement" as const,
+      type: "payment" as const,
+    })),
+    ...refundRows.map((row) => ({
+      ...row,
+      kind: "movement" as const,
+      type: "refund" as const,
+    })),
+  ].sort((left, right) => left.date.localeCompare(right.date));
+
+  return await workbookResponse({
+    fileName: buildPeriodExportFileName("recaudacion", eventName, period),
+    sheets: [
+      workbookSheet({
+        columns: collectionMovementColumns,
+        rows: [
+          ...movementRows,
+          { amount: paymentsTotal, kind: "total", label: "Pagos" },
+          { amount: refundsTotal, kind: "total", label: "Reembolsos" },
+          {
+            amount: paymentsTotal - refundsTotal,
+            kind: "total",
+            label: "Neto",
+          },
+        ] satisfies CollectionMovementRow[],
+        sheet: "Movimientos",
+      }),
+      workbookSheet({
+        columns: collectionByGroupColumns("Provincia"),
+        rows: withTotal(groupByProvince(paymentRows), paymentsTotal),
+        sheet: "Por provincia",
+      }),
+      workbookSheet({
+        columns: collectionByGroupColumns("Modalidad"),
+        rows: withTotal(
+          groupByAllocation(allocationRows, paymentsTotal),
+          paymentsTotal,
+        ),
+        sheet: "Por modalidad",
+      }),
+    ],
+  });
+}
+
+/**
+ * The period's payments, one row per allocation (or one for a payment with
+ * none). One statement, so the payments and the money allocated from them are
+ * read from the same snapshot and the sheets always add up to each other.
+ */
+async function readPaymentRows(eventId: string, period: ExportPeriod) {
+  return await db
     .select({
       academyName: academies.name,
       allocatedAmount: paymentAllocations.amount,
@@ -81,60 +151,34 @@ export async function loadCollectionExport(
       eq(choreographies.id, choreographyDancers.choreographyId),
     )
     .leftJoin(modalities, eq(modalities.id, choreographies.modalityId))
-    .where(inPeriod)
+    .where(
+      and(
+        eq(payments.eventId, eventId),
+        dateInPeriod(payments.paymentDate, period),
+      ),
+    )
     .orderBy(asc(payments.paymentDate), asc(payments.paymentNumber));
-  const paymentRows = [
-    ...new Map(rows.map((row) => [row.id, row])).values(),
-  ].map(({ academyName, amount, date, method, number, province }) => ({
-    academyName,
-    amount,
-    date,
-    method,
-    number,
-    province,
-  }));
-  const allocationRows = rows.flatMap(({ allocatedAmount, modalityName }) =>
-    allocatedAmount === null ? [] : [{ amount: allocatedAmount, modalityName }],
-  );
-  const paymentsTotal = sum(paymentRows);
-  const refundsTotal = 0;
+}
 
-  return await workbookResponse({
-    fileName: buildPeriodExportFileName("recaudacion", eventName, period),
-    sheets: [
-      workbookSheet({
-        columns: collectionMovementColumns,
-        rows: [
-          ...paymentRows.map((row): CollectionMovementRow => ({
-            ...row,
-            kind: "movement",
-            type: "payment",
-          })),
-          { amount: paymentsTotal, kind: "total", label: "Pagos" },
-          { amount: refundsTotal, kind: "total", label: "Reembolsos" },
-          {
-            amount: paymentsTotal - refundsTotal,
-            kind: "total",
-            label: "Neto",
-          },
-        ],
-        sheet: "Movimientos",
-      }),
-      workbookSheet({
-        columns: collectionByGroupColumns("Provincia"),
-        rows: withTotal(groupByProvince(paymentRows), paymentsTotal),
-        sheet: "Por provincia",
-      }),
-      workbookSheet({
-        columns: collectionByGroupColumns("Modalidad"),
-        rows: withTotal(
-          groupByAllocation(allocationRows, paymentsTotal),
-          paymentsTotal,
-        ),
-        sheet: "Por modalidad",
-      }),
-    ],
-  });
+/** The period's refunds, by refund date; every owner's, as with payments. */
+async function readRefundRows(eventId: string, period: ExportPeriod) {
+  return await db
+    .select({
+      academyName: academies.name,
+      amount: refunds.amount,
+      date: refunds.refundDate,
+      method: refunds.refundMethod,
+      number: refunds.refundNumber,
+    })
+    .from(refunds)
+    .innerJoin(academies, eq(academies.id, refunds.academyId))
+    .where(
+      and(
+        eq(refunds.eventId, eventId),
+        dateInPeriod(refunds.refundDate, period),
+      ),
+    )
+    .orderBy(asc(refunds.refundDate), asc(refunds.refundNumber));
 }
 
 function sum(rows: readonly { amount: number }[]) {
