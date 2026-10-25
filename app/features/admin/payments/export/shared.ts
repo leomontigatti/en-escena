@@ -1,2 +1,2 @@
 /** Where the auditor's `Recaudación` workbook lives; the period travels in its query. */
-export const collectionExportPath = "/administracion/pagos/exportar";
+export const collectionExportPath = "/administracion/movimientos/exportar";

@@ -18,8 +18,8 @@ type IndividualPaymentsLoaderData = Awaited<
 const description = "Consultá los pagos que administración registró para vos.";
 
 /**
- * `Pagos` (ADR-0019): how to pay, then what administration recorded. It is
- * read-only, as the portal's `Pagos` is: administration records and allocates.
+ * `Movimientos` (ADR-0019): how to pay, then what administration recorded. It is
+ * read-only, as the portal's `Movimientos` is: administration records and allocates.
  */
 export function IndividualPaymentsView({
   loaderData,
@@ -29,7 +29,7 @@ export function IndividualPaymentsView({
   return (
     <PortalListPage
       titleId="individual-payments-title"
-      title="Pagos"
+      title="Movimientos"
       description={description}
     >
       {loaderData.activeEvent ? (

@@ -17,7 +17,7 @@ const renderer = createReactDomTestRenderer();
 
 afterEach(renderer.cleanup);
 
-const createPath = "/administracion/pagos/nuevo";
+const createPath = "/administracion/movimientos/pagos/nuevo";
 
 describe("the payment creation form", () => {
   test("keeps `Guardar` off until something is typed, and `Descartar cambios` empties it again", async () => {
@@ -42,7 +42,7 @@ describe("the payment creation form", () => {
     await clickBack();
 
     expect(findDialog()).toBeUndefined();
-    expect(page.pathname()).toBe("/administracion/pagos");
+    expect(page.pathname()).toBe("/administracion/movimientos");
 
     await page.router.navigate(createPath);
     await settle();
@@ -61,7 +61,7 @@ describe("the payment creation form", () => {
     await settle();
 
     expect(findDialog()).toBeUndefined();
-    expect(page.pathname()).toBe("/administracion/pagos/payment_1");
+    expect(page.pathname()).toBe("/administracion/movimientos/pagos/payment_1");
   });
 
   test("keeps `Guardar` on after a refused save, with what was typed still in the form", async () => {
@@ -100,10 +100,13 @@ async function renderPage({
 
   const router = createMemoryRouter(
     [
-      { element: <p>Lista</p>, path: "/administracion/pagos" },
-      { element: <p>Detalle</p>, path: "/administracion/pagos/payment_1" },
+      { element: <p>Lista</p>, path: "/administracion/movimientos" },
       {
-        action: () => redirect("/administracion/pagos/payment_1"),
+        element: <p>Detalle</p>,
+        path: "/administracion/movimientos/pagos/payment_1",
+      },
+      {
+        action: () => redirect("/administracion/movimientos/pagos/payment_1"),
         element: (
           <NewPaymentRouteView
             actionData={actionData}
@@ -165,7 +168,7 @@ function findDialog() {
 async function clickBack() {
   await act(async () => {
     document
-      .querySelector("a[href='/administracion/pagos']")
+      .querySelector("a[href='/administracion/movimientos']")
       ?.dispatchEvent(
         new MouseEvent("click", { bubbles: true, button: 0, cancelable: true }),
       );

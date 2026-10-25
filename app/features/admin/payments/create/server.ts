@@ -84,7 +84,7 @@ export async function handlePaymentCreateAction(
   });
 
   throw await redirectWithFlashNotification(
-    `/administracion/pagos/${paymentId}`,
+    `/administracion/movimientos/pagos/${paymentId}`,
     "payment-recorded",
   );
 }

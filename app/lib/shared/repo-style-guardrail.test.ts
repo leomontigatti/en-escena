@@ -161,7 +161,7 @@ describe("repo style check", () => {
           "searchParams.set('busqueda', query);",
           "next.delete(`orden`);",
           "const href = `/administracion/bailarines?busqueda=${query}`;",
-          'const back = "/administracion/pagos?medio=efectivo&pagina=2";',
+          'const back = "/administracion/movimientos?medio=efectivo&pagina=2";',
           'const column = { id: "orden", header: "Orden" };',
           'const sort = { columnId: "orden", direction: "asc" };',
           'const estado = searchParams.get("estado");',

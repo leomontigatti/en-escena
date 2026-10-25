@@ -2,7 +2,7 @@ import type { AdminRouteHandle } from "@/components/admin/shell";
 import { loadPaymentsList } from "@/features/admin/payments/list/server";
 import { PaymentsListRouteView } from "@/features/admin/payments/list/view";
 
-import type { Route } from "./+types/administracion.pagos";
+import type { Route } from "./+types/administracion.movimientos";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
@@ -11,11 +11,11 @@ type PaymentsListRouteProps = {
 };
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Pagos | Panel de administración | En Escena" },
+  { title: "Movimientos | Panel de administración | En Escena" },
 ];
 
 export const handle = {
-  adminBreadcrumbs: [{ label: "Pagos" }],
+  adminBreadcrumbs: [{ label: "Movimientos" }],
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {

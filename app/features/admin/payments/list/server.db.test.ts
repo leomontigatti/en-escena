@@ -93,7 +93,9 @@ describe("admin payments list", () => {
       await listRequest("disponible=quizas"),
     );
 
-    expect(redirect.headers.get("location")).toBe("/administracion/pagos");
+    expect(redirect.headers.get("location")).toBe(
+      "/administracion/movimientos",
+    );
   });
 
   test("finds a payment whatever accents the search is typed with", async () => {
@@ -128,7 +130,7 @@ describe("admin payments list", () => {
     );
 
     expect(redirect.headers.get("location")).toBe(
-      "/administracion/pagos?medio=transferencia",
+      "/administracion/movimientos?medio=transferencia",
     );
   });
 });
@@ -232,7 +234,7 @@ async function listRequest(search = ""): Promise<Request> {
   const { request } = await createSignedInRequest({
     email: `${crypto.randomUUID()}@example.com`,
     role: "admin",
-    requestUrl: `http://localhost/administracion/pagos${query}`,
+    requestUrl: `http://localhost/administracion/movimientos${query}`,
   });
 
   return request;

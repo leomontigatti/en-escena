@@ -25,7 +25,7 @@ export function PortalAcademyPaymentsRouteView({
     return (
       <PortalListPage
         titleId="payments-title"
-        title="Pagos"
+        title="Movimientos"
         description="Consultá los pagos que administración registró para tu academia."
       >
         <PortalEmptyState
@@ -48,7 +48,7 @@ export function PortalAcademyPaymentsRouteView({
     return (
       <PortalListPage
         titleId="payments-title"
-        title="Pagos"
+        title="Movimientos"
         description="Consultá los pagos que administración registró para tu academia."
       >
         {instructionsAlert}
@@ -64,7 +64,7 @@ export function PortalAcademyPaymentsRouteView({
   return (
     <PortalListPage
       titleId="payments-title"
-      title="Pagos"
+      title="Movimientos"
       description="Consultá los pagos que administración registró para tu academia."
     >
       {instructionsAlert}

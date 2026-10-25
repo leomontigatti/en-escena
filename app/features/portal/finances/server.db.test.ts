@@ -211,7 +211,7 @@ describe("loadPortalAcademyFinances", () => {
     expect(markup).toContain("Saldo adeudado");
     expect(markup).toContain("Seña adeudada");
     expect(markup).not.toContain("Monto total pagado");
-    // Payments live in `/portal/pagos`, not in the summary.
+    // Payments live in `/portal/movimientos`, not in the summary.
     expect(markup).not.toContain("Pagos activos");
     expect(markup).not.toContain("TRX-PORTAL-001");
     expect(markup).toContain("Solo Señada");

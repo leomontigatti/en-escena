@@ -7,14 +7,14 @@ import { loader as academyDetailLoader } from "@/routes/administracion.academias
 import { loader as academiesLoader } from "@/routes/administracion.academias";
 import { loader as dancerDetailLoader } from "@/routes/administracion.bailarines_.$dancerId";
 import { loader as choreographyDetailLoader } from "@/routes/administracion.coreografias_.$choreographyId";
-import { loader as paymentDetailLoader } from "@/routes/administracion.pagos_.$paymentId";
+import { loader as paymentDetailLoader } from "@/routes/administracion.movimientos_.pagos.$paymentId";
 import { loader as professorDetailLoader } from "@/routes/administracion.profesores_.$professorId";
 import { seedPeriodExportFixture } from "@/features/admin/period-export/period-export.test-support";
 import { loader as dancersLoader } from "@/routes/administracion.bailarines";
 import { loader as choreographiesLoader } from "@/routes/administracion.coreografias";
 import { loader as eventsLoader } from "@/routes/administracion.eventos";
-import { loader as paymentsLoader } from "@/routes/administracion.pagos";
-import { loader as newPaymentLoader } from "@/routes/administracion.pagos_.nuevo";
+import { loader as paymentsLoader } from "@/routes/administracion.movimientos";
+import { loader as newPaymentLoader } from "@/routes/administracion.movimientos_.pagos.nuevo";
 import { loader as professorsLoader } from "@/routes/administracion.profesores";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { expectThrownResponse } from "@/lib/test-support/http";
@@ -48,14 +48,14 @@ const auditorReviewedRoutes = new Set([
   "administracion.profesores_.$professorId",
   "administracion.coreografias",
   "administracion.coreografias_.$choreographyId",
-  "administracion.pagos",
-  "administracion.pagos_.$paymentId",
+  "administracion.movimientos",
+  "administracion.movimientos_.pagos.$paymentId",
   "administracion.seminarios",
   "administracion_.academias.exportar",
   "administracion_.bailarines.exportar",
   "administracion_.profesores.exportar",
   "administracion_.coreografias.exportar",
-  "administracion_.pagos.exportar",
+  "administracion_.movimientos.exportar",
   "administracion_.seminarios.exportar",
   "administracion.particulares",
   "administracion.particulares_.$individualId",
@@ -138,7 +138,7 @@ const readerScreens = [
   ["Bailarines", "/administracion/bailarines", dancersLoader],
   ["Profesores", "/administracion/profesores", professorsLoader],
   ["Coreografías", "/administracion/coreografias", choreographiesLoader],
-  ["Pagos", "/administracion/pagos", paymentsLoader],
+  ["Movimientos", "/administracion/movimientos", paymentsLoader],
 ] as const;
 
 describe("the administration panel for an auditor", () => {
@@ -207,7 +207,12 @@ describe("the administration panel for an auditor", () => {
         `coreografias/${choreography.id}`,
         "canEdit",
       ],
-      [paymentDetailLoader, { paymentId }, `pagos/${paymentId}`, "canWrite"],
+      [
+        paymentDetailLoader,
+        { paymentId },
+        `movimientos/pagos/${paymentId}`,
+        "canWrite",
+      ],
     ] as const;
 
     for (const [child, params, path, flag] of details) {
@@ -224,7 +229,7 @@ describe("the administration panel for an auditor", () => {
 
   test.each([
     ["Eventos", "/administracion/eventos", eventsLoader],
-    ["Nuevo pago", "/administracion/pagos/nuevo", newPaymentLoader],
+    ["Nuevo pago", "/administracion/movimientos/pagos/nuevo", newPaymentLoader],
   ] as const)(
     "is still refused the admin-only %s screen",
     async (_label, path, child) => {
@@ -261,7 +266,7 @@ describe("the administration panel for an auditor", () => {
     "administracion_.bailarines.exportar",
     "administracion_.profesores.exportar",
     "administracion_.coreografias.exportar",
-    "administracion_.pagos.exportar",
+    "administracion_.movimientos.exportar",
     "administracion_.seminarios.exportar",
   ])("downloads the reviewed export %s inside the layout", async (id) => {
     const fixture = await seedPeriodExportFixture();

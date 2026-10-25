@@ -8,7 +8,7 @@ import {
 } from "@/features/admin/payments/create/server";
 import { buildGlobalPaymentRequest } from "@/lib/admin/finances/finances.test-support";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
-import { readOwnerEventPayments } from "@/lib/finances/owner-event-payments.server";
+import { readOwnerEventMovements } from "@/lib/finances/owner-event-movements.server";
 import {
   paySeminarsPreset,
   readSeminarCobroPreviews,
@@ -87,7 +87,7 @@ async function recordPayment(ownerId: string, amount: number) {
     amount: String(amount),
     paymentDate: "2026-04-01",
     paymentMethod: "transferencia",
-    requestUrl: "http://localhost/administracion/pagos/nuevo",
+    requestUrl: "http://localhost/administracion/movimientos/pagos/nuevo",
     role: "admin",
   });
 
@@ -122,7 +122,7 @@ describe("an individual's seminar money", () => {
     });
     const { request } = await createSignedInRequest({
       email: `admin.${crypto.randomUUID()}@example.com`,
-      requestUrl: "http://localhost/administracion/pagos/nuevo",
+      requestUrl: "http://localhost/administracion/movimientos/pagos/nuevo",
       role: "admin",
     });
 
@@ -143,7 +143,10 @@ describe("an individual's seminar money", () => {
     await recordPayment(ownerId, 20000);
 
     await expect(
-      readOwnerEventPayments({ academyId: ownerId, eventId: fixture.event.id }),
+      readOwnerEventMovements({
+        academyId: ownerId,
+        eventId: fixture.event.id,
+      }),
     ).resolves.toMatchObject([{ amount: 20000 }]);
 
     const [first] = fixture.inscriptions;

@@ -292,7 +292,7 @@ async function deletePayment(input: {
     };
   }
 
-  throw redirect("/administracion/pagos");
+  throw redirect("/administracion/movimientos");
 }
 
 function getPaymentFormValues(payment: {

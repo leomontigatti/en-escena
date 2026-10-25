@@ -350,7 +350,7 @@ function EditablePaymentDetailForm({
         contentClassName="gap-5"
         footer={
           <FormActions
-            backTo="/administracion/pagos"
+            backTo="/administracion/movimientos"
             hasChanges={isDirty}
             isPending={isPending}
             onDiscard={() => form.reset()}
@@ -380,7 +380,7 @@ function ReadOnlyPaymentDetail({ loaderData }: { loaderData: LoaderData }) {
         contentClassName="gap-5"
         footer={
           <FormActions
-            backTo="/administracion/pagos"
+            backTo="/administracion/movimientos"
             canEdit={false}
             hasChanges={false}
             isPending={false}

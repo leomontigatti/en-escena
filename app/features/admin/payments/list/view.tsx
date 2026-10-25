@@ -41,7 +41,10 @@ const paymentColumns: DataTableColumn<PaymentsListRow>[] = [
     header: "#",
     className: "font-medium tabular-nums",
     cell: (row) => (
-      <DataTableLink recordTitle to={`/administracion/pagos/${row.id}`}>
+      <DataTableLink
+        recordTitle
+        to={`/administracion/movimientos/pagos/${row.id}`}
+      >
         {formatEventSequenceNumber(row.paymentNumber)}
       </DataTableLink>
     ),
@@ -162,7 +165,7 @@ export function PaymentsListRouteView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title="Pagos"
+      title="Movimientos"
       description="Registrá y consultá los distintos pagos recibidos."
       eventRequiredEmptyState={{
         title: "No hay un evento activo para revisar pagos",
@@ -243,8 +246,8 @@ export function PaymentsListRouteView({
 
 function getCreatePaymentUrl(selectedEventId: string | null) {
   return selectedEventId
-    ? `/administracion/pagos/nuevo?evento=${selectedEventId}`
-    : "/administracion/pagos/nuevo";
+    ? `/administracion/movimientos/pagos/nuevo?evento=${selectedEventId}`
+    : "/administracion/movimientos/pagos/nuevo";
 }
 
 function buildInitialFacetedFilterValues(

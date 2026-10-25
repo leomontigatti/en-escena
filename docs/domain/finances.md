@@ -526,7 +526,7 @@ and is not a `payment`.
   info note between the page subtitle and the payment list or its empty state,
   in the `Evento activo` only, with a copy control on the `CBU/CVU` and the
   `Alias` and the `Titular` and `CUIT` read together; and the same note above
-  the payments of an individual's `Pagos` (see [Surfaces](#surfaces)).
+  the payments of an individual's `Movimientos` (see [Surfaces](#surfaces)).
   Nowhere else — not the academy's finances
   page, not the portal home, not any admin list.
 
@@ -1382,6 +1382,10 @@ and no request actions. The restriction is **permanent and role-based**.
   rollup — the two admin financial ones and the two portal ones. The payments
   list and detail are finance surfaces too; they just read payments, not the
   rollup.
+- The payments list is the `Movimientos` section, at `/administracion/movimientos`
+  with a payment under `/administracion/movimientos/pagos/`, and the portal's
+  and an individual's own payments page is `Movimientos` too. They list
+  payments only until refunds join them (see "The pool rules").
 - Panel and portal read the **same derivation**, so the portal cannot disagree
   with the panel. The primary amounts on both are `Seña adeudada`, `Saldo disponible`
   and `Saldo adeudado`.
@@ -1472,7 +1476,7 @@ apart beyond these surfaces:
   inscriptions.
 - The individual's area has a `Finanzas` group, read-only, shaped like the
   portal's: `Seminarios`, the five metrics over its own account and its
-  seminars with their status, and `Pagos`, its payments under the event's
+  seminars with their status, and `Movimientos`, its payments under the event's
   `Instrucciones de pago`. Comprobantes are not shown to individuals, as they
   are not to academies.
 
