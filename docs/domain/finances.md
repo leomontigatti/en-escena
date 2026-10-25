@@ -11,7 +11,7 @@ for _why_; read this for _what_. The identifier → UI term mapping is in
 ## How to read this document
 
 The settled model is larger than what is built. Half of it shipped; the invoicing half
-and the refund's correction, guards and lists are specified and not implemented.
+and the refund's correction and lists are specified and not implemented.
 Every statement here is therefore one of three things, and they are never mixed
 silently:
 
@@ -453,8 +453,8 @@ Production held no crossed row on a foreign key when this landed (#660, counted
   never by registering a negative or zero one.
 - **A payment is editable after the fact.** The admin payment detail carries a
   full edit form — academy, amount, date, method, reference and internal note —
-  and it writes all of them. **Exactly two accounting guards stand in its way**,
-  and nothing else:
+  and it writes all of them. **Two allocation guards stand in its way**, and
+  behind them only the refunds floor below:
   - the **academy is frozen once the payment carries allocations**
     (`No se puede cambiar la academia de un pago con asignaciones activas.`), so a payment
     registered against the wrong academy is re-pointed by editing while it is
@@ -478,17 +478,20 @@ Production held no crossed row on a foreign key when this landed (#660, counted
   the wrong academy is corrected by editing it while it holds no allocations, and
   once it does, by taking its money off or deleting it.
 - **Deleting a payment cascades its allocations** at the database level. There is
-  no reversal order, no blocking case, and no automatic refill of what the
+  no reversal order, no blocking allocation, and no automatic refill of what the
   deletion freed.
-
-> **Specified, not built.**
-> Once refunds exist, the payment edit and deletion gain one refusal: an amount
-> cut, an academy change or a deletion that would leave the academy's
-> `Saldo disponible` below zero is refused under the pool lock, and the
-> administrator is told to edit or delete the refund first. The two edit guards
-> above stay as they are; deletion stays unblocked by allocations, so only money
-> already refunded can block it. Owner:
-> [#728](https://github.com/leomontigatti/en-escena/issues/728).
+- **The refunds floor.** A refund draws on the owner's pool and names no
+  payment, so it is the one subtraction the floor does not hold by
+  construction. An amount cut, an academy change or a deletion that would leave
+  `Σ payments − Σ allocations − Σ refunds` below zero is refused under the pool
+  lock with `Los reembolsos superarían el saldo disponible. Editá o eliminá un
+reembolso primero.` (on the amount or the academy field, or after
+  `No se puede eliminar el pago.`). It reads that sum unfloored, from the
+  split's inputs (`paymentChangeUncoversRefunds`), and only for a change that
+  lowers the payment. It runs after the two edit guards, which stay as they
+  are; with no refunds it never refuses, so a deletion is still never blocked
+  by allocations. When it applies, the deletion dialog opens blocked and says
+  so instead of offering the button.
 
 ## Payment instructions
 
@@ -624,7 +627,8 @@ they live in one module.
   (`lockAcademyPool`, in the pool module) before it reads what is free: funding
   and unfunding, so every preset and every single-inscription gesture of either
   kind; the payment edit, before it checks the payment still covers what it
-  funds; the payment deletion; and the academy merge, on both academies in every
+  funds and that the refunds stay covered; the payment deletion, before the
+  same refunds check; and the academy merge, on both academies in every
   event. The write that comes second reads what the first left, so of two
   charges the pool can cover only one of, the second is refused with
   `La academia no tiene saldo disponible suficiente.` Funding and unfunding take
@@ -668,17 +672,16 @@ they live in one module.
   money. A refund changes no inscription's status, comprobante comparison or
   15-day clock. It is registered from the `Movimientos` tab of the owner's
   finance page, the only place to do so, which lists the owner's payments and
-  refunds newest first, never its allocations. Note the term: `Devolución` is
+  refunds newest first, never its allocations. A payment edit or deletion that
+  would leave refunds uncovered is refused (see "Payments"), and an academy
+  merge moves the removed academy's refunds with its payments. Note the term: `Devolución` is
   reserved for the judge's private feedback audio and must not be used for
   money.
 
 > **Specified, not built.**
 > A refund is corrected by editing (cap: `Saldo disponible` plus its own current
 > amount, re-checked under the pool lock) or deleting it; its academy and event
-> are fixed once it exists. A refund is the one subtraction the floor does not
-> hold by construction, which is why the payment edit and deletion gain a
-> refusal (see "Payments"). An academy merge moves the removed academy's refunds
-> with its payments. The event-wide list at `/administracion/movimientos` and the
+> are fixed once it exists. The event-wide list at `/administracion/movimientos` and the
 > portal's and an individual's own page list refunds beside payments too. Owner:
 > [#728](https://github.com/leomontigatti/en-escena/issues/728).
 

@@ -18,18 +18,23 @@ import {
 import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import { lockPaymentPool } from "@/lib/finances/allocation-pool.server";
 import {
-  readAvailableBalance,
-  type OwnerPool,
+  paymentChangeUncoversRefunds,
+  readPoolBalanceInputs,
+  splitAvailableBalance,
   type PaymentAvailability,
+  type PoolBalanceInputs,
 } from "@/lib/finances/available-balance.server";
-import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { readFormData } from "@/lib/shared/read-form-data";
 
 import { listPaymentAcademyOptions } from "../academy-options.server";
 import { readPaymentDeletionImpact } from "./deletion-impact.server";
-import { deletePaymentIntent, updatePaymentIntent } from "./shared";
+import {
+  deletePaymentIntent,
+  refundsUncoveredMessage,
+  updatePaymentIntent,
+} from "./shared";
 
 type DeletePaymentActionData = {
   fieldErrors: Partial<Record<"confirmDeletion" | "paymentId", string>>;
@@ -60,6 +65,14 @@ type UpdatePaymentSuccessActionData = {
 const paymentMoved = "payment-moved";
 const paymentMovedMessage =
   "El pago cambió mientras se guardaba. Volvé a intentarlo.";
+
+/**
+ * The pool floor: a payment that leaves the pool or shrinks may not take money
+ * a refund already handed back (`paymentChangeUncoversRefunds`). Only refunds
+ * block, so a deletion stays unconditional with respect to allocations.
+ */
+const refundsUncovered = "refunds-uncovered";
+const deletionUncoversRefundsMessage = `No se puede eliminar el pago. ${refundsUncoveredMessage}`;
 
 export type PaymentDetailActionData =
   | DeletePaymentActionData
@@ -94,9 +107,9 @@ export async function loadPaymentDetail(request: Request, paymentId: string) {
     throw new Response("No encontramos ese pago.", { status: 404 });
   }
 
-  const [academyOptions, availability, affectedUnits] = await Promise.all([
+  const [academyOptions, pool, affectedUnits] = await Promise.all([
     listPaymentAcademyOptions(),
-    readPaymentAvailability(db, paymentDetail, paymentDetail.id),
+    readPoolBalanceInputs(db, paymentDetail),
     readPaymentDeletionImpact({
       academyId: paymentDetail.academyId,
       eventId: paymentDetail.eventId,
@@ -104,12 +117,18 @@ export async function loadPaymentDetail(request: Request, paymentId: string) {
     }),
   ]);
 
+  const availability = findPaymentAvailability(pool, paymentDetail.id);
+
   return {
     academies: academyOptions,
     affectedUnits,
     allocatedAmount: availability.allocatedAmount,
     availableAmount: availability.paymentAvailableAmount,
     canWrite: canWriteInAdminPanel(user.role),
+    deletionUncoversRefunds: paymentChangeUncoversRefunds(pool, {
+      nextAmount: null,
+      paymentId: paymentDetail.id,
+    }),
     payment: paymentDetail,
     selectedEventId: eventContext.selectedEventId ?? paymentDetail.eventId,
     values: getPaymentFormValues(paymentDetail),
@@ -187,16 +206,12 @@ async function updatePayment(input: {
         return { academyId: "Seleccioná una academia válida." };
       }
 
-      const availability = await readPaymentAvailability(
-        tx,
-        payment,
-        input.paymentId,
-      );
       const accountingFieldErrors = getPaymentEditAccountingFieldErrors({
-        allocatedAmount: availability.allocatedAmount,
         currentAcademyId: payment.academyId,
         nextAcademyId: parsed.data.academyId,
         nextAmount: Number(parsed.data.amount),
+        paymentId: input.paymentId,
+        pool: await readPoolBalanceInputs(tx, payment),
       });
 
       if (Object.keys(accountingFieldErrors).length > 0) {
@@ -269,8 +284,9 @@ async function deletePayment(input: {
   // Its allocations fall with the foreign key cascade — the database is what
   // cascades, not this module — and nothing else has to be reconciled: every
   // figure an inscription shows is derived from what is allocated to it right
-  // now. There is no blocking case: the deletion always proceeds, under the
-  // pool lock so that no spread is allocating to the payment as it goes.
+  // now. Allocations never block it; only the owner's refunds can, when the
+  // rest of the pool would not cover them. Under the pool lock, so that no
+  // spread or refund is drawing on the pool as it goes.
   const outcome = await db.transaction(async (tx) => {
     const locked = await lockPaymentPool(tx, input.paymentId);
 
@@ -282,16 +298,28 @@ async function deletePayment(input: {
       return paymentMoved;
     }
 
+    if (
+      paymentChangeUncoversRefunds(
+        await readPoolBalanceInputs(tx, locked.pool),
+        { nextAmount: null, paymentId: input.paymentId },
+      )
+    ) {
+      return refundsUncovered;
+    }
+
     await tx.delete(payments).where(eq(payments.id, input.paymentId));
 
     return null;
   });
 
-  if (outcome === paymentMoved) {
+  if (outcome !== null) {
     return {
       status: "error",
       intent: deletePaymentIntent,
-      message: paymentMovedMessage,
+      message:
+        outcome === paymentMoved
+          ? paymentMovedMessage
+          : deletionUncoversRefundsMessage,
       fieldErrors: {},
     };
   }
@@ -318,17 +346,15 @@ function getPaymentFormValues(payment: {
 }
 
 /**
- * The payment's own line of its owner's pool, read through the one owner of
+ * The payment's own line of its owner's pool, split by the one owner of
  * `Saldo disponible`, so the detail and the edit guard read the figures every
  * other surface reads.
  */
-async function readPaymentAvailability(
-  executor: Executor,
-  pool: OwnerPool,
+function findPaymentAvailability(
+  pool: PoolBalanceInputs,
   paymentId: string,
-): Promise<PaymentAvailability> {
-  const balance = await readAvailableBalance(executor, pool);
-  const availability = balance.payments.find(
+): PaymentAvailability {
+  const availability = splitAvailableBalance(pool).payments.find(
     (payment) => payment.paymentId === paymentId,
   );
 
@@ -339,24 +365,47 @@ async function readPaymentAvailability(
   return availability;
 }
 
+/**
+ * The allocation guards first —an academy frozen by its allocations, an amount
+ * not below what is allocated— and, only when they pass, the pool floor
+ * against the owner's refunds. A move takes the whole payment out of the pool,
+ * so its refusal is the academy's; a cut's is the amount's.
+ */
 function getPaymentEditAccountingFieldErrors(input: {
-  allocatedAmount: number;
   currentAcademyId: string;
   nextAcademyId: string;
   nextAmount: number;
+  paymentId: string;
+  pool: PoolBalanceInputs;
 }): Partial<Record<CreatePaymentFieldName, string>> {
   const fieldErrors: Partial<Record<CreatePaymentFieldName, string>> = {};
+  const { allocatedAmount } = findPaymentAvailability(
+    input.pool,
+    input.paymentId,
+  );
 
-  if (
-    input.allocatedAmount > 0 &&
-    input.nextAcademyId !== input.currentAcademyId
-  ) {
+  if (allocatedAmount > 0 && input.nextAcademyId !== input.currentAcademyId) {
     fieldErrors.academyId =
       "No se puede cambiar la academia de un pago con asignaciones activas.";
   }
 
-  if (input.nextAmount < input.allocatedAmount) {
+  if (input.nextAmount < allocatedAmount) {
     fieldErrors.amount = "El monto no puede ser menor al total ya asignado.";
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return fieldErrors;
+  }
+
+  const movesAway = input.nextAcademyId !== input.currentAcademyId;
+
+  if (
+    paymentChangeUncoversRefunds(input.pool, {
+      nextAmount: movesAway ? null : input.nextAmount,
+      paymentId: input.paymentId,
+    })
+  ) {
+    fieldErrors[movesAway ? "academyId" : "amount"] = refundsUncoveredMessage;
   }
 
   return fieldErrors;

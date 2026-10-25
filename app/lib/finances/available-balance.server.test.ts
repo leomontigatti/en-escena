@@ -1,6 +1,9 @@
 import { describe, expect, test } from "vitest";
 
-import { splitAvailableBalance } from "@/lib/finances/available-balance.server";
+import {
+  paymentChangeUncoversRefunds,
+  splitAvailableBalance,
+} from "@/lib/finances/available-balance.server";
 
 /** Payments numbered from 1 in the order given, with what each has allocated. */
 function poolPayments(...entries: Array<[amount: number, allocated: number]>) {
@@ -102,5 +105,84 @@ describe("splitAvailableBalance", () => {
       [2, 1800],
       [3, 0],
     ]);
+  });
+});
+
+describe("paymentChangeUncoversRefunds", () => {
+  // 3000 paid, 1000 allocated on the first payment, 1500 refunded: 500 left.
+  const pool = {
+    payments: poolPayments([2000, 1000], [1000, 0]),
+    refundedAmount: 1500,
+  };
+
+  test("a payment leaving the pool uncovers the refunds its free money held", () => {
+    expect(
+      paymentChangeUncoversRefunds(pool, {
+        nextAmount: null,
+        paymentId: "payment-2",
+      }),
+    ).toBe(true);
+  });
+
+  test("a payment may leave while the rest of the pool still covers the refunds", () => {
+    expect(
+      paymentChangeUncoversRefunds(
+        { ...pool, refundedAmount: 1000 },
+        { nextAmount: null, paymentId: "payment-2" },
+      ),
+    ).toBe(false);
+  });
+
+  test("a deleted payment's allocations leave with it, so they free nothing", () => {
+    // Without payment 1 the pool is 1000 (payment 2) against 1500 refunded.
+    expect(
+      paymentChangeUncoversRefunds(pool, {
+        nextAmount: null,
+        paymentId: "payment-1",
+      }),
+    ).toBe(true);
+  });
+
+  test("an amount cut is refused below the refunds and allowed down to them", () => {
+    expect(
+      paymentChangeUncoversRefunds(pool, {
+        nextAmount: 499,
+        paymentId: "payment-2",
+      }),
+    ).toBe(true);
+    expect(
+      paymentChangeUncoversRefunds(pool, {
+        nextAmount: 500,
+        paymentId: "payment-2",
+      }),
+    ).toBe(false);
+  });
+
+  test("with no refunds nothing is uncovered, whatever leaves", () => {
+    expect(
+      paymentChangeUncoversRefunds(
+        { ...pool, refundedAmount: 0 },
+        { nextAmount: null, paymentId: "payment-1" },
+      ),
+    ).toBe(false);
+  });
+
+  test("a change that does not lower the payment is never refused", () => {
+    // A pool already short of its refunds: keeping or raising the amount does
+    // not make it worse.
+    const short = { ...pool, refundedAmount: 9000 };
+
+    expect(
+      paymentChangeUncoversRefunds(short, {
+        nextAmount: 1000,
+        paymentId: "payment-2",
+      }),
+    ).toBe(false);
+    expect(
+      paymentChangeUncoversRefunds(short, {
+        nextAmount: 1200,
+        paymentId: "payment-2",
+      }),
+    ).toBe(false);
   });
 });
