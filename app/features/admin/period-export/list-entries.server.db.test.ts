@@ -92,11 +92,11 @@ const lists = [
       ),
   },
   {
-    label: "Pagos",
-    path: "/administracion/pagos",
+    label: "Movimientos",
+    path: "/administracion/movimientos",
     renderList: async (request: Request) =>
       render(
-        "/administracion/pagos",
+        "/administracion/movimientos",
         createElement(PaymentsListRouteView, {
           loaderData: await loadPaymentsList(request),
         }),

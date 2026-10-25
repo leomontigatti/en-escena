@@ -80,7 +80,7 @@ export function NewPaymentRouteView({
           contentClassName="gap-5"
           footer={
             <FormActions
-              backTo="/administracion/pagos"
+              backTo="/administracion/movimientos"
               hasChanges={isDirty}
               isPending={isPending}
               onDiscard={() => form.reset()}

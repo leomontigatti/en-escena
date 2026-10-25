@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/sidebar";
 import type { loadIndividualShell } from "@/features/individual/shell/server";
 import { individualFinancesPath } from "@/features/individual/finances/shared";
-import { individualPaymentsPath } from "@/features/individual/payments/shared";
+import { individualMovementsPath } from "@/features/individual/payments/shared";
 import { individualSeminarsPath } from "@/features/individual/seminars/shared";
 import { INDIVIDUAL_AREA_PATH } from "@/lib/auth/user-role.shared";
 
@@ -86,7 +86,7 @@ const navigationGroups = [
         to: individualFinancesPath,
         icon: WalletCards,
       },
-      { label: "Pagos", to: individualPaymentsPath, icon: HandCoins },
+      { label: "Movimientos", to: individualMovementsPath, icon: HandCoins },
     ],
   },
   {

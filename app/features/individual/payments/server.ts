@@ -1,10 +1,10 @@
 import { requireIndividualUser } from "@/lib/auth/internal-access.server";
-import { readOwnerEventPayments } from "@/lib/finances/owner-event-payments.server";
+import { readOwnerEventMovements } from "@/lib/finances/owner-event-movements.server";
 import { getPortalActiveEventPaymentInstructionsContext } from "@/lib/portal/event-context.server";
 
 /**
- * The individual's `Pagos`: its owner row's payments in the active event and
- * how to pay, read the way the portal's `Pagos` reads an academy's.
+ * The individual's `Movimientos`: its owner row's payments in the active event and
+ * how to pay, read the way the portal's `Movimientos` reads an academy's.
  */
 export async function loadIndividualPayments(request: Request) {
   const [{ individual }, eventContext] = await Promise.all([
@@ -23,7 +23,7 @@ export async function loadIndividualPayments(request: Request) {
   return {
     activeEvent: eventContext.activeEvent,
     paymentInstructions: eventContext.paymentInstructions,
-    payments: await readOwnerEventPayments({
+    payments: await readOwnerEventMovements({
       academyId: individual.ownerId,
       eventId: eventContext.activeEvent.id,
     }),

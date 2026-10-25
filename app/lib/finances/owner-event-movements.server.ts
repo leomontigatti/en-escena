@@ -9,7 +9,7 @@ import { payments } from "@/db/schema";
  * payment's internal note: that is for administrative use and this read feeds
  * the owner's own screens.
  */
-export async function readOwnerEventPayments(input: {
+export async function readOwnerEventMovements(input: {
   academyId: string;
   eventId: string;
 }) {

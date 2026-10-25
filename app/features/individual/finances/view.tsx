@@ -110,7 +110,7 @@ function CardFigure({ label, value }: { label: string; value: string }) {
 /**
  * `Finanzas` of the individual's seminars (ADR-0019): the portal's finance
  * summary over its own money. The five metrics are the whole account and the
- * table what each seminar owes; its payments are on its `Pagos`. Everything is
+ * table what each seminar owes; its payments are on its `Movimientos`. Everything is
  * read-only: administration records and allocates.
  */
 export function IndividualFinancesView({

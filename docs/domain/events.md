@@ -26,7 +26,7 @@ Rules for event context, `Bases del evento`, administration and portal behavior.
 - Portal choreographies stays visible without active event, showing an empty state.
 - With every `Cronograma` closed, the portal reads `Las inscripciones están cerradas.`, shows existing choreographies and disables new ones. The academy never deletes a choreography; removal is administrative (`docs/domain/choreographies.md`).
 - Portal price/payment view shows all academy choreographies, including unpaid and incomplete ones.
-- An event may carry `Instrucciones de pago` — the bank identifiers and how-to-pay text an academy reads on the portal payments page and an individual on its `Pagos`. They are loaded on the event detail, are not part of `Bases del evento`, and never enter registration readiness. The rules live in [finances.md](finances.md#payment-instructions).
+- An event may carry `Instrucciones de pago` — the bank identifiers and how-to-pay text an academy reads on the portal payments page and an individual on its `Movimientos`. They are loaded on the event detail, are not part of `Bases del evento`, and never enter registration readiness. The rules live in [finances.md](finances.md#payment-instructions).
 - Academy sees price after creating a choreography, not during registration.
 - Admin dashboard lists are operational views; direct `/administracion/*` sections hold global event management and `Bases del evento`.
 - Administration does not create choreographies, professors or dancers in ordinary flows; those belong to portal.

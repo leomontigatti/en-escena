@@ -161,7 +161,7 @@ async function renderDetailIntoDocument(input: Partial<DetailViewProps> = {}) {
   const router = createMemoryRouter(
     [
       {
-        path: "/administracion/pagos/payment_1",
+        path: "/administracion/movimientos/pagos/payment_1",
         action: async () => null,
         element: (
           <PaymentDetailRouteView
@@ -172,7 +172,7 @@ async function renderDetailIntoDocument(input: Partial<DetailViewProps> = {}) {
         ),
       },
     ],
-    { initialEntries: ["/administracion/pagos/payment_1"] },
+    { initialEntries: ["/administracion/movimientos/pagos/payment_1"] },
   );
 
   await renderer.renderAsync(<RouterProvider router={router} />);

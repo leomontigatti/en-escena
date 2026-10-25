@@ -31,7 +31,9 @@ describe("PortalAcademyPaymentsRouteView", () => {
     await renderPortalPayments(renderer, portalPaymentsLoaderDataFixture());
 
     expect(document.body.textContent).toContain("0001");
-    expect(document.querySelector('a[href^="/portal/pagos/"]')).toBeNull();
+    expect(
+      document.querySelector('a[href^="/portal/movimientos/"]'),
+    ).toBeNull();
   });
 
   // Selecting payments is the administration panel's, not the academy's: the
@@ -111,11 +113,11 @@ async function renderPortalPayments(
   const router = createMemoryRouter(
     [
       {
-        path: "/portal/pagos",
+        path: "/portal/movimientos",
         element: <PortalAcademyPaymentsRouteView loaderData={loaderData} />,
       },
     ],
-    { initialEntries: ["/portal/pagos"] },
+    { initialEntries: ["/portal/movimientos"] },
   );
 
   await renderer.renderAsync(<RouterProvider router={router} />);

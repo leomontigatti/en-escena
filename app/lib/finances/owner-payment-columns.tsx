@@ -5,7 +5,7 @@ import type {
 import { Badge } from "@/components/ui/badge";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatAmount, formatDate } from "@/lib/finances/formatters";
-import type { readOwnerEventPayments } from "@/lib/finances/owner-event-payments.server";
+import type { readOwnerEventMovements } from "@/lib/finances/owner-event-movements.server";
 import {
   formatPaymentMethodLabel,
   getPaymentMethodBadgeVariant,
@@ -14,7 +14,7 @@ import {
 } from "@/lib/finances/payment-methods";
 
 export type OwnerPaymentRow = Awaited<
-  ReturnType<typeof readOwnerEventPayments>
+  ReturnType<typeof readOwnerEventMovements>
 >[number];
 
 export const ownerPaymentFacetedFilterIds = ["medio"] as const;

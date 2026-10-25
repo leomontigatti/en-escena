@@ -76,7 +76,7 @@ describe("loadPortalAcademyPayments", () => {
     });
 
     const loaderData = await loadPortalAcademyPayments(
-      new Request("http://localhost/portal/pagos", {
+      new Request("http://localhost/portal/movimientos", {
         headers: { cookie: owner.cookie },
       }),
     );
@@ -115,7 +115,7 @@ describe("loadPortalAcademyPayments", () => {
     });
 
     const loaderData = await loadPortalAcademyPayments(
-      new Request("http://localhost/portal/pagos", {
+      new Request("http://localhost/portal/movimientos", {
         headers: { cookie: owner.cookie },
       }),
     );
@@ -231,7 +231,7 @@ async function loadPaymentInstructions(
 }
 
 function portalPaymentsRequest(cookie: string) {
-  return new Request("http://localhost/portal/pagos", {
+  return new Request("http://localhost/portal/movimientos", {
     headers: { cookie },
   });
 }

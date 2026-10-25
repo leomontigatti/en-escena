@@ -11,7 +11,7 @@ import {
 } from "@/features/admin/payments/detail/server";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
-import type { Route } from "./+types/administracion.pagos_.$paymentId";
+import type { Route } from "./+types/administracion.movimientos_.pagos.$paymentId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ActionData = Awaited<ReturnType<typeof action>>;
@@ -27,7 +27,7 @@ export const meta: Route.MetaFunction = () => [
 
 export const handle = {
   adminBreadcrumbs: [
-    { label: "Pagos", to: "/administracion/pagos" },
+    { label: "Movimientos", to: "/administracion/movimientos" },
     (match) => {
       const data = match.loaderData as LoaderData | undefined;
 

@@ -192,6 +192,6 @@ export function paymentCreateRouteArgs(request: Request) {
     params: {},
     context: new RouterContextProvider(),
     url: readRequestedUrl(request),
-    pattern: "/administracion/pagos/nuevo",
+    pattern: "/administracion/movimientos/pagos/nuevo",
   };
 }

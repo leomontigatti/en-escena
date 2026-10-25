@@ -1,9 +1,9 @@
 import { INDIVIDUAL_AREA_PATH } from "@/lib/auth/user-role.shared";
 
 /**
- * `Pagos` in the individual's area (ADR-0019): the payments administration
+ * `Movimientos` in the individual's area (ADR-0019): the payments administration
  * recorded against the individual's owner row in the active event, under the
  * event's `Instrucciones de pago`, as an academy reads them on the portal's
- * `Pagos`.
+ * `Movimientos`.
  */
-export const individualPaymentsPath = `${INDIVIDUAL_AREA_PATH}/pagos`;
+export const individualMovementsPath = `${INDIVIDUAL_AREA_PATH}/movimientos`;

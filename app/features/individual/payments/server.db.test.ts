@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { payments } from "@/db/schema";
 import { loadIndividualPayments } from "@/features/individual/payments/server";
-import { individualPaymentsPath } from "@/features/individual/payments/shared";
+import { individualMovementsPath } from "@/features/individual/payments/shared";
 import {
   createAcademySession,
   expectThrownResponse,
@@ -16,7 +16,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-const pageUrl = `http://localhost${individualPaymentsPath}`;
+const pageUrl = `http://localhost${individualMovementsPath}`;
 
 async function createActiveEvent() {
   const event = await createSavedEvent({
@@ -40,7 +40,7 @@ function load(cookie: string) {
   return loadIndividualPayments(new Request(pageUrl, { headers: { cookie } }));
 }
 
-describe("the individual's `Pagos`", () => {
+describe("the individual's `Movimientos`", () => {
   test("reads the payments administration recorded for it, and nobody else's", async () => {
     const event = await createActiveEvent();
     const individual = await createIndividual();
@@ -75,7 +75,7 @@ describe("the individual's `Pagos`", () => {
   });
 
   // The individual pays like an academy, so it reads the same `Instrucciones
-  // de pago` the portal's `Pagos` shows.
+  // de pago` the portal's `Movimientos` shows.
   test("reads the active event's payment instructions", async () => {
     const event = await createActiveEvent();
     const result = await updateEvent(event.id, {

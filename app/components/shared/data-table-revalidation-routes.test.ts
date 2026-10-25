@@ -12,7 +12,7 @@ import * as adminAcademyFinances from "@/routes/administracion.finanzas_.$academ
 import * as adminChoreographyFinances from "@/routes/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
 import * as adminSeminarInscriptionFinances from "@/routes/administracion.finanzas_.seminarios";
 import * as adminModalities from "@/routes/administracion.modalidades";
-import * as adminPayments from "@/routes/administracion.pagos";
+import * as adminPayments from "@/routes/administracion.movimientos";
 import * as adminPrices from "@/routes/administracion.precios";
 import * as adminProfessors from "@/routes/administracion.profesores";
 import * as adminSchedules from "@/routes/administracion.cronogramas";
@@ -21,7 +21,7 @@ import * as adminUsers from "@/routes/administracion.usuarios";
 import * as portalChoreographies from "@/routes/portal.coreografias";
 import * as portalDancers from "@/routes/portal.bailarines";
 import * as portalFinances from "@/routes/portal.finanzas";
-import * as portalPayments from "@/routes/portal.pagos";
+import * as portalPayments from "@/routes/portal.movimientos";
 import * as portalProfessors from "@/routes/portal.profesores";
 
 /**
@@ -55,7 +55,7 @@ const browserPaginatedRoutes: { name: string; routeModule: object }[] = [
   { name: "portal · bailarines", routeModule: portalDancers },
   { name: "portal · coreografías", routeModule: portalChoreographies },
   { name: "portal · finanzas", routeModule: portalFinances },
-  { name: "portal · pagos", routeModule: portalPayments },
+  { name: "portal · movimientos", routeModule: portalPayments },
   { name: "portal · profesores", routeModule: portalProfessors },
 ];
 
@@ -64,7 +64,7 @@ const serverPaginatedRoutes: { name: string; routeModule: object }[] = [
   { name: "administración · bailarines", routeModule: adminDancers },
   { name: "administración · comprobantes", routeModule: adminComprobantes },
   { name: "administración · coreografías", routeModule: adminChoreographies },
-  { name: "administración · pagos", routeModule: adminPayments },
+  { name: "administración · movimientos", routeModule: adminPayments },
   { name: "administración · profesores", routeModule: adminProfessors },
   { name: "administración · usuarios", routeModule: adminUsers },
 ];

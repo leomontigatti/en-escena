@@ -28,7 +28,7 @@ describe("admin payment create", () => {
       paymentDate: "2026-03-15",
       paymentMethod: "transferencia",
       reference: "TRX-100",
-      requestUrl: "http://localhost/administracion/pagos/nuevo",
+      requestUrl: "http://localhost/administracion/movimientos/pagos/nuevo",
       role: "admin",
     });
 
@@ -44,7 +44,7 @@ describe("admin payment create", () => {
     });
     await expectFlashRedirect(
       response,
-      `/administracion/pagos/${payment?.id}`,
+      `/administracion/movimientos/pagos/${payment?.id}`,
       {
         id: "route-notification:payment-recorded",
         message: "Pago registrado.",

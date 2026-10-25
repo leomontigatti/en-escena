@@ -582,5 +582,5 @@ async function findInscriptionById(inscriptionId: string) {
 }
 
 function paymentDetailUrl(paymentId: string, eventId: string) {
-  return `http://localhost/administracion/pagos/${paymentId}?evento=${eventId}`;
+  return `http://localhost/administracion/movimientos/pagos/${paymentId}?evento=${eventId}`;
 }

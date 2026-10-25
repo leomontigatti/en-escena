@@ -7,11 +7,11 @@ import {
 } from "@/features/portal/payments/list/view";
 
 export const meta = () => [
-  { title: "Pagos | Portal de academias | En Escena" },
+  { title: "Movimientos | Portal de academias | En Escena" },
 ];
 
 export const handle = {
-  portalBreadcrumbs: [{ label: "Pagos" }],
+  portalBreadcrumbs: [{ label: "Movimientos" }],
 } satisfies PortalRouteHandle;
 
 export async function loader({ request }: { request: Request }) {
@@ -22,12 +22,12 @@ export const shouldRevalidate = createDataTableShouldRevalidate({
   filterParamNames: [...portalPaymentFacetedFilterIds],
 });
 
-type PortalPagosRouteProps = {
+type PortalMovementsRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
 };
 
-export default function PortalPagosRoute({
+export default function PortalMovementsRoute({
   loaderData,
-}: PortalPagosRouteProps) {
+}: PortalMovementsRouteProps) {
   return <PortalAcademyPaymentsRouteView loaderData={loaderData} />;
 }
