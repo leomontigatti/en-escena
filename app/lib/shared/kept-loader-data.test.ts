@@ -1,10 +1,10 @@
 import { describe, expect, test } from "vitest";
 
-import { createKeptProgram } from "./kept-program";
+import { createKeptLoaderData } from "./kept-loader-data";
 
-describe("createKeptProgram", () => {
-  test("answers a failed reload with the program already on screen", async () => {
-    const kept = createKeptProgram<string>();
+describe("createKeptLoaderData", () => {
+  test("answers a failed reload with the data already on screen", async () => {
+    const kept = createKeptLoaderData<string>();
 
     kept.remember("program at 21:00");
 
@@ -13,8 +13,8 @@ describe("createKeptProgram", () => {
     ).resolves.toBe("program at 21:00");
   });
 
-  test("keeps the last program a reload brought", async () => {
-    const kept = createKeptProgram<string>();
+  test("keeps the last data a reload brought", async () => {
+    const kept = createKeptLoaderData<string>();
 
     kept.remember("program at 21:00");
     await kept.reload(() => Promise.resolve("program at 21:01"));
@@ -25,7 +25,7 @@ describe("createKeptProgram", () => {
   });
 
   test("reports a failure when nothing is on screen yet", async () => {
-    const kept = createKeptProgram<string>();
+    const kept = createKeptLoaderData<string>();
 
     await expect(
       kept.reload(() => Promise.reject(new Error("502"))),

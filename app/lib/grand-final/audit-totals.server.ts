@@ -45,6 +45,11 @@ type OpenRoundFigures = {
     /** Codes of voided batches, which vote no more. */
     voided: number;
   };
+  /**
+   * When the figures were counted. The cache hands them over with it, so the
+   * page tells their real age.
+   */
+  countedAt: Date;
   /** Signed-in voters who voted in this round. */
   distinctVoters: number;
   finalists: AuditFinalistTotals[];
@@ -184,6 +189,7 @@ async function readOpenRoundFigures(
           issued: codes?.issued ?? 0,
           voided: codes?.voided ?? 0,
         },
+        countedAt: new Date(),
         distinctVoters: identities?.distinctVoters ?? 0,
         // Nobody wins while the round is open.
         finalists: entries.map(({ winner: _winner, ...finalist }) => finalist),
