@@ -62,7 +62,7 @@ function AuditPageContent({
 }) {
   const token = useAuditLinkToken();
   const failure = isUnexpectedActionError(actionData) ? actionData : undefined;
-  const latest = useLatestAuditPage(page, token);
+  const { isUpdating, latest } = useLatestAuditPage(page, token);
 
   if (actionData && "reason" in actionData) {
     return <Refused reason={actionData.reason} />;
@@ -82,7 +82,7 @@ function AuditPageContent({
     return token === null ? <NoLink /> : <OpenLink failure={failure} />;
   }
 
-  return <Totals totals={latest.totals} />;
+  return <Totals isUpdating={isUpdating} totals={latest.totals} />;
 }
 
 const auditPollMs = 10_000;
@@ -118,8 +118,12 @@ function useLatestAuditPage(
   page: AuditPageData,
   token: string | null | undefined,
 ) {
-  const isPolling = isAuditPageLive(page, token);
   const poll = useFetcher<AuditPageData>();
+  // What the last poll brought decides, not the route's page: a poll that
+  // finds the link revoked drops its cookie, and one more would read as a
+  // browser that never opened a link.
+  const latest = poll.data ?? page;
+  const isPolling = isAuditPageLive(latest, token);
   const { pathname } = useLocation();
   const pollRef = useRef(poll);
 
@@ -150,7 +154,7 @@ function useLatestAuditPage(
     };
   }, [isPolling, pathname]);
 
-  return poll.data ?? page;
+  return { isUpdating: poll.state !== "idle", latest };
 }
 
 /**
@@ -255,7 +259,13 @@ function OpenLink({
   );
 }
 
-function Totals({ totals }: { totals: AuditTotals }) {
+function Totals({
+  isUpdating,
+  totals,
+}: {
+  isUpdating: boolean;
+  totals: AuditTotals;
+}) {
   if (totals.status === "not-open") {
     return (
       <div className="p-4">
@@ -278,12 +288,14 @@ function Totals({ totals }: { totals: AuditTotals }) {
     );
   }
 
-  return <OpenTotals totals={totals} />;
+  return <OpenTotals isUpdating={isUpdating} totals={totals} />;
 }
 
 function OpenTotals({
+  isUpdating,
   totals,
 }: {
+  isUpdating: boolean;
   totals: Extract<AuditTotals, { status: "open" }>;
 }) {
   const roundName = totals.roundNumber > 1 ? "Desempate" : "Votación";
@@ -293,8 +305,15 @@ function OpenTotals({
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">Totales de la Gran final</h1>
         <p className="text-sm leading-6 text-muted-foreground">
-          {roundName} abierta. Los totales se actualizan solos cada 10 segundos.{" "}
+          {roundName} abierta. Los totales se actualizan solos cada 10 segundos.
+        </p>
+        {/* Hidden from screen readers, which would hear it on every poll:
+            the figures' age already tells them. */}
+        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <CountedAgo countedAt={totals.countedAt} />
+          {isUpdating ? (
+            <Spinner aria-hidden="true" className="size-3.5" />
+          ) : null}
         </p>
       </div>
       <dl className="grid grid-cols-2 gap-3">

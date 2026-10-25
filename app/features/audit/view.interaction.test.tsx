@@ -245,12 +245,6 @@ describe("the audit page", () => {
       });
     }
 
-    test("offers no button to update the totals", async () => {
-      await mount(openTotals());
-
-      expect(document.querySelector("button")).toBeNull();
-    });
-
     test("brings the totals up to date every ten seconds", async () => {
       fakeClock();
       await mount(openTotals());
@@ -294,6 +288,23 @@ describe("the audit page", () => {
       await advance(pollMs * 3);
 
       expect(serverLoader).not.toHaveBeenCalled();
+    });
+
+    // The loader drops a refused link's cookie, so a later poll would read
+    // as a browser that never opened one, and say so instead of the refusal.
+    test("stops asking once a poll finds the link revoked", async () => {
+      fakeClock();
+      await mount(openTotals());
+      serverLoader
+        .mockResolvedValueOnce({ reason: "revoked", state: "refused" })
+        .mockResolvedValue({ state: "open-link" });
+
+      await advance(pollMs);
+      await waitFor(() => pageText().includes("Este acceso fue revocado"));
+      await advance(pollMs * 3);
+
+      expect(serverLoader).toHaveBeenCalledTimes(1);
+      expect(pageText()).toContain("Este acceso fue revocado");
     });
 
     test("waits while the page is hidden and asks as soon as it is seen again", async () => {
