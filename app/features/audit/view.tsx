@@ -305,14 +305,15 @@ function OpenTotals({
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">Totales de la Gran final</h1>
         <p className="text-sm leading-6 text-muted-foreground">
-          {roundName} abierta. Los totales se actualizan solos cada 10 segundos.
-        </p>
-        {/* Hidden from screen readers, which would hear it on every poll:
-            the figures' age already tells them. */}
-        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          {roundName} abierta. Los totales se actualizan solos cada 10 segundos.{" "}
           <CountedAgo countedAt={totals.countedAt} />
+          {/* Hidden from screen readers, which would hear it on every poll:
+              the figures' age already tells them. */}
           {isUpdating ? (
-            <Spinner aria-hidden="true" className="size-3.5" />
+            <Spinner
+              aria-hidden="true"
+              className="ml-1.5 inline size-3.5 align-[-0.125em]"
+            />
           ) : null}
         </p>
       </div>
