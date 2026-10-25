@@ -54,6 +54,12 @@ export type AvailableBalance = {
 /** One owner's pool in one event. */
 export type OwnerPool = { academyId: string; eventId: string };
 
+/** What the split reads of one owner's pool. */
+export type PoolBalanceInputs = {
+  payments: PoolPayment[];
+  refundedAmount: number;
+};
+
 /**
  * Each payment's `Disponible` and the owner's `Saldo disponible`, from the
  * payments with their own allocations and the owner's refunds total.
@@ -91,6 +97,46 @@ export function splitAvailableBalance(input: {
 }
 
 /**
+ * Whether a change to one payment would leave the owner's refunds with less
+ * money than they took out: the pool floor of the payment edit and deletion.
+ * `nextAmount: null` is a payment leaving the pool, deleted (its allocations go
+ * with it) or moved to another owner (only possible with none).
+ *
+ * It reads `Σ payments − Σ allocations − Σ refunds` unfloored, from the split's
+ * inputs: the floored `Saldo disponible` cannot go below zero, so it cannot
+ * tell. A change that does not lower the payment is never refused, and with no
+ * refunds nothing is.
+ */
+export function paymentChangeUncoversRefunds(
+  pool: PoolBalanceInputs,
+  change: { nextAmount: number | null; paymentId: string },
+): boolean {
+  const changed = pool.payments.find(
+    (payment) => payment.paymentId === change.paymentId,
+  );
+
+  if (
+    pool.refundedAmount === 0 ||
+    !changed ||
+    (change.nextAmount !== null && change.nextAmount >= changed.amount)
+  ) {
+    return false;
+  }
+
+  const remainingAmount = pool.payments.reduce((sum, payment) => {
+    if (payment !== changed) {
+      return sum + payment.amount - payment.allocatedAmount;
+    }
+
+    return change.nextAmount === null
+      ? sum
+      : sum + change.nextAmount - payment.allocatedAmount;
+  }, 0);
+
+  return remainingAmount < pool.refundedAmount;
+}
+
+/**
  * The split of several owners in one event, in one read. An owner with no
  * payment reads an empty pool. It takes the caller's executor, so a write that
  * holds the pool lock reads what the lock protects.
@@ -99,11 +145,40 @@ export async function readAvailableBalances(
   executor: Executor,
   input: { academyIds: readonly string[]; eventId: string },
 ): Promise<Map<string, AvailableBalance>> {
-  const academyIds = [...new Set(input.academyIds)];
   const balances = new Map<string, AvailableBalance>();
 
+  for (const [academyId, pool] of await readPoolBalanceInputsByOwner(
+    executor,
+    input,
+  )) {
+    balances.set(academyId, splitAvailableBalance(pool));
+  }
+
+  return balances;
+}
+
+/** The split's inputs of one owner's pool, under the caller's executor. */
+export async function readPoolBalanceInputs(
+  executor: Executor,
+  pool: OwnerPool,
+): Promise<PoolBalanceInputs> {
+  const inputs = await readPoolBalanceInputsByOwner(executor, {
+    academyIds: [pool.academyId],
+    eventId: pool.eventId,
+  });
+
+  return inputs.get(pool.academyId) ?? { payments: [], refundedAmount: 0 };
+}
+
+async function readPoolBalanceInputsByOwner(
+  executor: Executor,
+  input: { academyIds: readonly string[]; eventId: string },
+): Promise<Map<string, PoolBalanceInputs>> {
+  const academyIds = [...new Set(input.academyIds)];
+  const pools = new Map<string, PoolBalanceInputs>();
+
   if (academyIds.length === 0) {
-    return balances;
+    return pools;
   }
 
   const [paymentRows, allocationRows, refundRows] = await Promise.all([
@@ -146,22 +221,11 @@ export async function readAvailableBalances(
       ),
   ]);
 
-  const refundedByAcademy = new Map<string, number>();
-  for (const refund of refundRows) {
-    refundedByAcademy.set(
-      refund.academyId,
-      (refundedByAcademy.get(refund.academyId) ?? 0) + refund.amount,
-    );
-  }
-
-  const allocatedByPayment = new Map<string, number>();
-  for (const allocation of allocationRows) {
-    allocatedByPayment.set(
-      allocation.paymentId,
-      (allocatedByPayment.get(allocation.paymentId) ?? 0) + allocation.amount,
-    );
-  }
-
+  const refundedByAcademy = sumAmountsBy(refundRows, (row) => row.academyId);
+  const allocatedByPayment = sumAmountsBy(
+    allocationRows,
+    (row) => row.paymentId,
+  );
   const paymentsByAcademy = new Map<string, PoolPayment[]>(
     academyIds.map((academyId) => [academyId, []]),
   );
@@ -173,16 +237,26 @@ export async function readAvailableBalances(
   }
 
   for (const [academyId, poolPayments] of paymentsByAcademy) {
-    balances.set(
-      academyId,
-      splitAvailableBalance({
-        payments: poolPayments,
-        refundedAmount: refundedByAcademy.get(academyId) ?? 0,
-      }),
-    );
+    pools.set(academyId, {
+      payments: poolPayments,
+      refundedAmount: refundedByAcademy.get(academyId) ?? 0,
+    });
   }
 
-  return balances;
+  return pools;
+}
+
+function sumAmountsBy<Row extends { amount: number }>(
+  rows: readonly Row[],
+  keyOf: (row: Row) => string,
+): Map<string, number> {
+  const sums = new Map<string, number>();
+
+  for (const row of rows) {
+    sums.set(keyOf(row), (sums.get(keyOf(row)) ?? 0) + row.amount);
+  }
+
+  return sums;
 }
 
 /** The split of one owner's pool in one event. */
