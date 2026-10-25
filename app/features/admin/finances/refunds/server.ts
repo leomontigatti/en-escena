@@ -11,6 +11,7 @@ import {
 
 import {
   deleteRefundIntent,
+  futureRefundDateMessage,
   readRegisterRefundValues,
   readUpdateRefundValues,
   registerRefundIntent,
@@ -154,7 +155,7 @@ function refusalMessage(
 ) {
   switch (refusal.reason) {
     case "future-date":
-      return "La fecha del reembolso no puede ser futura.";
+      return futureRefundDateMessage;
     case "moved":
     case "stale":
       return "El reembolso cambió mientras se guardaba. Revisalo y volvé a intentarlo.";

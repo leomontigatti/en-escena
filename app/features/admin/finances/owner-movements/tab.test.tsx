@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
 
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, describe, expect, test } from "vitest";
+import { act } from "react";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
   clickReactDomButton,
@@ -228,5 +229,80 @@ describe("OwnerMovementsTab", () => {
     ).toBe(true);
 
     release();
+  });
+
+  describe("a refund date after today", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    // Today is 15 April 2026 in Córdoba; the calendar opens on that month.
+    async function pickApril(trigger: string, day: number) {
+      await act(async () => {
+        document.querySelector<HTMLButtonElement>(trigger)?.click();
+      });
+      const dayButton = document.querySelector<HTMLButtonElement>(
+        `button[data-day="${new Date(2026, 3, day).toLocaleDateString("es")}"]`,
+      );
+
+      if (!dayButton) {
+        throw new Error(`The calendar offers no day ${day}.`);
+      }
+
+      await act(async () => {
+        dayButton.click();
+      });
+    }
+
+    test("is refused in the register dialog before anything posts", async () => {
+      vi.useFakeTimers({
+        now: new Date("2026-04-15T15:00:00Z"),
+        toFake: ["Date"],
+      });
+      const submissions: FormData[] = [];
+      await renderTab(submissions);
+
+      await clickReactDomButton("Registrar reembolso");
+      const dialog = document.querySelector('[role="dialog"]');
+      const amount = document.querySelector<HTMLInputElement>("#refund-amount");
+      await updateReactDomForm(() => setInputValue(amount!, "100"));
+      await pickApril("#refund-date", 20);
+      await clickReactDomButton("Registrar", { exact: true, within: dialog });
+
+      await waitFor(() =>
+        (dialog?.textContent ?? "").includes(
+          "La fecha del reembolso no puede ser futura.",
+        ),
+      );
+      expect(submissions).toEqual([]);
+
+      await pickApril("#refund-date", 15);
+      await clickReactDomButton("Registrar", { exact: true, within: dialog });
+
+      await waitFor(() => submissions.length === 1);
+      expect(submissions[0]?.get("refundDate")).toBe("2026-04-15");
+    });
+
+    test("is refused in the edit dialog before anything posts", async () => {
+      vi.useFakeTimers({
+        now: new Date("2026-04-15T15:00:00Z"),
+        toFake: ["Date"],
+      });
+      const submissions: FormData[] = [];
+      await renderTab(submissions);
+
+      const [refundRow] = document.querySelectorAll("tbody tr");
+      await clickReactDomButton("00001", { exact: true, within: refundRow });
+      const dialog = document.querySelector('[role="dialog"]');
+      await pickApril("#edit-refund-date", 20);
+      await clickReactDomButton("Guardar", { exact: true, within: dialog });
+
+      await waitFor(() =>
+        (dialog?.textContent ?? "").includes(
+          "La fecha del reembolso no puede ser futura.",
+        ),
+      );
+      expect(submissions).toEqual([]);
+    });
   });
 });

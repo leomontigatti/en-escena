@@ -40,6 +40,8 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 
 import {
   deleteRefundIntent,
+  futureRefundDateMessage,
+  isRefundDateNotFuture,
   updateRefundIntent,
   updateRefundSchema,
   type RefundActionData,
@@ -104,13 +106,15 @@ export function EditRefundDialog({
   const capAmount = availableBalanceAmount + refund.amount;
   const schema = useMemo(
     () =>
-      updateRefundSchema.refine(
-        (values) => Number(values.amount) <= capAmount,
-        {
+      updateRefundSchema
+        .refine((values) => Number(values.amount) <= capAmount, {
           message: `El reembolso no puede superar ${formatAmount(capAmount)}, el saldo disponible más su monto actual.`,
           path: ["amount"],
-        },
-      ),
+        })
+        .refine(isRefundDateNotFuture, {
+          message: futureRefundDateMessage,
+          path: ["refundDate"],
+        }),
     [capAmount],
   );
   const savedValues = useMemo<UpdateRefundFormValues>(

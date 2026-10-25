@@ -30,6 +30,8 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 
 import {
   defaultRegisterRefundValues,
+  futureRefundDateMessage,
+  isRefundDateNotFuture,
   registerRefundSchema,
   type RefundActionData,
   type RegisterRefundFormValues,
@@ -54,13 +56,15 @@ export function RegisterRefundDialog({
   const isSaving = fetcher.state !== "idle";
   const schema = useMemo(
     () =>
-      registerRefundSchema.refine(
-        (values) => Number(values.amount) <= availableBalanceAmount,
-        {
+      registerRefundSchema
+        .refine((values) => Number(values.amount) <= availableBalanceAmount, {
           message: `El reembolso no puede superar el saldo disponible de ${formatAmount(availableBalanceAmount)}.`,
           path: ["amount"],
-        },
-      ),
+        })
+        .refine(isRefundDateNotFuture, {
+          message: futureRefundDateMessage,
+          path: ["refundDate"],
+        }),
     [availableBalanceAmount],
   );
   const form = useForm<RegisterRefundFormValues>({
