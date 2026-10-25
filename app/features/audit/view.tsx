@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Form, useLocation, useNavigation, useRevalidator } from "react-router";
+import { useEffect, useRef, useState } from "react";
+import { Form, useFetcher, useLocation, useNavigation } from "react-router";
 
 import { PortalEmptyState } from "@/components/portal/ui";
 import { Button } from "@/components/ui/button";
@@ -36,8 +36,8 @@ type AuditPageActionData = AuditActionData | UnexpectedActionError | undefined;
 /**
  * The page an `auditLink` opens, for the phone of an auditor in the
  * audience: first the step that opens the link in this browser, then the
- * open round's totals, which a reload brings up to date. A refused link says
- * why, and a round that is not open shows no figure.
+ * open round's totals, which the page brings up to date on its own. A refused
+ * link says why, and a round that is not open shows no figure.
  */
 export function AuditPageView({
   actionData,
@@ -62,6 +62,7 @@ function AuditPageContent({
 }) {
   const token = useAuditLinkToken();
   const failure = isUnexpectedActionError(actionData) ? actionData : undefined;
+  const latest = useLatestAuditPage(page, token);
 
   if (actionData && "reason" in actionData) {
     return <Refused reason={actionData.reason} />;
@@ -73,15 +74,83 @@ function AuditPageContent({
     return <OpenLink failure={failure} token={token} />;
   }
 
-  if (page.state === "refused") {
-    return <Refused reason={page.reason} />;
+  if (latest.state === "refused") {
+    return <Refused reason={latest.reason} />;
   }
 
-  if (page.state === "open-link") {
+  if (latest.state === "open-link") {
     return token === null ? <NoLink /> : <OpenLink failure={failure} />;
   }
 
-  return <Totals totals={page.totals} />;
+  return <Totals totals={latest.totals} />;
+}
+
+const auditPollMs = 10_000;
+
+/**
+ * Whether the page on screen may still change: totals of a round open or not
+ * open yet. A link to open in the address shows the form, which has nothing
+ * to update.
+ */
+function isAuditPageLive(
+  page: AuditPageData,
+  token: string | null | undefined,
+) {
+  return (
+    token === null && page.state === "totals" && page.totals.status !== "closed"
+  );
+}
+
+/**
+ * The page, asked for again every ten seconds while its round may still
+ * change: open, or not open yet, so the totals appear when it opens. A closed
+ * round or a refused link has nothing more to show. A hidden page does not
+ * ask, since a locked phone throttles its timers anyway, and asks as soon as
+ * it is seen again. A load still on its way is let finish, so a slow
+ * connection is not cut off every ten seconds.
+ *
+ * A fetcher and not the revalidator, which would reload the root's data too:
+ * one failed root load would trade the page for the error boundary. The
+ * route's `clientLoader` keeps the page when this one fails, and its figures
+ * grow older on screen until a load gets through.
+ */
+function useLatestAuditPage(
+  page: AuditPageData,
+  token: string | null | undefined,
+) {
+  const isPolling = isAuditPageLive(page, token);
+  const poll = useFetcher<AuditPageData>();
+  const { pathname } = useLocation();
+  const pollRef = useRef(poll);
+
+  useEffect(() => {
+    pollRef.current = poll;
+  });
+
+  useEffect(() => {
+    if (!isPolling) {
+      return;
+    }
+
+    const ask = () => {
+      if (
+        document.visibilityState === "visible" &&
+        pollRef.current.state === "idle"
+      ) {
+        void pollRef.current.load(pathname);
+      }
+    };
+    const interval = setInterval(ask, auditPollMs);
+
+    document.addEventListener("visibilitychange", ask);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", ask);
+    };
+  }, [isPolling, pathname]);
+
+  return poll.data ?? page;
 }
 
 /**
@@ -192,7 +261,7 @@ function Totals({ totals }: { totals: AuditTotals }) {
       <div className="p-4">
         <PortalEmptyState
           title="La votación todavía no está abierta"
-          description="Cuando la organización abra la votación vas a ver los totales acá. Recargá la página para actualizarla."
+          description="Cuando la organización abra la votación vas a ver los totales acá, sin recargar la página."
         />
       </div>
     );
@@ -224,11 +293,10 @@ function OpenTotals({
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">Totales de la Gran final</h1>
         <p className="text-sm leading-6 text-muted-foreground">
-          {roundName} abierta. Los totales pueden tener unos segundos de demora:
-          actualizá la página para verlos al día.
+          {roundName} abierta. Los totales se actualizan solos cada 10 segundos.{" "}
+          <CountedAgo countedAt={totals.countedAt} />
         </p>
       </div>
-      <RefreshButton />
       <dl className="grid grid-cols-2 gap-3">
         <Figure
           detail={
@@ -255,24 +323,36 @@ function OpenTotals({
   );
 }
 
-function RefreshButton() {
-  const revalidator = useRevalidator();
-  const isRefreshing = revalidator.state !== "idle";
+/**
+ * How old the figures on screen are, to the second: an update that did not
+ * get through leaves them aging here. The browser's clock only, so nothing is
+ * written before the page hydrates.
+ */
+function CountedAgo({ countedAt }: { countedAt: Date }) {
+  const [now, setNow] = useState<number | null>(null);
 
-  return (
-    <Button
-      disabled={isRefreshing}
-      onClick={() => {
-        void revalidator.revalidate();
-      }}
-      variant="outline"
-    >
-      {isRefreshing ? (
-        <Spinner aria-hidden="true" data-icon="inline-start" />
-      ) : null}
-      Actualizar totales
-    </Button>
-  );
+  useEffect(() => {
+    setNow(Date.now());
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  if (now === null) {
+    return null;
+  }
+
+  const seconds = Math.max(0, Math.floor((now - countedAt.getTime()) / 1000));
+
+  if (seconds < 5) {
+    return <>Actualizado recién.</>;
+  }
+
+  if (seconds < 60) {
+    return <>Actualizado hace {seconds} s.</>;
+  }
+
+  return <>Actualizado hace {Math.floor(seconds / 60)} min.</>;
 }
 
 function Figure({

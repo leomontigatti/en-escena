@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useFetcher } from "react-router";
 
 import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
-import { createKeptProgram } from "@/features/program/public/kept-program";
+import { createKeptLoaderData } from "@/lib/shared/kept-loader-data";
 import {
   loadPublicProgram,
   publicProgramCacheSeconds,
@@ -33,7 +33,7 @@ export async function loader({ request }: { request: Request }) {
 }
 
 const keptProgram =
-  createKeptProgram<Awaited<ReturnType<typeof loadPublicProgram>>>();
+  createKeptLoaderData<Awaited<ReturnType<typeof loadPublicProgram>>>();
 
 export async function clientLoader({
   serverLoader,
