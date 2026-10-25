@@ -58,22 +58,27 @@ and the `cn-*` tokens — `cn-font-heading`, `cn-menu-target`,
 Do not "fix" these by re-adding the component. They are the reason a blind
 overwrite is unsafe.
 
-| Component                                    | Divergence                                                                                                       |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `input`, `textarea`, `select`, `input-group` | focus ring uses `brand`, not `ring`                                                                              |
-| `button`                                     | `cursor-pointer`; `link` variant uses `text-brand`; extra `field` variant (arrow cursor, brand focus ring)       |
-| `progress`                                   | indicator uses `bg-brand`                                                                                        |
-| `badge`, `alert`                             | extra `success` / `info` / `warning` variants, and borders upstream dropped                                      |
-| `avatar`                                     | `data-layout="overlap"` for avatar groups; `shape="square"` (see below)                                          |
-| `select`                                     | defaults to `position="popper"`, `align="start"`, explicit `side`                                                |
-| `sidebar`                                    | wraps its tree in `TooltipProvider`; the active menu button fills with `sidebar-primary`, not the hover `accent` |
-| `alert-dialog`                               | `forceMount` passthrough to Portal / Overlay / Content; unprefixed default width — see below                     |
-| `combobox`                                   | `showChevron`, `dismissableLayerBranch`, `positionerClassName`, `portalContainer`; `outline-none` on the trigger |
-| `dialog`                                     | `useLayerAbovePress` — see below; the overlay dims and blurs exactly as `alert-dialog`'s does                    |
-| `slider`                                     | `aria-label` is forwarded to each thumb, which is what carries `role="slider"`                                   |
-| `checkbox`                                   | `indeterminate` is filled like checked and draws a dash, so a mixed state does not read as a hollow check        |
-| `carousel`                                   | `aria-roledescription` reads `carrusel` and `diapositiva`: screen readers say it aloud, so it is Spanish         |
-| all                                          | `font-heading` instead of upstream's `cn-font-heading`                                                           |
+| Component                                    | Divergence                                                                                                                                           |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `input`, `textarea`, `select`, `input-group` | focus ring uses `brand`, not `ring`                                                                                                                  |
+| `button`                                     | `cursor-pointer`; `link` variant uses `text-brand`; extra `field` variant (arrow cursor, brand focus ring); `destructive` fill is `destructive-tint` |
+| `progress`                                   | indicator uses `bg-brand`                                                                                                                            |
+| `badge`, `alert`                             | extra `success` / `info` / `warning` variants, and borders upstream dropped; tints from the `*-tint` tokens                                          |
+| `avatar`                                     | `data-layout="overlap"` for avatar groups; `shape="square"` (see below)                                                                              |
+| `select`                                     | defaults to `position="popper"`, `align="start"`, explicit `side`                                                                                    |
+| `sidebar`                                    | wraps its tree in `TooltipProvider`; the active menu button fills with `sidebar-primary`, not the hover `accent`                                     |
+| `alert-dialog`                               | `forceMount` passthrough to Portal / Overlay / Content; unprefixed default width — see below                                                         |
+| `combobox`                                   | `showChevron`, `dismissableLayerBranch`, `positionerClassName`, `portalContainer`; `outline-none` on the trigger                                     |
+| `dialog`                                     | `useLayerAbovePress` — see below; the overlay dims and blurs exactly as `alert-dialog`'s does                                                        |
+| `slider`                                     | `aria-label` is forwarded to each thumb, which is what carries `role="slider"`                                                                       |
+| `checkbox`                                   | `indeterminate` is filled like checked and draws a dash, so a mixed state does not read as a hollow check                                            |
+| `carousel`                                   | `aria-roledescription` reads `carrusel` and `diapositiva`: screen readers say it aloud, so it is Spanish                                             |
+| all                                          | `font-heading` instead of upstream's `cn-font-heading`                                                                                               |
+
+The `*-tint` tokens in `app/app.css` replace upstream's `bg-*/10 dark:bg-*/20` and
+`border-*/20 dark:border-*/30` pairs. A toast of a kind layers the same token
+over the page, so a synced variant that brings the pairs back drifts from its
+toast.
 
 Most of those rows are cosmetic. Two are load-bearing and will break behaviour
 if they are reconciled away:

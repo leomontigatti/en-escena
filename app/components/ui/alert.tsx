@@ -10,12 +10,12 @@ const alertVariants = cva(
       variant: {
         default: "bg-card text-card-foreground",
         destructive:
-          "border-destructive/20 bg-destructive/10 text-destructive *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current dark:border-destructive/30 dark:bg-destructive/20",
+          "border-destructive-tint-border bg-destructive-tint text-destructive *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current",
         success:
-          "border-success/20 bg-success/10 text-success *:data-[slot=alert-description]:text-success/90 *:[svg]:text-current dark:border-success/30",
-        info: "border-info/20 bg-info/10 text-info *:data-[slot=alert-description]:text-info/90 *:[svg]:text-current dark:border-info/30",
+          "border-success-tint-border bg-success-tint text-success *:data-[slot=alert-description]:text-success/90 *:[svg]:text-current",
+        info: "border-info-tint-border bg-info-tint text-info *:data-[slot=alert-description]:text-info/90 *:[svg]:text-current",
         warning:
-          "border-warning/20 bg-warning/10 text-warning *:data-[slot=alert-description]:text-warning/90 *:[svg]:text-current dark:border-warning/30",
+          "border-warning-tint-border bg-warning-tint text-warning *:data-[slot=alert-description]:text-warning/90 *:[svg]:text-current",
       },
     },
     defaultVariants: {
