@@ -485,8 +485,9 @@ Production held no crossed row on a foreign key when this landed (#660, counted
 > Once refunds exist, the payment edit and deletion gain one refusal: an amount
 > cut, an academy change or a deletion that would leave the academy's
 > `Saldo disponible` below zero is refused under the pool lock, and the
-> administrator is told to edit or delete the refund first. Allocations never
-> block it; only money already refunded does. Owner:
+> administrator is told to edit or delete the refund first. The two edit guards
+> above stay as they are; deletion stays unblocked by allocations, so only money
+> already refunded can block it. Owner:
 > [#728](https://github.com/leomontigatti/en-escena/issues/728).
 
 ## Payment instructions
@@ -650,9 +651,13 @@ they live in one module.
 > date, `refundMethod` over the same method enum, `refundNumber` — that **never
 > carries allocations** and is capped at `Saldo disponible`, re-checked under the
 > pool lock. A refund names no payment: it is read as drawing on the academy's
-> payments **newest-first**, derived and never stored, so each payment's
-> `Disponible` and the funding cap read the same figure and their sum is
-> `Saldo disponible`. One module computes the figure for every reader. Payments
+> payments **newest-first**, derived and never stored, so a payment's
+> `Disponible` becomes its amount minus its own allocations minus the share of
+> refunds it carries, the funding cap reads that same figure, and their sum is
+> `Saldo disponible`. One module computes the figure for every reader. A refund
+> is the one subtraction the floor does not hold by construction, which is why
+> the payment edit and deletion gain a refusal (see "Payments"). An academy
+> merge moves the removed academy's refunds with its payments. Payments
 > and refunds are listed together as `Movimientos` — the event-wide list at
 > `/administracion/movimientos`, a tab on the academy's finance page (the only
 > place a refund is registered), and the portal's and an individual's own

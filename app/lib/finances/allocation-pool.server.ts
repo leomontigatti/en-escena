@@ -19,7 +19,7 @@
  * touched.
  *
  * The refunds term is in the invariant because it is part of the rule, but it
- * **does not exist yet**: there is no refunds table or column, so until #536
+ * **does not exist yet**: there is no refunds table or column, so until #728
  * adds one, `Saldo disponible` reads as `Σ payments − Σ allocations`.
  *
  * ## The two directions

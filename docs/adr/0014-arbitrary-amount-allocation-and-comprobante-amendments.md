@@ -960,6 +960,7 @@ deleting the payment it came from, or cutting its amount, would leave
   under the pool lock; the administrator corrects the refund first. Allocations
   still never block a deletion, so §2's rejection of `paymentDeletionBlockers`
   stands: the one blocker is money that has already left.
+  An academy merge moves the removed academy's refunds with its payments.
 - **A refund is read as drawing on payments newest-first**, derived and never
   stored, the mirror of funding oldest-first. Each payment's `Disponible` and the
   funding cap then read one figure, and their sum is `Saldo disponible`.

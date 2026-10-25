@@ -454,7 +454,7 @@ The ranking of the last `votingRound`, with each finalist's share of the weighte
 _Avoid_: leaderboard, live results, `academyResults`
 
 **`payment`** — ui: "Pago"
-Money received and recorded for an academy in an event, which may stay available or be applied through payment allocations. It is editable after the fact — academy, amount, date, method, reference and note — under two accounting guards: the academy is frozen once the payment carries allocations, and the amount can never be edited below what is already allocated. A payment recorded in error can also be deleted, cascading its allocations. Once `refund` is built, no edit, move or deletion may leave the owner's `availableBalanceAmount` below zero, so a payment whose money was refunded waits for the refund to be corrected first.
+Money received and recorded for an academy in an event, which may stay available or be applied through payment allocations. It is editable after the fact — academy, amount, date, method, reference and note — under exactly two accounting guards: the academy is frozen once the payment carries allocations, and the amount can never be edited below what is already allocated. A payment recorded in error can also be deleted, cascading its allocations.
 _Avoid_: invoice, `paymentAllocation`, `refund`, `choreographyFinancialStatus`
 
 **`paymentInstructions`** — ui: "Instrucciones de pago"
@@ -466,7 +466,7 @@ Money handed back to an academy in an event: an explicit mirror of **`payment`**
 _Avoid_: `Devolución`, negative `payment`, `paymentAllocation`, `nota de crédito`
 
 **`movement`** — ui: "Movimiento"
-A `payment` or a `refund` of one owner in one event, read together in date order, each under its own number series; it is how administration, the portal and an individual's area list the money that came in and went out. It is never an allocation and never a ledger entry: there is no movement record, only the two money records read side by side.
+Money that came in or went out for one owner in one event: a `payment` or a `refund`, read side by side. It is never an allocation and never a ledger entry: there is no movement record of its own.
 _Avoid_: `paymentAllocation`, account entry, `Cuenta corriente de academia`, negative `payment`
 
 **`collection`** — ui: "Recaudación"
@@ -537,7 +537,7 @@ Money an academy has handed over in an event and that is not committed: `paid �
 _Avoid_: `owedBalanceAmount`, total paid, `academyAccountBalance` (retired)
 
 **`paymentAvailableAmount`** — ui: "Disponible"
-The `availableBalanceAmount` of a **single payment**: its amount minus what its own allocations commit, floored at zero. It reads as "how much of this payment is still free to draw", never as "this payment is unresolved" — the money arrived in full either way, which is why it is not called `Pendiente`: that word already means an amount that cannot be computed for want of a price, and `Seña pendiente` means an unmet threshold. Two other `Pendiente`s exist and neither is this one: the `judgeScoreStatus` `Pendiente`, which is one judge who has not scored a presentation yet, and the `participationStatus` `pendiente`, which is a presentation the panel has not evaluated. A screen that shows any of the three says which it means. It carries **no provenance**: the pool draws oldest-first and unwinds newest-first, so money returned may land on a different payment than it left, and a row's figure can move without that payment being touched. Refunds, which name no payment, are read as drawing on an owner's payments newest-first, so summed over an owner it is the same money `availableBalanceAmount` counts.
+The `availableBalanceAmount` of a **single payment**: its amount minus what its own allocations commit, floored at zero. It reads as "how much of this payment is still free to draw", never as "this payment is unresolved" — the money arrived in full either way, which is why it is not called `Pendiente`: that word already means an amount that cannot be computed for want of a price, and `Seña pendiente` means an unmet threshold. Two other `Pendiente`s exist and neither is this one: the `judgeScoreStatus` `Pendiente`, which is one judge who has not scored a presentation yet, and the `participationStatus` `pendiente`, which is a presentation the panel has not evaluated. A screen that shows any of the three says which it means. It carries **no provenance**: the pool draws oldest-first and unwinds newest-first, so money returned may land on a different payment than it left, and a row's figure can move without that payment being touched. Summed over an event it is the same money `availableBalanceAmount` counts per academy.
 _Avoid_: `Pendiente`, `owedBalanceAmount`, unpaid payment, `availableBalanceAmount` (that one is the academy's)
 
 **`owedBalanceAmount`** — ui: "Saldo adeudado"

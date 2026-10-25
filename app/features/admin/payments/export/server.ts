@@ -40,7 +40,7 @@ import {
  * current allocations — where the money sits today, not on the payment date —
  * with `Seminarios` for seminar allocations and `Sin asignar` for free money.
  *
- * `refund` is specified but not built (#536): until it is, `Reembolsos` is
+ * `refund` is specified but not built (#728): until it is, `Reembolsos` is
  * zero and `Movimientos` lists payments only. Refunds never carry allocations,
  * so they will appear in `Movimientos` alone.
  */
