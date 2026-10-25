@@ -9,6 +9,7 @@ import {
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
 import { activateEvent, updateEvent } from "@/lib/events/management.server";
+import { registerRefund } from "@/lib/finances/refunds.server";
 import { createSavedEvent } from "@/lib/test-support/events";
 import { createIndividualUser } from "@/lib/test-support/individuals";
 
@@ -41,7 +42,7 @@ function load(cookie: string) {
 }
 
 describe("the individual's `Movimientos`", () => {
-  test("reads the payments administration recorded for it, and nobody else's", async () => {
+  test("reads the payments and refunds administration recorded for it, and nobody else's", async () => {
     const event = await createActiveEvent();
     const individual = await createIndividual();
     const academy = await createAcademySession({
@@ -66,11 +67,44 @@ describe("the individual's `Movimientos`", () => {
         paymentNumber: 901,
       },
     ]);
+    for (const [academyId, amount] of [
+      [individual.ownerId, 1500],
+      [academy.academyId, 2500],
+    ] as const) {
+      const refunded = await registerRefund({
+        academyId,
+        amount,
+        eventId: event.id,
+        internalNote: "Nota interna del reembolso",
+        reference: "DEV-1",
+        refundDate: "2026-04-03",
+        refundMethod: "transferencia",
+      });
+      expect(refunded.ok).toBe(true);
+    }
 
     const loaderData = await load(individual.cookie);
 
-    expect(loaderData.payments.map((payment) => payment.amount)).toEqual([
-      5000,
+    // Exact rows: an internal note would show as a key of its own.
+    expect(loaderData.movements).toEqual([
+      {
+        amount: 1500,
+        date: "2026-04-03",
+        id: expect.any(String),
+        kind: "refund",
+        method: "transferencia",
+        number: 1,
+        reference: "DEV-1",
+      },
+      {
+        amount: 5000,
+        date: "2026-04-02",
+        id: expect.any(String),
+        kind: "payment",
+        method: "efectivo",
+        number: 900,
+        reference: null,
+      },
     ]);
   });
 
@@ -107,7 +141,7 @@ describe("the individual's `Movimientos`", () => {
     await expect(load(individual.cookie)).resolves.toEqual({
       activeEvent: null,
       paymentInstructions: null,
-      payments: [],
+      movements: [],
     });
   });
 
