@@ -20,7 +20,7 @@ export type CollectionMovementRow =
       kind: "movement";
       method: PaymentMethod;
       number: number;
-      /** A `refund` slots in here once it is built (#536). */
+      /** A `refund` slots in here once it is built (#728). */
       type: "payment" | "refund";
     }
   | { amount: number; kind: "total"; label: string };

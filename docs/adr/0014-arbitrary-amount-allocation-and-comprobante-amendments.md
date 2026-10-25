@@ -945,3 +945,35 @@ released 219100 across the 7 rows withdrawn before that correction, each down to
 its seña, and was then removed from the code (#1735; its script stays in git
 history at be14194d). A withdrawn row can still hold more than its seña when its
 seña moves down after the withdrawal; its one release still takes all of it.
+
+## Correction (2026-10-24): refunds make payment deletion conditional
+
+Appended, not edited in place. §2 said "Payment deletion is unconditional", and
+that held because a deletion takes its allocations with it, so the pool cannot go
+below zero. A refund takes money out of the pool without naming a payment, so
+deleting the payment it came from, or cutting its amount, would leave
+`Saldo disponible` negative. The decisions (owner, 2026-10-24;
+[#728](https://github.com/leomontigatti/en-escena/issues/728)):
+
+- **The floor holds against refunds.** A payment deletion, amount cut or academy
+  change that would leave the academy's `Saldo disponible` below zero is refused
+  under the pool lock; the administrator corrects the refund first. Allocations
+  still never block a deletion, so §2's rejection of `paymentDeletionBlockers`
+  stands: the one blocker is money that has already left.
+  An academy merge moves the removed academy's refunds with its payments.
+- **A refund is read as drawing on each payment's free money newest-first**,
+  derived and never stored, never more from a payment than it has free: the
+  mirror of funding oldest-first. Each payment's `Disponible` and the funding
+  cap then read one figure, and their sum is `Saldo disponible`.
+- **Payments and refunds are listed together as `Movimientos`**, never with
+  allocations: the event-wide admin list, a tab on the academy's finance page
+  (the only place a refund is registered), and the portal's and an individual's
+  own page.
+
+Rejected:
+
+- **Letting `Saldo disponible` go negative** and showing it. The floor is what
+  every allocation and refund cap reads; a negative pool is money spent twice.
+- **Leaving each payment's `Disponible` blind to refunds.** The sum would
+  overstate the pool by every refund, and the funding cap would need a second
+  rule to stop allocating refunded money.

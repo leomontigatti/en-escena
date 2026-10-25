@@ -25,9 +25,9 @@ import { paymentAllocations, payments } from "@/db/schema";
  * calculation.
  *
  * The refunds term of the invariant is missing because refunds do not exist yet
- * (#536): they never carry allocations, so when they land they subtract from the
- * academy's pool and not from any one payment, and this figure is where that
- * question has to be asked again.
+ * (#728). They name no payment, so when they land this figure subtracts each
+ * payment's derived share of them, drawn newest-first from what each payment
+ * has free, so that the payments' figures still sum to the academy's pool.
  */
 export const paymentAvailableAmountSql = sql<number>`greatest(${payments.amount} - coalesce((select sum(${paymentAllocations.amount}) from ${paymentAllocations} where ${paymentAllocations.paymentId} = ${payments.id}), 0), 0)`;
 
