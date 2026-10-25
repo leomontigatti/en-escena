@@ -11,7 +11,7 @@ for _why_; read this for _what_. The identifier → UI term mapping is in
 ## How to read this document
 
 The settled model is larger than what is built. Half of it shipped; the invoicing half
-and the event-wide list of refunds are specified and not implemented.
+is specified and not implemented.
 Every statement here is therefore one of three things, and they are never mixed
 silently:
 
@@ -674,26 +674,32 @@ they live in one module.
   finance page, the only place to do so, which lists the owner's payments and
   refunds newest first, never its allocations. The portal's and an
   individual's own `Movimientos` page list the owner's refunds beside its
-  payments the same way, kind badged, without either's internal note. A
+  payments the same way, kind badged, without either's internal note. The
+  event-wide list at `/administracion/movimientos` holds every payment and
+  refund of the active event: a `Tipo` column and facet tell them apart, the
+  method facet reads a refund's `refundMethod`, and the search, the count and
+  the page span both kinds, newest first and, within a day, in recording
+  order as on the owner's tab. Its cards read `Pagos`, `Reembolsos` and
+  `Neto` —the `Recaudación` workbook's three figures— beside the payments'
+  `Disponible`, over the whole event or over the ticked rows; a refund has no
+  `Disponible`, so the `Disponible` facet leaves refunds out. A
   payment edit or deletion that would leave refunds uncovered is refused (see
   "Payments"), and an academy merge moves the removed academy's refunds with
   its payments. Note the term: `Devolución` is
   reserved for the judge's private feedback audio and must not be used for
   money.
 - **Correcting a refund** is editing or deleting it, never a counter-movement,
-  from a dialog its row opens in the owner's `Movimientos` tab (a refund has no
-  page), administration only. Both go through the same write module, under the
+  from a dialog its row opens in the owner's `Movimientos` tab or the
+  event-wide list (a refund has no page), administration only; the auditor's
+  dialog on the event-wide list shows the same fields locked, with `Cerrar`
+  only. On the event-wide list the cap reads the refund's owner's
+  `Saldo disponible`. Both go through the same write module, under the
   pool lock: an edit is capped at the `Saldo disponible` plus the refund's own
   current amount, so lowering or keeping the amount always saves, and a
   deletion is never refused, raising the `Saldo disponible` by exactly its
   amount. Its academy, event and number are fixed once it exists. Both carry the
   version (`updatedAt`) the dialog read, and a refund that changed or was
   deleted meanwhile is refused as changed while saving rather than overwritten.
-
-> **Specified, not built.**
-> The event-wide list at `/administracion/movimientos` lists refunds beside
-> payments too. Owner:
-> [#728](https://github.com/leomontigatti/en-escena/issues/728).
 
 ## The money gestures
 
@@ -1403,18 +1409,17 @@ and no request actions. The restriction is **permanent and role-based**.
 ## Surfaces
 
 - Finance surfaces are the admin academy financial list and choreography
-  financial detail, the admin payments list and detail, and the two mirrors in
+  financial detail, the admin movements list and payment detail, and the two mirrors in
   the `Portal de academias`. **"The four finance surfaces" elsewhere in this
   document names a subset of these six**: the four that consume the shared money
-  rollup — the two admin financial ones and the two portal ones. The payments
-  list and detail are finance surfaces too; they just read payments, not the
-  rollup.
-- The payments list is the `Movimientos` section, at `/administracion/movimientos`
+  rollup — the two admin financial ones and the two portal ones. The movements
+  list and the payment detail are finance surfaces too; they read payments and
+  refunds, not the rollup.
+- The movements list is the `Movimientos` section, at `/administracion/movimientos`
   with a payment under `/administracion/movimientos/pagos/`, and the portal's
   and an individual's own payments page is `Movimientos` too. The portal's and
-  the individual's pages and the `Movimientos` tab of an owner's finance page
-  list payments and refunds; the event-wide list holds payments only until
-  refunds join it (see "The pool rules").
+  the individual's pages, the `Movimientos` tab of an owner's finance page and
+  the event-wide list all list payments and refunds (see "The pool rules").
 - Panel and portal read the **same derivation**, so the portal cannot disagree
   with the panel. The primary amounts on both are `Seña adeudada`, `Saldo disponible`
   and `Saldo adeudado`.
