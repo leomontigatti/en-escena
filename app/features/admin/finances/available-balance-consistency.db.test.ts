@@ -183,7 +183,7 @@ async function readPaymentsAvailable(academyId: string, eventId: string) {
   for (const row of rows) {
     const detail = await loadPaymentDetail(
       await adminRequest(
-        `http://localhost/administracion/pagos/${row.id}?evento=${eventId}`,
+        `http://localhost/administracion/movimientos/pagos/${row.id}?evento=${eventId}`,
       ),
       row.id,
     );
