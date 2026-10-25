@@ -1,5 +1,9 @@
 import { moneyCell, type SheetColumn } from "@/features/admin/day-export/sheet";
 import {
+  movementKindLabels,
+  type MovementKind,
+} from "@/lib/finances/movement-kinds";
+import {
   formatPaymentMethodLabel,
   type PaymentMethod,
 } from "@/lib/finances/payment-methods";
@@ -20,15 +24,9 @@ export type CollectionMovementRow =
       kind: "movement";
       method: PaymentMethod;
       number: number;
-      /** A `refund` slots in here once it is built (#728). */
-      type: "payment" | "refund";
+      type: MovementKind;
     }
   | { amount: number; kind: "total"; label: string };
-
-const movementTypeLabels = {
-  payment: "Pago",
-  refund: "Reembolso",
-} as const;
 
 function movementOnly<Value>(
   read: (row: Extract<CollectionMovementRow, { kind: "movement" }>) => Value,
@@ -43,7 +41,7 @@ export const collectionMovementColumns: SheetColumn<CollectionMovementRow>[] = [
     width: 14,
     cell: (row) =>
       row.kind === "movement"
-        ? movementTypeLabels[row.type]
+        ? movementKindLabels[row.type]
         : { fontWeight: "bold", value: row.label },
   },
   { header: "Número", width: 10, cell: movementOnly((row) => row.number) },

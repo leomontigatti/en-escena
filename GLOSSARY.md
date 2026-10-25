@@ -470,7 +470,7 @@ Money that came in or went out for one owner in one event: a `payment` or a `ref
 _Avoid_: `paymentAllocation`, account entry, `Cuenta corriente de academia`, negative `payment`
 
 **`collection`** — ui: "Recaudación"
-The money an event received over a period: its `payment`s by payment date, read next to the `refund`s of the same period and the net of the two. It counts money that arrived, whether or not it was allocated, so it is neither what was invoiced nor what is owed. The auditor downloads it as the `Recaudación` workbook; broken down by modality it reads the payments' current allocations, with `Seminarios` and `Sin asignar` rows so it still sums to the payments. Until the workbook reads them (#728) its refunds are zero.
+The money an event received over a period: its `payment`s by payment date, read next to the `refund`s of the same period and the net of the two. It counts money that arrived, whether or not it was allocated, so it is neither what was invoiced nor what is owed. The auditor downloads it as the `Recaudación` workbook; broken down by modality it reads the payments' current allocations, with `Seminarios` and `Sin asignar` rows so it still sums to the payments. Its refunds are read by refund date and listed beside the payments; they carry no allocation, so the breakdowns leave them out.
 _Avoid_: income, sales, billing, `comprobante` totals, `availableBalanceAmount`
 
 **`comprobante`** — ui: "Factura (comprobante fiscal ARCA)"
