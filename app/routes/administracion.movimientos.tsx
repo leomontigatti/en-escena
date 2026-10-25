@@ -1,12 +1,16 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadPaymentsList } from "@/features/admin/payments/list/server";
-import { PaymentsListRouteView } from "@/features/admin/payments/list/view";
+import {
+  handleMovementsListAction,
+  loadMovementsList,
+} from "@/features/admin/payments/list/server";
+import { MovementsListRouteView } from "@/features/admin/payments/list/view";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.movimientos";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type PaymentsListRouteProps = {
+type MovementsListRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -19,11 +23,19 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return await loadPaymentsList(request);
+  return await loadMovementsList(request);
 }
 
-export default function PaymentsListRoute({
+export async function action({ request }: Route.ActionArgs) {
+  return await handleMovementsListAction(request);
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
+}
+
+export default function MovementsListRoute({
   loaderData,
-}: PaymentsListRouteProps) {
-  return <PaymentsListRouteView loaderData={loaderData} />;
+}: MovementsListRouteProps) {
+  return <MovementsListRouteView loaderData={loaderData} />;
 }

@@ -46,6 +46,18 @@ import {
   type UpdateRefundFormValues,
 } from "./shared";
 
+const editCopy = {
+  amountDescription: (capAmount: number) =>
+    `Hasta ${formatAmount(capAmount)}, el saldo disponible más su monto actual.`,
+  description: "Corregí el reembolso o eliminalo si se registró por error.",
+};
+
+// The cap is a rule for whoever edits: the auditor reads the amount alone.
+const readOnlyCopy = {
+  amountDescription: () => undefined,
+  description: "Los datos del reembolso, tal como se registró.",
+};
+
 /** The refund a row opens: what the dialog shows and the version it edits. */
 export type EditableRefund = {
   amount: number;
@@ -68,14 +80,20 @@ export type EditableRefund = {
  * correction over a refund someone changed meanwhile. A refusal is a toast and
  * the form keeps its values; a success closes the dialog over the revalidated
  * list (docs/agents/form-feedback.md).
+ *
+ * `readOnly` is the auditor's: the same figures with every field locked, and
+ * `Cerrar` as the one way out. The server refuses the auditor's writes anyway;
+ * this keeps the dialog from offering them.
  */
 export function EditRefundDialog({
   availableBalanceAmount,
   onOpenChange,
+  readOnly = false,
   refund,
 }: {
   availableBalanceAmount: number;
   onOpenChange: (open: boolean) => void;
+  readOnly?: boolean;
   refund: EditableRefund;
 }) {
   const fetcher = useFetcher<RefundActionData>();
@@ -152,6 +170,7 @@ export function EditRefundDialog({
     onClose: close,
   });
   const refundLabel = `Reembolso # ${formatEventSequenceNumber(refund.number)}`;
+  const copy = readOnly ? readOnlyCopy : editCopy;
 
   return (
     <>
@@ -166,9 +185,7 @@ export function EditRefundDialog({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{refundLabel}</DialogTitle>
-            <DialogDescription>
-              Corregí el reembolso o eliminalo si se registró por error.
-            </DialogDescription>
+            <DialogDescription>{copy.description}</DialogDescription>
           </DialogHeader>
           <form
             method="post"
@@ -184,18 +201,21 @@ export function EditRefundDialog({
               <DateOnlyField
                 control={form.control}
                 id="edit-refund-date"
+                disabled={readOnly}
                 label="Fecha del reembolso"
                 name="refundDate"
               />
               <TextInputField
                 control={form.control}
                 id="edit-refund-reference"
+                disabled={readOnly}
                 label="Referencia"
                 name="reference"
               />
               <MoneyInputField
                 control={form.control}
-                description={`Hasta ${formatAmount(capAmount)}, el saldo disponible más su monto actual.`}
+                description={copy.amountDescription(capAmount)}
+                disabled={readOnly}
                 id="edit-refund-amount"
                 label="Monto"
                 min="1"
@@ -205,6 +225,7 @@ export function EditRefundDialog({
               <SelectField
                 control={form.control}
                 id="edit-refund-method"
+                disabled={readOnly}
                 label="Medio"
                 name="refundMethod"
                 options={paymentMethodOptions}
@@ -214,34 +235,19 @@ export function EditRefundDialog({
                 className="sm:col-span-2"
                 control={form.control}
                 id="edit-refund-internal-note"
+                disabled={readOnly}
                 label="Nota interna"
                 name="internalNote"
               />
             </FieldGroup>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="destructive"
-                className="sm:mr-auto"
-                disabled={isSaving}
-                onClick={() => setIsConfirmingDeletion(true)}
-              >
-                <Trash2 aria-hidden="true" data-icon="inline-start" />
-                Eliminar
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isSaving}
-                onClick={requestClose}
-              >
-                Cancelar
-              </Button>
-              <SubmitButton
-                disabled={!isDirty}
-                isPending={isSaving && !isDeleting}
-              />
-            </DialogFooter>
+            <EditRefundFooter
+              isDeleting={isDeleting}
+              isDirty={isDirty}
+              isSaving={isSaving}
+              onClose={requestClose}
+              onDelete={() => setIsConfirmingDeletion(true)}
+              readOnly={readOnly}
+            />
           </form>
         </DialogContent>
       </Dialog>
@@ -269,5 +275,55 @@ export function EditRefundDialog({
       </ConfirmationDialog>
       <DiscardChangesDialog {...discardDialogProps} />
     </>
+  );
+}
+
+function EditRefundFooter({
+  isDeleting,
+  isDirty,
+  isSaving,
+  onClose,
+  onDelete,
+  readOnly,
+}: {
+  isDeleting: boolean;
+  isDirty: boolean;
+  isSaving: boolean;
+  onClose: () => void;
+  onDelete: () => void;
+  readOnly: boolean;
+}) {
+  if (readOnly) {
+    return (
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onClose}>
+          Cerrar
+        </Button>
+      </DialogFooter>
+    );
+  }
+
+  return (
+    <DialogFooter>
+      <Button
+        type="button"
+        variant="destructive"
+        className="sm:mr-auto"
+        disabled={isSaving}
+        onClick={onDelete}
+      >
+        <Trash2 aria-hidden="true" data-icon="inline-start" />
+        Eliminar
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={isSaving}
+        onClick={onClose}
+      >
+        Cancelar
+      </Button>
+      <SubmitButton disabled={!isDirty} isPending={isSaving && !isDeleting} />
+    </DialogFooter>
   );
 }

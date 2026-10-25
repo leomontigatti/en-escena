@@ -1,12 +1,32 @@
-import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, payments } from "@/db/schema";
+import { academies, payments, refunds } from "@/db/schema";
+import {
+  handleDeleteRefund,
+  handleUpdateRefund,
+} from "@/features/admin/finances/refunds/server";
+import {
+  deleteRefundIntent,
+  updateRefundIntent,
+  type RefundActionData,
+} from "@/features/admin/finances/refunds/shared";
+import type { EditableRefund } from "@/features/admin/finances/refunds/edit-dialog";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
-import { requireAdminPanelReader } from "@/lib/auth/internal-access.server";
-import { paymentAvailableAmountSql } from "@/lib/finances/available-balance.server";
-import { paymentMethodValues } from "@/lib/finances/payment-methods";
+import {
+  requireAdminPanelReader,
+  requireAdminPanelWriter,
+} from "@/lib/auth/internal-access.server";
+import {
+  paymentAvailableAmountSql,
+  readAvailableBalances,
+} from "@/lib/finances/available-balance.server";
+import type { MovementKind } from "@/lib/finances/movement-kinds";
+import {
+  paymentMethodValues,
+  type PaymentMethod,
+} from "@/lib/finances/payment-methods";
 import { eventSequenceNumberDigits } from "@/lib/events/sequence-number";
 import { adminListPageSize } from "@/lib/admin/admin-list";
 import {
@@ -18,11 +38,11 @@ import {
   listSearchCondition,
   redirectToCanonicalListUrl,
 } from "@/lib/list-query/list-query.server";
+import { readFormData } from "@/lib/shared/read-form-data";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
-type PaymentsListMethod = PaymentsListRow["paymentMethod"];
-type PaymentsListOrder = {
-  columnId: "paymentDate";
+type MovementsListOrder = {
+  columnId: "date";
   direction: "asc" | "desc";
 };
 
@@ -30,101 +50,158 @@ type PaymentsListOrder = {
  * Whether the list is narrowed to payments that still have money free. It is a
  * facet and not a sort: the administrator reaches it from the `Disponible`
  * metric —"there is money uncommitted, show me where"— which is a filtering
- * question and not an ordering one.
+ * question and not an ordering one. A refund has no `Disponible`, so either
+ * value leaves refunds out.
  */
-type PaymentsListAvailability = "con" | "sin";
+type MovementsListAvailability = "con" | "sin";
 
-type PaymentsListFilters = {
-  availability: PaymentsListAvailability | null;
-  method: PaymentsListMethod | null;
-  order: PaymentsListOrder;
+type MovementsListFilters = {
+  availability: MovementsListAvailability | null;
+  kind: MovementKind | null;
+  method: PaymentMethod | null;
+  order: MovementsListOrder;
   page: number;
   query: string;
 };
 
-export type PaymentsListRow = {
+type MovementsListRowBase = {
   academyId: string;
   academyName: string;
+  /** Positive on both kinds: the kind tells money in from money out. */
   amount: number;
+  date: string;
+  id: string;
+  method: PaymentMethod;
+  /** The movement's number in its own series: payments and refunds count apart. */
+  number: number;
+};
+
+export type PaymentMovementsListRow = MovementsListRowBase & {
   // What is still free on this payment. See `paymentAvailableAmountSql`: its
   // own remainder less the share of the owner's refunds it carries, with no
   // provenance.
   availableAmount: number;
-  id: string;
-  paymentDate: string;
-  paymentMethod: "efectivo" | "mercado_pago" | "otro" | "transferencia";
-  paymentNumber: number;
+  kind: "payment";
 };
 
 /**
- * The event's money position, over **every** payment of the active event: it
+ * A refund's row carries what its edit/delete dialog edits, since a refund has
+ * no page to read it from, and its owner's `Saldo disponible`, which caps a
+ * raise.
+ */
+export type RefundMovementsListRow = MovementsListRowBase &
+  EditableRefund & {
+    availableAmount: null;
+    kind: "refund";
+    ownerAvailableBalanceAmount: number;
+  };
+
+export type MovementsListRow = PaymentMovementsListRow | RefundMovementsListRow;
+
+/**
+ * The event's money position, over **every** movement of the active event: it
  * answers the same question no matter how the list below it is narrowed. A total
  * that moved with the search box would be a different question than the one the
  * card asks, and the whole use of `Disponible` is to be read first and filtered
- * on second.
+ * on second. `Pagos`, `Reembolsos` and `Neto` are the three figures the
+ * `Recaudación` workbook closes with.
  */
-export type PaymentsListSummary = {
+export type MovementsListSummary = {
   availableAmount: number;
-  totalAmount: number;
+  netAmount: number;
+  paymentsAmount: number;
+  refundsAmount: number;
 };
 
-export type PaymentsListLoaderData = {
-  /** False for the auditor: no `Nuevo pago`, and the `Exportar` entry instead. */
+export type MovementsListLoaderData = {
+  /**
+   * False for the auditor: no `Nuevo pago`, the `Exportar` entry instead, and
+   * a refund's dialog that only reads.
+   */
   canWrite: boolean;
-  filters: PaymentsListFilters;
-  hasAnyPayment: boolean;
-  rows: PaymentsListRow[];
+  filters: MovementsListFilters;
+  hasAnyMovement: boolean;
+  rows: MovementsListRow[];
   selectedEventId: string | null;
-  summary: PaymentsListSummary;
+  summary: MovementsListSummary;
   totalCount: number;
   totalPages: number;
 };
 
-const paymentsListSpec: ListQuerySpec<PaymentsListOrder["columnId"]> = {
-  orderColumnIds: ["paymentDate"],
-  defaultOrder: { columnId: "paymentDate", direction: "desc" },
+export type MovementsListActionData =
+  RefundActionData | { message: string; status: "error" };
+
+const movementsListSpec: ListQuerySpec<MovementsListOrder["columnId"]> = {
+  orderColumnIds: ["date"],
+  defaultOrder: { columnId: "date", direction: "desc" },
 };
 
-export async function loadPaymentsList(
+/** The `Tipo` facet's values in the url, Spanish like the rest of it. */
+const kindByUrlValue = {
+  pago: "payment",
+  reembolso: "refund",
+} as const satisfies Record<string, MovementKind>;
+
+const urlValueByKind = {
+  payment: "pago",
+  refund: "reembolso",
+} as const satisfies Record<MovementKind, keyof typeof kindByUrlValue>;
+
+const emptySummary: MovementsListSummary = {
+  availableAmount: 0,
+  netAmount: 0,
+  paymentsAmount: 0,
+  refundsAmount: 0,
+};
+
+export async function loadMovementsList(
   request: Request,
-): Promise<PaymentsListLoaderData> {
+): Promise<MovementsListLoaderData> {
   const user = await requireAdminPanelReader(request);
   const canWrite = canWriteInAdminPanel(user.role);
   const eventContext = await loadEventContext(request);
   const selectedEventId = eventContext.selectedEventId;
   const url = readRequestedUrl(request);
-  const filters = readPaymentsListFilters(url.searchParams);
+  const filters = readMovementsListFilters(url.searchParams);
 
   if (selectedEventId === null) {
     return {
       canWrite,
       filters,
-      hasAnyPayment: false,
-      rows: [] as PaymentsListRow[],
+      hasAnyMovement: false,
+      rows: [],
       selectedEventId: null,
-      summary: { availableAmount: 0, totalAmount: 0 },
+      summary: emptySummary,
       totalCount: 0,
       totalPages: 1,
     };
   }
 
-  const where = buildPaymentsWhere(selectedEventId, filters);
-  // Unfiltered on purpose, and in the same pass as `hasAnyPayment`: both read
+  const movements = eventMovementsSubquery(selectedEventId);
+  const where = buildMovementsWhere(movements, filters);
+  // Unfiltered on purpose, and in the same pass as `hasAnyMovement`: both read
   // the whole event and neither one narrows with the list.
-  const [{ count: totalUnfilteredCount, summaryAvailable, summaryTotal }] =
-    await db
+  const [[paymentTotals], [refundTotals], [{ count }]] = await Promise.all([
+    db
       .select({
+        available: sql<number>`coalesce(sum(${paymentAvailableAmountSql}), 0)`,
         count: sql<number>`count(*)`,
-        summaryAvailable: sql<number>`coalesce(sum(${paymentAvailableAmountSql}), 0)`,
-        summaryTotal: sql<number>`coalesce(sum(${payments.amount}), 0)`,
+        total: sql<number>`coalesce(sum(${payments.amount}), 0)`,
       })
       .from(payments)
-      .where(eq(payments.eventId, selectedEventId));
-  const [{ count }] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(payments)
-    .innerJoin(academies, eq(payments.academyId, academies.id))
-    .where(where);
+      .where(eq(payments.eventId, selectedEventId)),
+    db
+      .select({
+        count: sql<number>`count(*)`,
+        total: sql<number>`coalesce(sum(${refunds.amount}), 0)`,
+      })
+      .from(refunds)
+      .where(eq(refunds.eventId, selectedEventId)),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(movements)
+      .where(where),
+  ]);
   const totalCount = Number(count);
   const { limit, offset, page, totalPages } = paginateList({
     page: filters.page,
@@ -133,26 +210,30 @@ export async function loadPaymentsList(
   });
   const normalizedFilters = { ...filters, page };
 
-  const paymentRows = await db
+  const pageRows = await db
     .select({
-      academyId: payments.academyId,
-      academyName: academies.name,
-      amount: payments.amount,
-      availableAmount: paymentAvailableAmountSql,
-      id: payments.id,
-      paymentDate: payments.paymentDate,
-      paymentMethod: payments.paymentMethod,
-      paymentNumber: payments.paymentNumber,
+      academyId: movements.academyId,
+      academyName: movements.academyName,
+      amount: movements.amount,
+      availableAmount: movements.availableAmount,
+      date: movements.date,
+      id: movements.id,
+      kind: movements.kind,
+      method: movements.method,
+      number: movements.number,
     })
-    .from(payments)
-    .innerJoin(academies, eq(payments.academyId, academies.id))
+    .from(movements)
     .where(where)
-    .orderBy(...buildPaymentsOrderBy(normalizedFilters.order))
+    .orderBy(...buildMovementsOrderBy(movements, normalizedFilters.order))
     .limit(limit)
     .offset(offset);
 
   redirectToCanonicalListUrl(request, {
     facets: {
+      tipo:
+        normalizedFilters.kind === null
+          ? null
+          : urlValueByKind[normalizedFilters.kind],
       medio: normalizedFilters.method,
       disponible: normalizedFilters.availability,
     },
@@ -161,92 +242,267 @@ export async function loadPaymentsList(
       page: normalizedFilters.page,
       search: normalizedFilters.query,
     },
-    spec: paymentsListSpec,
+    spec: movementsListSpec,
   });
+
+  const paymentsAmount = Number(paymentTotals.total);
+  const refundsAmount = Number(refundTotals.total);
 
   return {
     canWrite,
     filters: normalizedFilters,
-    hasAnyPayment: Number(totalUnfilteredCount) > 0,
-    rows: paymentRows.map((row) => ({
-      ...row,
-      availableAmount: Number(row.availableAmount),
-    })) satisfies PaymentsListRow[],
+    hasAnyMovement:
+      Number(paymentTotals.count) + Number(refundTotals.count) > 0,
+    rows: await completeRefundRows(
+      selectedEventId,
+      pageRows.map((row) => ({
+        ...row,
+        amount: Number(row.amount),
+        availableAmount:
+          row.availableAmount === null ? null : Number(row.availableAmount),
+        number: Number(row.number),
+      })),
+    ),
     selectedEventId,
     summary: {
-      availableAmount: Number(summaryAvailable),
-      totalAmount: Number(summaryTotal),
+      availableAmount: Number(paymentTotals.available),
+      netAmount: paymentsAmount - refundsAmount,
+      paymentsAmount,
+      refundsAmount,
     },
     totalCount,
     totalPages,
   };
 }
 
-function readPaymentsListFilters(
-  searchParams: URLSearchParams,
-): PaymentsListFilters {
-  const listQuery = readListQuery(searchParams, paymentsListSpec);
+/**
+ * The list's writes: correcting a refund from the dialog on its row, with the
+ * handlers the owner's tab uses, so both lists refuse and accept alike.
+ * Administration only; registering a refund stays on the owner's tab.
+ */
+export async function handleMovementsListAction(
+  request: Request,
+): Promise<MovementsListActionData> {
+  await requireAdminPanelWriter(request);
+  const formData = await readFormData(request);
+  const intent = String(formData.get("intent") ?? "");
+
+  if (intent === updateRefundIntent) {
+    return await handleUpdateRefund({ formData, request });
+  }
+
+  if (intent === deleteRefundIntent) {
+    return await handleDeleteRefund({ formData, request });
+  }
 
   return {
-    availability: readPaymentsListAvailability(searchParams.get("disponible")),
-    method: readPaymentsListMethod(searchParams.get("medio")),
+    message: "No pudimos completar la acción. Intentá nuevamente.",
+    status: "error",
+  };
+}
+
+/**
+ * Every payment and refund of the event as one set of rows, so the filters,
+ * the search, the count and the page read both kinds at once. Each branch
+ * names its own columns: a refund has no `Disponible`, and its number counts
+ * in its own series.
+ */
+function eventMovementsSubquery(eventId: string) {
+  const paymentMovements = db
+    .select({
+      kind: sql<MovementKind>`'payment'::text`.as("kind"),
+      id: sql<string>`${payments.id}`.as("id"),
+      number: sql<number>`${payments.paymentNumber}`.as("number"),
+      date: sql<string>`${payments.paymentDate}`.as("date"),
+      recordedAt: sql<Date>`${payments.createdAt}`.as("recorded_at"),
+      academyId: sql<string>`${payments.academyId}`.as("academy_id"),
+      academyName: sql<string>`${academies.name}`.as("academy_name"),
+      method: sql<PaymentMethod>`${payments.paymentMethod}`.as("method"),
+      amount: sql<number>`${payments.amount}`.as("amount"),
+      availableAmount: sql<
+        number | null
+      >`cast(${paymentAvailableAmountSql} as bigint)`.as("available_amount"),
+    })
+    .from(payments)
+    .innerJoin(academies, eq(payments.academyId, academies.id))
+    .where(eq(payments.eventId, eventId));
+  const refundMovements = db
+    .select({
+      kind: sql<MovementKind>`'refund'::text`.as("kind"),
+      id: sql<string>`${refunds.id}`.as("id"),
+      number: sql<number>`${refunds.refundNumber}`.as("number"),
+      date: sql<string>`${refunds.refundDate}`.as("date"),
+      recordedAt: sql<Date>`${refunds.createdAt}`.as("recorded_at"),
+      academyId: sql<string>`${refunds.academyId}`.as("academy_id"),
+      academyName: sql<string>`${academies.name}`.as("academy_name"),
+      method: sql<PaymentMethod>`${refunds.refundMethod}`.as("method"),
+      amount: sql<number>`${refunds.amount}`.as("amount"),
+      availableAmount: sql<number | null>`cast(null as bigint)`.as(
+        "available_amount",
+      ),
+    })
+    .from(refunds)
+    .innerJoin(academies, eq(refunds.academyId, academies.id))
+    .where(eq(refunds.eventId, eventId));
+
+  return paymentMovements.unionAll(refundMovements).as("movement");
+}
+
+type EventMovements = ReturnType<typeof eventMovementsSubquery>;
+
+type PageRow = Omit<MovementsListRowBase, "method"> & {
+  availableAmount: number | null;
+  kind: MovementKind;
+  method: PaymentMethod;
+};
+
+/**
+ * Adds to each refund of the page what its dialog edits and its owner's
+ * `Saldo disponible`, read from the balance module like every other screen.
+ * Only the page's refunds are read, so the cost is the page's.
+ */
+async function completeRefundRows(
+  eventId: string,
+  rows: PageRow[],
+): Promise<MovementsListRow[]> {
+  const refundRows = rows.filter((row) => row.kind === "refund");
+
+  if (refundRows.length === 0) {
+    return rows.map((row) => paymentRow(row));
+  }
+
+  const [details, balances] = await Promise.all([
+    db
+      .select({
+        id: refunds.id,
+        internalNote: refunds.internalNote,
+        reference: refunds.reference,
+        updatedAt: refunds.updatedAt,
+      })
+      .from(refunds)
+      .where(
+        inArray(
+          refunds.id,
+          refundRows.map((row) => row.id),
+        ),
+      ),
+    readAvailableBalances(db, {
+      academyIds: refundRows.map((row) => row.academyId),
+      eventId,
+    }),
+  ]);
+  const detailById = new Map(details.map((detail) => [detail.id, detail]));
+
+  return rows.flatMap((row): MovementsListRow[] => {
+    if (row.kind === "payment") {
+      return [paymentRow(row)];
+    }
+
+    const detail = detailById.get(row.id);
+
+    // Deleted between the page's read and this one: the next load drops it.
+    if (detail === undefined) {
+      return [];
+    }
+
+    return [
+      {
+        ...row,
+        availableAmount: null,
+        internalNote: detail.internalNote,
+        kind: "refund",
+        ownerAvailableBalanceAmount:
+          balances.get(row.academyId)?.availableBalanceAmount ?? 0,
+        reference: detail.reference,
+        version: detail.updatedAt.toISOString(),
+      },
+    ];
+  });
+}
+
+function paymentRow(row: PageRow): PaymentMovementsListRow {
+  return { ...row, availableAmount: row.availableAmount ?? 0, kind: "payment" };
+}
+
+function readMovementsListFilters(
+  searchParams: URLSearchParams,
+): MovementsListFilters {
+  const listQuery = readListQuery(searchParams, movementsListSpec);
+
+  return {
+    availability: readMovementsListAvailability(searchParams.get("disponible")),
+    kind: readMovementsListKind(searchParams.get("tipo")),
+    method: readMovementsListMethod(searchParams.get("medio")),
     order: listQuery.order,
     page: listQuery.page,
     query: listQuery.search,
   };
 }
 
-function readPaymentsListAvailability(
+function readMovementsListAvailability(
   value: string | null,
-): PaymentsListAvailability | null {
+): MovementsListAvailability | null {
   return value === "con" || value === "sin" ? value : null;
 }
 
-function readPaymentsListMethod(value: string | null) {
+function readMovementsListKind(value: string | null): MovementKind | null {
+  return value === "pago" || value === "reembolso"
+    ? kindByUrlValue[value]
+    : null;
+}
+
+function readMovementsListMethod(value: string | null) {
   return paymentMethodValues.find((method) => method === value) ?? null;
 }
 
-function buildPaymentsWhere(
-  selectedEventId: string,
-  filters: PaymentsListFilters,
+function buildMovementsWhere(
+  movements: EventMovements,
+  filters: MovementsListFilters,
 ) {
-  const conditions: SQL[] = [eq(payments.eventId, selectedEventId)];
+  const conditions: SQL[] = [];
   const searchCondition = listSearchCondition(filters.query, [
-    academies.name,
-    sql`lpad(cast(${payments.paymentNumber} as text), ${eventSequenceNumberDigits}, '0')`,
+    movements.academyName,
+    sql`lpad(cast(${movements.number} as text), ${eventSequenceNumberDigits}, '0')`,
   ]);
 
   if (searchCondition) {
     conditions.push(searchCondition);
   }
 
-  if (filters.method !== null) {
-    conditions.push(eq(payments.paymentMethod, filters.method));
+  if (filters.kind !== null) {
+    conditions.push(sql`${movements.kind} = ${filters.kind}`);
   }
 
-  // A predicate over the derived figure rather than a `having`: the remainder is
-  // a correlated subquery per payment, so it needs no grouping and the two count
-  // queries stay the shape they already had.
+  if (filters.method !== null) {
+    conditions.push(sql`${movements.method} = ${filters.method}`);
+  }
+
+  // A refund's `Disponible` is null, so neither comparison holds for it.
   if (filters.availability !== null) {
     conditions.push(
       filters.availability === "con"
-        ? sql`${paymentAvailableAmountSql} > 0`
-        : sql`${paymentAvailableAmountSql} = 0`,
+        ? sql`${movements.availableAmount} > 0`
+        : sql`${movements.availableAmount} = 0`,
     );
   }
 
-  return and(...conditions);
+  return conditions.length > 0 ? and(...conditions) : undefined;
 }
 
-function buildPaymentsOrderBy(order: PaymentsListOrder) {
-  const orderPaymentDate =
-    order.direction === "asc"
-      ? asc(payments.paymentDate)
-      : desc(payments.paymentDate);
-  const orderPaymentNumber =
-    order.direction === "asc"
-      ? asc(payments.paymentNumber)
-      : desc(payments.paymentNumber);
+/**
+ * By date, and within a day by the order the movements were recorded in, as
+ * the owner's `Movimientos` tab reads them.
+ */
+function buildMovementsOrderBy(
+  movements: EventMovements,
+  order: MovementsListOrder,
+) {
+  const direction = order.direction === "asc" ? asc : desc;
 
-  return [orderPaymentDate, orderPaymentNumber, desc(payments.id)];
+  return [
+    direction(movements.date),
+    direction(movements.recordedAt),
+    direction(movements.number),
+    desc(movements.id),
+  ];
 }
