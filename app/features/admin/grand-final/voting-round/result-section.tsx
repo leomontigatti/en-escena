@@ -14,11 +14,11 @@ import {
 import type { VotingRoundResultView } from "./shared";
 
 /**
- * The last closed round's result on administration's list: the ranking by
- * weighted points with each finalist's share, a round 1 tie for first place
- * called out with what settles it, and a `Desempate` still tied called out as
- * a shared win. Shown only once the round closed: nothing reveals totals
- * while one is open.
+ * The last closed round's result, the `Resultado` tab of administration's
+ * list: whether it is a `Desempate`'s, the ranking by weighted points with each finalist's share, a round 1 tie for
+ * first place called out with what settles it, and a `Desempate` still tied
+ * called out as a shared win. Shown only once the round closed: nothing
+ * reveals totals while one is open.
  */
 export function VotingRoundResultSection({
   result,
@@ -61,22 +61,10 @@ export function VotingRoundResultSection({
   ];
 
   return (
-    <section
-      aria-labelledby="gran-final-resultado"
-      className="flex flex-col gap-3"
-    >
-      <div className="flex items-center gap-2">
-        <h3 id="gran-final-resultado" className="text-base font-semibold">
-          {result.roundNumber > 1
-            ? "Resultado del desempate"
-            : "Resultado de la votación"}
-        </h3>
-        {result.published ? (
-          <Badge variant="success">Publicado</Badge>
-        ) : (
-          <Badge variant="secondary">Sin publicar</Badge>
-        )}
-      </div>
+    <div className="flex flex-col gap-3">
+      {result.roundNumber > 1 ? (
+        <span className="text-sm font-medium">Desempate</span>
+      ) : null}
       <OutcomeAlert result={result} />
       <ClientDataTable<RankedFinalist>
         columns={columns}
@@ -91,7 +79,7 @@ export function VotingRoundResultSection({
         Cada voto con código QR suma 30 puntos y cada voto con Google, 1. El
         porcentaje es la parte de los puntos de la votación.
       </p>
-    </section>
+    </div>
   );
 }
 
@@ -144,4 +132,17 @@ function OutcomeAlert({ result }: { result: VotingRoundResultView }) {
   }
 
   return null;
+}
+
+/** Whether the result is published, beside the `Resultado` tab's name. */
+export function VotingRoundResultBadge({
+  result,
+}: {
+  result: VotingRoundResultView;
+}) {
+  return result.published ? (
+    <Badge variant="success">Publicado</Badge>
+  ) : (
+    <Badge variant="secondary">Sin publicar</Badge>
+  );
 }
