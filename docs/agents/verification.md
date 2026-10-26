@@ -43,16 +43,16 @@ on the URL § Launch started. Sign in by hand: navigate to `/ingresar`, type the
 email and the seed's password, submit. Size the viewport to 1440×900, the design width in
 [style-guide.md](style-guide.md#viewports), once: it holds across navigations and sign-ins. When
 the change touches a table or a dense row, also check it at 1280×800, the floor. The admin
-sidebar fills most of the snapshot's tree, so target a popover's items by role locator, and wait
-for text the main content shows (a sidebar label such as `Resultados` matches before the page
-loads).
+sidebar fills most of the snapshot's tree, so target a popover's items by role locator, click a
+button by the `aria-ref` the latest snapshot gives it (a role locator on a visible button such as
+`Ingresar` or `Acciones` timed out in the 2026-10-26 probe), and wait for text the main content
+shows (a sidebar label such as `Resultados` matches before the page loads).
 
-The preview tools are on trial (the shared `preview-tools-verification` dependency). Since the
-2026-10-16 probe they drive, assert, read the console and record reliably here, but their
-captures cannot be evidence: they save at 1280×800, shrinking the 1440×900 viewport, and draw
-the blurred backdrop behind every dialog and sheet as mirrored tiles. Before and after images
-therefore come from `playwright-cli` (§ Evidence). When a step cannot be done with the preview tools, finish it
-with `playwright-cli` below and say so in the final report.
+The preview tools are on trial (the shared `preview-tools-verification` dependency). They drive,
+assert, read the console and record reliably here, and since the 2026-10-26 probe their captures
+are evidence too: a capture keeps the 1440×900 layout and is saved scaled to 1280×800, and a
+dialog's blurred backdrop renders as it does in `playwright-cli`. When a step cannot be done with
+the preview tools, finish it with `playwright-cli` below and say so in the final report.
 
 Outside T3, or as that fallback, the browser is the Playwright CLI (`@playwright/cli`, the
 `playwright-cli` binary), installed globally with a headless Chromium
@@ -80,14 +80,15 @@ A change to what a screen looks like is shown as before and after images; a chan
 interaction as a short recording.
 
 - Capture the **before** during exploration, before the first edit, and the **after** once the
-  change is final: same screen, same account, same size (1440×900), both with `playwright-cli`
+  change is final: same screen, same account, same 1440×900 viewport. In a T3 thread both are
+  `preview_snapshot` with `save: true`; outside T3 both are `playwright-cli`
   (`pnpm ui:session <role> <path>`, then
-  `screenshot --filename=.playwright-cli/<what>-before.png`, and `-after.png`), even in a T3
-  thread: the preview's captures are not evidence here (§ Drive). A recording can come from
-  `preview_recording_start` and `preview_recording_stop`.
+  `screenshot --filename=.playwright-cli/<what>-before.png`, and `-after.png`). A recording can
+  come from `preview_recording_start` and `preview_recording_stop`.
 - Show them to the user in the thread for approval before the PR opens (the `implement` skill's
-  step 7): embed each file by its absolute path, `<worktree>/.playwright-cli/<what>-after.png`.
-  `.playwright-cli/` is gitignored, so the images never reach the repo or the PR.
+  step 7): embed each image by its absolute path, the snapshot's `screenshotPath` or
+  `<worktree>/.playwright-cli/<what>-after.png`. The snapshot's file sits in T3's own storage and
+  `.playwright-cli/` is gitignored, so neither reaches the repo or the PR.
 
 ## Cleanup
 
