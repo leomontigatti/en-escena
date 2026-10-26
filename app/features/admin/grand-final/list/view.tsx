@@ -39,7 +39,10 @@ import {
   VotingRoundDialogs,
   type VotingRoundAction,
 } from "../voting-round/dialogs";
-import { VotingRoundResultSection } from "../voting-round/result-section";
+import {
+  VotingRoundResultBadge,
+  VotingRoundResultSection,
+} from "../voting-round/result-section";
 import type {
   VotingRoundListState,
   VotingRoundResultView,
@@ -228,6 +231,7 @@ const voteCodesTab = "codigos-qr";
 const auditLinksTab = "auditoria";
 
 type GrandFinalTab = {
+  badge?: ReactNode;
   content: ReactNode;
   label: string;
   value: string;
@@ -236,7 +240,8 @@ type GrandFinalTab = {
 /**
  * The academies, and beside them the QR code batches and the audit links once
  * there is one of each: a tab with nothing to list is not drawn. Once a round
- * closed its result comes first, and the page opens on it.
+ * closed its result comes first, its name saying whether it is published,
+ * and the page opens on it.
  */
 function GrandFinalTabs({
   auditLinks,
@@ -251,6 +256,7 @@ function GrandFinalTabs({
 }) {
   const candidates: (GrandFinalTab | false | null)[] = [
     result && {
+      badge: <VotingRoundResultBadge result={result} />,
       content: <VotingRoundResultSection result={result} />,
       label: "Resultado",
       value: resultTab,
@@ -291,6 +297,12 @@ function GrandFinalTabs({
         {tabs.map((candidate) => (
           <TabsTrigger key={candidate.value} value={candidate.value}>
             {candidate.label}
+            {candidate.badge ? (
+              <>
+                <span className="sr-only">, </span>
+                {candidate.badge}
+              </>
+            ) : null}
           </TabsTrigger>
         ))}
       </TabsList>

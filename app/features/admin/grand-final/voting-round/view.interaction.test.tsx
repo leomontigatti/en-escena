@@ -385,13 +385,12 @@ describe("the voting round of administration's `Gran final` list", () => {
     expect(submitted).toHaveLength(0);
   });
 
-  test("opens on the result, the first tab, once a round closed", async () => {
+  test("opens on the result, the first tab, which tells whether it is published", async () => {
     await mount(publishedResult);
 
     const tabs = readTabs();
-    expect(tabs.names).toEqual(["Resultado", "Academias"]);
-    expect(tabs.selected).toBe("Resultado");
-    expect(tabs.panel).toContain("Publicado");
+    expect(tabs.names).toEqual(["Resultado, Publicado", "Academias"]);
+    expect(tabs.selected).toBe("Resultado, Publicado");
   });
 
   test("draws no result tab while the vote is open", async () => {

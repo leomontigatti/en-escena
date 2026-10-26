@@ -15,8 +15,7 @@ import type { VotingRoundResultView } from "./shared";
 
 /**
  * The last closed round's result, the `Resultado` tab of administration's
- * list: whether it is published, and whether it is a `Desempate`'s, the
- * ranking by weighted points with each finalist's share, a round 1 tie for
+ * list: whether it is a `Desempate`'s, the ranking by weighted points with each finalist's share, a round 1 tie for
  * first place called out with what settles it, and a `Desempate` still tied
  * called out as a shared win. Shown only once the round closed: nothing
  * reveals totals while one is open.
@@ -63,16 +62,9 @@ export function VotingRoundResultSection({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        {result.roundNumber > 1 ? (
-          <span className="text-sm font-medium">Desempate</span>
-        ) : null}
-        {result.published ? (
-          <Badge variant="success">Publicado</Badge>
-        ) : (
-          <Badge variant="secondary">Sin publicar</Badge>
-        )}
-      </div>
+      {result.roundNumber > 1 ? (
+        <span className="text-sm font-medium">Desempate</span>
+      ) : null}
       <OutcomeAlert result={result} />
       <ClientDataTable<RankedFinalist>
         columns={columns}
@@ -140,4 +132,17 @@ function OutcomeAlert({ result }: { result: VotingRoundResultView }) {
   }
 
   return null;
+}
+
+/** Whether the result is published, beside the `Resultado` tab's name. */
+export function VotingRoundResultBadge({
+  result,
+}: {
+  result: VotingRoundResultView;
+}) {
+  return result.published ? (
+    <Badge variant="success">Publicado</Badge>
+  ) : (
+    <Badge variant="secondary">Sin publicar</Badge>
+  );
 }
