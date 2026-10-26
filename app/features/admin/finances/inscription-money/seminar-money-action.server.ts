@@ -105,6 +105,7 @@ export async function runSeminarInscriptionMoneyIntent(input: {
   const result =
     intent === allocateInscriptionIntent
       ? await allocateToSeminarInscription({
+          now: new Date(),
           ...target,
           amount,
           priceId: readPickedPriceId(input.formData),

@@ -191,6 +191,7 @@ describe("the seminar presets on the academy's finance page", () => {
 
     expect(
       await allocateToSeminarInscription({
+        now: new Date(),
         academyId: fixture.academyId,
         amount: 25000,
         eventId: fixture.eventId,
@@ -243,6 +244,7 @@ describe("the seminar presets on the academy's finance page", () => {
     // One place of the `Exclusivo` seminar is already taken.
     expect(
       await allocateToSeminarInscription({
+        now: new Date(),
         academyId: fixture.academyId,
         amount: 20000,
         eventId: fixture.eventId,
@@ -337,6 +339,7 @@ describe("an inscription holding a price that is not today's, below its deposit"
 
     expect(
       await allocateToSeminarInscription({
+        now: new Date(),
         academyId: fixture.academyId,
         amount: 10000,
         eventId: fixture.eventId,
@@ -387,6 +390,7 @@ describe("an inscription holding a price that is not today's, below its deposit"
     ] as const) {
       expect(
         await allocateToSeminarInscription({
+          now: new Date(),
           academyId: fixture.academyId,
           amount,
           eventId: fixture.eventId,
@@ -449,6 +453,7 @@ describe("an inscription priced from the other participant cell, below its depos
 
     expect(
       await allocateToSeminarInscription({
+        now: new Date(),
         academyId: fixture.academyId,
         amount,
         eventId: fixture.eventId,
@@ -651,6 +656,7 @@ describe("the seminar preset preview in the academy's finance loader", () => {
 
     expect(
       await allocateToSeminarInscription({
+        now: new Date(),
         academyId: fixture.academyId,
         amount: 25000,
         eventId: fixture.eventId,

@@ -221,6 +221,7 @@ export async function handleAcademyFinancesAction(input: {
   const result =
     target === "seminars"
       ? await paySeminarsPreset({
+          now: new Date(),
           academyId,
           eventId: eventContext.selectedEventId,
           seminarIds: readIds(formData, seminarIdFieldName),

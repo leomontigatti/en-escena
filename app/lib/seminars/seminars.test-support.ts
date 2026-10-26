@@ -53,6 +53,7 @@ export async function coverSeminarInscriptionDeposit(input: {
   // Exactly the deposit: the crossing is what takes the place, and stopping at
   // it keeps the row `Seña cubierta` rather than fully paid.
   const allocated = await allocateToSeminarInscription({
+    now: new Date(),
     academyId: input.academyId,
     amount: price.depositAmount,
     eventId: input.eventId,

@@ -545,11 +545,10 @@ export async function paySeminarsPreset(input: {
   academyId: string;
   eventId: string;
   /** The instant the places are judged at; a live reservation depends on it. */
-  now?: Date;
+  now: Date;
   seminarIds: string[];
   stage: CobroStage;
 }): Promise<CobroResult> {
-  const now = input.now ?? new Date();
   const seminarIds = [...new Set(input.seminarIds)];
 
   if (seminarIds.length === 0) {
@@ -585,7 +584,7 @@ export async function paySeminarsPreset(input: {
 
     const places = await assertSeminarPlacesForCrossings(tx, {
       crossingIdsBySeminarId: plan.crossingIdsBySeminarId,
-      now,
+      now: input.now,
       seminars: locked,
     });
 

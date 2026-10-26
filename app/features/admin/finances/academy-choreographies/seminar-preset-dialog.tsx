@@ -19,8 +19,10 @@ import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.serve
 import { formatAmount, formatDate } from "@/lib/finances/formatters";
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 import type { SeminarCobroPreview } from "@/lib/finances/seminar-cobro-presets.server";
-import { seminarOverAllocatedMessage } from "@/lib/finances/seminar-cobro-refusals";
-import { seminarPlacesShortMessage } from "@/lib/seminars/registration-refusals";
+import {
+  seminarOverAllocatedMessage,
+  seminarPlacesShortMessage,
+} from "@/lib/finances/seminar-cobro-refusals";
 import { useOptionalFormAction } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 

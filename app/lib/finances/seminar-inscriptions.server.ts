@@ -101,7 +101,7 @@ export type SeminarInscriptionFinanceScope =
  */
 export async function readSeminarInscriptionFinanceRows(
   input: SeminarInscriptionFinanceScope,
-  now = new Date(),
+  now: Date,
 ): Promise<SeminarInscriptionFinanceDetailRow[]> {
   const personRows = await readSeminarPersonRows(input);
   const [resolutions, ledgers] = await Promise.all([

@@ -11,10 +11,12 @@ import {
   checkSeminarQuota,
   grantSeminarReservation,
   losesSeminarPlace,
-  readSeminarPlaceLedgers,
   readSeminarRowsCoverage,
 } from "@/lib/seminars/seminar-places.server";
-import { coverSeminarInscriptionDeposit } from "@/lib/seminars/seminars.test-support";
+import {
+  coverSeminarInscriptionDeposit,
+  readSeminarPlaceLedger,
+} from "@/lib/seminars/seminars.test-support";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
@@ -96,18 +98,6 @@ async function insertCoveredInscription(
   return inscriptionId;
 }
 
-async function readLedger(seminarId: string, at: Date = now) {
-  const ledger = (
-    await readSeminarPlaceLedgers(db, { now: at, seminarIds: [seminarId] })
-  ).get(seminarId);
-
-  if (!ledger) {
-    throw new Error(`Expected a ledger for seminar ${seminarId}.`);
-  }
-
-  return ledger;
-}
-
 describe("readSeminarPlaceLedgers", () => {
   test("reads who holds each place: a covered row for good, a live reservation for now, and nobody else", async () => {
     const fixture = await createSeminarFixture(10);
@@ -122,7 +112,7 @@ describe("readSeminarPlaceLedgers", () => {
     );
     const unreserved = await insertInscription(fixture);
 
-    const ledger = await readLedger(fixture.seminar.id);
+    const ledger = await readSeminarPlaceLedger(fixture.seminar.id, now);
 
     expect({
       covered: ledger.holdingOf(covered),
@@ -161,7 +151,7 @@ describe("readSeminarPlaceLedgers", () => {
       .set({ withdrawnAt: now })
       .where(eq(seminarInscriptions.seminarId, fixture.seminar.id));
 
-    const ledger = await readLedger(fixture.seminar.id);
+    const ledger = await readSeminarPlaceLedger(fixture.seminar.id, now);
 
     expect(ledger.holdingOf(covered)).toBeUndefined();
     expect(ledger.holdingOf(reserved)).toBeUndefined();
@@ -173,11 +163,14 @@ describe("readSeminarPlaceLedgers", () => {
     const reservedUntil = new Date(now.getTime() + 2 * hour);
     const reserved = await insertInscription(fixture, reservedUntil);
 
-    const before = await readLedger(
+    const before = await readSeminarPlaceLedger(
       fixture.seminar.id,
       new Date(reservedUntil.getTime() - 1),
     );
-    const after = await readLedger(fixture.seminar.id, reservedUntil);
+    const after = await readSeminarPlaceLedger(
+      fixture.seminar.id,
+      reservedUntil,
+    );
 
     expect([before.holdingOf(reserved), before.isFull]).toEqual([
       "reserved",
@@ -200,19 +193,23 @@ describe("readSeminarPlaceLedgers", () => {
       .set({ scheduledDate: "2030-10-01", startTime: "08:00" })
       .where(eq(seminars.id, fixture.seminar.id));
 
-    expect((await readLedger(fixture.seminar.id)).holdingOf(reserved)).toBe(
-      "none",
-    );
+    expect(
+      (await readSeminarPlaceLedger(fixture.seminar.id, now)).holdingOf(
+        reserved,
+      ),
+    ).toBe("none");
   });
 
   test("is full exactly when covered and reserved rows reach the quota", async () => {
     const fixture = await createSeminarFixture(2);
 
     await insertCoveredInscription(fixture);
-    expect((await readLedger(fixture.seminar.id)).isFull).toBe(false);
+    expect((await readSeminarPlaceLedger(fixture.seminar.id, now)).isFull).toBe(
+      false,
+    );
 
     await insertInscription(fixture, new Date(now.getTime() + hour));
-    const full = await readLedger(fixture.seminar.id);
+    const full = await readSeminarPlaceLedger(fixture.seminar.id, now);
 
     expect([full.availablePlaces, full.isFull]).toEqual([0, true]);
   });
@@ -227,7 +224,7 @@ describe("readSeminarPlaceLedgers", () => {
       .set({ quota: 1 })
       .where(eq(seminars.id, fixture.seminar.id));
 
-    const ledger = await readLedger(fixture.seminar.id);
+    const ledger = await readSeminarPlaceLedger(fixture.seminar.id, now);
 
     expect([ledger.availablePlaces, ledger.isFull]).toEqual([0, true]);
   });
@@ -235,7 +232,7 @@ describe("readSeminarPlaceLedgers", () => {
   test("answers a seminar nobody registered into with its whole quota free", async () => {
     const fixture = await createSeminarFixture(5);
 
-    const ledger = await readLedger(fixture.seminar.id);
+    const ledger = await readSeminarPlaceLedger(fixture.seminar.id, now);
 
     expect({
       availablePlaces: ledger.availablePlaces,
@@ -253,7 +250,7 @@ describe("a ledger's answer for a write that crosses deposits", () => {
       new Date(now.getTime() + hour),
     );
 
-    const ledger = await readLedger(fixture.seminar.id);
+    const ledger = await readSeminarPlaceLedger(fixture.seminar.id, now);
 
     expect(ledger.isFull).toBe(true);
     expect(ledger.shortfallFor([reserved])).toBe(0);
@@ -264,9 +261,11 @@ describe("a ledger's answer for a write that crosses deposits", () => {
     const fixture = await createSeminarFixture(1);
     const covered = await insertCoveredInscription(fixture);
 
-    expect((await readLedger(fixture.seminar.id)).shortfallFor([covered])).toBe(
-      0,
-    );
+    expect(
+      (await readSeminarPlaceLedger(fixture.seminar.id, now)).shortfallFor([
+        covered,
+      ]),
+    ).toBe(0);
   });
 
   test("counts the places other rows hold, covered and reserved, against the crossings", async () => {
@@ -277,7 +276,7 @@ describe("a ledger's answer for a write that crosses deposits", () => {
     const first = await insertInscription(fixture);
     const second = await insertInscription(fixture);
 
-    const ledger = await readLedger(fixture.seminar.id);
+    const ledger = await readSeminarPlaceLedger(fixture.seminar.id, now);
 
     expect(ledger.placesLeftFor([first, second])).toBe(1);
     expect(ledger.shortfallFor([first, second])).toBe(1);

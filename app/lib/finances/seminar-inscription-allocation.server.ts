@@ -233,12 +233,10 @@ export async function allocateToSeminarInscription(
   input: SeminarInscriptionMoneyInput & {
     amount: number;
     /** The instant the place is judged at; a live reservation depends on it. */
-    now?: Date;
+    now: Date;
     priceId: string | null;
   },
 ): Promise<CobroResult> {
-  const now = input.now ?? new Date();
-
   return await runCobro(async (tx) => {
     const context = await loadSeminarMoneyContext(tx, input);
     if (!context.ok) {
@@ -278,7 +276,7 @@ export async function allocateToSeminarInscription(
         assertSeminarPlaceForCrossing(tx, {
           ...movement,
           inscriptionId: input.inscriptionId,
-          now,
+          now: input.now,
           seminar: context.seminar,
           wasCovered,
         }),

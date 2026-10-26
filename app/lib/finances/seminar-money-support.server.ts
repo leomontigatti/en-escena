@@ -12,7 +12,7 @@ import { asc, inArray } from "drizzle-orm";
 
 import { seminars } from "@/db/schema";
 import type { SeminarFinancePriceRow } from "@/lib/finances/seminar-inscription-thresholds.server";
-import { seminarPlacesShortMessage } from "@/lib/seminars/registration-refusals";
+import { seminarPlacesShortMessage } from "@/lib/finances/seminar-cobro-refusals";
 import { checkSeminarCrossings } from "@/lib/seminars/seminar-places.server";
 
 import type {

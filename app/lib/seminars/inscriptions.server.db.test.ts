@@ -827,11 +827,14 @@ describe("an individual's own seminar inscription", () => {
     // Deleted rather than withdrawn: not even the finance read, which keeps
     // withdrawn rows, still has it.
     await expect(
-      readSeminarInscriptionFinanceRows({
-        academyId: individual.ownerId,
-        eventId,
-        seminarId: seminar.id,
-      }),
+      readSeminarInscriptionFinanceRows(
+        {
+          academyId: individual.ownerId,
+          eventId,
+          seminarId: seminar.id,
+        },
+        new Date(),
+      ),
     ).resolves.toEqual([]);
 
     const paid = expectRegistered(await register());

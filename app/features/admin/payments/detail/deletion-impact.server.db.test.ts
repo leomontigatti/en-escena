@@ -363,6 +363,7 @@ describe("readPaymentDeletionImpact", () => {
     // and the money comes out of the payment about to be deleted.
     await expect(
       allocateToSeminarInscription({
+        now: new Date(),
         academyId: fixture.academyId,
         amount: 2000,
         eventId: fixture.eventId,
@@ -403,6 +404,7 @@ describe("readPaymentDeletionImpact", () => {
 
     await expect(
       allocateToSeminarInscription({
+        now: new Date(),
         academyId: fixture.academyId,
         amount: 2000,
         eventId: fixture.eventId,

@@ -140,6 +140,7 @@ async function allocate(
   input: { amount: number; inscriptionId: string },
 ) {
   const result = await allocateToSeminarInscription({
+    now: new Date(),
     academyId: fixture.academyId,
     amount: input.amount,
     eventId: fixture.eventId,

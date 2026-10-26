@@ -167,6 +167,7 @@ function createLinkedIndividual() {
 
 function allocate(fixture: Fixture, inscriptionId: string, amount: number) {
   return allocateToSeminarInscription({
+    now: new Date(),
     academyId: fixture.academyId,
     amount,
     eventId: fixture.eventId,
@@ -288,6 +289,7 @@ describe("portal seminar financial detail", () => {
       paymentNumber: 2,
     });
     const allocated = await allocateToSeminarInscription({
+      now: new Date(),
       academyId: individual.ownerId,
       amount: seminarPriceAmount / 2,
       eventId: fixture.eventId,

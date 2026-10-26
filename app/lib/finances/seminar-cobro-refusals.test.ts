@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { seminarPlacesShortMessage } from "./registration-refusals";
+import { seminarPlacesShortMessage } from "./seminar-cobro-refusals";
 
 describe("seminarPlacesShortMessage", () => {
   test("names the seminar by instructor and date and says how many places it is short", () => {

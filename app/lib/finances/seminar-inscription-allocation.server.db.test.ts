@@ -159,6 +159,7 @@ function allocate(
   input: { amount: number; inscriptionId?: string; priceId: string | null },
 ) {
   return allocateToSeminarInscription({
+    now: new Date(),
     academyId: fixture.academyId,
     amount: input.amount,
     eventId: fixture.eventId,
@@ -356,6 +357,7 @@ describe("seminar inscription allocation", () => {
     const fixture = await seedFixture();
 
     const result = await allocateToSeminarInscription({
+      now: new Date(),
       academyId: fixture.academyId,
       amount: 1000,
       eventId: fixture.eventId,

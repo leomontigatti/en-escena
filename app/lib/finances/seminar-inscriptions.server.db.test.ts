@@ -20,6 +20,7 @@ describe("readSeminarInscriptionFinanceRows", () => {
     const fixture = await seedEventSeminarFinanceFixture();
     await seedInscriptionInAnotherEvent(fixture.northAcademyId);
     await allocateToSeminarInscription({
+      now: new Date(),
       academyId: fixture.northAcademyId,
       amount: 10000,
       eventId: fixture.eventId,
@@ -28,9 +29,12 @@ describe("readSeminarInscriptionFinanceRows", () => {
       seminarId: fixture.abrilSeminarId,
     });
 
-    const rows = await readSeminarInscriptionFinanceRows({
-      eventId: fixture.eventId,
-    });
+    const rows = await readSeminarInscriptionFinanceRows(
+      {
+        eventId: fixture.eventId,
+      },
+      new Date(),
+    );
 
     expect(
       rows.map((row) => ({
@@ -92,9 +96,12 @@ describe("readSeminarInscriptionFinanceRows", () => {
     await reserveForHours(fixture.luzInscriptionId, 42);
     await reserveForHours(fixture.anaInscriptionId, -1);
 
-    const rows = await readSeminarInscriptionFinanceRows({
-      eventId: fixture.eventId,
-    });
+    const rows = await readSeminarInscriptionFinanceRows(
+      {
+        eventId: fixture.eventId,
+      },
+      new Date(),
+    );
 
     expect(
       Object.fromEntries(rows.map((row) => [row.firstName, row.reserved])),
@@ -110,11 +117,14 @@ describe("readSeminarInscriptionFinanceRows", () => {
     // seminar holds a place only by covering its deposit.
     await reserveForHours(fixture.luzInscriptionId, -1);
 
-    const afterLapse = await readSeminarInscriptionFinanceRows({
-      eventId: fixture.eventId,
-      academyId: fixture.northAcademyId,
-      seminarId: fixture.brunoSeminarId,
-    });
+    const afterLapse = await readSeminarInscriptionFinanceRows(
+      {
+        eventId: fixture.eventId,
+        academyId: fixture.northAcademyId,
+        seminarId: fixture.brunoSeminarId,
+      },
+      new Date(),
+    );
 
     expect(afterLapse.map((row) => row.reserved)).toEqual([false]);
   });
@@ -122,11 +132,14 @@ describe("readSeminarInscriptionFinanceRows", () => {
   test("narrows to one `(seminar, academy)` pair when both are named", async () => {
     const fixture = await seedEventSeminarFinanceFixture();
 
-    const rows = await readSeminarInscriptionFinanceRows({
-      academyId: fixture.southAcademyId,
-      eventId: fixture.eventId,
-      seminarId: fixture.brunoSeminarId,
-    });
+    const rows = await readSeminarInscriptionFinanceRows(
+      {
+        academyId: fixture.southAcademyId,
+        eventId: fixture.eventId,
+        seminarId: fixture.brunoSeminarId,
+      },
+      new Date(),
+    );
 
     expect(rows.map((row) => row.inscriptionId)).toEqual([
       fixture.luzInscriptionId,
