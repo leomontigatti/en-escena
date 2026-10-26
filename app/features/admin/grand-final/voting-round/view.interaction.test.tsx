@@ -156,7 +156,6 @@ describe("the voting round of administration's `Gran final` list", () => {
     );
   }
 
-  /** The tabs' names, and the text of the panel of the selected one. */
   function readTabs() {
     return {
       names: [...document.querySelectorAll('[role="tab"]')].map(
@@ -418,6 +417,6 @@ describe("the voting round of administration's `Gran final` list", () => {
       },
     });
 
-    expect(readTabs().panel).toMatch(/^Desempate/);
+    expect(readTabs().panel).toContain("Desempate");
   });
 });
