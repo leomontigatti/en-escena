@@ -44,6 +44,7 @@ function buildSeminar(
     requiredDepositPercentage: 50,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     availablePlaces: 20,
+    isFull: false,
     registeredCount: 0,
     inscriptionCount: 0,
     ...overrides,

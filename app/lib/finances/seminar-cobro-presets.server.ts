@@ -42,10 +42,9 @@ import {
 import { lockEventSeminarPrices } from "@/lib/seminar-prices/price-locks.server";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import {
-  countReservedByOthers,
-  readSeminarPlaces,
-  type SeminarPlaces,
-} from "@/lib/seminars/covered-inscriptions.server";
+  readSeminarPlaceLedgers,
+  type SeminarPlaceLedger,
+} from "@/lib/seminars/seminar-places.server";
 import {
   seminarInscriptionOwnedBy,
   seminarInscriptionPerson,
@@ -429,9 +428,11 @@ type SeminarCobroPreviewStage = {
    * deposit. */
   neededCount: number;
   people: SeminarCobroPreviewPerson[];
-  /** The places other registrations reserve, the charge's own crossings left
-   * out: they count as taken. */
-  reservedCount: number;
+  /** The places free for this charge, its own crossings left out of what is
+   * held (`placesLeftFor`). */
+  placesLeft: number;
+  /** How many of its crossings do not fit; the write refuses when any do. */
+  shortBy: number;
 };
 
 /**
@@ -439,10 +440,7 @@ type SeminarCobroPreviewStage = {
  * so the dialog can read any selection without asking the server again.
  */
 export type SeminarCobroPreview = {
-  /** The places already taken, by every academy. */
-  coveredCount: number;
   instructorName: string;
-  quota: number;
   scheduledDate: string;
   seminarId: string;
   stages: Record<CobroStage, SeminarCobroPreviewStage>;
@@ -462,13 +460,13 @@ export type SeminarCobroPreview = {
 export async function readSeminarCobroPreviews(input: {
   academyId: string;
   eventId: string;
+  now: Date;
 }): Promise<Record<string, SeminarCobroPreview>> {
   const eventSeminars = await db
     .select({
       id: seminars.id,
       instructorName: seminars.instructorName,
       kind: seminars.kind,
-      quota: seminars.quota,
       requiredDepositPercentage: seminars.requiredDepositPercentage,
       scheduledDate: seminars.scheduledDate,
     })
@@ -480,13 +478,16 @@ export async function readSeminarCobroPreviews(input: {
     return {};
   }
 
-  const [placesBySeminarId, inscriptions] = await Promise.all([
-    readSeminarPlaces(
-      eventSeminars.map((seminar) => seminar.id),
-      new Date(),
-      db,
-    ),
-    readSeminarCobroInscriptions(db, { ...input, seminars: eventSeminars }),
+  const [ledgers, inscriptions] = await Promise.all([
+    readSeminarPlaceLedgers(db, {
+      now: input.now,
+      seminarIds: eventSeminars.map((seminar) => seminar.id),
+    }),
+    readSeminarCobroInscriptions(db, {
+      academyId: input.academyId,
+      eventId: input.eventId,
+      seminars: eventSeminars,
+    }),
   ]);
   const deposit = planSeminarCobro(inscriptions, "deposit");
   const balance = planSeminarCobro(inscriptions, "balance");
@@ -495,22 +496,12 @@ export async function readSeminarCobroPreviews(input: {
     eventSeminars.map((seminar) => [
       seminar.id,
       {
-        coveredCount: placesBySeminarId.get(seminar.id)?.coveredIds.length ?? 0,
         instructorName: seminar.instructorName,
-        quota: seminar.quota,
         scheduledDate: seminar.scheduledDate,
         seminarId: seminar.id,
         stages: {
-          balance: previewStage(
-            balance,
-            seminar.id,
-            placesBySeminarId.get(seminar.id),
-          ),
-          deposit: previewStage(
-            deposit,
-            seminar.id,
-            placesBySeminarId.get(seminar.id),
-          ),
+          balance: previewStage(balance, seminar.id, ledgers.get(seminar.id)),
+          deposit: previewStage(deposit, seminar.id, ledgers.get(seminar.id)),
         },
       } satisfies SeminarCobroPreview,
     ]),
@@ -520,13 +511,14 @@ export async function readSeminarCobroPreviews(input: {
 function previewStage(
   plan: SeminarCobroPlan,
   seminarId: string,
-  places: SeminarPlaces | undefined,
+  ledger: SeminarPlaceLedger | undefined,
 ): SeminarCobroPreviewStage {
   const crossingIds = plan.crossingIdsBySeminarId.get(seminarId) ?? [];
 
   return {
     neededCount: crossingIds.length,
-    reservedCount: countReservedByOthers(places, crossingIds),
+    placesLeft: ledger?.placesLeftFor(crossingIds) ?? 0,
+    shortBy: ledger?.shortfallFor(crossingIds) ?? crossingIds.length,
     people: plan.lines
       .filter((line) => line.seminarId === seminarId)
       .map((line) => ({
@@ -552,6 +544,8 @@ function previewStage(
 export async function paySeminarsPreset(input: {
   academyId: string;
   eventId: string;
+  /** The instant the places are judged at; a live reservation depends on it. */
+  now: Date;
   seminarIds: string[];
   stage: CobroStage;
 }): Promise<CobroResult> {
@@ -590,6 +584,7 @@ export async function paySeminarsPreset(input: {
 
     const places = await assertSeminarPlacesForCrossings(tx, {
       crossingIdsBySeminarId: plan.crossingIdsBySeminarId,
+      now: input.now,
       seminars: locked,
     });
 

@@ -69,7 +69,10 @@ export async function loadPortalSeminarDetail(input: {
     throw new Response(seminarNotFoundMessage, { status: 404 });
   }
 
-  const seminar = await getSeminar(seminarId);
+  // One instant for the whole reading: the places, the reservations and the
+  // start are all judged at it.
+  const now = new Date();
+  const seminar = await getSeminar(seminarId, now);
 
   if (!seminar || seminar.eventId !== activeEvent.id) {
     throw new Response(seminarNotFoundMessage, { status: 404 });
@@ -79,7 +82,6 @@ export async function loadPortalSeminarDetail(input: {
   // than of the seminar: while a participant cell has no deadline-less `Común`
   // row, every seminar of the event is closed to registration. The same rows
   // price each person the dialog offers.
-  const now = new Date();
   const [
     inscriptions,
     people,
@@ -130,7 +132,7 @@ export async function loadPortalSeminarDetail(input: {
       startTime: seminar.startTime,
       hasStarted: hasSeminarStarted(seminar, now),
       hasRegistrationPrices: hasCompleteSeminarPriceCells(priceRows),
-      isFull: seminar.availablePlaces === 0,
+      isFull: seminar.isFull,
       requiredDepositPercentage: seminar.requiredDepositPercentage,
       startsBeforePaymentDeadline: doesSeminarStartBeforePaymentDeadline(
         seminar,

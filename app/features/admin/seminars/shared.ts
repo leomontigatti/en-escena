@@ -110,7 +110,7 @@ export type SeminarDetailLoaderData = {
    * Whether an inscription of this seminar has already covered its deposit, in
    * which case the kind and the deposit rate are read-only: the refusal shows
    * on sight rather than after the save. Always `false` until seminar money
-   * exists (`app/lib/seminars/covered-inscriptions.server.ts`).
+   * exists (`app/lib/seminars/seminar-places.server.ts`).
    */
   hasCoveredInscription: boolean;
   /** Everyone registered, whichever academy registered them. */

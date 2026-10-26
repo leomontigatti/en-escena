@@ -509,7 +509,7 @@ describe("`Bases del evento` repository", () => {
   // The `Administración` list plans against what is left, so occupancy has to be
   // the real one — assigned choreographies — and not the sum of the split
   // capacities, which only shares out the total capacity.
-  test("reports the lugares available left by the choreographies already assigned", async () => {
+  test("reports the places left by the choreographies already assigned", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Lugares Disponibles",
       email: "lugares.disponibles@example.com",

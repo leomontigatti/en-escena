@@ -133,6 +133,7 @@ function loaderDataFixture(
       allocatedAmount: 5000,
       anomalies: [],
       availablePlaces: 3,
+      isFull: false,
       depositAmount: { status: "complete", amount: 5000 },
       financialStatus: "depositMet",
       id: "seminar_1",

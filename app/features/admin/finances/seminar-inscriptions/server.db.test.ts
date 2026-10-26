@@ -120,6 +120,7 @@ async function allocate(
   seminarId: string,
 ) {
   const result = await allocateToSeminarInscription({
+    now: new Date(),
     academyId: fixture.northAcademyId,
     amount: 5000,
     eventId: fixture.eventId,

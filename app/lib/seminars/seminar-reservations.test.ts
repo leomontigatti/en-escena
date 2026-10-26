@@ -2,31 +2,10 @@ import { describe, expect, test } from "vitest";
 
 import {
   doesSeminarStartBeforePaymentDeadline,
-  getSeminarReservationEndsAt,
   isSeminarReservationLive,
 } from "./seminar-reservations";
 
 const now = new Date("2026-10-11T12:00:00-03:00");
-
-describe("getSeminarReservationEndsAt", () => {
-  test("holds the place 72 hours from the registration", () => {
-    expect(
-      getSeminarReservationEndsAt(
-        { scheduledDate: "2026-10-30", startTime: "10:00" },
-        now,
-      ),
-    ).toEqual(new Date("2026-10-14T12:00:00-03:00"));
-  });
-
-  test("never past the seminar's start", () => {
-    expect(
-      getSeminarReservationEndsAt(
-        { scheduledDate: "2026-10-12", startTime: "09:00" },
-        now,
-      ),
-    ).toEqual(new Date("2026-10-12T09:00:00-03:00"));
-  });
-});
 
 describe("isSeminarReservationLive", () => {
   test("holds until the stored moment and not at it", () => {

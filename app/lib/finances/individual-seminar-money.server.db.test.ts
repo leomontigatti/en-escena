@@ -98,7 +98,7 @@ async function recordPayment(ownerId: string, amount: number) {
 
 /** What each inscription holds, as the seminar finance read reports it. */
 async function readAllocated(eventId: string, inscriptionIds: string[]) {
-  const rows = await readSeminarInscriptionFinanceRows({ eventId });
+  const rows = await readSeminarInscriptionFinanceRows({ eventId }, new Date());
 
   return new Map(
     inscriptionIds.map((id) => [
@@ -160,6 +160,7 @@ describe("an individual's seminar money", () => {
     });
 
     const allocated = await allocateToSeminarInscription({
+      now: new Date(),
       academyId: ownerId,
       amount: priceAmount / 2,
       eventId: fixture.event.id,
@@ -195,9 +196,12 @@ describe("an individual's seminar money", () => {
   test("the seminar finance read names the individual's inscriptions by their kind", async () => {
     const fixture = await seedIndividualInTwoSeminars();
 
-    const rows = await readSeminarInscriptionFinanceRows({
-      eventId: fixture.event.id,
-    });
+    const rows = await readSeminarInscriptionFinanceRows(
+      {
+        eventId: fixture.event.id,
+      },
+      new Date(),
+    );
 
     expect(
       rows.map(({ lastName, personKind }) => ({ lastName, personKind })),
@@ -215,6 +219,7 @@ describe("an individual's seminar money", () => {
     const previews = await readSeminarCobroPreviews({
       academyId: ownerId,
       eventId: fixture.event.id,
+      now: new Date(),
     });
 
     expect(
@@ -230,6 +235,7 @@ describe("an individual's seminar money", () => {
     ).toContain("Pérez");
 
     const result = await paySeminarsPreset({
+      now: new Date(),
       academyId: ownerId,
       eventId: fixture.event.id,
       seminarIds: fixture.seminars.map((seminar) => seminar.id),

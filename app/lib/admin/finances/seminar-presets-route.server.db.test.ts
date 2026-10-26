@@ -20,6 +20,7 @@ import {
 import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
 import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+import { readSeminarPlaceLedgers } from "@/lib/seminars/seminar-places.server";
 import { reserveForHours } from "@/lib/seminars/seminars.test-support";
 import {
   action as academyFinancesAction,
@@ -75,6 +76,16 @@ async function loadPreviews(fixture: Fixture) {
   );
 
   return loaderData.seminarPresetPreviews;
+}
+
+/** The places the seminar's covered inscriptions hold, every academy's. */
+async function readCoveredCount(seminarId: string) {
+  return (
+    await readSeminarPlaceLedgers(db, {
+      now: new Date(),
+      seminarIds: [seminarId],
+    })
+  ).get(seminarId)?.coveredCount;
 }
 
 async function readAllocatedByInscription(fixture: Fixture) {
@@ -180,6 +191,7 @@ describe("the seminar presets on the academy's finance page", () => {
 
     expect(
       await allocateToSeminarInscription({
+        now: new Date(),
         academyId: fixture.academyId,
         amount: 25000,
         eventId: fixture.eventId,
@@ -232,6 +244,7 @@ describe("the seminar presets on the academy's finance page", () => {
     // One place of the `Exclusivo` seminar is already taken.
     expect(
       await allocateToSeminarInscription({
+        now: new Date(),
         academyId: fixture.academyId,
         amount: 20000,
         eventId: fixture.eventId,
@@ -326,6 +339,7 @@ describe("an inscription holding a price that is not today's, below its deposit"
 
     expect(
       await allocateToSeminarInscription({
+        now: new Date(),
         academyId: fixture.academyId,
         amount: 10000,
         eventId: fixture.eventId,
@@ -359,9 +373,7 @@ describe("an inscription holding a price that is not today's, below its deposit"
     expect(
       (await readStoredPriceIds(fixture)).get(inscriptions.specialOutsider.id),
     ).toBe(held);
-    expect(
-      (await loadPreviews(fixture))[fixture.special.id]!.coveredCount,
-    ).toBe(2);
+    expect(await readCoveredCount(fixture.special.id)).toBe(2);
   });
 
   test("`Pagar saldo` stops at the held row's total, dearer or cheaper than today's", async () => {
@@ -378,6 +390,7 @@ describe("an inscription holding a price that is not today's, below its deposit"
     ] as const) {
       expect(
         await allocateToSeminarInscription({
+          now: new Date(),
           academyId: fixture.academyId,
           amount,
           eventId: fixture.eventId,
@@ -440,6 +453,7 @@ describe("an inscription priced from the other participant cell, below its depos
 
     expect(
       await allocateToSeminarInscription({
+        now: new Date(),
         academyId: fixture.academyId,
         amount,
         eventId: fixture.eventId,
@@ -512,9 +526,7 @@ describe("an inscription priced from the other participant cell, below its depos
     expect((await readStoredPriceIds(fixture)).get(specialOutsider.id)).toBe(
       fixture.priceId("special", true),
     );
-    expect(
-      (await loadPreviews(fixture))[fixture.special.id]!.coveredCount,
-    ).toBe(2);
+    expect(await readCoveredCount(fixture.special.id)).toBe(2);
   });
   test("refuses a charge that would leave the person holding more than the participant row's total", async () => {
     const fixture = await seedSeminarPresetFixture({ paymentAmount: 100000 });
@@ -567,16 +579,15 @@ describe("the seminar preset preview in the academy's finance loader", () => {
 
     // The withdrawn person and the other academy's person are not listed.
     expect(special).toMatchObject({
-      coveredCount: 0,
       instructorName: "Abril Sosa",
-      quota: 20,
       scheduledDate: "2030-10-10",
     });
     expect(special.stages.deposit).toEqual({
       neededCount: 2,
-      // The other academy's registration holds a reservation the charge counts
-      // as taken.
-      reservedCount: 1,
+      // Twenty places, one of them reserved by the other academy's
+      // registration, which the charge counts as taken.
+      placesLeft: 19,
+      shortBy: 0,
       people: [
         {
           amount: 20000,
@@ -623,17 +634,18 @@ describe("the seminar preset preview in the academy's finance loader", () => {
     // The places the preview said the charge needs are the places it took.
     const after = await loadPreviews(fixture);
 
-    expect(after[fixture.special.id]!.coveredCount).toBe(
+    expect(await readCoveredCount(fixture.special.id)).toBe(
       special.stages.deposit.neededCount,
     );
-    expect(after[fixture.regular.id]!.coveredCount).toBe(
+    expect(await readCoveredCount(fixture.regular.id)).toBe(
       regular.stages.deposit.neededCount,
     );
     // Nothing is left owing for the deposit, so the preview lists nobody.
     expect(after[fixture.special.id]!.stages.deposit).toEqual({
       neededCount: 0,
       people: [],
-      reservedCount: 1,
+      placesLeft: 17,
+      shortBy: 0,
     });
   });
 
@@ -644,6 +656,7 @@ describe("the seminar preset preview in the academy's finance loader", () => {
 
     expect(
       await allocateToSeminarInscription({
+        now: new Date(),
         academyId: fixture.academyId,
         amount: 25000,
         eventId: fixture.eventId,
@@ -655,13 +668,14 @@ describe("the seminar preset preview in the academy's finance loader", () => {
 
     const special = (await loadPreviews(fixture))[fixture.special.id]!;
 
-    expect(special.coveredCount).toBe(1);
+    expect(await readCoveredCount(fixture.special.id)).toBe(1);
     expect(special.stages.deposit.people.map((p) => p.inscriptionId)).toEqual([
       inscriptions.specialParticipant.id,
     ]);
     expect(special.stages.balance).toEqual({
       neededCount: 1,
-      reservedCount: 0,
+      placesLeft: 19,
+      shortBy: 0,
       people: [
         {
           amount: 40000,

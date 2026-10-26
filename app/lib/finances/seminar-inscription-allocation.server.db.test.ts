@@ -17,12 +17,12 @@ import {
   removeFromSeminarInscription,
 } from "@/lib/finances/seminar-inscription-allocation.server";
 import { readSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-thresholds.server";
-import {
-  countCoveredSeminarInscriptions,
-  hasCoveredSeminarInscription,
-} from "@/lib/seminars/covered-inscriptions.server";
+import { hasCoveredSeminarInscription } from "@/lib/seminars/seminar-places.server";
 import { updateSeminar } from "@/lib/seminars/repository.server";
-import { reserveForHours } from "@/lib/seminars/seminars.test-support";
+import {
+  readSeminarPlaceLedger,
+  reserveForHours,
+} from "@/lib/seminars/seminars.test-support";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { createSavedEvent } from "@/lib/test-support/events";
@@ -159,6 +159,7 @@ function allocate(
   input: { amount: number; inscriptionId?: string; priceId: string | null },
 ) {
   return allocateToSeminarInscription({
+    now: new Date(),
     academyId: fixture.academyId,
     amount: input.amount,
     eventId: fixture.eventId,
@@ -265,7 +266,9 @@ describe("seminar inscription allocation", () => {
       fixture.priceIds.get("specialParticipant"),
     );
     // Below the deposit the row holds its money and no place.
-    expect(await hasCoveredSeminarInscription(fixture.seminarId)).toBe(false);
+    expect(await hasCoveredSeminarInscription(db, fixture.seminarId)).toBe(
+      false,
+    );
   });
 
   test("refuses a price row of another cell", async () => {
@@ -304,7 +307,9 @@ describe("seminar inscription allocation", () => {
       priceId: fixture.priceIds.get("specialParticipant")!,
     });
 
-    expect(await hasCoveredSeminarInscription(fixture.seminarId)).toBe(true);
+    expect(await hasCoveredSeminarInscription(db, fixture.seminarId)).toBe(
+      true,
+    );
 
     // A covered row freezes the seminar's kind and its own deposit rate, which
     // is the guard slice 1 left behind this predicate.
@@ -352,6 +357,7 @@ describe("seminar inscription allocation", () => {
     const fixture = await seedFixture();
 
     const result = await allocateToSeminarInscription({
+      now: new Date(),
       academyId: fixture.academyId,
       amount: 1000,
       eventId: fixture.eventId,
@@ -557,9 +563,9 @@ describe("seminar inscription allocation", () => {
         ]);
 
         expect(results.filter((result) => result.ok)).toHaveLength(1);
-        expect(await countCoveredSeminarInscriptions(fixture.seminarId)).toBe(
-          1,
-        );
+        expect(
+          (await readSeminarPlaceLedger(fixture.seminarId)).coveredCount,
+        ).toBe(1);
       });
     },
   );
@@ -577,7 +583,9 @@ describe("seminar inscription allocation", () => {
         priceId: fixture.priceIds.get("specialParticipant")!,
       }),
     ).resolves.toEqual({ ok: true });
-    expect(await hasCoveredSeminarInscription(fixture.seminarId)).toBe(true);
+    expect(await hasCoveredSeminarInscription(db, fixture.seminarId)).toBe(
+      true,
+    );
   });
 
   test("releases exactly what the row holds above its total", async () => {

@@ -22,7 +22,7 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
 import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
-import { countCoveredSeminarInscriptions } from "@/lib/seminars/covered-inscriptions.server";
+import { readSeminarPlaceLedger } from "@/lib/seminars/seminars.test-support";
 import {
   deriveMinimumFinancialStatus,
   deriveInscriptionFinancialStatus,
@@ -363,6 +363,7 @@ describe("readPaymentDeletionImpact", () => {
     // and the money comes out of the payment about to be deleted.
     await expect(
       allocateToSeminarInscription({
+        now: new Date(),
         academyId: fixture.academyId,
         amount: 2000,
         eventId: fixture.eventId,
@@ -391,7 +392,9 @@ describe("readPaymentDeletionImpact", () => {
     // The deletion never blocks, and the place the money held comes back.
     await db.delete(payments).where(eq(payments.id, doomedPayment.id));
 
-    expect(await countCoveredSeminarInscriptions(seminar.seminarId)).toBe(0);
+    expect((await readSeminarPlaceLedger(seminar.seminarId)).coveredCount).toBe(
+      0,
+    );
   });
 
   test("names a withdrawn seminar row's money while counting no place for it", async () => {
@@ -401,6 +404,7 @@ describe("readPaymentDeletionImpact", () => {
 
     await expect(
       allocateToSeminarInscription({
+        now: new Date(),
         academyId: fixture.academyId,
         amount: 2000,
         eventId: fixture.eventId,

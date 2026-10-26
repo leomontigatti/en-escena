@@ -103,6 +103,7 @@ export async function seedSeminarWithdrawal(input: {
     );
     expectOk(
       await allocateToSeminarInscription({
+        now: new Date(),
         academyId: input.academyId,
         amount,
         eventId: input.eventId,

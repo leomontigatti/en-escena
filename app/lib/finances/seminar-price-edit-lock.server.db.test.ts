@@ -109,6 +109,7 @@ describe.skipIf(isPgliteTestBackend())(
           hold: (tx) => lockEventSeminarPricesForEdit(tx, fixture.eventId),
           contender: () =>
             paySeminarsPreset({
+              now: new Date(),
               academyId: fixture.academyId,
               eventId: fixture.eventId,
               seminarIds: [fixture.regular.id],
@@ -141,6 +142,7 @@ describe.skipIf(isPgliteTestBackend())(
           hold: (tx) => lockEventSeminarPricesForEdit(tx, fixture.eventId),
           contender: () =>
             paySeminarsPreset({
+              now: new Date(),
               academyId: fixture.academyId,
               eventId: fixture.eventId,
               seminarIds: [fixture.regular.id],
@@ -180,6 +182,7 @@ describe.skipIf(isPgliteTestBackend())(
           hold: (tx) => lockEventSeminarPricesForEdit(tx, fixture.eventId),
           contender: () =>
             allocateToSeminarInscription({
+              now: new Date(),
               academyId: fixture.academyId,
               amount: 22000,
               eventId: fixture.eventId,

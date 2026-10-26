@@ -41,7 +41,7 @@ export async function loadSeminarInscriptionFinances(request: Request) {
   }
 
   const [rows, priceOptions] = await Promise.all([
-    readSeminarInscriptionFinanceRows({ eventId }),
+    readSeminarInscriptionFinanceRows({ eventId }, new Date()),
     readSeminarInscriptionPriceOptions({ eventId }),
   ]);
   const inscriptions = rows.filter(
