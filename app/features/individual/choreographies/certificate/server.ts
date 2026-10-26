@@ -30,7 +30,12 @@ export async function readIndividualCertificates(input: {
   certificates: ChoreographyCertificates;
   recipients: CertificateRecipient[];
 } | null> {
-  const certificates = await readChoreographyCertificates(input.choreographyId);
+  // Reach is the recipients' filter below: a certificate goes to a dancer row
+  // the link reaches, so the choreography needs no list of its own.
+  const certificates = await readChoreographyCertificates(
+    { kind: "individual" },
+    input.choreographyId,
+  );
 
   if (!certificates || certificates.eventId !== input.eventId) {
     return null;

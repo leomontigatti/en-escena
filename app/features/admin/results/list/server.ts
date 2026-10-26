@@ -5,13 +5,11 @@ import { adminListPageSize } from "@/lib/admin/admin-list";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
-import { readPresentationEvaluationStatuses } from "@/lib/judging/evaluation-status.server";
 import { readPresentationResults } from "@/lib/judging/presentation-results.server";
 import { publishedResultsMessage } from "@/lib/judging/results-copy";
 import {
   hideResults,
   publishResults,
-  readPublishedResultChoreographyIds,
   readResultsPublication,
 } from "@/lib/judging/results.server";
 import {
@@ -102,51 +100,43 @@ async function loadResultsList(input: {
 
   const allRows = await readParticipationRows(input.selectedEventId);
   // A choreography with no number has no presentation, so nothing to score;
-  // a withdrawn one keeps its number but is never scored, so it has no result.
-  const rows = allRows.flatMap((row) =>
-    row.orderNumber === null || row.presentationId === null || row.withdrawn
-      ? []
-      : [
-          {
-            ...row,
-            orderNumber: row.orderNumber,
-            presentationId: row.presentationId,
-          },
-        ],
-  );
-  const choreographyIds = rows.map((row) => row.choreographyId);
-  const [evaluationStatuses, results, publishedIds, publication] =
-    await Promise.all([
-      readPresentationEvaluationStatuses(choreographyIds),
-      readPresentationResults(choreographyIds),
-      readPublishedResultChoreographyIds(choreographyIds),
-      readResultsPublication(input.selectedEventId),
-    ]);
-  const items = rows.map((row): ResultsListItem => {
-    const result = results.get(row.choreographyId);
+  // a withdrawn one keeps its number but has no result, so it is absent.
+  const [results, publication] = await Promise.all([
+    readPresentationResults(
+      { kind: "administration" },
+      allRows.map((row) => row.choreographyId),
+    ),
+    readResultsPublication(input.selectedEventId),
+  ]);
+  const items = allRows.flatMap((row): ResultsListItem[] => {
+    const entry = results.get(row.choreographyId);
 
-    return {
-      academyName: row.academyName,
-      average: result?.average ?? null,
-      award: result?.award ?? null,
-      categoryName: row.category.name,
-      choreographyNumber: row.choreographyNumber,
-      evaluationStatus: evaluationStatuses.get(row.choreographyId) ?? "pending",
-      experienceLevel: row.experienceLevel,
-      experienceLevelRequirement: experienceLevelRequirement({
-        categoryExperienceLevels: row.category.experienceLevels,
-        groupType: row.groupType,
-      }),
-      groupType: row.groupType as ChoreographyGroupType,
-      id: row.choreographyId,
-      modalityName: row.modalityName,
-      name: row.name,
-      orderNumber: row.orderNumber,
-      presentationId: row.presentationId,
-      published: publishedIds.has(row.choreographyId),
-      scheduledDate: row.schedule.scheduledDate,
-      submodalityName: row.submodalityName,
-    };
+    if (!entry || row.orderNumber === null || row.presentationId === null) {
+      return [];
+    }
+
+    return [
+      {
+        academyName: row.academyName,
+        categoryName: row.category.name,
+        choreographyNumber: row.choreographyNumber,
+        experienceLevel: row.experienceLevel,
+        experienceLevelRequirement: experienceLevelRequirement({
+          categoryExperienceLevels: row.category.experienceLevels,
+          groupType: row.groupType,
+        }),
+        groupType: row.groupType as ChoreographyGroupType,
+        id: row.choreographyId,
+        modalityName: row.modalityName,
+        name: row.name,
+        orderNumber: row.orderNumber,
+        presentationId: row.presentationId,
+        published: entry.published,
+        result: entry.result,
+        scheduledDate: row.schedule.scheduledDate,
+        submodalityName: row.submodalityName,
+      },
+    ];
   });
   const days = [...new Set(items.map((item) => item.scheduledDate))].sort();
   const filters = {
@@ -176,7 +166,7 @@ async function loadResultsList(input: {
     exportDays: [
       ...new Set(
         items
-          .filter((item) => item.average !== null && item.award !== null)
+          .filter((item) => item.result.kind === "scored")
           .map((item) => item.scheduledDate),
       ),
     ].sort(),

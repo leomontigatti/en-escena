@@ -46,14 +46,14 @@ async function readAcademyChoreographyCertificates(input: {
     input.request,
   );
   const certificates = await readChoreographyCertificates(
+    { academyId: academy.id, kind: "academy" },
     input.params.choreographyId ?? "",
   );
 
   if (
     !certificates ||
     !activeEvent ||
-    certificates.eventId !== activeEvent.id ||
-    certificates.academyId !== academy.id
+    certificates.eventId !== activeEvent.id
   ) {
     throw notFound();
   }

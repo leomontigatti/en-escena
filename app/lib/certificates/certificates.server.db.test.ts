@@ -2,12 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import {
-  choreographies,
-  choreographyDancers,
-  events,
-  presentations,
-} from "@/db/schema";
+import { choreographyDancers, events, presentations } from "@/db/schema";
 import {
   createDancer,
   createSelectedPriceInscriptionForTest,
@@ -23,9 +18,10 @@ installDatabaseTestHooks();
 
 /**
  * A presentation scored 85 (`Medalla de plata`) whose seeded dancer is Ana
- * Paz; the results are published unless a test says otherwise.
+ * Paz, with the results published. Whether a reader reaches the result at
+ * all is `presentation-results.server.ts`'s, tested there.
  */
-async function seedScoredPresentation(input: { publish?: boolean } = {}) {
+async function seedScoredPresentation() {
   const fixture = await seedJudgingFixture();
   await activateEvent(fixture.event.id);
   const presentation = await fixture.addPresentation({
@@ -34,16 +30,21 @@ async function seedScoredPresentation(input: { publish?: boolean } = {}) {
   });
   await fixture.scorePresentation(presentation.presentationId, "85.0");
 
-  if (input.publish !== false) {
-    await publishResults(fixture.event.id);
-  }
+  await publishResults(fixture.event.id);
 
-  return { fixture, presentation };
+  return {
+    audience: {
+      academyId: fixture.academy.academy.id,
+      kind: "academy",
+    } as const,
+    fixture,
+    presentation,
+  };
 }
 
 describe("readChoreographyCertificates", () => {
   test("issues one to each dancer still inscribed, by last name, with the award", async () => {
-    const { fixture, presentation } = await seedScoredPresentation();
+    const { audience, fixture, presentation } = await seedScoredPresentation();
     const academyId = fixture.academy.academy.id;
     const choreographyId = presentation.choreographyId;
     const zoe = await createDancer(academyId, {
@@ -69,10 +70,12 @@ describe("readChoreographyCertificates", () => {
       .set({ withdrawnAt: new Date() })
       .where(eq(choreographyDancers.dancerId, withdrawn.id));
 
-    const certificates = await readChoreographyCertificates(choreographyId);
+    const certificates = await readChoreographyCertificates(
+      audience,
+      choreographyId,
+    );
 
     expect(certificates).toMatchObject({
-      academyId,
       award: "silver",
       choreographyName: "Río Arriba",
       eventId: fixture.event.id,
@@ -84,28 +87,20 @@ describe("readChoreographyCertificates", () => {
     ]);
   });
 
-  test("issues none while the result is not published", async () => {
-    const { presentation } = await seedScoredPresentation({ publish: false });
-
-    expect(
-      await readChoreographyCertificates(presentation.choreographyId),
-    ).toBeNull();
-  });
-
   test("issues none for a disqualified presentation", async () => {
-    const { presentation } = await seedScoredPresentation();
+    const { audience, presentation } = await seedScoredPresentation();
     await db
       .update(presentations)
       .set({ disqualifiedAt: new Date() })
       .where(eq(presentations.id, presentation.presentationId));
 
     expect(
-      await readChoreographyCertificates(presentation.choreographyId),
+      await readChoreographyCertificates(audience, presentation.choreographyId),
     ).toBeNull();
   });
 
   test("issues none once no dancer is inscribed any more", async () => {
-    const { presentation } = await seedScoredPresentation();
+    const { audience, presentation } = await seedScoredPresentation();
     await db
       .update(choreographyDancers)
       .set({ withdrawnAt: new Date() })
@@ -114,24 +109,12 @@ describe("readChoreographyCertificates", () => {
       );
 
     expect(
-      await readChoreographyCertificates(presentation.choreographyId),
-    ).toBeNull();
-  });
-
-  test("issues none for a withdrawn choreography", async () => {
-    const { presentation } = await seedScoredPresentation();
-    await db
-      .update(choreographies)
-      .set({ withdrawnAt: new Date() })
-      .where(eq(choreographies.id, presentation.choreographyId));
-
-    expect(
-      await readChoreographyCertificates(presentation.choreographyId),
+      await readChoreographyCertificates(audience, presentation.choreographyId),
     ).toBeNull();
   });
 
   test("issues none for an event whose year has no template", async () => {
-    const { fixture, presentation } = await seedScoredPresentation();
+    const { audience, fixture, presentation } = await seedScoredPresentation();
     await db
       .update(events)
       .set({
@@ -141,7 +124,7 @@ describe("readChoreographyCertificates", () => {
       .where(eq(events.id, fixture.event.id));
 
     expect(
-      await readChoreographyCertificates(presentation.choreographyId),
+      await readChoreographyCertificates(audience, presentation.choreographyId),
     ).toBeNull();
   });
 });

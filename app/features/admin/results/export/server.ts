@@ -18,12 +18,13 @@ import { resultsExportColumns, type ResultsExportRow } from "./sheet";
 export async function loadResultsExport(request: Request): Promise<Response> {
   const { day, eventName, rows } = await readProgramExport(request);
   const results = await readPresentationResults(
+    { kind: "administration" },
     rows.map((row) => row.choreographyId),
   );
   const exported = rows.flatMap((row): ResultsExportRow[] => {
-    const result = results.get(row.choreographyId);
+    const result = results.get(row.choreographyId)?.result;
 
-    if (!result || result.average === null || result.award === null) {
+    if (result?.kind !== "scored") {
       return [];
     }
 

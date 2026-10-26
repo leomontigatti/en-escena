@@ -8,9 +8,9 @@ import {
   type ScoreSettlementResult,
 } from "@/lib/judging/score-settlement.server";
 import {
-  readPresentationScores,
-  type PresentationScoresView,
-} from "@/lib/judging/presentation-scores.server";
+  readPresentationEvaluation,
+  type AdministrationEvaluation,
+} from "@/lib/judging/presentation-evaluation.server";
 import {
   scoreValueMessage,
   sheetValuesMessage,
@@ -29,7 +29,7 @@ import { readFormData } from "@/lib/shared/read-form-data";
 
 export type PresentationScoresLoaderData = {
   canWrite: boolean;
-  presentation: PresentationScoresView;
+  presentation: AdministrationEvaluation;
 };
 
 /**
@@ -50,9 +50,10 @@ export async function loadPresentationScoresRouteData(input: {
   request: Request;
 }): Promise<PresentationScoresLoaderData> {
   const user = await requireAdminPanelWriter(input.request);
-  const presentation = await readPresentationScores({
-    presentationId: input.params.presentationId ?? "",
-  });
+  const presentation = await readPresentationEvaluation(
+    { kind: "administration" },
+    { presentationId: input.params.presentationId ?? "" },
+  );
 
   if (!presentation) {
     throw new Response(presentationNotFoundMessage, { status: 404 });

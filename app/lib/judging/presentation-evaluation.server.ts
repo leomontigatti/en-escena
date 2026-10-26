@@ -1,13 +1,15 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   academies,
   categories,
   choreographies,
+  events,
   judgeAssignments,
   modalities,
   presentations,
+  schedules,
   scores,
   submodalities,
   user,
@@ -17,7 +19,16 @@ import {
   experienceLevelRequirement,
 } from "@/lib/choreographies/experience-level-requirement";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
+import {
+  resolvePresentationResult,
+  type PresentationResult,
+} from "@/lib/judging/award";
 import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
+import {
+  isResultPublished,
+  type AcademyAudience,
+  type AdministrationAudience,
+} from "@/lib/judging/presentation-results.server";
 import { readSheetValuesByScore } from "@/lib/judging/sheet-values.server";
 import {
   readSubmodalityCriteria,
@@ -25,26 +36,33 @@ import {
 } from "@/lib/judging/submodality-criteria.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import {
-  awardForAverage,
-  presentationAverage,
-  type Award,
-} from "@/lib/judging/award";
-import {
   type FeedbackAudioStorage,
   createDefaultFeedbackAudioStorage,
   loadFeedbackAudioDownloadUrl,
 } from "@/lib/storage/feedback-audio.server";
 
 /**
- * What one presentation's whole panel did, which only administration and the
- * auditor ever see. A judge's own list deliberately hides every other judge's
- * work (`judge-list.server.ts`); this is the one read that puts it side by
- * side. See docs/domain/judging.md, "Scores And Feedback".
+ * One presentation's whole evaluation: its result beside the panel behind it.
+ * See docs/domain/judging.md, "Program And Results" and "Scores And Feedback".
+ * The audiences are `presentation-results.server.ts`'s, and only the two that
+ * have a page for one presentation read it here.
  *
- * A judge with no score row is still a row here, read as "Sin puntaje": the
- * panel is its assignments, so a judge who has not saved yet is a gap to see
- * rather than a name that disappears.
+ * - `administration` reads the panel as its assignments: a judge with no score
+ *   row is still a row, read as "Sin puntaje", so a gap is seen rather than a
+ *   name that disappears. A withdrawn presentation is read too, flagged, since
+ *   the scores page explains why it has nothing to settle.
+ * - `academy` reads its own presentation only inside a published snapshot,
+ *   and null for anything else, so a presentation it may not read leaks
+ *   nothing, not even that it exists. A judge who saved nothing is nobody's
+ *   result and is left out; on a disqualification every number and sheet line
+ *   is dropped and each `Devolución` kept, so the academy still hears why.
+ *
+ * A judge's own list deliberately hides every other judge's work
+ * (`judge-list.server.ts`); this is the read that puts it side by side.
  */
+
+export type EvaluationTarget =
+  { choreographyId: string } | { presentationId: string };
 
 export type PresentationJudgeScore = {
   /** The judge's sheet by criterion; empty when the submodality has no criteria. */
@@ -58,10 +76,7 @@ export type PresentationJudgeScore = {
   value: string | null;
 };
 
-export type PresentationScoresView = {
-  academyName: string;
-  /** Null for a disqualified presentation and when no judge has saved a score. */
-  average: number | null;
+type EvaluationFacts = {
   categoryName: string;
   choreographyId: string;
   /**
@@ -69,20 +84,25 @@ export type PresentationScoresView = {
    * submodality has no criteria, or it is a `Sin nivel` choreography.
    */
   criteria: JudgeSheetCriterion[];
-  disqualified: boolean;
+  eventId: string;
   experienceLevel: string | null;
   /** Why an empty `experienceLevel` is empty, for the words a page shows. */
   experienceLevelRequirement: ExperienceLevelRequirement;
   groupType: ChoreographyGroupType;
-  judges: PresentationJudgeScore[];
-  award: Award | null;
   modalityName: string;
   name: string;
   orderNumber: number;
   presentationId: string;
+  result: PresentationResult;
+  scheduledDate: string;
+  submodalityName: string | null;
+};
+
+export type AdministrationEvaluation = EvaluationFacts & {
+  academyName: string;
+  judges: PresentationJudgeScore[];
   /** `Evaluar como profesional`: the academy asked the judges to be severe. */
   professionalEvaluation: boolean;
-  submodalityName: string | null;
   /**
    * `Coreografía retirada`: it keeps its number but is never judged, so the
    * panel has nothing to settle on it.
@@ -90,13 +110,82 @@ export type PresentationScoresView = {
   withdrawn: boolean;
 };
 
-export async function readPresentationScores(
-  input: {
-    presentationId: string;
-    storage?: FeedbackAudioStorage;
-  },
+export type AcademyEvaluationJudge = {
+  /** The judge's sheet by criterion; empty without a sheet or when disqualified. */
+  criteriaValues: Record<string, string>;
+  feedbackAudioUrl: string | null;
+  judgeId: string;
+  judgeName: string;
+  /** The judge's score as the numeric column reads it; null when disqualified. */
+  value: string | null;
+};
+
+export type AcademyEvaluation = EvaluationFacts & {
+  judges: AcademyEvaluationJudge[];
+};
+
+type EvaluationOptions = { storage?: FeedbackAudioStorage };
+
+export async function readPresentationEvaluation(
+  audience: AdministrationAudience,
+  target: EvaluationTarget,
+  options?: EvaluationOptions,
+  executor?: Executor,
+): Promise<AdministrationEvaluation | null>;
+export async function readPresentationEvaluation(
+  audience: AcademyAudience,
+  target: EvaluationTarget,
+  options?: EvaluationOptions,
+  executor?: Executor,
+): Promise<AcademyEvaluation | null>;
+export async function readPresentationEvaluation(
+  audience: AcademyAudience | AdministrationAudience,
+  target: EvaluationTarget,
+  options: EvaluationOptions = {},
   executor: Executor = db,
-): Promise<PresentationScoresView | null> {
+): Promise<AcademyEvaluation | AdministrationEvaluation | null> {
+  const evaluation = await readAdministrationEvaluation(
+    target,
+    audience.kind === "academy"
+      ? and(
+          eq(choreographies.academyId, audience.academyId),
+          isNull(choreographies.withdrawnAt),
+          isResultPublished(),
+        )
+      : undefined,
+    options,
+    executor,
+  );
+
+  if (evaluation === null || audience.kind === "administration") {
+    return evaluation;
+  }
+
+  const disqualified = evaluation.result.kind === "disqualified";
+  const { academyName, professionalEvaluation, withdrawn, ...facts } =
+    evaluation;
+
+  return {
+    ...facts,
+    criteria: disqualified ? [] : evaluation.criteria,
+    judges: evaluation.judges
+      .filter((judge) => judge.scoreId !== null)
+      .map((judge) => ({
+        criteriaValues: disqualified ? {} : judge.criteriaValues,
+        feedbackAudioUrl: judge.feedbackAudioUrl,
+        judgeId: judge.judgeId,
+        judgeName: judge.judgeName,
+        value: disqualified ? null : judge.value,
+      })),
+  };
+}
+
+async function readAdministrationEvaluation(
+  target: EvaluationTarget,
+  condition: SQL | undefined,
+  options: EvaluationOptions,
+  executor: Executor,
+): Promise<AdministrationEvaluation | null> {
   const [presentation] = await executor
     .select({
       ...sheetSubjectColumns,
@@ -104,10 +193,13 @@ export async function readPresentationScores(
       categoryName: categories.name,
       choreographyId: choreographies.id,
       disqualifiedAt: presentations.disqualifiedAt,
+      eventId: presentations.eventId,
       modalityName: modalities.name,
       name: choreographies.name,
       orderNumber: presentations.orderNumber,
+      presentationId: presentations.id,
       professionalEvaluation: choreographies.professionalEvaluation,
+      scheduledDate: schedules.scheduledDate,
       submodalityName: submodalities.name,
       withdrawnAt: choreographies.withdrawnAt,
     })
@@ -116,40 +208,50 @@ export async function readPresentationScores(
       choreographies,
       eq(choreographies.id, presentations.choreographyId),
     )
+    .innerJoin(events, eq(events.id, presentations.eventId))
     .innerJoin(academies, eq(academies.id, choreographies.academyId))
     .innerJoin(categories, eq(categories.id, choreographies.categoryId))
     .innerJoin(modalities, eq(modalities.id, choreographies.modalityId))
+    .innerJoin(schedules, eq(schedules.id, choreographies.scheduleId))
     .leftJoin(submodalities, eq(submodalities.id, choreographies.submodalityId))
-    .where(eq(presentations.id, input.presentationId));
+    .where(
+      and(
+        "presentationId" in target
+          ? eq(presentations.id, target.presentationId)
+          : eq(presentations.choreographyId, target.choreographyId),
+        condition,
+      ),
+    );
 
   if (!presentation) {
     return null;
   }
 
   const [judges, criteria] = await Promise.all([
-    readPanel(executor, input),
+    readPanel(executor, presentation.presentationId, options),
     readSubmodalityCriteria(executor, presentation),
   ]);
-  const disqualified = presentation.disqualifiedAt !== null;
-  const average = presentationAverage({ disqualified, scores: judges });
 
   return {
     academyName: presentation.academyName,
-    average,
     categoryName: presentation.categoryName,
     choreographyId: presentation.choreographyId,
     criteria,
-    disqualified,
+    eventId: presentation.eventId,
     experienceLevel: presentation.experienceLevel,
     experienceLevelRequirement: experienceLevelRequirement(presentation),
     groupType: presentation.groupType as ChoreographyGroupType,
     judges,
-    award: average === null ? null : awardForAverage(average),
     modalityName: presentation.modalityName,
     name: presentation.name,
     orderNumber: presentation.orderNumber,
-    presentationId: input.presentationId,
+    presentationId: presentation.presentationId,
     professionalEvaluation: presentation.professionalEvaluation,
+    result: resolvePresentationResult({
+      disqualified: presentation.disqualifiedAt !== null,
+      values: judges.map((judge) => judge.value),
+    }),
+    scheduledDate: presentation.scheduledDate,
     submodalityName: presentation.submodalityName,
     withdrawn: presentation.withdrawnAt !== null,
   };
@@ -158,7 +260,8 @@ export async function readPresentationScores(
 /** The panel in the order it is read on screen: by the judge's name. */
 async function readPanel(
   executor: Executor,
-  input: { presentationId: string; storage?: FeedbackAudioStorage },
+  presentationId: string,
+  options: EvaluationOptions,
 ): Promise<PresentationJudgeScore[]> {
   const rows = await executor
     .select({
@@ -172,7 +275,7 @@ async function readPanel(
     .from(judgeAssignments)
     .innerJoin(user, eq(user.id, judgeAssignments.userId))
     .leftJoin(scores, eq(scores.judgeAssignmentId, judgeAssignments.id))
-    .where(eq(judgeAssignments.presentationId, input.presentationId))
+    .where(eq(judgeAssignments.presentationId, presentationId))
     .orderBy(asc(user.name));
 
   const sheets = await readSheetValuesByScore(
@@ -182,7 +285,7 @@ async function readPanel(
   // Built once, and only when a take is actually stored: a panel that recorded
   // nothing must not need the storage env to be read at all.
   const storage = rows.some((row) => row.feedbackAudioStorageKey)
-    ? (input.storage ?? createDefaultFeedbackAudioStorage())
+    ? (options.storage ?? createDefaultFeedbackAudioStorage())
     : null;
 
   return await Promise.all(

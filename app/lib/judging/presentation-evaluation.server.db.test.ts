@@ -4,12 +4,15 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { presentations, scoreCriterionValues, scores, user } from "@/db/schema";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
-import { readPresentationScores } from "@/lib/judging/presentation-scores.server";
+import { readPresentationEvaluation } from "@/lib/judging/presentation-evaluation.server";
+import { hideResults, publishResults } from "@/lib/judging/results.server";
 import { createFeedbackAudioStorage } from "@/lib/storage/feedback-audio.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
+
+const administration = { kind: "administration" } as const;
 
 const signingStorage = createFeedbackAudioStorage({
   createSignedUrl: async (input) => `https://example.test/${input.key}`,
@@ -17,7 +20,7 @@ const signingStorage = createFeedbackAudioStorage({
   upload: async () => {},
 });
 
-describe("a presentation's scores, as administration reads them", () => {
+describe("a presentation's evaluation, as administration reads it", () => {
   test("shows a row per assigned judge, with the judge without a score apart", async () => {
     const fixture = await seedJudgingFixture();
     const presentation = await fixture.addPresentation({
@@ -41,10 +44,11 @@ describe("a presentation's scores, as administration reads them", () => {
       value: "90.0",
     });
 
-    const view = await readPresentationScores({
-      presentationId: presentation.presentationId,
-      storage: signingStorage,
-    });
+    const view = await readPresentationEvaluation(
+      administration,
+      { presentationId: presentation.presentationId },
+      { storage: signingStorage },
+    );
 
     expect(view?.name).toBe("Primera");
     expect(view?.academyName).toBe(fixture.academy.academy.name);
@@ -76,13 +80,15 @@ describe("a presentation's scores, as administration reads them", () => {
       { judgeAssignmentId: third.judgeAssignmentId, value: "88.5" },
     ]);
 
-    const view = await readPresentationScores({
+    const view = await readPresentationEvaluation(administration, {
       presentationId: presentation.presentationId,
     });
 
-    expect(view?.average).toBe(86.17);
-    expect(view?.award).toBe("silver");
-    expect(view?.disqualified).toBe(false);
+    expect(view?.result).toEqual({
+      average: 86.17,
+      award: "silver",
+      kind: "scored",
+    });
     // Nothing takes a saved score out of the average, so no flag says so.
     expect(view?.judges[0]).not.toHaveProperty("annulled");
   });
@@ -96,7 +102,9 @@ describe("a presentation's scores, as administration reads them", () => {
     });
 
     await expect(
-      readPresentationScores({ presentationId: presentation.presentationId }),
+      readPresentationEvaluation(administration, {
+        presentationId: presentation.presentationId,
+      }),
     ).resolves.toMatchObject({ professionalEvaluation: true });
   });
 
@@ -117,15 +125,11 @@ describe("a presentation's scores, as administration reads them", () => {
       .set({ disqualifiedAt: new Date() })
       .where(eq(presentations.id, presentation.presentationId));
 
-    const view = await readPresentationScores({
+    const view = await readPresentationEvaluation(administration, {
       presentationId: presentation.presentationId,
     });
 
-    expect(view).toMatchObject({
-      average: null,
-      disqualified: true,
-      award: null,
-    });
+    expect(view?.result).toEqual({ kind: "disqualified" });
   });
 
   test("carries each judge's sheet when the submodality has criteria", async () => {
@@ -156,7 +160,7 @@ describe("a presentation's scores, as administration reads them", () => {
       { criterionId: falls.id, scoreId: score.id, value: "5.0" },
     ]);
 
-    const view = await readPresentationScores({
+    const view = await readPresentationEvaluation(administration, {
       presentationId: presentation.presentationId,
     });
 
@@ -184,7 +188,7 @@ describe("a presentation's scores, as administration reads them", () => {
       .insert(scores)
       .values({ judgeAssignmentId: judge.judgeAssignmentId, value: "88.0" });
 
-    const view = await readPresentationScores({
+    const view = await readPresentationEvaluation(administration, {
       presentationId: presentation.presentationId,
     });
 
@@ -198,9 +202,137 @@ describe("a presentation's scores, as administration reads them", () => {
 
   test("reads nothing for a presentation that does not exist", async () => {
     await expect(
-      readPresentationScores({
+      readPresentationEvaluation(administration, {
         presentationId: "00000000-0000-0000-0000-000000000000",
       }),
+    ).resolves.toBeNull();
+  });
+});
+
+describe("a presentation's evaluation, as its academy reads it", () => {
+  async function seedScored() {
+    const fixture = await seedJudgingFixture();
+    const presentation = await fixture.addPresentation({
+      name: "Primera",
+      orderNumber: 1,
+    });
+    const audience = {
+      academyId: fixture.academy.academy.id,
+      kind: "academy",
+    } as const;
+
+    return { audience, fixture, presentation };
+  }
+
+  test("keeps only the judges who scored, with their sheet and their take", async () => {
+    const { audience, fixture, presentation } = await seedScored();
+    const technique = await fixture.addCriterion({
+      maximum: 100,
+      name: "Técnica",
+    });
+    const scored = await fixture.assignJudge(presentation.presentationId);
+    await fixture.assignJudge(presentation.presentationId);
+    const [score] = await db
+      .insert(scores)
+      .values({
+        feedbackAudioStorageKey: "takes/a.webm",
+        judgeAssignmentId: scored.judgeAssignmentId,
+        value: "92.0",
+      })
+      .returning();
+    await db
+      .insert(scoreCriterionValues)
+      .values({ criterionId: technique.id, scoreId: score.id, value: "92.0" });
+    await publishResults(fixture.event.id);
+
+    const view = await readPresentationEvaluation(
+      audience,
+      { choreographyId: presentation.choreographyId },
+      { storage: signingStorage },
+    );
+
+    expect(view?.result).toEqual({
+      average: 92,
+      award: "gold",
+      kind: "scored",
+    });
+    expect(view?.criteria).toMatchObject([{ name: "Técnica" }]);
+    expect(view?.judges).toEqual([
+      {
+        criteriaValues: { [technique.id]: "92.0" },
+        feedbackAudioUrl: "https://example.test/takes/a.webm",
+        judgeId: scored.judgeId,
+        judgeName: "Ana Juez",
+        value: "92.0",
+      },
+    ]);
+  });
+
+  test("drops every number of a disqualified presentation and keeps each take", async () => {
+    const { audience, fixture, presentation } = await seedScored();
+    await fixture.addCriterion({ maximum: 100, name: "Técnica" });
+    const judge = await fixture.assignJudge(presentation.presentationId);
+    await db.insert(scores).values({
+      feedbackAudioStorageKey: "takes/a.webm",
+      judgeAssignmentId: judge.judgeAssignmentId,
+      value: "92.0",
+    });
+    await db
+      .update(presentations)
+      .set({ disqualifiedAt: new Date() })
+      .where(eq(presentations.id, presentation.presentationId));
+    await publishResults(fixture.event.id);
+
+    const view = await readPresentationEvaluation(
+      audience,
+      { choreographyId: presentation.choreographyId },
+      { storage: signingStorage },
+    );
+
+    expect(view?.result).toEqual({ kind: "disqualified" });
+    expect(view?.criteria).toEqual([]);
+    expect(view?.judges).toEqual([
+      {
+        criteriaValues: {},
+        feedbackAudioUrl: "https://example.test/takes/a.webm",
+        judgeId: judge.judgeId,
+        judgeName: "Ana Juez",
+        value: null,
+      },
+    ]);
+  });
+
+  test("reads nothing outside a published snapshot", async () => {
+    const { audience, fixture, presentation } = await seedScored();
+    await fixture.scorePresentation(presentation.presentationId, "80.0");
+    const target = { choreographyId: presentation.choreographyId };
+
+    await expect(
+      readPresentationEvaluation(audience, target),
+    ).resolves.toBeNull();
+
+    await publishResults(fixture.event.id);
+    await expect(
+      readPresentationEvaluation(audience, target),
+    ).resolves.not.toBeNull();
+
+    await hideResults(fixture.event.id);
+    await expect(
+      readPresentationEvaluation(audience, target),
+    ).resolves.toBeNull();
+  });
+
+  test("reads nothing of another academy's published presentation", async () => {
+    const { fixture, presentation } = await seedScored();
+    await fixture.scorePresentation(presentation.presentationId, "80.0");
+    await publishResults(fixture.event.id);
+    const stranger = await seedJudgingFixture({ active: false });
+
+    await expect(
+      readPresentationEvaluation(
+        { academyId: stranger.academy.academy.id, kind: "academy" },
+        { choreographyId: presentation.choreographyId },
+      ),
     ).resolves.toBeNull();
   });
 });

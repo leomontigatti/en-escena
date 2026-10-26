@@ -13,7 +13,7 @@ import {
   setPresentationDisqualified,
 } from "./score-settlement.server";
 import { seedJudgingFixture } from "./judging.test-support";
-import { readPresentationScores } from "./presentation-scores.server";
+import { readPresentationEvaluation } from "./presentation-evaluation.server";
 
 installDatabaseTestHooks();
 
@@ -149,9 +149,10 @@ describe("editing a score as administration", () => {
         value: "91.5",
       }),
     ).resolves.toEqual({ ok: true });
-    const view = await readPresentationScores({
-      presentationId: presentation.presentationId,
-    });
+    const view = await readPresentationEvaluation(
+      { kind: "administration" },
+      { presentationId: presentation.presentationId },
+    );
     expect(
       view?.judges.find((judge) => judge.scoreId === score.id),
     ).toMatchObject({ criteriaValues: {}, value: "91.5" });
@@ -205,8 +206,13 @@ describe("settling a disqualification as administration", () => {
 
     expect((await readScore(score.id)).value).toBe("70.0");
     await expect(
-      readPresentationScores({ presentationId: presentation.presentationId }),
-    ).resolves.toMatchObject({ average: 70, disqualified: false });
+      readPresentationEvaluation(
+        { kind: "administration" },
+        { presentationId: presentation.presentationId },
+      ),
+    ).resolves.toMatchObject({
+      result: { average: 70, award: "bronze", kind: "scored" },
+    });
   });
 
   test("refuses a presentation that does not exist", async () => {

@@ -1,7 +1,6 @@
 import type { ExperienceLevelRequirement } from "@/lib/choreographies/experience-level-requirement";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
-import type { Award } from "@/lib/judging/award";
-import type { PresentationEvaluationStatus } from "@/lib/judging/evaluation-status.server";
+import type { PresentationResult } from "@/lib/judging/award";
 import type { ResultsPublication } from "@/lib/judging/results.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 
@@ -29,12 +28,8 @@ export type ResultsListActionData = {
 
 export type ResultsListItem = {
   academyName: string;
-  /** Live, off the saved scores: null while nothing counts and when disqualified. */
-  average: number | null;
-  award: Award | null;
   categoryName: string;
   choreographyNumber: number;
-  evaluationStatus: PresentationEvaluationStatus;
   /** The choreography's level; `null` when it has none. */
   experienceLevel: ExperienceLevel | null;
   /** Why an empty level is empty, which is how the `Nivel` cell words it. */
@@ -47,6 +42,8 @@ export type ResultsListItem = {
   presentationId: string;
   /** Whether the academy reads this result now: inside the snapshot, with the event's out. */
   published: boolean;
+  /** Live, off the saved scores. */
+  result: PresentationResult;
   scheduledDate: string;
   submodalityName: string | null;
 };
@@ -82,7 +79,7 @@ export type ResultsListResult = {
  * presentation, as on the presentations list; nothing before that.
  */
 export function resultRowPath(row: ResultsListItem) {
-  return row.evaluationStatus === "pending"
+  return row.result.kind === "unscored"
     ? null
     : `/administracion/presentaciones/${row.presentationId}/puntajes`;
 }

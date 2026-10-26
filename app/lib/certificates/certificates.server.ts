@@ -8,10 +8,12 @@ import {
   events,
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
-import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import type { Award } from "@/lib/judging/award";
-import { readPresentationResults } from "@/lib/judging/presentation-results.server";
-import { isPresentationResultPublished } from "@/lib/judging/results.server";
+import {
+  readPresentationResults,
+  type AcademyAudience,
+  type IndividualAudience,
+} from "@/lib/judging/presentation-results.server";
 
 import {
   certificateTemplateForEvent,
@@ -19,19 +21,18 @@ import {
 } from "./templates.server";
 
 /**
- * Who a choreography's `certificate`s go to. A choreography has them once its
- * result is published, behind the academies' own gate, when it took an award
- * and its event's year has a template, and while a dancer is still inscribed.
- * Every published presentation that is not disqualified has an award, so
- * there is a single sentence. They go to the dancers still inscribed, named as
- * the roster names them. Who may download
- * which is the surfaces' to decide: this only says what exists.
+ * Who a choreography's `certificate`s go to. A choreography has them when the
+ * reader's audience reads a scored result for it (published, not withdrawn,
+ * not disqualified, and the academy's own for an academy), when its event's
+ * year has a template, and while a dancer is still inscribed. A scored result
+ * always has an award, so there is a single sentence. They go to the dancers
+ * still inscribed, named as the roster names them. Which of them a reader may
+ * download is the surfaces' to decide: this only says what exists.
  */
 
 export type CertificateRecipient = { dancerId: string; name: string };
 
 export type ChoreographyCertificates = {
-  academyId: string;
   award: Award;
   choreographyName: string;
   eventId: string;
@@ -41,36 +42,29 @@ export type ChoreographyCertificates = {
 };
 
 export async function readChoreographyCertificates(
+  audience: AcademyAudience | IndividualAudience,
   choreographyId: string,
 ): Promise<ChoreographyCertificates | null> {
+  const result = (
+    await readPresentationResults(audience, [choreographyId])
+  ).get(choreographyId)?.result;
+
+  if (result?.kind !== "scored") {
+    return null;
+  }
+
   const [choreography] = await db
     .select({
-      academyId: choreographies.academyId,
       eventId: choreographies.eventId,
       eventStartsAt: events.startsAt,
       name: choreographies.name,
     })
     .from(choreographies)
     .innerJoin(events, eq(events.id, choreographies.eventId))
-    .where(
-      and(eq(choreographies.id, choreographyId), notWithdrawnChoreography()),
-    );
-
-  if (!choreography) {
-    return null;
-  }
-
+    .where(eq(choreographies.id, choreographyId));
   const template = certificateTemplateForEvent(choreography.eventStartsAt);
 
-  if (!template || !(await isPresentationResultPublished(choreographyId))) {
-    return null;
-  }
-
-  const award = (await readPresentationResults([choreographyId])).get(
-    choreographyId,
-  )?.award;
-
-  if (!award) {
+  if (!template) {
     return null;
   }
 
@@ -96,8 +90,7 @@ export async function readChoreographyCertificates(
   }
 
   return {
-    academyId: choreography.academyId,
-    award,
+    award: result.award,
     choreographyName: choreography.name,
     eventId: choreography.eventId,
     recipients: recipients.map((dancer) => ({

@@ -34,11 +34,9 @@ afterEach(() => {
 function buildRow(overrides: Partial<ResultsListItem> = {}): ResultsListItem {
   return {
     academyName: "Academia Pirueta",
-    average: null,
-    award: null,
     categoryName: "Juvenil",
     choreographyNumber: 12,
-    evaluationStatus: "pending",
+    result: { kind: "unscored" },
     experienceLevel: null,
     experienceLevelRequirement: "notApplicable",
     groupType: "solo",
@@ -114,9 +112,7 @@ describe("ResultsListView rows", () => {
       buildLoaderData({
         results: [
           buildRow({
-            average: 82.5,
-            award: "silver",
-            evaluationStatus: "evaluated",
+            result: { average: 82.5, award: "silver", kind: "scored" },
             published: true,
           }),
         ],
@@ -143,9 +139,7 @@ describe("ResultsListView rows", () => {
       buildLoaderData({
         results: [
           buildRow({
-            average: 91,
-            award: "gold",
-            evaluationStatus: "evaluated",
+            result: { average: 91, award: "gold", kind: "scored" },
           }),
         ],
       }),
@@ -161,7 +155,10 @@ describe("ResultsListView rows", () => {
     await renderList(
       buildLoaderData({
         results: [
-          buildRow({ evaluationStatus: "disqualified", published: true }),
+          buildRow({
+            published: true,
+            result: { kind: "disqualified" },
+          }),
         ],
       }),
     );

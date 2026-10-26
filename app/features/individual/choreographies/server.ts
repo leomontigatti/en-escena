@@ -20,13 +20,10 @@ import {
   deriveIndividualLinkState,
   type IndividualLinkState,
 } from "@/lib/individuals/link-state";
-import type { Award } from "@/lib/judging/award";
 import {
-  readPresentationJudgeValues,
   readPresentationResults,
-  type PresentationJudgeValue,
+  type IndividualResultEntry,
 } from "@/lib/judging/presentation-results.server";
-import { readPublishedResultChoreographyIds } from "@/lib/judging/results.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
 
@@ -36,20 +33,11 @@ import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
  * reaches and nothing else. A row reaches a choreography as a dancer with an
  * inscription that is not withdrawn, or as a professor linked to it.
  *
- * A result is what the owning academy reads on its evaluation, behind the
- * same publication gate: the award, the average and each judge's score, with
- * every figure dropped on a disqualified presentation. The sheet breakdown and
- * the `Devolución` stay the academy's and are not read here.
+ * A result is the individual audience's of `presentation-results.server.ts`:
+ * what the owning academy reads on its evaluation, behind the same publication
+ * gate, with each judge's score and none on a disqualified presentation. The
+ * sheet breakdown and the `Devolución` stay the academy's and are not read.
  */
-
-export type IndividualChoreographyResult = {
-  /** Null for a disqualified presentation and when nothing counts. */
-  average: number | null;
-  award: Award | null;
-  disqualified: boolean;
-  /** Each judge who saved a score; none when disqualified. */
-  scores: PresentationJudgeValue[];
-};
 
 export type IndividualChoreographyRow = {
   academyName: string;
@@ -63,7 +51,7 @@ export type IndividualChoreographyRow = {
   /** How the individual takes part: as a dancer, a professor or both. */
   roles: RosterPersonKind[];
   /** Null until the result is published. */
-  result: IndividualChoreographyResult | null;
+  result: IndividualResultEntry | null;
   submodalityName: string | null;
 };
 
@@ -109,7 +97,9 @@ export async function loadIndividualChoreographies(
     eventId: activeEvent.id,
     professorIds,
   });
-  const results = await readPublishedResults(
+  // Only the choreographies the link reaches are asked for.
+  const results = await readPresentationResults(
+    { kind: "individual" },
     choreographyRows.map((row) => row.choreographyId),
   );
   const dancerIdSet = new Set(dancerIds);
@@ -121,7 +111,7 @@ export async function loadIndividualChoreographies(
           .filter(
             (row) =>
               row.roles.includes("dancer") &&
-              results.get(row.choreographyId)?.award,
+              results.get(row.choreographyId)?.result.kind === "scored",
           )
           .map(async (row) =>
             (await readIndividualCertificates({
@@ -220,41 +210,4 @@ async function readTakingPartChoreographies(input: {
       ...(taughtIds.has(row.choreographyId) ? (["professor"] as const) : []),
     ],
   }));
-}
-
-/** Only the published ones come back, through the academies' own gate. */
-async function readPublishedResults(
-  choreographyIds: string[],
-): Promise<Map<string, IndividualChoreographyResult>> {
-  const publishedIds = [
-    ...(await readPublishedResultChoreographyIds(choreographyIds)),
-  ];
-  const [results, judgeValues] = await Promise.all([
-    readPresentationResults(publishedIds),
-    readPresentationJudgeValues(publishedIds),
-  ]);
-
-  return new Map(
-    publishedIds.flatMap((choreographyId) => {
-      const result = results.get(choreographyId);
-
-      if (!result) {
-        return [];
-      }
-
-      const judges = judgeValues.get(choreographyId) ?? [];
-
-      return [
-        [
-          choreographyId,
-          {
-            average: result.average,
-            award: result.award,
-            disqualified: result.disqualified,
-            scores: result.disqualified ? [] : judges,
-          },
-        ],
-      ];
-    }),
-  );
 }
