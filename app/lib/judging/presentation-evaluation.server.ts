@@ -156,20 +156,27 @@ export async function readPresentationEvaluation(
     [choreographyId],
     executor,
   );
-  const evaluation = readable.has(choreographyId)
+  const gated = readable.get(choreographyId);
+  const evaluation = gated
     ? await readAdministrationEvaluation(target, options, executor)
     : null;
 
-  if (evaluation === null) {
+  if (!gated || evaluation === null) {
     return null;
   }
 
-  const disqualified = evaluation.result.kind === "disqualified";
+  // The two reads are separate statements, so a reinstatement landing between
+  // them must not reveal numbers the gated read still saw disqualified:
+  // either read's disqualification redacts.
+  const disqualified =
+    gated.result.kind === "disqualified" ||
+    evaluation.result.kind === "disqualified";
   const { academyName, professionalEvaluation, withdrawn, ...facts } =
     evaluation;
 
   return {
     ...facts,
+    result: disqualified ? { kind: "disqualified" } : gated.result,
     criteria: disqualified ? [] : evaluation.criteria,
     judges: evaluation.judges
       .filter((judge) => judge.scoreId !== null)
