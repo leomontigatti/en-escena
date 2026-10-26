@@ -96,7 +96,7 @@ const publishedResult: VotingRoundListState = {
   ],
 };
 
-describe("the voting round actions of administration's `Gran final` list", () => {
+describe("the voting round of administration's `Gran final` list", () => {
   const renderer = createReactDomTestRenderer();
   const submitted: FormData[] = [];
   let answer: GrandFinalListActionData;
@@ -154,6 +154,20 @@ describe("the voting round actions of administration's `Gran final` list", () =>
     return [...document.querySelectorAll('[role="menuitem"]')].map(
       (item) => item.textContent,
     );
+  }
+
+  /** The tabs' names, and the text of the panel of the selected one. */
+  function readTabs() {
+    return {
+      names: [...document.querySelectorAll('[role="tab"]')].map(
+        (tab) => tab.textContent,
+      ),
+      selected: document.querySelector('[role="tab"][aria-selected="true"]')
+        ?.textContent,
+      panel:
+        document.querySelector('[role="tabpanel"][data-state="active"]')
+          ?.textContent ?? "",
+    };
   }
 
   function alertDialogText() {
@@ -370,5 +384,40 @@ describe("the voting round actions of administration's `Gran final` list", () =>
       "La votación no terminó con empate en el primer puesto.",
     );
     expect(submitted).toHaveLength(0);
+  });
+
+  test("opens on the result, the first tab, once a round closed", async () => {
+    await mount(publishedResult);
+
+    const tabs = readTabs();
+    expect(tabs.names).toEqual(["Resultado", "Academias"]);
+    expect(tabs.selected).toBe("Resultado");
+    expect(tabs.panel).toContain("Publicado");
+  });
+
+  test("draws no result tab while the vote is open", async () => {
+    await mount({ ...readyToOpen, roundId: "ronda-1", status: "open" });
+
+    const tabs = readTabs();
+    expect(tabs.names).toEqual(["Academias"]);
+    expect(tabs.selected).toBe("Academias");
+  });
+
+  test("calls out a round 1 tie inside the result tab", async () => {
+    await mount(tiedRoundOne);
+
+    expect(readTabs().panel).toContain("Empate en el primer puesto");
+  });
+
+  test("names a Desempate's result as the Desempate's", async () => {
+    await mount({
+      ...publishedResult,
+      result: publishedResult.result && {
+        ...publishedResult.result,
+        roundNumber: 2,
+      },
+    });
+
+    expect(readTabs().panel).toMatch(/^Desempate/);
   });
 });
