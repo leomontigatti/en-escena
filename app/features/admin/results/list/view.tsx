@@ -134,7 +134,7 @@ const resultsColumns: DataTableColumn<ResultsListItem>[] = [
  * height every list shares.
  */
 function ResultAwardCell({ row }: { row: ResultsListItem }) {
-  if (row.result.kind === "unscored") {
+  if (!row.evaluated) {
     return "—";
   }
 

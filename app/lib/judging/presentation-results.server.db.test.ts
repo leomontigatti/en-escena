@@ -82,20 +82,50 @@ describe("the results administration reads", () => {
     );
 
     expect(results.get(early.choreographyId)).toEqual({
+      evaluated: true,
       published: true,
       result: { average: 85, award: "silver", kind: "scored" },
     });
     expect(results.get(late.choreographyId)).toEqual({
+      evaluated: true,
       published: false,
       result: { average: 55, award: "specialMention", kind: "scored" },
     });
     expect(results.get(waiting.choreographyId)).toEqual({
+      evaluated: false,
       published: false,
       result: { kind: "unscored" },
     });
     expect(results.get(disqualified.choreographyId)).toEqual({
+      evaluated: true,
       published: false,
       result: { kind: "disqualified" },
+    });
+  });
+
+  // A take saved while disqualified has no value, and reinstating keeps it:
+  // the panel has evaluated the presentation without anything to average.
+  test("say a presentation is evaluated when its only score row has no value", async () => {
+    const fixture = await seedJudgingFixture();
+    const presentation = await fixture.addPresentation({
+      name: "Reintegrada",
+      orderNumber: 1,
+    });
+    const judge = await fixture.assignJudge(presentation.presentationId);
+    await db.insert(scores).values({
+      feedbackAudioStorageKey: "takes/a.webm",
+      judgeAssignmentId: judge.judgeAssignmentId,
+      value: null,
+    });
+
+    const results = await readPresentationResults({ kind: "administration" }, [
+      presentation.choreographyId,
+    ]);
+
+    expect(results.get(presentation.choreographyId)).toEqual({
+      evaluated: true,
+      published: false,
+      result: { kind: "unscored" },
     });
   });
 
@@ -236,5 +266,25 @@ describe("the results an individual reads", () => {
       result: { kind: "disqualified" },
     });
     expect(results.has(evaluatedSince.choreographyId)).toBe(false);
+  });
+
+  test("are gone while the event's stamp is lifted and the presentation keeps its own", async () => {
+    const fixture = await seedJudgingFixture();
+    const scored = await addScored(fixture, {
+      name: "Primera",
+      orderNumber: 1,
+      values: ["70.0"],
+    });
+    await publishResults(fixture.event.id);
+    await db
+      .update(events)
+      .set({ resultsPublishedAt: null })
+      .where(eq(events.id, fixture.event.id));
+
+    const results = await readPresentationResults({ kind: "individual" }, [
+      scored.choreographyId,
+    ]);
+
+    expect(results.size).toBe(0);
   });
 });

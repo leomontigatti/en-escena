@@ -82,12 +82,14 @@ describe("the results list", () => {
 
     expect(result.results).toMatchObject([
       {
+        evaluated: false,
         result: { kind: "unscored" },
         id: first.choreographyId,
         orderNumber: 1,
         published: false,
       },
       {
+        evaluated: true,
         result: { average: 82.5, award: "silver", kind: "scored" },
         id: second.choreographyId,
         orderNumber: 2,
@@ -176,6 +178,7 @@ describe("the results list", () => {
     );
 
     expect(result.results[0]).toMatchObject({
+      evaluated: true,
       result: { kind: "disqualified" },
     });
   });

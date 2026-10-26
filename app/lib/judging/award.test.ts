@@ -47,11 +47,11 @@ describe("a presentation's result", () => {
 
   test.each([
     ["0.0", "specialMention"],
-    ["59.5", "specialMention"],
+    ["59.99", "specialMention"],
     ["60.0", "bronze"],
-    ["79.5", "bronze"],
+    ["79.99", "bronze"],
     ["80.0", "silver"],
-    ["89.5", "silver"],
+    ["89.99", "silver"],
     ["90.0", "gold"],
     ["100.0", "gold"],
   ])("reads an average of %s as %s", (value, award) => {

@@ -1,11 +1,10 @@
-import { and, asc, eq, isNull, type SQL } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   academies,
   categories,
   choreographies,
-  events,
   judgeAssignments,
   modalities,
   presentations,
@@ -25,7 +24,7 @@ import {
 } from "@/lib/judging/award";
 import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
 import {
-  isResultPublished,
+  readPresentationResults,
   type AcademyAudience,
   type AdministrationAudience,
 } from "@/lib/judging/presentation-results.server";
@@ -134,7 +133,7 @@ export async function readPresentationEvaluation(
 ): Promise<AdministrationEvaluation | null>;
 export async function readPresentationEvaluation(
   audience: AcademyAudience,
-  target: EvaluationTarget,
+  target: { choreographyId: string },
   options?: EvaluationOptions,
   executor?: Executor,
 ): Promise<AcademyEvaluation | null>;
@@ -144,21 +143,25 @@ export async function readPresentationEvaluation(
   options: EvaluationOptions = {},
   executor: Executor = db,
 ): Promise<AcademyEvaluation | AdministrationEvaluation | null> {
-  const evaluation = await readAdministrationEvaluation(
-    target,
-    audience.kind === "academy"
-      ? and(
-          eq(choreographies.academyId, audience.academyId),
-          isNull(choreographies.withdrawnAt),
-          isResultPublished(),
-        )
-      : undefined,
-    options,
+  if (audience.kind === "administration") {
+    return await readAdministrationEvaluation(target, options, executor);
+  }
+
+  // Whether the academy reads this result at all is the list read's call,
+  // so ownership, the publication gate and the withdrawn rule have one owner.
+  const choreographyId =
+    "choreographyId" in target ? target.choreographyId : "";
+  const readable = await readPresentationResults(
+    audience,
+    [choreographyId],
     executor,
   );
+  const evaluation = readable.has(choreographyId)
+    ? await readAdministrationEvaluation(target, options, executor)
+    : null;
 
-  if (evaluation === null || audience.kind === "administration") {
-    return evaluation;
+  if (evaluation === null) {
+    return null;
   }
 
   const disqualified = evaluation.result.kind === "disqualified";
@@ -182,7 +185,6 @@ export async function readPresentationEvaluation(
 
 async function readAdministrationEvaluation(
   target: EvaluationTarget,
-  condition: SQL | undefined,
   options: EvaluationOptions,
   executor: Executor,
 ): Promise<AdministrationEvaluation | null> {
@@ -208,19 +210,15 @@ async function readAdministrationEvaluation(
       choreographies,
       eq(choreographies.id, presentations.choreographyId),
     )
-    .innerJoin(events, eq(events.id, presentations.eventId))
     .innerJoin(academies, eq(academies.id, choreographies.academyId))
     .innerJoin(categories, eq(categories.id, choreographies.categoryId))
     .innerJoin(modalities, eq(modalities.id, choreographies.modalityId))
     .innerJoin(schedules, eq(schedules.id, choreographies.scheduleId))
     .leftJoin(submodalities, eq(submodalities.id, choreographies.submodalityId))
     .where(
-      and(
-        "presentationId" in target
-          ? eq(presentations.id, target.presentationId)
-          : eq(presentations.choreographyId, target.choreographyId),
-        condition,
-      ),
+      "presentationId" in target
+        ? eq(presentations.id, target.presentationId)
+        : eq(presentations.choreographyId, target.choreographyId),
     );
 
   if (!presentation) {

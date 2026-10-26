@@ -120,6 +120,7 @@ async function loadResultsList(input: {
         academyName: row.academyName,
         categoryName: row.category.name,
         choreographyNumber: row.choreographyNumber,
+        evaluated: entry.evaluated,
         experienceLevel: row.experienceLevel,
         experienceLevelRequirement: experienceLevelRequirement({
           categoryExperienceLevels: row.category.experienceLevels,

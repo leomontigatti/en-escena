@@ -36,6 +36,7 @@ function buildRow(overrides: Partial<ResultsListItem> = {}): ResultsListItem {
     academyName: "Academia Pirueta",
     categoryName: "Juvenil",
     choreographyNumber: 12,
+    evaluated: false,
     result: { kind: "unscored" },
     experienceLevel: null,
     experienceLevelRequirement: "notApplicable",
@@ -112,6 +113,7 @@ describe("ResultsListView rows", () => {
       buildLoaderData({
         results: [
           buildRow({
+            evaluated: true,
             result: { average: 82.5, award: "silver", kind: "scored" },
             published: true,
           }),
@@ -139,6 +141,7 @@ describe("ResultsListView rows", () => {
       buildLoaderData({
         results: [
           buildRow({
+            evaluated: true,
             result: { average: 91, award: "gold", kind: "scored" },
           }),
         ],
@@ -156,6 +159,7 @@ describe("ResultsListView rows", () => {
       buildLoaderData({
         results: [
           buildRow({
+            evaluated: true,
             published: true,
             result: { kind: "disqualified" },
           }),

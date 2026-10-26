@@ -1,12 +1,4 @@
-import {
-  and,
-  asc,
-  eq,
-  inArray,
-  isNotNull,
-  isNull,
-  type SQL,
-} from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -17,6 +9,7 @@ import {
   scores,
   user,
 } from "@/db/schema";
+import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import {
   resolvePresentationResult,
@@ -61,6 +54,13 @@ export type PresentationJudgeValue = {
 };
 
 export type AdministrationResultEntry = {
+  /**
+   * Whether the panel has evaluated it: any score row, or a disqualification.
+   * Not the same as a `scored` result: a take saved while disqualified has no
+   * value, and reinstating keeps it, so an evaluated presentation can still
+   * have nothing to average.
+   */
+  evaluated: boolean;
   /** Whether the academies read it: inside a published snapshot. */
   published: boolean;
   result: PresentationResult;
@@ -122,7 +122,7 @@ export async function readPresentationResults<Audience extends ResultAudience>(
     .where(
       and(
         inArray(presentations.choreographyId, [...choreographyIds]),
-        isNull(choreographies.withdrawnAt),
+        notWithdrawnChoreography(),
         audienceCondition(audience),
       ),
     )
@@ -169,13 +169,12 @@ export async function readPresentationResults<Audience extends ResultAudience>(
 }
 
 /**
- * The publication gate, shared with `presentation-evaluation.server.ts` and
- * no one else: a result is published when its event is published
+ * The publication gate: a result is published when its event is published
  * and the presentation is inside the snapshot. Both stamps are asked for, so
  * lifting the event's hides every result at once even though each
  * presentation keeps its own.
  */
-export function isResultPublished(): SQL | undefined {
+function isResultPublished(): SQL | undefined {
   return and(
     isNotNull(events.resultsPublishedAt),
     isNotNull(presentations.resultPublishedAt),
@@ -203,7 +202,11 @@ function toEntry<Audience extends ResultAudience>(
 ): ResultEntry<Audience> {
   switch (audience.kind) {
     case "administration":
-      return { published: entry.published, result } as ResultEntry<Audience>;
+      return {
+        evaluated: result.kind === "disqualified" || entry.judges.length > 0,
+        published: entry.published,
+        result,
+      } as ResultEntry<Audience>;
     case "academy":
       return { result } as ResultEntry<Audience>;
     case "individual":

@@ -30,6 +30,8 @@ export type ResultsListItem = {
   academyName: string;
   categoryName: string;
   choreographyNumber: number;
+  /** Whether the panel has evaluated it, which a `scored` result does not always tell. */
+  evaluated: boolean;
   /** The choreography's level; `null` when it has none. */
   experienceLevel: ExperienceLevel | null;
   /** Why an empty level is empty, which is how the `Nivel` cell words it. */
@@ -79,7 +81,7 @@ export type ResultsListResult = {
  * presentation, as on the presentations list; nothing before that.
  */
 export function resultRowPath(row: ResultsListItem) {
-  return row.result.kind === "unscored"
+  return !row.evaluated
     ? null
     : `/administracion/presentaciones/${row.presentationId}/puntajes`;
 }
