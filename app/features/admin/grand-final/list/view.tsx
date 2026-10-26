@@ -1,5 +1,5 @@
 import { AudioLines, Crown } from "lucide-react";
-import { useCallback, useState } from "react";
+import { type ReactNode, useCallback, useState } from "react";
 
 import {
   AdminEmptyState,
@@ -39,8 +39,14 @@ import {
   VotingRoundDialogs,
   type VotingRoundAction,
 } from "../voting-round/dialogs";
-import { VotingRoundResultSection } from "../voting-round/result-section";
-import type { VotingRoundListState } from "../voting-round/shared";
+import {
+  VotingRoundResultBadge,
+  VotingRoundResultSection,
+} from "../voting-round/result-section";
+import type {
+  VotingRoundListState,
+  VotingRoundResultView,
+} from "../voting-round/shared";
 import type { GrandFinalListResult } from "./shared";
 
 /**
@@ -52,7 +58,8 @@ import type { GrandFinalListResult } from "./shared";
  * an `auditLink`, and the
  * `votingRound`'s actions: open or close, whichever applies, the
  * `Desempate`, and publish or hide the result, whichever applies. The round's
- * state reads beside the title, and once a round closed its result heads the page.
+ * state reads beside the title, and once a round closed its result is the
+ * first tab, the one the page opens on.
  */
 export function GrandFinalListView({
   loaderData,
@@ -105,16 +112,12 @@ export function GrandFinalListView({
       }
     >
       {picks ? (
-        <div className="flex flex-col gap-8">
-          {votingRound?.result ? (
-            <VotingRoundResultSection result={votingRound.result} />
-          ) : null}
-          <GrandFinalTabs
-            auditLinks={loaderData.auditLinks}
-            picks={picks}
-            voteCodeBatches={loaderData.voteCodeBatches}
-          />
-        </div>
+        <GrandFinalTabs
+          auditLinks={loaderData.auditLinks}
+          picks={picks}
+          result={votingRound?.result ?? null}
+          voteCodeBatches={loaderData.voteCodeBatches}
+        />
       ) : null}
       {isGenerateDialogOpen ? (
         <GenerateVoteCodeBatchDialog onOpenChange={setIsGenerateDialogOpen} />
@@ -222,27 +225,61 @@ function VotingRoundBadge({ state }: { state: VotingRoundListState }) {
   return null;
 }
 
+const resultTab = "resultado";
 const academiesTab = "academias";
 const voteCodesTab = "codigos-qr";
 const auditLinksTab = "auditoria";
 
+type GrandFinalTab = {
+  badge?: ReactNode;
+  content: ReactNode;
+  label: string;
+  value: string;
+};
+
 /**
  * The academies, and beside them the QR code batches and the audit links once
- * there is one of each: a tab with nothing to list is not drawn.
+ * there is one of each: a tab with nothing to list is not drawn. Once a round
+ * closed its result comes first, its name saying whether it is published,
+ * and the page opens on it.
  */
 function GrandFinalTabs({
   auditLinks,
   picks,
+  result,
   voteCodeBatches,
 }: {
   auditLinks: GrandFinalListResult["auditLinks"];
   picks: GrandFinalPicks;
+  result: VotingRoundResultView | null;
   voteCodeBatches: GrandFinalListResult["voteCodeBatches"];
 }) {
-  const hasBatches = voteCodeBatches.length > 0;
-  const hasLinks = auditLinks.length > 0;
+  const candidates: (GrandFinalTab | false | null)[] = [
+    result && {
+      badge: <VotingRoundResultBadge result={result} />,
+      content: <VotingRoundResultSection result={result} />,
+      label: "Resultado",
+      value: resultTab,
+    },
+    {
+      content: <AcademiesTable picks={picks} />,
+      label: "Academias",
+      value: academiesTab,
+    },
+    voteCodeBatches.length > 0 && {
+      content: <VoteCodeBatchesSection batches={voteCodeBatches} />,
+      label: "Códigos QR",
+      value: voteCodesTab,
+    },
+    auditLinks.length > 0 && {
+      content: <AuditLinksSection links={auditLinks} />,
+      label: "Accesos de auditoría",
+      value: auditLinksTab,
+    },
+  ];
+  const tabs = candidates.filter((tab): tab is GrandFinalTab => Boolean(tab));
   const tab = useUrlTab({
-    defaultValue: academiesTab,
+    defaultValue: result ? resultTab : academiesTab,
     param: listTabParam,
     // The search and the filter are the academies'; the other tabs have
     // neither, and a stale one would come back with the academies tab.
@@ -251,37 +288,33 @@ function GrandFinalTabs({
       listQueryParamNames.page,
       ...grandFinalAcademyFacetedFilterIds,
     ],
-    values: [
-      academiesTab,
-      ...(hasBatches ? [voteCodesTab] : []),
-      ...(hasLinks ? [auditLinksTab] : []),
-    ],
+    values: tabs.map((candidate) => candidate.value),
   });
 
   return (
     <Tabs value={tab.value} onValueChange={tab.onValueChange}>
       <TabsList variant="line">
-        <TabsTrigger value={academiesTab}>Academias</TabsTrigger>
-        {hasBatches ? (
-          <TabsTrigger value={voteCodesTab}>Códigos QR</TabsTrigger>
-        ) : null}
-        {hasLinks ? (
-          <TabsTrigger value={auditLinksTab}>Accesos de auditoría</TabsTrigger>
-        ) : null}
+        {tabs.map((candidate) => (
+          <TabsTrigger key={candidate.value} value={candidate.value}>
+            {candidate.label}
+            {candidate.badge ? (
+              <>
+                <span className="sr-only">, </span>
+                {candidate.badge}
+              </>
+            ) : null}
+          </TabsTrigger>
+        ))}
       </TabsList>
-      <TabsContent value={academiesTab} className="pt-2">
-        <AcademiesTable picks={picks} />
-      </TabsContent>
-      {hasBatches ? (
-        <TabsContent value={voteCodesTab} className="pt-2">
-          <VoteCodeBatchesSection batches={voteCodeBatches} />
+      {tabs.map((candidate) => (
+        <TabsContent
+          key={candidate.value}
+          value={candidate.value}
+          className="pt-2"
+        >
+          {candidate.content}
         </TabsContent>
-      ) : null}
-      {hasLinks ? (
-        <TabsContent value={auditLinksTab} className="pt-2">
-          <AuditLinksSection links={auditLinks} />
-        </TabsContent>
-      ) : null}
+      ))}
     </Tabs>
   );
 }
