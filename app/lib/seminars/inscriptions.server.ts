@@ -13,10 +13,7 @@ import {
   seminarInscriptionPersonValues,
 } from "@/lib/roster/roster-person-kind.server";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
-import {
-  countTakenSeminarPlaces,
-  readSeminarPlaces,
-} from "@/lib/seminars/covered-inscriptions.server";
+import { grantSeminarReservation } from "@/lib/seminars/seminar-places.server";
 import { removeSeminarInscriptionFromRoster } from "@/lib/seminars/inscription-withdrawal.server";
 import {
   findLinkedPersonRefusal,
@@ -32,7 +29,6 @@ import {
 import { lockEventSeminarPrices } from "@/lib/seminar-prices/price-locks.server";
 import { hasSeminarRegistrationPrices } from "@/lib/seminar-prices/repository.server";
 import { hasSeminarStarted } from "@/lib/seminars/registration-window";
-import { getSeminarReservationEndsAt } from "@/lib/seminars/seminar-reservations";
 import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -40,7 +36,6 @@ type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 /** The seminar row the registration path holds a lock on while it decides. */
 type LockedSeminar = {
   id: string;
-  quota: number;
   scheduledDate: string;
   startTime: string;
 };
@@ -110,8 +105,8 @@ const seminarNotFoundMessage = "No encontramos ese seminario.";
 
 /**
  * **Registration is unlimited.** The quota is not a cap on inscriptions: a new
- * row reserves a place for `SEMINAR_RESERVATION_HOURS` when one is free
- * (`reserveIfPlaceFree`), and a place is kept by covering the deposit, which is a decision of the allocation path
+ * row reserves a place when one is free (`grantSeminarReservation`), and a
+ * place is kept by covering the deposit, which is a decision of the allocation path
  * (`app/lib/finances/seminar-inscription-allocation.server.ts`). An academy
  * registers whoever it wants, into a full seminar too
  * (docs/domain/seminars.md, "The place").
@@ -143,7 +138,6 @@ function lockSeminar(tx: Transaction, input: RegisterSeminarInscriptionInput) {
   return tx
     .select({
       id: seminars.id,
-      quota: seminars.quota,
       scheduledDate: seminars.scheduledDate,
       startTime: seminars.startTime,
     })
@@ -225,7 +219,12 @@ async function insertInscription(
   const [inserted] = await tx
     .insert(seminarInscriptions)
     .values({
-      reservedUntil: await reserveIfPlaceFree(tx, seminar, input.now),
+      // A registration into a full seminar stores no reservation and never
+      // gains one later: it holds a place only by covering its deposit.
+      reservedUntil: await grantSeminarReservation(tx, {
+        now: input.now,
+        seminarId: seminar.id,
+      }),
       seminarId: seminar.id,
       ...seminarInscriptionPersonValues({
         kind: input.personKind,
@@ -245,26 +244,6 @@ async function insertInscription(
   }
 
   return { ok: true, inscriptionId: inserted.id };
-}
-
-/**
- * A new row reserves a place only when the seminar has one nobody holds, read
- * under the seminar's lock so two registrations cannot both take the last one.
- * A registration into a full seminar stores no reservation and never gains one
- * later: it holds a place only by covering its deposit.
- */
-async function reserveIfPlaceFree(
-  tx: Transaction,
-  seminar: LockedSeminar,
-  now: Date,
-): Promise<Date | null> {
-  const places = (await readSeminarPlaces([seminar.id], now, tx)).get(
-    seminar.id,
-  );
-
-  return countTakenSeminarPlaces(places) < seminar.quota
-    ? getSeminarReservationEndsAt(seminar, now)
-    : null;
 }
 
 /**

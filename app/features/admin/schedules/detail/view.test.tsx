@@ -53,7 +53,7 @@ describe("EventScheduleDetailView", () => {
 
   // The form plans against what is left: the total capacity and each split
   // capacity say how many places are still free, not just how much was shared out.
-  test("shows how many lugares are left for the schedule and for each capacity", async () => {
+  test("shows how many places are left for the schedule and for each capacity", async () => {
     useNavigationMock.mockReturnValue({ state: "idle" });
 
     await renderDetail({
@@ -87,7 +87,7 @@ describe("EventScheduleDetailView", () => {
   // The suffix plans against the number being typed, not the saved one: the
   // occupied places stay put, so raising or lowering the capacity moves what
   // is left before anything is saved.
-  test("follows the typed capacity with the lugares that would be left", async () => {
+  test("follows the typed capacity with the places that would be left", async () => {
     useNavigationMock.mockReturnValue({ state: "idle" });
 
     await renderDetail({

@@ -12,14 +12,8 @@ import { asc, inArray } from "drizzle-orm";
 
 import { seminars } from "@/db/schema";
 import type { SeminarFinancePriceRow } from "@/lib/finances/seminar-inscription-thresholds.server";
-import {
-  countReservedByOthers,
-  readSeminarPlaces,
-} from "@/lib/seminars/covered-inscriptions.server";
-import {
-  countSeminarPlacesShort,
-  seminarPlacesShortMessage,
-} from "@/lib/seminars/seminar-places";
+import { seminarPlacesShortMessage } from "@/lib/seminars/registration-refusals";
+import { checkSeminarCrossings } from "@/lib/seminars/seminar-places.server";
 
 import type {
   CobroResult,
@@ -82,13 +76,10 @@ export async function lockSeminars(
 
 /**
  * The place check for a write that carries several inscriptions across their
- * deposit at once. `crossingIdsBySeminarId` is which of the write's
- * inscriptions cross, per seminar — none of them covered yet, so the covered
- * count needs no exception, while their own reservations are left out of the
- * reserved count: a reservation never blocks its own deposit. Refuses when
- * `covered + reserved by others + needed > quota` for **any** seminar, naming
- * each one that is short and by how many places; there is no partial charge
- * and no ordering of who gets a place.
+ * deposit at once, as `checkSeminarCrossings` decides it, turned into the
+ * refusal the administrator reads: it names each seminar that is short and by
+ * how many places. There is no partial charge and no ordering of who gets a
+ * place.
  *
  * It must run under `lockSeminars` on the same seminars.
  */
@@ -96,37 +87,38 @@ export async function assertSeminarPlacesForCrossings(
   tx: Transaction,
   input: {
     crossingIdsBySeminarId: ReadonlyMap<string, readonly string[]>;
+    now: Date;
     seminars: readonly LockedSeminar[];
   },
 ): Promise<CobroResult> {
-  const crossing = input.seminars.filter(
-    (seminar) =>
-      (input.crossingIdsBySeminarId.get(seminar.id) ?? []).length > 0,
-  );
-  const placesBySeminarId = await readSeminarPlaces(
-    crossing.map((seminar) => seminar.id),
-    new Date(),
-    tx,
-  );
-  const shortfalls = crossing
-    .map((seminar) => {
-      const crossingIds = input.crossingIdsBySeminarId.get(seminar.id) ?? [];
-      const places = placesBySeminarId.get(seminar.id);
+  const check = await checkSeminarCrossings(tx, {
+    crossingIdsBySeminarId: input.crossingIdsBySeminarId,
+    now: input.now,
+  });
 
-      return {
-        instructorName: seminar.instructorName,
-        scheduledDate: seminar.scheduledDate,
-        shortBy: countSeminarPlacesShort({
-          coveredCount: places?.coveredIds.length ?? 0,
-          neededCount: crossingIds.length,
-          quota: seminar.quota,
-          reservedCount: countReservedByOthers(places, crossingIds),
-        }),
-      };
-    })
-    .filter((shortfall) => shortfall.shortBy > 0);
+  if (check.ok) {
+    return { ok: true };
+  }
 
-  return shortfalls.length === 0
-    ? { ok: true }
-    : { ok: false, message: seminarPlacesShortMessage(shortfalls) };
+  return {
+    ok: false,
+    // In the seminars' lock order, which is the order the refusal names them.
+    message: seminarPlacesShortMessage(
+      input.seminars.flatMap((seminar) => {
+        const shortfall = check.shortfalls.find(
+          (short) => short.seminarId === seminar.id,
+        );
+
+        return shortfall
+          ? [
+              {
+                instructorName: seminar.instructorName,
+                scheduledDate: seminar.scheduledDate,
+                shortBy: shortfall.shortBy,
+              },
+            ]
+          : [];
+      }),
+    ),
+  };
 }

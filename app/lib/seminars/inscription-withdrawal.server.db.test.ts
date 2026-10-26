@@ -28,14 +28,11 @@ import {
   listSeminarInscriptionsForAcademy,
   listSeminarPersonOptionsForAcademy,
 } from "@/lib/seminars/inscription-rosters.server";
-import {
-  countCoveredSeminarInscriptions,
-  readSeminarPlaces,
-} from "@/lib/seminars/covered-inscriptions.server";
 import { createSeminar, deleteSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSavedEvent } from "@/lib/test-support/events";
 
+import { readSeminarPlaceLedger } from "@/lib/seminars/seminars.test-support";
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
@@ -236,9 +233,9 @@ describe("removing a seminar inscription", () => {
     await expect(listSeminarInscriptions(fixture.seminarId)).resolves.toEqual(
       [],
     );
-    await expect(
-      countCoveredSeminarInscriptions(fixture.seminarId),
-    ).resolves.toBe(0);
+    expect((await readSeminarPlaceLedger(fixture.seminarId)).coveredCount).toBe(
+      0,
+    );
   });
 
   // #1065: the withdrawal retains the deposit (the seminar's 50 % of 20000) and
@@ -376,13 +373,15 @@ describe("reserving a place at registration", () => {
     const first = expectRegistered(
       await register(fixture, fixture.people[0].id),
     );
-    expectRegistered(await register(fixture, fixture.people[1].id));
+    const second = expectRegistered(
+      await register(fixture, fixture.people[1].id),
+    );
+    const ledger = await readSeminarPlaceLedger(fixture.seminarId, beforeStart);
 
-    expect(
-      (await readSeminarPlaces([fixture.seminarId], beforeStart)).get(
-        fixture.seminarId,
-      )?.reservedIds,
-    ).toEqual([first]);
+    expect([ledger.holdingOf(first), ledger.holdingOf(second)]).toEqual([
+      "reserved",
+      "none",
+    ]);
   });
 });
 
@@ -421,9 +420,9 @@ describe("registering again after a withdrawal", () => {
     expect(inserted?.selectedPriceId).toBeNull();
     // The new row holds no money, so it covers nothing; the money stays on the
     // withdrawn row, which takes no place.
-    await expect(
-      countCoveredSeminarInscriptions(fixture.seminarId),
-    ).resolves.toBe(0);
+    expect((await readSeminarPlaceLedger(fixture.seminarId)).coveredCount).toBe(
+      0,
+    );
   });
 
   test("follows the ordinary quota rule: a full seminar registers the person without a reservation", async () => {
@@ -460,11 +459,12 @@ describe("registering again after a withdrawal", () => {
       await register(fixture, fixture.people[0].id),
     );
 
-    expect(
-      (await readSeminarPlaces([fixture.seminarId], beforeStart)).get(
-        fixture.seminarId,
-      )?.reservedIds,
-    ).toEqual([registered]);
+    const ledger = await readSeminarPlaceLedger(fixture.seminarId, beforeStart);
+
+    expect([ledger.holdingOf(registered), ledger.reservedCount]).toEqual([
+      "reserved",
+      1,
+    ]);
   });
 
   test("lets a withdrawn row and an active one of the same person coexist, and never two active ones", async () => {

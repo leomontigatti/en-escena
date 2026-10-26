@@ -195,7 +195,7 @@ function SeminarAlerts({ loaderData }: SeminarFinanceDetailViewProps) {
     loaderData.seminar?.depositAmount.status === "incomplete";
   const overAllocated =
     loaderData.seminar?.anomalies.includes("overAllocated") ?? false;
-  const isFull = loaderData.seminar?.availablePlaces === 0;
+  const isFull = loaderData.seminar?.isFull === true;
 
   // `AlertStack` draws nothing when every alert below is absent.
   return (

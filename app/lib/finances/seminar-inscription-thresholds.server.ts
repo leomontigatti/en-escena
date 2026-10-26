@@ -8,7 +8,6 @@ import {
 } from "@/db/schema";
 import {
   deriveInscriptionFinancialFigures,
-  hasCrossedDepositThreshold,
   type InscriptionFinancialFigures,
   type InscriptionThresholds,
 } from "@/lib/finances/inscription-financial-status";
@@ -21,6 +20,8 @@ import {
   readSeminarParticipation,
   type SeminarInscriptionPersonIds,
 } from "@/lib/finances/seminar-participation.server";
+
+import { isSeminarInscriptionCovered } from "@/lib/seminars/seminar-places.server";
 
 import type { Executor } from "./choreography-cobro-support.server";
 
@@ -67,32 +68,6 @@ export type SeminarInscriptionThresholdResolution = InscriptionThresholds & {
   covered: boolean;
   priceRow: SeminarFinancePriceRow | null;
 };
-
-/**
- * **Covering the deposit is what takes a place in the seminar's quota**, and it
- * is what freezes the seminar's `kind` and rate and the inscription's stored
- * price row. Every one of those readings goes through this predicate, so the
- * quota, the guards and the lock trigger cannot drift apart.
- *
- * The deposit is the **stored** row's, never the row that applies today — the
- * same clause that keeps the price rule from being circular
- * (`hasCrossedDepositThreshold`) — and a withdrawn row is covered by nothing:
- * it holds its money but no place.
- */
-export function isSeminarInscriptionCovered(input: {
-  allocatedAmount: number;
-  storedDepositAmount: number | null;
-  withdrawn: boolean;
-}): boolean {
-  if (input.withdrawn) {
-    return false;
-  }
-
-  return hasCrossedDepositThreshold({
-    allocatedAmount: input.allocatedAmount,
-    depositAmount: input.storedDepositAmount,
-  });
-}
 
 /**
  * The figures of a set of seminar inscriptions: their allocations summed, the
@@ -179,7 +154,8 @@ export async function resolveSeminarInscriptions(
         withdrawn,
       }),
       // Covered is judged by the deposit of the row the inscription **stored**,
-      // which is the one the lock trigger judges by too.
+      // by the predicate the quota counts with, so this figure and the place
+      // cannot disagree.
       covered: isSeminarInscriptionCovered({
         allocatedAmount,
         storedDepositAmount: deriveSeminarInscriptionThresholds({

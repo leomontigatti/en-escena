@@ -384,7 +384,8 @@ describe("AcademyFinancesRouteView", () => {
               ...seminarPresetPreviewFixture().stages,
               deposit: {
                 neededCount: 1,
-                reservedCount: 0,
+                placesLeft: 20,
+                shortBy: 0,
                 people: [
                   {
                     amount: 7000,
@@ -447,13 +448,13 @@ describe("AcademyFinancesRouteView", () => {
         ],
         seminarPresetPreviews: {
           seminar_1: seminarPresetPreviewFixture({
-            coveredCount: 12,
             seminarId: "seminar_1",
             stages: {
               ...seminarPresetPreviewFixture().stages,
               balance: {
                 neededCount: 2,
-                reservedCount: 0,
+                placesLeft: 8,
+                shortBy: 0,
                 people: [
                   {
                     amount: 40000,
@@ -517,8 +518,15 @@ describe("AcademyFinancesRouteView", () => {
         seminarFinanceRows: [seminarFinanceRowFixture({ id: "seminar_1" })],
         seminarPresetPreviews: {
           seminar_1: seminarPresetPreviewFixture({
-            coveredCount: 20,
             seminarId: "seminar_1",
+            stages: {
+              ...seminarPresetPreviewFixture().stages,
+              deposit: {
+                ...seminarPresetPreviewFixture().stages.deposit,
+                placesLeft: 0,
+                shortBy: 1,
+              },
+            },
           }),
         },
         summary: {
@@ -552,7 +560,8 @@ describe("AcademyFinancesRouteView", () => {
               ...preview.stages,
               deposit: {
                 neededCount: 1,
-                reservedCount: 0,
+                placesLeft: 20,
+                shortBy: 0,
                 people: [
                   {
                     amount: 0,
@@ -1642,15 +1651,14 @@ function seminarPresetPreviewFixture(
   > = {},
 ): AcademyFinancesLoaderData["seminarPresetPreviews"][string] {
   return {
-    coveredCount: 0,
     instructorName: "Abril Sosa",
-    quota: 20,
     scheduledDate: "2026-10-10",
     seminarId: "seminar",
     stages: {
       balance: {
         neededCount: 1,
-        reservedCount: 0,
+        placesLeft: 20,
+        shortBy: 0,
         people: [
           {
             amount: 8000,
@@ -1663,7 +1671,8 @@ function seminarPresetPreviewFixture(
       },
       deposit: {
         neededCount: 1,
-        reservedCount: 0,
+        placesLeft: 20,
+        shortBy: 0,
         people: [
           {
             amount: 5000,

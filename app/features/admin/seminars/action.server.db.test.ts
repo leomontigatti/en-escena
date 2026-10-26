@@ -28,7 +28,7 @@ installDatabaseTestHooks();
 
 // The quota floor is the number of inscriptions that **covered their deposit**,
 // so the suite seeds the money rather than stubbing the count:
-// `covered-inscriptions.server` is ours, and mocking it would leave the action's
+// `seminar-places.server` is ours, and mocking it would leave the action's
 // refusal standing on a stub instead of on a taken place.
 
 const seminarFields = {
@@ -122,7 +122,7 @@ describe("admin seminars", () => {
       handleSeminarCreateAction(request),
     );
 
-    const [seminar] = await listSeminars(event.id);
+    const [seminar] = await listSeminars(event.id, new Date());
     expect(seminar).toMatchObject({
       instructorName: "Abril Sosa",
       scheduledDate: "2026-10-10",
@@ -205,7 +205,7 @@ describe("admin seminars", () => {
       intent: "update-seminar",
       message: "Seminario guardado.",
     });
-    await expect(listSeminars(event.id)).resolves.toMatchObject([
+    await expect(listSeminars(event.id, new Date())).resolves.toMatchObject([
       {
         instructorName: "Nicolás Prado",
         scheduledDate: "2026-10-11",
@@ -234,7 +234,7 @@ describe("admin seminars", () => {
       message: "Seminario eliminado.",
       variant: "success",
     });
-    await expect(listSeminars(event.id)).resolves.toEqual([]);
+    await expect(listSeminars(event.id, new Date())).resolves.toEqual([]);
   });
 
   test("refuses to delete a seminar with inscriptions and accepts once it has none", async () => {
@@ -257,7 +257,7 @@ describe("admin seminars", () => {
       intent: "delete-seminar",
       message: "Este seminario tiene inscripciones. No podés eliminarlo.",
     });
-    await expect(listSeminars(eventId)).resolves.toHaveLength(1);
+    await expect(listSeminars(eventId, new Date())).resolves.toHaveLength(1);
 
     await expect(
       handleSeminarDetailAction(
@@ -287,7 +287,7 @@ describe("admin seminars", () => {
     );
 
     expect(response.status).toBe(302);
-    await expect(listSeminars(eventId)).resolves.toEqual([]);
+    await expect(listSeminars(eventId, new Date())).resolves.toEqual([]);
   });
 
   test("removes an inscription only once the removal is confirmed", async () => {
@@ -406,7 +406,7 @@ describe("admin seminars", () => {
       status: "error",
       intent: "delete-seminar",
     });
-    await expect(listSeminars(event.id)).resolves.toHaveLength(1);
+    await expect(listSeminars(event.id, new Date())).resolves.toHaveLength(1);
   });
 
   // A seminar is not part of the `Bases del evento`, so it has no say in

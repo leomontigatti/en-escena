@@ -14,7 +14,7 @@ import {
 import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { readSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-thresholds.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
-import { hasCoveredSeminarInscription } from "@/lib/seminars/covered-inscriptions.server";
+import { hasCoveredSeminarInscription } from "@/lib/seminars/seminar-places.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { createSavedEvent } from "@/lib/test-support/events";
@@ -241,9 +241,9 @@ describe("seminar inscription thresholds", () => {
       (await readThresholds(fixture)).get(fixture.participantInscriptionId)
         ?.covered,
     ).toBe(false);
-    await expect(hasCoveredSeminarInscription(fixture.seminarId)).resolves.toBe(
-      false,
-    );
+    await expect(
+      hasCoveredSeminarInscription(db, fixture.seminarId),
+    ).resolves.toBe(false);
 
     await allocate({
       academyId: fixture.dancingAcademyId,
@@ -257,9 +257,9 @@ describe("seminar inscription thresholds", () => {
       (await readThresholds(fixture)).get(fixture.participantInscriptionId)
         ?.covered,
     ).toBe(true);
-    await expect(hasCoveredSeminarInscription(fixture.seminarId)).resolves.toBe(
-      true,
-    );
+    await expect(
+      hasCoveredSeminarInscription(db, fixture.seminarId),
+    ).resolves.toBe(true);
 
     // Withdrawal keeps the money and gives the place back, so the same money
     // covers nothing.
@@ -272,9 +272,9 @@ describe("seminar inscription thresholds", () => {
       (await readThresholds(fixture)).get(fixture.participantInscriptionId)
         ?.covered,
     ).toBe(false);
-    await expect(hasCoveredSeminarInscription(fixture.seminarId)).resolves.toBe(
-      false,
-    );
+    await expect(
+      hasCoveredSeminarInscription(db, fixture.seminarId),
+    ).resolves.toBe(false);
   });
 });
 

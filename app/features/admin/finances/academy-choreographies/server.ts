@@ -108,6 +108,7 @@ export async function loadAcademyFinances(input: {
           readSeminarCobroPreviews({
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
+            now: new Date(),
           }),
         ]);
 

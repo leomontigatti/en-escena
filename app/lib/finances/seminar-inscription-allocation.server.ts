@@ -45,13 +45,11 @@ import {
 } from "@/lib/finances/seminar-participation.server";
 
 import { lockEventSeminarPrices } from "@/lib/seminar-prices/price-locks.server";
-import {
-  countReservedByOthers,
-  holdsCoveredDeposit,
-  readSeminarPlaces,
-} from "@/lib/seminars/covered-inscriptions.server";
 import { seminarNoPlacesForDepositMessage } from "@/lib/seminars/registration-refusals";
-import { countSeminarPlacesShort } from "@/lib/seminars/seminar-places";
+import {
+  checkSeminarCrossings,
+  readSeminarRowsCoverage,
+} from "@/lib/seminars/seminar-places.server";
 import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
 
 import {
@@ -234,9 +232,13 @@ export async function readSeminarInscriptionMoneyTarget(input: {
 export async function allocateToSeminarInscription(
   input: SeminarInscriptionMoneyInput & {
     amount: number;
+    /** The instant the place is judged at; a live reservation depends on it. */
+    now?: Date;
     priceId: string | null;
   },
 ): Promise<CobroResult> {
+  const now = input.now ?? new Date();
+
   return await runCobro(async (tx) => {
     const context = await loadSeminarMoneyContext(tx, input);
     if (!context.ok) {
@@ -249,7 +251,10 @@ export async function allocateToSeminarInscription(
 
     // Read before the pricing step: a cheaper row can carry the money already on
     // the row across its deposit, and that is a crossing too.
-    const wasCovered = await holdsCoveredDeposit(input.inscriptionId, tx);
+    const wasCovered =
+      (await readSeminarRowsCoverage(tx, [input.inscriptionId])).get(
+        input.inscriptionId,
+      )?.covered ?? false;
     const priced = await applySelectedSeminarPrice(tx, {
       allocatedAmount: await readInscriptionAllocatedAmount(tx, {
         id: input.inscriptionId,
@@ -273,6 +278,7 @@ export async function allocateToSeminarInscription(
         assertSeminarPlaceForCrossing(tx, {
           ...movement,
           inscriptionId: input.inscriptionId,
+          now,
           seminar: context.seminar,
           wasCovered,
         }),
@@ -286,16 +292,14 @@ export async function allocateToSeminarInscription(
  * deposit goes through in a full seminar, taking money off never refuses, and
  * money after the seminar started is money like any other.
  *
- * The places other registrations reserve count as taken
- * (`readSeminarPlaces`): a row with no reservation of its own covers its
- * deposit only into a place nobody holds.
+ * Whether the crossing fits is `checkSeminarCrossings`'s, under the lock
+ * `loadSeminarMoneyContext` already holds on the seminar: the places other rows
+ * hold, covered or reserved, count as taken, and this row's own never does.
  *
  * The threshold after the write is the **stored** row's, read again here
  * because the pricing step may have just written it; whether the row was
  * covered before is read before that step, so a cheaper price that the money
- * already on the row reaches counts as the crossing it is. The count leaves this row out — a row that is
- * already covered would otherwise count against its own crossing — and it is
- * taken under the lock `loadSeminarMoneyContext` already holds on the seminar.
+ * already on the row reaches counts as the crossing it is.
  */
 async function assertSeminarPlaceForCrossing(
   tx: Transaction,
@@ -303,6 +307,7 @@ async function assertSeminarPlaceForCrossing(
     allocatedAmount: number;
     amount: number;
     inscriptionId: string;
+    now: Date;
     seminar: LockedSeminar;
     wasCovered: boolean;
   },
@@ -322,20 +327,16 @@ async function assertSeminarPlaceForCrossing(
     return { ok: true };
   }
 
-  const places = (
-    await readSeminarPlaces([input.seminar.id], new Date(), tx)
-  ).get(input.seminar.id);
+  const check = await checkSeminarCrossings(tx, {
+    crossingIdsBySeminarId: new Map([
+      [input.seminar.id, [input.inscriptionId]],
+    ]),
+    now: input.now,
+  });
 
-  return countSeminarPlacesShort({
-    coveredCount: (places?.coveredIds ?? []).filter(
-      (id) => id !== input.inscriptionId,
-    ).length,
-    neededCount: 1,
-    quota: input.seminar.quota,
-    reservedCount: countReservedByOthers(places, [input.inscriptionId]),
-  }) > 0
-    ? { ok: false, message: seminarNoPlacesForDepositMessage }
-    : { ok: true };
+  return check.ok
+    ? { ok: true }
+    : { ok: false, message: seminarNoPlacesForDepositMessage };
 }
 
 /** The deposit of the row the inscription stores right now, at the seminar's

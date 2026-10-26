@@ -1,3 +1,5 @@
+import { formatDate } from "@/lib/finances/formatters";
+
 /**
  * Said twice because the portal footer says it before the submission and the
  * server says it back when the seminar started in between. Registration itself
@@ -28,6 +30,27 @@ export function registeredByAcademyMessage(academyName: string) {
  */
 export const seminarNoPlacesForDepositMessage =
   "No quedan lugares en el seminario, así que esta inscripción no puede cubrir su seña.";
+
+/**
+ * The same refusal for a write that crosses deposits in several seminars at
+ * once. It names each seminar — by instructor and date, as the finance lists
+ * show it — and how many places it is short, so the administrator can tell which
+ * part of the selection blocked it.
+ */
+export function seminarPlacesShortMessage(
+  shortfalls: readonly {
+    instructorName: string;
+    scheduledDate: string;
+    shortBy: number;
+  }[],
+): string {
+  return shortfalls
+    .map(
+      (shortfall) =>
+        `No quedan lugares suficientes en el seminario de ${shortfall.instructorName} del ${formatDate(shortfall.scheduledDate)}: ${shortfall.shortBy === 1 ? "falta 1" : `faltan ${shortfall.shortBy}`}.`,
+    )
+    .join(" ");
+}
 
 /**
  * Said twice too: the portal footer and the individual's `Seminarios` say it

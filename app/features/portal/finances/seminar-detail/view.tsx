@@ -81,7 +81,7 @@ function SeminarAlerts({
 }) {
   const missingPrice = seminar.depositAmount.status === "incomplete";
   const overAllocated = seminar.anomalies.includes("overAllocated");
-  const isFull = seminar.availablePlaces === 0;
+  const isFull = seminar.isFull;
 
   if (!missingPrice && !overAllocated && !isFull) {
     return null;

@@ -11,7 +11,7 @@ import {
   resolveSeminarInscriptions,
   type SeminarInscriptionFinanceRow,
 } from "@/lib/finances/seminar-inscription-thresholds.server";
-import { readSeminarPlaces } from "@/lib/seminars/covered-inscriptions.server";
+import { readSeminarPlaceLedgers } from "@/lib/seminars/seminar-places.server";
 import {
   seminarInscriptionOwnedBy,
   seminarInscriptionPerson,
@@ -62,7 +62,7 @@ export type SeminarInscriptionFinanceDetailRow = {
    * as `Particular`. */
   personKind: InscriptionPersonKind;
   /** Whether the row holds a **reserved** place: uncovered, active and inside
-   * its registration window (`readSeminarPlaces`). Its badge reads `Reservada`
+   * its registration window (`readSeminarPlaceLedgers`). Its badge reads `Reservada`
    * instead of `Seña pendiente`. */
   reserved: boolean;
   scheduledDate: string;
@@ -104,19 +104,16 @@ export async function readSeminarInscriptionFinanceRows(
   now = new Date(),
 ): Promise<SeminarInscriptionFinanceDetailRow[]> {
   const personRows = await readSeminarPersonRows(input);
-  const [resolutions, placesBySeminarId] = await Promise.all([
+  const [resolutions, ledgers] = await Promise.all([
     resolveSeminarInscriptions(db, {
       eventId: input.eventId,
       rows: personRows,
     }),
-    readSeminarPlaces(
-      [...new Set(personRows.map((person) => person.seminarId))],
+    readSeminarPlaceLedgers(db, {
       now,
-    ),
+      seminarIds: personRows.map((person) => person.seminarId),
+    }),
   ]);
-  const reservedIds = new Set(
-    [...placesBySeminarId.values()].flatMap((places) => places.reservedIds),
-  );
 
   return personRows
     .flatMap((person) => {
@@ -150,7 +147,9 @@ export async function readSeminarInscriptionFinanceRows(
               owedBalanceAmount: resolution.owedBalanceAmount,
               owedDepositAmount: resolution.owedDepositAmount,
               personKind: person.personKind,
-              reserved: reservedIds.has(person.id),
+              reserved:
+                ledgers.get(person.seminarId)?.holdingOf(person.id) ===
+                "reserved",
               scheduledDate: person.scheduledDate,
               seminarId: person.seminarId,
               totalAmount: resolution.totalAmount,

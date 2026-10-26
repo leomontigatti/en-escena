@@ -6,6 +6,7 @@ import {
   allocateToSeminarInscription,
   readSeminarInscriptionPriceOptions,
 } from "@/lib/finances/seminar-inscription-allocation.server";
+import { readSeminarPlaceLedgers } from "@/lib/seminars/seminar-places.server";
 
 let fixturePaymentNumber = 0;
 
@@ -16,7 +17,7 @@ let fixturePaymentNumber = 0;
  * covered?" answers off the database instead of off a stub.
  *
  * It exists because the covered count is not a fact a suite can assert around by
- * mocking `covered-inscriptions.server`: that module is ours, and a suite that
+ * mocking `seminar-places.server`: that module is ours, and a suite that
  * stubs it stops seeing the rule it is testing against
  * (`docs/agents/coding-standards.md`, "Testing"). The price list the event needs
  * first comes from `createSeminarRegistrationPrices`.
@@ -79,4 +80,23 @@ export function reserveForHours(inscriptionId: string, hours: number) {
     .update(seminarInscriptions)
     .set({ reservedUntil: new Date(Date.now() + hours * 60 * 60 * 1000) })
     .where(eq(seminarInscriptions.id, inscriptionId));
+}
+
+/**
+ * The seminar's ledger at `now`, for a suite that asserts who holds its places
+ * after a write. It reads the module every quota decision reads.
+ */
+export async function readSeminarPlaceLedger(
+  seminarId: string,
+  now: Date = new Date(),
+) {
+  const ledger = (
+    await readSeminarPlaceLedgers(db, { now, seminarIds: [seminarId] })
+  ).get(seminarId);
+
+  if (!ledger) {
+    throw new Error(`Expected a ledger for seminar ${seminarId}.`);
+  }
+
+  return ledger;
 }

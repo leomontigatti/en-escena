@@ -4,11 +4,11 @@ import { db } from "@/db";
 import { seminarInscriptions, seminars } from "@/db/schema";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import {
-  countCoveredSeminarInscriptions,
+  checkSeminarQuota,
   hasCoveredSeminarInscription,
-  countTakenSeminarPlaces,
-  readSeminarPlaces,
-} from "@/lib/seminars/covered-inscriptions.server";
+  readSeminarPlaceLedgers,
+  type SeminarPlaceLedger,
+} from "@/lib/seminars/seminar-places.server";
 import {
   invalidSeminarDepositPercentageMessage,
   isValidSeminarDepositPercentage,
@@ -37,15 +37,17 @@ type SeminarExecutor =
  * the same question.
  *
  * **A place is taken by covering the deposit or by a live reservation**, so
- * `availablePlaces` is the quota minus the *covered* and *reserved*
- * inscriptions (`readSeminarPlaces`), while `registeredCount` is how many
- * people are on the roster whether they paid or not — registration is unlimited.
+ * `availablePlaces` and `isFull` are the seminar's ledger at the instant read
+ * (`readSeminarPlaceLedgers`), while `registeredCount` is how many people are
+ * on the roster whether they paid or not — registration is unlimited.
  * Withdrawn rows are in neither. Both are readings, never decisions: the quota
  * is enforced under a lock on the allocation that crosses a deposit
- * (`app/lib/finances/seminar-inscription-allocation.server.ts`).
+ * (`checkSeminarCrossings`).
  */
 export type SeminarListItem = SeminarRow & {
   availablePlaces: number;
+  /** No place is left: what `Cupo completo` says. */
+  isFull: boolean;
   /** How many people are registered, covered or not. */
   registeredCount: number;
   /**
@@ -111,6 +113,7 @@ export async function hasEventSeminars(eventId: string) {
 
 export async function listSeminars(
   eventId: string,
+  now: Date,
 ): Promise<SeminarListItem[]> {
   const eventSeminars = await db.query.seminars.findMany({
     where: eq(seminars.eventId, eventId),
@@ -121,21 +124,23 @@ export async function listSeminars(
     ],
   });
   const seminarIds = eventSeminars.map((seminar) => seminar.id);
-  const [inscriptionCounts, placesBySeminarId] = await Promise.all([
+  const [inscriptionCounts, ledgers] = await Promise.all([
     countInscriptionsBySeminar(seminarIds),
-    readSeminarPlaces(seminarIds, new Date()),
+    readSeminarPlaceLedgers(db, { now, seminarIds }),
   ]);
 
   return eventSeminars.map((seminar) =>
-    toSeminarListItem(seminar, {
-      takenCount: countTakenSeminarPlaces(placesBySeminarId.get(seminar.id)),
-      ...(inscriptionCounts.get(seminar.id) ?? emptyInscriptionCounts),
-    }),
+    toSeminarListItem(
+      seminar,
+      ledgers.get(seminar.id),
+      inscriptionCounts.get(seminar.id) ?? emptyInscriptionCounts,
+    ),
   );
 }
 
 export async function getSeminar(
   seminarId: string,
+  now: Date,
 ): Promise<SeminarListItem | null> {
   const seminar = await db.query.seminars.findFirst({
     where: eq(seminars.id, seminarId),
@@ -145,12 +150,12 @@ export async function getSeminar(
     return null;
   }
 
-  return toSeminarListItem(seminar, {
-    takenCount: countTakenSeminarPlaces(
-      (await readSeminarPlaces([seminar.id], new Date())).get(seminar.id),
-    ),
-    ...(await countSeminarInscriptions(seminar.id)),
-  });
+  const [ledgers, counts] = await Promise.all([
+    readSeminarPlaceLedgers(db, { now, seminarIds: [seminar.id] }),
+    countSeminarInscriptions(seminar.id),
+  ]);
+
+  return toSeminarListItem(seminar, ledgers.get(seminar.id), counts);
 }
 
 type SeminarInscriptionCounts = {
@@ -220,14 +225,18 @@ async function countAllSeminarInscriptions(
   return Number(row?.inscriptionCount ?? 0);
 }
 
+/** `ledger` is missing only for a seminar deleted between the two reads,
+ * which reads as one nobody holds a place in. */
 function toSeminarListItem(
   seminar: SeminarRow,
-  counts: SeminarInscriptionCounts & { takenCount: number },
+  ledger: SeminarPlaceLedger | undefined,
+  counts: SeminarInscriptionCounts,
 ): SeminarListItem {
   return {
     ...seminar,
-    availablePlaces: Math.max(seminar.quota - counts.takenCount, 0),
+    availablePlaces: ledger?.availablePlaces ?? seminar.quota,
     inscriptionCount: counts.inscriptionCount,
+    isFull: ledger?.isFull ?? seminar.quota === 0,
     registeredCount: counts.registeredCount,
   };
 }
@@ -314,7 +323,7 @@ export async function updateSeminar(
 
     if (
       structuralChange &&
-      (await hasCoveredSeminarInscription(seminarId, tx))
+      (await hasCoveredSeminarInscription(tx, seminarId))
     ) {
       return {
         ok: false,
@@ -324,18 +333,18 @@ export async function updateSeminar(
     }
 
     // The quota can never describe fewer places than the seminar already gave
-    // away, and what gives a place away is a **covered** deposit: an inscription
-    // that has not covered its own holds no place, so it does not hold the floor
-    // up either. Raising the quota is always free. The count is taken under the
-    // same lock the crossing takes, so a deposit cannot be covered between the
-    // count and the update.
-    const coveredCount = await countCoveredSeminarInscriptions(seminarId, tx);
+    // away. The count is taken under the same lock the crossing takes, so a
+    // deposit cannot be covered between the count and the update.
+    const quota = await checkSeminarQuota(tx, {
+      quota: validation.input.quota,
+      seminarId,
+    });
 
-    if (validation.input.quota < coveredCount) {
+    if (!quota.ok) {
       return {
         ok: false,
         code: "quota-below-covered",
-        error: `No se puede bajar el cupo a menos de ${coveredCount}: es la cantidad de inscripciones con la seña cubierta.`,
+        error: `No se puede bajar el cupo a menos de ${quota.floor}: es la cantidad de inscripciones con la seña cubierta.`,
       };
     }
 

@@ -92,6 +92,9 @@ export async function loadSeminarFinanceDetail(input: {
     throw new Response(seminarNotFoundMessage, { status: 404 });
   }
 
+  // One instant for both readings, so a row's `Reservada` badge and the
+  // places left agree.
+  const now = new Date();
   const [
     inscriptionRows,
     priceOptions,
@@ -100,9 +103,9 @@ export async function loadSeminarFinanceDetail(input: {
     comprobantes,
     billing,
   ] = await Promise.all([
-    readSeminarInscriptionFinanceRows({ academyId, eventId, seminarId }),
+    readSeminarInscriptionFinanceRows({ academyId, eventId, seminarId }, now),
     readSeminarInscriptionPriceOptions({ eventId, seminarId }),
-    getSeminar(seminarId),
+    getSeminar(seminarId, now),
     readAnchorInvoicing({
       anchor: seminarAnchor(seminarId, academyId),
       eventId,
@@ -147,10 +150,10 @@ export async function loadSeminarFinanceDetail(input: {
     seminar: {
       allocatedAmount: seminarFinanceRow.allocatedAmount,
       anomalies: seminarFinanceRow.anomalies,
-      // The quota minus the **covered** inscriptions, whichever academy holds
-      // them: a place is taken by covering a deposit, so this is what says
-      // whether the next crossing here can go through at all.
+      // The seminar's places, whichever academy holds them: what says whether
+      // the next crossing here can go through at all.
       availablePlaces: seminarRow?.availablePlaces ?? 0,
+      isFull: seminarRow?.isFull ?? true,
       depositAmount: seminarFinanceRow.depositAmount,
       financialStatus: seminarFinanceRow.financialStatus,
       id: seminarFinanceRow.id,

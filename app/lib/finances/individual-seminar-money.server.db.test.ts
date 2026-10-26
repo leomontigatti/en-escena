@@ -215,6 +215,7 @@ describe("an individual's seminar money", () => {
     const previews = await readSeminarCobroPreviews({
       academyId: ownerId,
       eventId: fixture.event.id,
+      now: new Date(),
     });
 
     expect(
