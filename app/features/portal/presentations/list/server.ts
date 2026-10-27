@@ -1,5 +1,5 @@
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import { readPublishedResultChoreographyIds } from "@/lib/judging/results.server";
+import { readPresentationResults } from "@/lib/judging/presentation-results.server";
 import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
 import {
   hasPublishedPresentations,
@@ -64,9 +64,10 @@ export async function loadPortalPresentationsList(
     hasPublishedPresentations({ eventId: activeEvent.id, visibleDays }),
   ]);
 
-  // Asked once for the whole list rather than once per row, and always through
-  // the results module: whether a result is published is never re-derived here.
-  const publishedIds = await readPublishedResultChoreographyIds(
+  // Asked once for the whole list rather than once per row: a row links to its
+  // evaluation exactly when the academy reads a result for it.
+  const results = await readPresentationResults(
+    { academyId: academy.id, kind: "academy" },
     rows.map((row) => row.choreographyId),
   );
 
@@ -77,7 +78,7 @@ export async function loadPortalPresentationsList(
     rows: rows.map((row) => ({
       ...row,
       academyName: academy.name,
-      isResultPublished: publishedIds.has(row.choreographyId),
+      isResultPublished: results.has(row.choreographyId),
     })),
   };
 }

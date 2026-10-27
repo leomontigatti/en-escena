@@ -8,6 +8,7 @@ import {
 } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { AwardBadge } from "@/components/shared/award-badge";
+import { resultAverage } from "@/lib/judging/award";
 import {
   DataTableTruncatedText,
   ServerDataTable,
@@ -122,7 +123,7 @@ const resultsColumns: DataTableColumn<ResultsListItem>[] = [
     width: 10,
     className: "tabular-nums",
     // The average reads the way scores do everywhere: with a point, as stored.
-    cell: (row) => (row.average === null ? "—" : String(row.average)),
+    cell: (row) => resultAverage(row.result) ?? "—",
   },
 ];
 
@@ -133,16 +134,13 @@ const resultsColumns: DataTableColumn<ResultsListItem>[] = [
  * height every list shares.
  */
 function ResultAwardCell({ row }: { row: ResultsListItem }) {
-  if (row.evaluationStatus === "pending") {
+  if (!row.evaluated) {
     return "—";
   }
 
   return (
     <div className="flex items-center gap-1">
-      <AwardBadge
-        award={row.award}
-        disqualified={row.evaluationStatus === "disqualified"}
-      />
+      <AwardBadge result={row.result} />
       {row.published ? null : (
         <Tooltip>
           <TooltipTrigger asChild>

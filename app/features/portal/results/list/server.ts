@@ -1,10 +1,7 @@
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import type { Award } from "@/lib/judging/award";
+import type { PresentationResult } from "@/lib/judging/award";
 import { readPresentationResults } from "@/lib/judging/presentation-results.server";
-import {
-  readPublishedResultChoreographyIds,
-  readResultsPublication,
-} from "@/lib/judging/results.server";
+import { readResultsPublication } from "@/lib/judging/results.server";
 import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
 import { readAcademyPresentations } from "@/lib/presentations/academy-program.server";
 import { readVisibleProgramDays } from "@/lib/presentations/program-visibility.server";
@@ -14,15 +11,12 @@ import type { ProgramListRow } from "@/features/program/shared";
 /**
  * The academy's results page: its own presentations in the active event whose
  * result administration published, each with the award and average the
- * evaluation detail shows. Publication is the results module's call, and the
- * figures are read live, as everywhere else.
+ * evaluation detail shows. What an academy reads, and when, is
+ * `presentation-results.server.ts`'s call, and the figures are read live.
  */
 
 export type PortalResultRow = ProgramListRow & {
-  /** `null` when disqualified. */
-  average: number | null;
-  award: Award | null;
-  disqualified: boolean;
+  result: PresentationResult;
 };
 
 export type PortalResultsLoaderData = {
@@ -56,29 +50,20 @@ export async function loadPortalResultsList(
     }),
     readResultsPublication(activeEvent.id),
   ]);
-  const publishedIds = await readPublishedResultChoreographyIds(
-    rows.map((row) => row.choreographyId),
-  );
-  const publishedRows = rows.filter((row) =>
-    publishedIds.has(row.choreographyId),
-  );
   const results = await readPresentationResults(
-    publishedRows.map((row) => row.choreographyId),
+    { academyId: academy.id, kind: "academy" },
+    rows.map((row) => row.choreographyId),
   );
 
   return {
     areResultsPublished: publication.publishedAt !== null,
     hasActiveEvent: true,
-    rows: publishedRows.map((row) => {
-      const result = results.get(row.choreographyId);
+    rows: rows.flatMap((row) => {
+      const entry = results.get(row.choreographyId);
 
-      return {
-        ...row,
-        academyName: academy.name,
-        average: result?.average ?? null,
-        award: result?.award ?? null,
-        disqualified: result?.disqualified ?? false,
-      };
+      return entry
+        ? [{ ...row, academyName: academy.name, result: entry.result }]
+        : [];
     }),
   };
 }

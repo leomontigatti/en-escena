@@ -1,6 +1,7 @@
 import { choreographyClassificationColumns } from "@/components/shared/choreography-classification-columns";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import { AwardBadge } from "@/components/shared/award-badge";
+import { resultAverage } from "@/lib/judging/award";
 import {
   ClientDataTable,
   DataTableTruncatedText,
@@ -45,9 +46,7 @@ const resultsColumns: DataTableColumn<PortalResultRow>[] = [
     id: "award",
     header: "Premio",
     width: 15,
-    cell: (row) => (
-      <AwardBadge award={row.award} disqualified={row.disqualified} />
-    ),
+    cell: (row) => <AwardBadge result={row.result} />,
   },
   {
     id: "average",
@@ -133,7 +132,7 @@ function PortalResultCard({ row }: { row: PortalResultRow }) {
   return (
     <ProgramRowCard row={row} showLevel to={evaluationPath(row)}>
       <div className="flex items-center justify-between gap-3">
-        <AwardBadge award={row.award} disqualified={row.disqualified} />
+        <AwardBadge result={row.result} />
         <span className="text-sm font-medium tabular-nums">
           {formatAverage(row)}
         </span>
@@ -144,7 +143,7 @@ function PortalResultCard({ row }: { row: PortalResultRow }) {
 
 /** The average reads the way scores do everywhere: with a point, as stored. */
 function formatAverage(row: PortalResultRow) {
-  return row.average === null ? "—" : String(row.average);
+  return String(resultAverage(row.result) ?? "—");
 }
 
 function selectEmptyState(loaderData: PortalResultsLoaderData) {

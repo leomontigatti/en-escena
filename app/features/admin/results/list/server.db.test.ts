@@ -82,17 +82,15 @@ describe("the results list", () => {
 
     expect(result.results).toMatchObject([
       {
-        average: null,
-        award: null,
-        evaluationStatus: "pending",
+        evaluated: false,
+        result: { kind: "unscored" },
         id: first.choreographyId,
         orderNumber: 1,
         published: false,
       },
       {
-        average: 82.5,
-        award: "silver",
-        evaluationStatus: "evaluated",
+        evaluated: true,
+        result: { average: 82.5, award: "silver", kind: "scored" },
         id: second.choreographyId,
         orderNumber: 2,
         published: false,
@@ -180,9 +178,8 @@ describe("the results list", () => {
     );
 
     expect(result.results[0]).toMatchObject({
-      average: null,
-      award: null,
-      evaluationStatus: "disqualified",
+      evaluated: true,
+      result: { kind: "disqualified" },
     });
   });
 
@@ -266,7 +263,7 @@ describe("the results list", () => {
 });
 
 describe("the results list route", () => {
-  // Not reviewed for the auditor yet (PRD #1448): the list refuses them.
+  // Not among the auditor's sections (docs/domain/access.md): the list refuses them.
   test("turns an auditor away and lets the administrator publish", async () => {
     await expectThrownResponse(
       loadTheList("auditor.resultados@example.com", "auditor"),

@@ -21,10 +21,8 @@ describe("IndividualChoreographiesView", () => {
       buildRow({
         name: "Viento Sur",
         result: {
-          average: 87.5,
-          award: "gold",
-          disqualified: false,
-          scores: [
+          result: { average: 87.5, award: "gold", kind: "scored" },
+          judges: [
             { judgeId: "judge_1", judgeName: "Laura Gómez", value: "88" },
             { judgeId: "judge_2", judgeName: "Pablo Ruiz", value: "87" },
           ],

@@ -4,6 +4,7 @@ import { Link } from "react-router";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import { AwardBadge } from "@/components/shared/award-badge";
+import { resultAverage } from "@/lib/judging/award";
 import { choreographyClassificationColumns } from "@/components/shared/choreography-classification-columns";
 import {
   ClientDataTable,
@@ -170,9 +171,7 @@ function ChoreographyDialog({
 }
 
 function ChoreographyResult({ row }: { row: IndividualChoreographyRow }) {
-  const { result } = row;
-
-  if (!result) {
+  if (!row.result) {
     return (
       <p className="text-sm text-muted-foreground">
         El resultado todavía no se publicó.
@@ -180,13 +179,16 @@ function ChoreographyResult({ row }: { row: IndividualChoreographyRow }) {
     );
   }
 
+  const { judges, result } = row.result;
+  const average = resultAverage(result);
+
   return (
     <>
       <div className="flex items-center justify-between gap-3">
         <ResultAward row={row} />
-        {result.average === null ? null : (
+        {average === null ? null : (
           <p className="text-xl font-semibold tabular-nums">
-            {result.average}
+            {average}
             <span className="text-sm font-normal text-muted-foreground">
               {" "}
               / 100
@@ -194,9 +196,9 @@ function ChoreographyResult({ row }: { row: IndividualChoreographyRow }) {
           </p>
         )}
       </div>
-      {result.scores.length > 0 ? (
+      {judges.length > 0 ? (
         <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 text-sm">
-          {result.scores.map((score) => (
+          {judges.map((score) => (
             <Fragment key={score.judgeId}>
               <dt className="text-muted-foreground">{score.judgeName}</dt>
               <dd className="text-right font-medium tabular-nums">
@@ -205,7 +207,7 @@ function ChoreographyResult({ row }: { row: IndividualChoreographyRow }) {
             </Fragment>
           ))}
         </dl>
-      ) : result.disqualified ? null : (
+      ) : result.kind === "disqualified" ? null : (
         <p className="text-sm text-muted-foreground">
           Esta presentación no tiene puntajes para mostrar.
         </p>
@@ -241,7 +243,7 @@ function IndividualChoreographyCard({
           {formatAverage(row)}
         </span>
       </div>
-      {row.result && row.result.scores.length > 0 ? (
+      {row.result && row.result.judges.length > 0 ? (
         <p className="text-xs wrap-break-word text-muted-foreground tabular-nums">
           {formatScores(row)}
         </p>
@@ -285,12 +287,7 @@ function ResultAward({ row }: { row: IndividualChoreographyRow }) {
     return <span className="text-muted-foreground">Sin publicar</span>;
   }
 
-  return (
-    <AwardBadge
-      award={row.result.award}
-      disqualified={row.result.disqualified}
-    />
-  );
+  return <AwardBadge result={row.result.result} />;
 }
 
 function formatRoles(row: IndividualChoreographyRow) {
@@ -301,13 +298,13 @@ function formatRoles(row: IndividualChoreographyRow) {
 
 /** The average reads the way scores do everywhere: with a point, as stored. */
 function formatAverage(row: IndividualChoreographyRow) {
-  return row.result?.average == null ? "—" : String(row.result.average);
+  return String((row.result && resultAverage(row.result.result)) ?? "—");
 }
 
 /** Each judge's score by name; a disqualification has none. */
 function formatScores(row: IndividualChoreographyRow) {
   return (
-    (row.result?.scores ?? [])
+    (row.result?.judges ?? [])
       .map((score) => `${score.judgeName}: ${score.value ?? "—"}`)
       .join(" · ") || "—"
   );

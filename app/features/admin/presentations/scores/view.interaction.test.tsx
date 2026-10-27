@@ -12,8 +12,8 @@ import { PresentationScoresView } from "@/features/admin/presentations/scores/vi
 import type { PresentationScoresLoaderData } from "@/features/admin/presentations/scores/server";
 import type {
   PresentationJudgeScore,
-  PresentationScoresView as PresentationScores,
-} from "@/lib/judging/presentation-scores.server";
+  AdministrationEvaluation as PresentationScores,
+} from "@/lib/judging/presentation-evaluation.server";
 import { scoreValueMessage } from "@/lib/judging/score-value";
 import {
   discardChangesConfirmLabel,
@@ -253,7 +253,7 @@ describe("correcting the panel's scores", () => {
   // A withdrawn presentation is never judged, so the disqualification stays in
   // the menu but explains itself instead of asking to confirm.
   test("explains, instead of disqualifying, that a withdrawn presentation is not judged", async () => {
-    await mount({ average: null, award: null, withdrawn: true });
+    await mount({ result: { kind: "unscored" }, withdrawn: true });
     await openActionsMenu();
 
     await act(async () => {
@@ -276,7 +276,7 @@ describe("correcting the panel's scores", () => {
   });
 
   test("offers to reinstate a disqualified presentation and says why it has no result", async () => {
-    await mount({ average: null, disqualified: true, award: null });
+    await mount({ result: { kind: "disqualified" } });
     await openActionsMenu();
 
     expect(menuItems().map((item) => item.textContent?.trim())).toEqual([
@@ -660,21 +660,21 @@ function buildPresentation(
 ): PresentationScores {
   return {
     academyName: "Academia Sur",
-    average: 90,
     categoryName: "Juvenil",
     choreographyId: "choreography-1",
     criteria: [],
-    disqualified: false,
+    eventId: "event-1",
     experienceLevel: "amateur",
     experienceLevelRequirement: "required",
     groupType: "solo",
     judges: [buildJudge()],
-    award: "gold",
     modalityName: "Danza clásica",
     name: "Primera",
     orderNumber: 1,
     presentationId: "presentation-1",
     professionalEvaluation: false,
+    result: { average: 90, award: "gold", kind: "scored" },
+    scheduledDate: "2026-11-20",
     submodalityName: "Acrobacia",
     withdrawn: false,
     ...overrides,

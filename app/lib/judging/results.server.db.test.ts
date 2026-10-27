@@ -11,7 +11,6 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 import { seedJudgingFixture } from "./judging.test-support";
 import {
   hideResults,
-  isPresentationResultPublished,
   publishResults,
   readResultsPublication,
 } from "./results.server";
@@ -237,56 +236,5 @@ describe("reading an event's publication", () => {
     expect(
       (await readResultsPublication(fixture.event.id)).publishedAt,
     ).toBeInstanceOf(Date);
-  });
-});
-
-describe("whether one presentation's result is published", () => {
-  test("is true only inside a published event's snapshot", async () => {
-    const fixture = await seedJudgingFixture();
-    const scored = await addScoredPresentation(fixture, {
-      name: "Primera",
-      orderNumber: 1,
-    });
-    const pending = await fixture.addPresentation({
-      name: "Sin evaluar",
-      orderNumber: 2,
-    });
-    await publishResults(fixture.event.id);
-
-    expect(await isPresentationResultPublished(scored.choreographyId)).toBe(
-      true,
-    );
-    expect(await isPresentationResultPublished(pending.choreographyId)).toBe(
-      false,
-    );
-
-    await hideResults(fixture.event.id);
-
-    expect(await isPresentationResultPublished(scored.choreographyId)).toBe(
-      false,
-    );
-  });
-
-  test("is false with the event hidden while the presentation keeps its stamp", async () => {
-    const fixture = await seedJudgingFixture();
-    const scored = await addScoredPresentation(fixture, {
-      name: "Primera",
-      orderNumber: 1,
-    });
-    await publishResults(fixture.event.id);
-    await db
-      .update(events)
-      .set({ resultsPublishedAt: null })
-      .where(eq(events.id, fixture.event.id));
-
-    expect(await isPresentationResultPublished(scored.choreographyId)).toBe(
-      false,
-    );
-  });
-
-  test("is false for a choreography with no presentation at all", async () => {
-    expect(await isPresentationResultPublished(crypto.randomUUID())).toBe(
-      false,
-    );
   });
 });
