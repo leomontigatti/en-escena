@@ -263,7 +263,7 @@ describe("the results list", () => {
 });
 
 describe("the results list route", () => {
-  // Not reviewed for the auditor yet (PRD #1448): the list refuses them.
+  // Not among the auditor's sections (docs/domain/access.md): the list refuses them.
   test("turns an auditor away and lets the administrator publish", async () => {
     await expectThrownResponse(
       loadTheList("auditor.resultados@example.com", "auditor"),

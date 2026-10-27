@@ -196,7 +196,7 @@ describe("ResultsListView publication", () => {
     expect(getMenuLabels()).not.toContain("Mostrar resultados");
   });
 
-  test("gives an auditor the alert but no actions menu", async () => {
+  test("gives a reader who cannot write the alert but no actions menu", async () => {
     await renderResults(
       {
         pendingCount: 0,

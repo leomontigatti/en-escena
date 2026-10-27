@@ -167,7 +167,8 @@ export async function readPresentationEvaluation(
 
   // The two reads are separate statements, so a reinstatement landing between
   // them must not reveal numbers the gated read still saw disqualified:
-  // either read's disqualification redacts.
+  // either read's disqualification redacts. Otherwise the result is the panel
+  // read's, so the average always matches the scores listed beside it.
   const disqualified =
     gated.result.kind === "disqualified" ||
     evaluation.result.kind === "disqualified";
@@ -176,7 +177,7 @@ export async function readPresentationEvaluation(
 
   return {
     ...facts,
-    result: disqualified ? { kind: "disqualified" } : gated.result,
+    result: disqualified ? { kind: "disqualified" } : evaluation.result,
     criteria: disqualified ? [] : evaluation.criteria,
     judges: evaluation.judges
       .filter((judge) => judge.scoreId !== null)

@@ -27,8 +27,7 @@ import {
  * `results.server.ts` takes is only the pair of stamps this module reads as
  * the gate.
  *
- * - `administration` (the administrator and the auditor alike) reads every
- *   result live, published or not.
+ * - `administration` reads every result live, published or not.
  * - `academy` reads only its own presentations, and only inside a published
  *   snapshot.
  * - `individual` reads inside a published snapshot too, and with each judge's

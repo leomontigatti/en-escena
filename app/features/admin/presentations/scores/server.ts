@@ -21,10 +21,9 @@ import { readFormData } from "@/lib/shared/read-form-data";
 
 /**
  * The route adapter of the scores view: who may read one presentation's panel
- * and who may act on it. Administration and the auditor both read the whole
- * thing — the auditor is there to check the panel's work — and only
- * administration writes, so every write is asked of `requireAdminPanelWriter` and an
- * auditor's is refused with 403 rather than hidden behind a disabled button.
+ * and who may act on it. Only administration reads it and writes on it: the
+ * page is not among the auditor's sections (docs/domain/access.md), so the
+ * loader and every write are asked of `requireAdminPanelWriter`.
  */
 
 export type PresentationScoresLoaderData = {
@@ -77,10 +76,9 @@ const withdrawnPresentationMessage =
 
 /**
  * Administration's writes on one presentation's panel. Every one of them is
- * asked of `requireAdminPanelWriter`, so an auditor reading the page is refused with
- * 403 rather than quietly ignored: the auditor is there to check the panel's
- * work, and a write that seemed to land would be worse than one that plainly
- * did not.
+ * asked of `requireAdminPanelWriter`, so a post from anyone else is refused
+ * with 403 rather than quietly ignored: a write that seemed to land would be
+ * worse than one that plainly did not.
  *
  * Nothing here redirects — the page the administrator is editing is the page
  * they stay on — so the result goes back as `actionData` and the loader
