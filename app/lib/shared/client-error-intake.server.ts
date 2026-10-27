@@ -3,6 +3,7 @@ import { z } from "zod";
 import { readRelease } from "@/lib/shared/app-environment.server";
 import type { SendOpsAlert } from "@/lib/shared/ops-alert.server";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
+import { createRollingHourCount } from "@/lib/shared/rolling-hour-count";
 import { resolveUserIdWithin } from "@/lib/shared/unexpected-error-log.server";
 import { recordUnexpectedError } from "@/lib/shared/unexpected-error-store.server";
 
@@ -21,21 +22,28 @@ const clientErrorReport = z.strictObject({
 type ClientErrorIntakeDependencies = {
   resolveUserId: (request: Request) => Promise<string | null>;
   sendAlert: SendOpsAlert;
+  /** The requests the server answered in the last hour. */
+  countRequestsServed: () => number;
   limit: { requests: number; windowMs: number };
   alertsPerHour: number;
-  lostConnectionAddressesPerHour: number;
+  outage: { addresses: number; shareOfRequests: number };
 };
 
 const HOUR_MS = 60 * 60 * 1000;
 // What `fetch` throws in Chrome, Safari and Firefox when the connection drops
-// under a navigation's data request: the user's network failed, no code of
-// ours did, so the row is kept without its own alert. Matched as a prefix:
-// Safari may add the host it could not reach.
+// under a navigation's data request, before the response or while its body is
+// read: the user's network failed, no code of ours did, so the row is kept
+// without its own alert. Matched as a prefix: Safari may add the host it could
+// not reach. Read from the headline and from the causes the browser report
+// lists under it, since React Router wraps a body that stopped mid-way.
 const LOST_CONNECTION_LINES = [
   "TypeError: Failed to fetch",
   "TypeError: Load failed",
   "TypeError: NetworkError when attempting to fetch resource.",
+  "TypeError: network error",
+  "TypeError: Error in body stream",
 ];
+const CAUSE_PREFIX = "Caused by: ";
 const noAlert: SendOpsAlert = async () => false;
 // Past this many addresses in one window the limiter refuses new ones rather
 // than grow: a spread that wide is an attack, not a broken page.
@@ -58,8 +66,9 @@ function createClientErrorIntake({
   resolveUserId,
   sendAlert,
   limit,
+  countRequestsServed,
   alertsPerHour,
-  lostConnectionAddressesPerHour,
+  outage,
 }: ClientErrorIntakeDependencies) {
   const isWithinLimit = createFixedWindowLimiter(limit);
   const isWithinAlertBudget = createFixedWindowLimiter({
@@ -68,22 +77,26 @@ function createClientErrorIntake({
   });
   const sendBudgetedAlert: SendOpsAlert = async (text) =>
     isWithinAlertBudget("client") ? sendAlert(text) : false;
-  const outageWatch = createOutageWatch(lostConnectionAddressesPerHour);
+  const outageWatch = createOutageWatch(outage, countRequestsServed);
 
   // A lost connection never alerts on its own. The server never sees a
   // request the proxy, TLS or a CSP rule broke, so lost connections from many
-  // users at once are the only sign of it, and that sends the alert.
+  // users at once are the only sign of it, and that sends the alert. Phones
+  // drop some requests on any busy night, so they must also be a real share
+  // of the requests the server answered.
   const watchLostConnection = async (
     request: Request,
     route: string,
   ): Promise<SendOpsAlert> => {
-    if (outageWatch.isOutage(readClientAddress(request))) {
+    const detected = outageWatch.detect(readClientAddress(request));
+
+    if (detected) {
       // Outside the hourly budget: the watch alerts once an hour on its own,
       // and an outage must not wait behind twenty other reports.
       const delivered = await sendAlert(
         [
           `[client:lost-connection] ${route}`,
-          `${lostConnectionAddressesPerHour} addresses lost the connection within the hour: check the proxy, not the code.`,
+          `${outage.addresses} addresses lost the connection within the hour, ${detected.reports} lost connections against ${detected.requestsServed} requests served: check the proxy, not the code.`,
         ].join("\n"),
       );
 
@@ -142,9 +155,14 @@ function createClientErrorIntake({
 }
 
 function isLostConnection(stack: string) {
-  const firstLine = stack.split("\n", 1)[0];
+  const [headline, ...rest] = stack.split("\n");
+  const causes = rest
+    .filter((line) => line.startsWith(CAUSE_PREFIX))
+    .map((line) => line.slice(CAUSE_PREFIX.length));
 
-  return LOST_CONNECTION_LINES.some((line) => firstLine.startsWith(line));
+  return [headline, ...causes].some((failure) =>
+    LOST_CONNECTION_LINES.some((line) => failure.startsWith(line)),
+  );
 }
 
 // A browser's `fetch` always sends `Origin` on a POST, and `Sec-Fetch-Site`
@@ -197,37 +215,54 @@ function toIpv6Network(address: string) {
   return `${groups.slice(0, 4).join(":")}::/64`;
 }
 
-// Counts the distinct addresses losing the connection in the hour. The report
-// that reaches `addresses` claims the hour's one alert, so two at once send
-// one; an undelivered alert hands the claim to the next report.
-function createOutageWatch(addresses: number) {
-  let window = {
-    startedAt: Date.now(),
-    seen: new Set<string>(),
-    alerted: false,
-  };
+// Counts the lost connections of the last hour and the distinct addresses they
+// came from, over the same rolling hour as the requests served. The report
+// that reaches both thresholds claims the alert, which then rests for an hour;
+// an undelivered alert hands the claim to the next report.
+function createOutageWatch(
+  { addresses, shareOfRequests }: ClientErrorIntakeDependencies["outage"],
+  countRequestsServed: () => number,
+) {
+  const reports = createRollingHourCount();
+  const lastSeen = new Map<string, number>();
+  let alertedAt: number | null = null;
 
   return {
-    isOutage(address: string) {
-      if (Date.now() - window.startedAt >= HOUR_MS) {
-        window = { startedAt: Date.now(), seen: new Set(), alerted: false };
+    detect(address: string) {
+      const now = Date.now();
+      reports.add();
+
+      for (const [seenAddress, seenAt] of lastSeen) {
+        if (now - seenAt >= HOUR_MS) {
+          lastSeen.delete(seenAddress);
+        }
       }
 
-      if (window.alerted) {
-        return false;
+      if (lastSeen.has(address) || lastSeen.size < MAX_TRACKED_ADDRESSES) {
+        lastSeen.set(address, now);
       }
 
-      // Past the threshold the set stops growing: its size is all it says.
-      if (window.seen.size < addresses) {
-        window.seen.add(address);
+      if (alertedAt !== null && now - alertedAt < HOUR_MS) {
+        return null;
       }
 
-      window.alerted = window.seen.size >= addresses;
+      if (lastSeen.size < addresses) {
+        return null;
+      }
 
-      return window.alerted;
+      const lostConnections = reports.lastHour();
+      const requestsServed = countRequestsServed();
+
+      if (lostConnections < requestsServed * shareOfRequests) {
+        return null;
+      }
+
+      alertedAt = now;
+
+      return { reports: lostConnections, requestsServed };
     },
     releaseAlert() {
-      window.alerted = false;
+      alertedAt = null;
     },
   };
 }

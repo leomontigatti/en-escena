@@ -41,6 +41,25 @@ function describeErrorStack(error: unknown) {
   }
 }
 
+// A wrapper's own message cannot tell a lost connection from a bug: React
+// Router's "Unable to decode turbo-stream response" carries what the data
+// request hit as its `cause`. The causes' headlines go right after the
+// error's, so trimming the stack never cuts them and the server can read them.
+const MAX_CAUSES = 3;
+
+function describeClientError(error: unknown) {
+  const [headline, ...frames] = describeErrorStack(error).split("\n");
+  const causes = [];
+  let cause = error instanceof Error ? error.cause : undefined;
+
+  while (cause !== undefined && causes.length < MAX_CAUSES) {
+    causes.push(`Caused by: ${describeErrorStack(cause).split("\n", 1)[0]}`);
+    cause = cause instanceof Error ? cause.cause : undefined;
+  }
+
+  return [headline, ...causes, ...frames].join("\n");
+}
+
 // Enough to see what broke on a page; a render loop past it would only flood
 // the endpoint, whose own per-address limit would refuse it anyway.
 const MAX_SENT_PER_PAGE = 10;
@@ -82,7 +101,7 @@ function reportUnexpectedClientError(
   const line = {
     route: toAbsolutePattern(pattern),
     at: new Date().toISOString(),
-    stack: describeErrorStack(error),
+    stack: describeClientError(error),
   };
 
   console.error(`[client:unexpected] ${JSON.stringify(line)}`);

@@ -209,13 +209,20 @@ same-origin JSON body under 8 KB, at most 60 per address (`CF-Connecting-IP`,
 an IPv6 one counted by its /64) every 10 minutes, and stamps the server's
 release and the session's user. Anyone can forge such a report, so browser
 reports send at most 20 alerts an hour between them; past that they are kept
-without alerting, and server errors still alert. A report whose first line is
-a browser's lost connection (`Failed to fetch`, `Load failed`,
-`NetworkError when attempting to fetch resource.`) is kept without its own
-alert: the user's network failed, not our code. When five addresses report one
-within an hour, one `[client:lost-connection]` alert goes out instead, since a
-proxy, TLS or CSP failure in front of the app never reaches the server. The
-release is never in the HTML: the repository is public, so the deployed commit
+without alerting, and server errors still alert. The browser lists the error's
+causes on the lines after its headline (`Caused by: TypeError: Load failed`),
+since React Router wraps a data response cut off mid-body in "Unable to decode
+turbo-stream response". A report whose headline or a cause is a browser's lost
+connection (`Failed to fetch`, `Load failed`,
+`NetworkError when attempting to fetch resource.`, `network error`,
+`Error in body stream`) is kept without its own alert: the user's network failed, not our code. When five addresses report one
+within an hour and those reports reach one in a hundred of the requests the
+server answered in the hour, one `[client:lost-connection]` alert goes out
+instead, since a proxy, TLS or CSP failure in front of the app never reaches
+the server; a full theatre's phones losing a few requests on a busy night do
+not. The count of requests served lives in the container, so in the first
+minutes after a deploy, which drops connections itself, the five addresses
+alone can send it. The release is never in the HTML: the repository is public, so the deployed commit
 would tell anyone which fixes are not live yet.
 
 So each server line and each browser report is also kept as a row of

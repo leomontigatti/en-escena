@@ -1,4 +1,5 @@
 import { google } from "better-auth/social-providers";
+import { z } from "zod";
 
 import {
   createVoterSignIn,
@@ -39,11 +40,15 @@ function createGoogleVoterIdentityProvider(credentials: {
         state: input.state,
       }),
     readIdentity: async (input) => {
-      const tokens = await adapter.validateAuthorizationCode({
-        code: input.code,
-        codeVerifier: input.codeVerifier,
-        redirectURI: input.redirectUri,
-      });
+      const tokens = await adapter
+        .validateAuthorizationCode({
+          code: input.code,
+          codeVerifier: input.codeVerifier,
+          redirectURI: input.redirectUri,
+        })
+        .catch((thrown: unknown) => {
+          throw describeTokenRefusal(thrown);
+        });
       // The ID token comes straight from Google's token endpoint over TLS,
       // which OpenID Connect Core §3.1.3.7 accepts in place of checking its
       // signature; the adapter reads its claims. The subject is the `sub`
@@ -55,6 +60,29 @@ function createGoogleVoterIdentityProvider(credentials: {
         : null;
     },
   };
+}
+
+// Better Auth throws Google's refusal as the response body it parsed, a plain
+// object, which a log prints as `[object Object]`. Google's body is an OAuth
+// error code and a description, no user data.
+const tokenRefusal = z.object({
+  status: z.number(),
+  error: z.string().optional(),
+  error_description: z.string().optional(),
+});
+
+function describeTokenRefusal(thrown: unknown) {
+  const refusal = tokenRefusal.safeParse(thrown);
+
+  if (!refusal.success) {
+    return thrown;
+  }
+
+  const { status, error, error_description: description } = refusal.data;
+
+  return new Error(
+    `Google refused the code: ${status} ${error ?? "unknown"}${description ? ` (${description})` : ""}`,
+  );
 }
 
 /**
