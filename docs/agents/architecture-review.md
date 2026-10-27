@@ -35,7 +35,7 @@ or moving any of them means updating the prompt.
 
 This is the task's prompt as scheduled. **The schedule in T3 Code is what runs; this copy is what
 the repo can review.** Editing it means updating the scheduled task in T3 Code too (the
-`update_scheduled_task` tool, or the app's scheduled tasks), in the same change.
+`schedule_task` tool with the task's `scheduledTaskId`, or the app's scheduled tasks), in the same change.
 
 ```markdown
 Weekly architecture review of leomontigatti/en-escena. This run is unattended: there is no user to ask, so make every call yourself.
