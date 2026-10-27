@@ -92,6 +92,27 @@ describe("reportUnexpectedClientError", () => {
     );
   });
 
+  test("names what failed underneath right after the headline, where trimming cannot reach it", () => {
+    // React Router wraps the network or parse error a data request hit, and
+    // the wrapper's message alone cannot tell a lost connection from a bug.
+    const error = new Error("Unable to decode turbo-stream response", {
+      cause: new TypeError("Load failed", {
+        cause: new Error("stream closed"),
+      }),
+    });
+    error.stack = `Error: Unable to decode turbo-stream response\n${"    at ye (https://sistema.enescena.com.ar/assets/errorBoundaries-e_1BS-xM.js:2:8006)\n".repeat(200)}`;
+
+    reportUnexpectedClientError(error, { pattern: "portal/resultados" });
+
+    const sent = JSON.parse(String(fetchFake.mock.calls[0][1]?.body));
+    expect(sent.stack.split("\n").slice(0, 4)).toEqual([
+      "Error: Unable to decode turbo-stream response",
+      "Caused by: TypeError: Load failed",
+      "Caused by: Error: stream closed",
+      "    at ye (https://sistema.enescena.com.ar/assets/errorBoundaries-e_1BS-xM.js:2:8006)",
+    ]);
+  });
+
   test("trims a long browser stack so the report fits the endpoint's 8 KB", () => {
     const error = new Error("too much recursion");
     error.stack = `InternalError: too much recursion\n${"render@https://sistema.enescena.com.ar/assets/chunk-DkS2F3a_.js:1:23456\n".repeat(200)}`;

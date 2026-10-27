@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { createDefaultVoterSignIn } from "@/lib/grand-final/voter-identity-providers.server";
 
@@ -56,5 +56,55 @@ describe("the voter sign-in a deployment gets", () => {
         NODE_ENV: "production",
       }),
     ).toThrow();
+  });
+});
+
+describe("Google refusing the code", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  test("logs Google's status and OAuth error, not an unreadable object", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          { error: "invalid_grant", error_description: "Bad Request" },
+          { status: 400, statusText: "Bad Request" },
+        ),
+      ),
+    );
+    const signIn = createDefaultVoterSignIn({
+      BETTER_AUTH_SECRET: "secreto",
+      GOOGLE_CLIENT_ID: "cliente.apps.googleusercontent.com",
+      GOOGLE_CLIENT_SECRET: "secreto-de-google",
+      NODE_ENV: "production",
+    });
+    const started = await signIn?.startSignIn({ redirectUri });
+    const state = new URL(
+      started?.headers.get("Location") ?? "",
+    ).searchParams.get("state");
+    const callback = new Request(
+      `${redirectUri}?${new URLSearchParams({ code: "codigo-usado", state: state ?? "" })}`,
+      {
+        headers: {
+          Cookie: (started?.headers.getSetCookie() ?? [])
+            .map((cookie) => cookie.split(";")[0])
+            .join("; "),
+        },
+      },
+    );
+
+    await expect(
+      signIn?.finishSignIn(callback, { redirectUri }),
+    ).resolves.toMatchObject({ ok: false });
+    expect(logged).toHaveBeenCalledWith("[voter:provider:error]", {
+      error: expect.stringMatching(
+        /^Error: Google refused the code: 400 invalid_grant \(Bad Request\)\n/,
+      ),
+      provider: "google",
+    });
   });
 });

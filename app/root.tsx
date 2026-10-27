@@ -51,8 +51,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const rootData = useRouteLoaderData<typeof loader>("root");
   const isStaging = rootData?.isStaging ?? false;
 
+  // A browser translating the page rewrites React's text nodes under it, and
+  // React's next render then fails to remove them (`NotFoundError` on
+  // `removeChild`); every reader of this Spanish app reads Spanish.
   return (
-    <html lang="es">
+    <html lang="es" translate="no">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

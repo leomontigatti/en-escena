@@ -30,15 +30,17 @@ const report = {
 function intake({
   limit = 5,
   alertsPerHour = 5,
-  lostConnectionAddressesPerHour = 3,
+  outageAddresses = 3,
+  requestsServed = 0,
 } = {}) {
   const sendAlert = vi.fn(async (_text: string) => true);
   const receive = createClientErrorIntake({
     resolveUserId: async () => "user-123",
     sendAlert,
+    countRequestsServed: () => requestsServed,
     limit: { requests: limit, windowMs: 60_000 },
     alertsPerHour,
-    lostConnectionAddressesPerHour,
+    outage: { addresses: outageAddresses, shareOfRequests: 0.01 },
   });
 
   return { receive, sendAlert };
@@ -184,6 +186,10 @@ describe("createClientErrorIntake", () => {
       "TypeError: Load failed (sistema.enescena.com.ar)",
     ],
     ["Firefox", "TypeError: NetworkError when attempting to fetch resource."],
+    [
+      "a data response cut off mid-body",
+      "Error: Unable to decode turbo-stream response\nCaused by: TypeError: Load failed\n    at ye (https://sistema.enescena.com.ar/assets/errorBoundaries-e_1BS-xM.js:2:8006)",
+    ],
   ])(
     "keeps a lost connection in %s without alerting, since no code of ours failed",
     async (_browser, stack) => {
@@ -200,9 +206,7 @@ describe("createClientErrorIntake", () => {
   );
 
   test("alerts once when lost connections come from enough addresses in an hour to be an outage, not one user's signal", async () => {
-    const { receive, sendAlert } = intake({
-      lostConnectionAddressesPerHour: 3,
-    });
+    const { receive, sendAlert } = intake({ outageAddresses: 3 });
     const lostConnection = (address: string) =>
       receive(
         post({
@@ -229,11 +233,101 @@ describe("createClientErrorIntake", () => {
     expect(await db.$count(unexpectedErrors)).toBe(7);
   });
 
+  test("alerts on a bug whose cause is not a lost connection", async () => {
+    const { receive, sendAlert } = intake();
+
+    await receive(
+      post({
+        body: JSON.stringify({
+          ...report,
+          stack:
+            "Error: Unable to decode turbo-stream response\nCaused by: SyntaxError: Unexpected end of JSON input",
+        }),
+      }),
+    );
+
+    expect(sendAlert).toHaveBeenCalledTimes(1);
+  });
+
+  test("does not call it an outage when the lost connections are a sliver of the traffic served, as a full theatre's phones are", async () => {
+    // The `Gran Final` vote of 2026-10-25: about 60 lost connections against
+    // some 39,000 requests served in the same 40 minutes, every one answered.
+    const { receive, sendAlert } = intake({
+      limit: 100,
+      outageAddresses: 3,
+      requestsServed: 39_000,
+    });
+
+    for (let index = 0; index < 60; index += 1) {
+      await receive(
+        post({
+          body: JSON.stringify({ ...report, stack: "TypeError: Load failed" }),
+          headers: { "cf-connecting-ip": `192.0.2.${index}` },
+        }),
+      );
+    }
+
+    expect(sendAlert).not.toHaveBeenCalled();
+  });
+
+  test("calls it an outage once the lost connections are a real share of the traffic served", async () => {
+    const { receive, sendAlert } = intake({
+      outageAddresses: 3,
+      requestsServed: 300,
+    });
+
+    for (const address of ["192.0.2.1", "192.0.2.2", "192.0.2.3"]) {
+      await receive(
+        post({
+          body: JSON.stringify({ ...report, stack: "TypeError: Load failed" }),
+          headers: { "cf-connecting-ip": address },
+        }),
+      );
+    }
+
+    expect(sendAlert).toHaveBeenCalledTimes(1);
+    expect(sendAlert.mock.calls[0][0]).toContain(
+      "3 lost connections against 300 requests served",
+    );
+  });
+
+  test("weighs the lost connections of the last hour, so a burst that crosses the hour is still an outage", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-26T00:00:00.000Z"));
+    const { receive, sendAlert } = intake({
+      limit: 100,
+      outageAddresses: 3,
+      requestsServed: 1_000,
+    });
+    const lostConnection = (address: string) =>
+      receive(
+        post({
+          body: JSON.stringify({ ...report, stack: "TypeError: Load failed" }),
+          headers: { "cf-connecting-ip": address },
+        }),
+      );
+
+    await lostConnection("192.0.2.200");
+    vi.setSystemTime(new Date("2026-10-26T00:59:00.000Z"));
+    for (let index = 0; index < 8; index += 1) {
+      await lostConnection(`192.0.2.${index}`);
+    }
+    expect(sendAlert).not.toHaveBeenCalled();
+
+    // Ten in the last hour, one in a hundred of the requests served.
+    vi.setSystemTime(new Date("2026-10-26T01:01:00.000Z"));
+    await lostConnection("192.0.2.100");
+    await lostConnection("192.0.2.101");
+
+    expect(sendAlert).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
   test("keeps trying the outage alert while it is not delivered, even with the hour's budget spent", async () => {
     const { receive, sendAlert } = intake({
       limit: 100,
       alertsPerHour: 1,
-      lostConnectionAddressesPerHour: 1,
+      outageAddresses: 1,
     });
     // Spends the hour's budget for browser reports.
     await receive(post());
