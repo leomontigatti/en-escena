@@ -34,11 +34,10 @@ afterEach(() => {
 function buildRow(overrides: Partial<ResultsListItem> = {}): ResultsListItem {
   return {
     academyName: "Academia Pirueta",
-    average: null,
-    award: null,
     categoryName: "Juvenil",
     choreographyNumber: 12,
-    evaluationStatus: "pending",
+    evaluated: false,
+    result: { kind: "unscored" },
     experienceLevel: null,
     experienceLevelRequirement: "notApplicable",
     groupType: "solo",
@@ -114,9 +113,8 @@ describe("ResultsListView rows", () => {
       buildLoaderData({
         results: [
           buildRow({
-            average: 82.5,
-            award: "silver",
-            evaluationStatus: "evaluated",
+            evaluated: true,
+            result: { average: 82.5, award: "silver", kind: "scored" },
             published: true,
           }),
         ],
@@ -143,9 +141,8 @@ describe("ResultsListView rows", () => {
       buildLoaderData({
         results: [
           buildRow({
-            average: 91,
-            award: "gold",
-            evaluationStatus: "evaluated",
+            evaluated: true,
+            result: { average: 91, award: "gold", kind: "scored" },
           }),
         ],
       }),
@@ -161,7 +158,11 @@ describe("ResultsListView rows", () => {
     await renderList(
       buildLoaderData({
         results: [
-          buildRow({ evaluationStatus: "disqualified", published: true }),
+          buildRow({
+            evaluated: true,
+            published: true,
+            result: { kind: "disqualified" },
+          }),
         ],
       }),
     );
@@ -195,7 +196,7 @@ describe("ResultsListView publication", () => {
     expect(getMenuLabels()).not.toContain("Mostrar resultados");
   });
 
-  test("gives an auditor the alert but no actions menu", async () => {
+  test("gives a reader who cannot write the alert but no actions menu", async () => {
     await renderResults(
       {
         pendingCount: 0,

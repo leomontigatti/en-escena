@@ -4,8 +4,8 @@
  *
  * There are no positions, no ties and no competitive grouping — a presentation
  * is measured against the bands and against nothing else, so two dances that
- * average the same take the same award home. PRD 1 shows this to administration
- * only; publishing it is PRD 2's.
+ * average the same take the same award home. Who reads a result, and what of
+ * it, is `presentation-results.server.ts`'s.
  */
 
 export type Award = "specialMention" | "bronze" | "silver" | "gold";
@@ -17,47 +17,51 @@ export const awardLabels: Record<Award, string> = {
   specialMention: "Mención especial",
 };
 
-export type AveragedScore = {
-  /** The saved score, as the numeric column reads it, or null when there is none. */
-  value: string | null;
-};
+/**
+ * A presentation's result as every surface reads it. `unscored` is a panel
+ * that has saved no value yet; `disqualified` is out of the results whatever
+ * the judges saved; only `scored` has an average, and it always has an award.
+ */
+export type PresentationResult =
+  | { kind: "unscored" }
+  | { kind: "disqualified" }
+  | { average: number; award: Award; kind: "scored" };
 
-export type PresentationAverageInput = {
-  disqualified: boolean;
-  scores: readonly AveragedScore[];
-};
+/** The average a page shows beside the award: only a scored result has one. */
+export function resultAverage(result: PresentationResult): number | null {
+  return result.kind === "scored" ? result.average : null;
+}
 
 /**
- * The mean of the values the judges saved, rounded to two decimals, or null when
- * there is nothing to average. A disqualified presentation is out of the results
- * altogether, so it reads as "no average" rather than as a lower one.
+ * The result of one presentation from the values its judges saved, as the
+ * numeric column reads them. The average is their mean rounded to two
+ * decimals, and the award is read off that rounded average, so what a page
+ * shows is exactly what decides the award.
  */
-export function presentationAverage(
-  input: PresentationAverageInput,
-): number | null {
+export function resolvePresentationResult(input: {
+  disqualified: boolean;
+  values: readonly (string | null)[];
+}): PresentationResult {
   if (input.disqualified) {
-    return null;
+    return { kind: "disqualified" };
   }
 
-  const counted = input.scores
-    .filter((score) => score.value !== null)
-    .map((score) => Number.parseFloat(score.value as string));
+  const counted = input.values.flatMap((value) =>
+    value === null ? [] : [Number.parseFloat(value)],
+  );
 
   if (counted.length === 0) {
-    return null;
+    return { kind: "unscored" };
   }
 
   const mean =
     counted.reduce((running, value) => running + value, 0) / counted.length;
+  const average = Math.round(mean * 100) / 100;
 
-  return Math.round(mean * 100) / 100;
+  return { average, award: awardForAverage(average), kind: "scored" };
 }
 
-/**
- * The bands are fixed in the domain and read off the rounded average, so what
- * administration sees on screen is exactly what decides the award.
- */
-export function awardForAverage(average: number): Award {
+function awardForAverage(average: number): Award {
   if (average >= 90) {
     return "gold";
   }

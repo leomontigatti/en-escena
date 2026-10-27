@@ -53,7 +53,7 @@ export function PresentationActions({
               Ver la coreografía
             </Link>
           </DropdownMenuItem>
-          {canWrite && presentation.disqualified ? (
+          {canWrite && presentation.result.kind === "disqualified" ? (
             <DropdownMenuItem
               disabled={isSettling}
               onSelect={() => submitIntent("reinstate")}
@@ -62,7 +62,7 @@ export function PresentationActions({
             </DropdownMenuItem>
           ) : null}
         </DropdownMenuGroup>
-        {canWrite && !presentation.disqualified ? (
+        {canWrite && presentation.result.kind !== "disqualified" ? (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>

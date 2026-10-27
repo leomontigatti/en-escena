@@ -1,5 +1,9 @@
 import { Badge } from "@/components/ui/badge";
-import { awardLabels, type Award } from "@/lib/judging/award";
+import {
+  awardLabels,
+  type Award,
+  type PresentationResult,
+} from "@/lib/judging/award";
 
 const awardBadgeVariants: Record<
   Award,
@@ -13,21 +17,17 @@ const awardBadgeVariants: Record<
 
 /**
  * A presentation's award as every surface shows it, administration's and the
- * academy's. A disqualification takes the award's place; without either there
- * is none.
+ * academy's. A disqualification takes the award's place; an unscored
+ * presentation has none.
  */
-export function AwardBadge({
-  award,
-  disqualified,
-}: {
-  award: Award | null;
-  disqualified: boolean;
-}) {
-  if (disqualified) {
+export function AwardBadge({ result }: { result: PresentationResult }) {
+  if (result.kind === "disqualified") {
     return <Badge variant="destructive">Descalificada</Badge>;
   }
 
-  return award === null ? null : (
-    <Badge variant={awardBadgeVariants[award]}>{awardLabels[award]}</Badge>
-  );
+  return result.kind === "scored" ? (
+    <Badge variant={awardBadgeVariants[result.award]}>
+      {awardLabels[result.award]}
+    </Badge>
+  ) : null;
 }

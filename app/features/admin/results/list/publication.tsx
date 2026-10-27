@@ -27,8 +27,7 @@ import {
  * What the results list says while results are out: how many the academies see
  * and since when, and — only when the panel has evaluated more — that
  * `Actualizar resultados` is what adds them. Nothing here is gated — only the
- * actions beside it are — so whoever can open the list reads it. The loader
- * admits the `auditor`, but the administration shell does not yet.
+ * actions beside it are — so whoever can open the list reads it.
  */
 export function ResultsPublicationAlert({
   publication,

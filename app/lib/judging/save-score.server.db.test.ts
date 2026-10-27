@@ -15,7 +15,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 import { setPresentationDisqualified } from "./score-settlement.server";
 import { seedJudgingFixture } from "./judging.test-support";
 import { judgingDate } from "./judging-day";
-import { readPresentationScores } from "./presentation-scores.server";
+import { readPresentationEvaluation } from "./presentation-evaluation.server";
 import { saveJudgeScore } from "./save-score.server";
 
 installDatabaseTestHooks();
@@ -481,9 +481,10 @@ describe("saving the score of a choreography with no level", () => {
   async function readPanelScore(
     open: Awaited<ReturnType<typeof seedBlankLevel>>,
   ) {
-    const view = await readPresentationScores({
-      presentationId: open.presentation.presentationId,
-    });
+    const view = await readPresentationEvaluation(
+      { kind: "administration" },
+      { presentationId: open.presentation.presentationId },
+    );
 
     return view?.judges.find(
       (judge) => judge.judgeAssignmentId === open.judge.judgeAssignmentId,
