@@ -179,6 +179,7 @@ describe("correcting a refund", () => {
         "El reembolso no puede superar $ 3.000, el saldo disponible más su monto actual.",
       status: "error",
       values: { amount: "3001" },
+      version: refund.version,
     });
 
     await expect(
