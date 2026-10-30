@@ -4,6 +4,8 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import readline from "node:readline/promises";
 
+import { assertOwnDatabase, readCheckout } from "./worktree-db.ts";
+
 const LOCAL_CONTAINER = "en-escena-postgres";
 const POSTGRES_IMAGE = "postgres:17-alpine";
 const DUMP_DIR = resolve("tmp/db-dumps");
@@ -19,7 +21,10 @@ const REMOTE_BACKUP_DIR =
   process.env.BACKUP_DIR ?? "/data/coolify/backups/databases";
 
 async function main() {
-  const LOCAL_DATABASE = localDatabaseName(process.env.DATABASE_URL);
+  const LOCAL_DATABASE = localDatabaseName(
+    process.env.DATABASE_URL,
+    readCheckout(),
+  );
 
   console.log(`This will replace the local ${LOCAL_DATABASE} database.`);
   console.log("No production credentials and no live database access.");
@@ -324,9 +329,12 @@ export function availableDatesCommand(remoteBackupDir) {
 }
 
 // The database `DATABASE_URL` names, so a worktree with its own (`pnpm
-// db:worktree`) refreshes that one and leaves every other session's alone. The
-// name is interpolated into SQL below, hence the narrow shape.
-export function localDatabaseName(databaseUrl) {
+// db:worktree`) refreshes that one and leaves every other session's alone; one
+// without is refused, since both `.env` and the default below name the main
+// checkout's. The name is interpolated into SQL below, hence the narrow shape.
+export function localDatabaseName(databaseUrl, checkout) {
+  assertOwnDatabase(checkout);
+
   if (!databaseUrl) {
     return "en-escena";
   }
