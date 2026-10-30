@@ -72,15 +72,18 @@ describe("admin movement create", () => {
 });
 
 describe("registering a refund", () => {
-  test("saves it against the active event and returns to the list, since a refund has no page", async () => {
+  test("saves it against the active event and opens its page", async () => {
     const pool = await seedPool();
     const { request } = await buildGlobalPaymentRequest(
       refundInput(pool, { amount: "3000" }),
     );
 
+    const response = await expectThrownFlashRedirect(request);
+    const [refund] = await readRefunds(pool.academyId);
+
     await expectFlashRedirect(
-      await expectThrownFlashRedirect(request),
-      "/administracion/movimientos",
+      response,
+      `/administracion/movimientos/reembolsos/${refund?.id}`,
       {
         id: "route-notification:refund-recorded",
         message: "Reembolso registrado.",

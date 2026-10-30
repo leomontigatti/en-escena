@@ -989,8 +989,11 @@ it:
 - **Payments and refunds are registered from one form**, at
   `/administracion/movimientos/nuevo`, with a `Tipo` beside the academy, so both
   ways money moves start from the same place. `Nuevo pago` became
-  `Nuevo movimiento`. The tab on the finance page lists and corrects, and
-  registers nothing.
+  `Nuevo movimiento`.
+- **A refund has a page of its own**, at
+  `/administracion/movimientos/reembolsos/:refundId`, with that same form, its
+  kind and academy locked. There is no refund dialog: both lists link each
+  movement to its page, and the finance page's tab only lists.
 - **The form states no maximum.** The cap is unchanged and is still checked
   under the pool lock; an amount above it is the submit's refusal, a toast, like
   any other server refusal

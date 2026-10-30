@@ -2,26 +2,10 @@ import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, payments, refunds } from "@/db/schema";
-import {
-  handleDeleteRefund,
-  handleUpdateRefund,
-} from "@/features/admin/finances/refunds/server";
-import {
-  deleteRefundIntent,
-  updateRefundIntent,
-  type RefundActionData,
-} from "@/features/admin/finances/refunds/shared";
-import type { EditableRefund } from "@/features/admin/finances/refunds/edit-dialog";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
-import {
-  requireAdminPanelReader,
-  requireAdminPanelWriter,
-} from "@/lib/auth/internal-access.server";
-import {
-  paymentAvailableAmountSql,
-  readAvailableBalances,
-} from "@/lib/finances/available-balance.server";
+import { requireAdminPanelReader } from "@/lib/auth/internal-access.server";
+import { paymentAvailableAmountSql } from "@/lib/finances/available-balance.server";
 import type { MovementKind } from "@/lib/finances/movement-kinds";
 import {
   paymentMethodValues,
@@ -38,7 +22,6 @@ import {
   listSearchCondition,
   redirectToCanonicalListUrl,
 } from "@/lib/list-query/list-query.server";
-import { readFormData } from "@/lib/shared/read-form-data";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 type MovementsListOrder = {
@@ -84,17 +67,10 @@ export type PaymentMovementsListRow = MovementsListRowBase & {
   kind: "payment";
 };
 
-/**
- * A refund's row carries what its edit/delete dialog edits, since a refund has
- * no page to read it from, and its owner's `Saldo disponible`, which caps a
- * raise.
- */
-export type RefundMovementsListRow = MovementsListRowBase &
-  EditableRefund & {
-    availableAmount: null;
-    kind: "refund";
-    ownerAvailableBalanceAmount: number;
-  };
+export type RefundMovementsListRow = MovementsListRowBase & {
+  availableAmount: null;
+  kind: "refund";
+};
 
 export type MovementsListRow = PaymentMovementsListRow | RefundMovementsListRow;
 
@@ -115,8 +91,7 @@ export type MovementsListSummary = {
 
 export type MovementsListLoaderData = {
   /**
-   * False for the auditor: no `Nuevo movimiento`, the `Exportar` entry instead, and
-   * a refund's dialog that only reads.
+   * False for the auditor: no `Nuevo movimiento`, the `Exportar` entry instead.
    */
   canWrite: boolean;
   filters: MovementsListFilters;
@@ -127,9 +102,6 @@ export type MovementsListLoaderData = {
   totalCount: number;
   totalPages: number;
 };
-
-export type MovementsListActionData =
-  RefundActionData | { message: string; status: "error" };
 
 const movementsListSpec: ListQuerySpec<MovementsListOrder["columnId"]> = {
   orderColumnIds: ["date"],
@@ -218,12 +190,9 @@ export async function loadMovementsList(
       availableAmount: movements.availableAmount,
       date: movements.date,
       id: movements.id,
-      internalNote: movements.internalNote,
       kind: movements.kind,
       method: movements.method,
       number: movements.number,
-      reference: movements.reference,
-      version: movements.version,
     })
     .from(movements)
     .where(where)
@@ -256,16 +225,7 @@ export async function loadMovementsList(
     filters: normalizedFilters,
     hasAnyMovement:
       Number(paymentTotals.count) + Number(refundTotals.count) > 0,
-    rows: await completeRefundRows(
-      selectedEventId,
-      pageRows.map((row) => ({
-        ...row,
-        amount: Number(row.amount),
-        availableAmount:
-          row.availableAmount === null ? null : Number(row.availableAmount),
-        number: Number(row.number),
-      })),
-    ),
+    rows: pageRows.map(toMovementsListRow),
     selectedEventId,
     summary: {
       availableAmount: Number(paymentTotals.available),
@@ -279,38 +239,10 @@ export async function loadMovementsList(
 }
 
 /**
- * The list's writes: correcting a refund from the dialog on its row, with the
- * handlers the owner's tab uses, so both lists refuse and accept alike.
- * Administration only; registering a refund stays on the owner's tab.
- */
-export async function handleMovementsListAction(
-  request: Request,
-): Promise<MovementsListActionData> {
-  await requireAdminPanelWriter(request);
-  const formData = await readFormData(request);
-  const intent = String(formData.get("intent") ?? "");
-
-  if (intent === updateRefundIntent) {
-    return await handleUpdateRefund({ formData, request });
-  }
-
-  if (intent === deleteRefundIntent) {
-    return await handleDeleteRefund({ formData, request });
-  }
-
-  return {
-    message: "No pudimos completar la acción. Intentá nuevamente.",
-    status: "error",
-  };
-}
-
-/**
  * Every payment and refund of the event as one set of rows, so the filters,
  * the search, the count and the page read both kinds at once. Each branch
  * names its own columns: a refund has no `Disponible`, and its number counts
- * in its own series. A refund also brings what its dialog edits and the
- * version it edits against, in this same read: fields from one read and a
- * version from a later one would let an edit overwrite another unseen.
+ * in its own series.
  */
 function eventMovementsSubquery(eventId: string) {
   const paymentMovements = db
@@ -327,9 +259,6 @@ function eventMovementsSubquery(eventId: string) {
       availableAmount: sql<
         number | null
       >`cast(${paymentAvailableAmountSql} as bigint)`.as("available_amount"),
-      reference: sql<string | null>`cast(null as text)`.as("reference"),
-      internalNote: sql<string | null>`cast(null as text)`.as("internal_note"),
-      version: sql<string | null>`cast(null as text)`.as("version"),
     })
     .from(payments)
     .innerJoin(academies, eq(payments.academyId, academies.id))
@@ -348,17 +277,6 @@ function eventMovementsSubquery(eventId: string) {
       availableAmount: sql<number | null>`cast(null as bigint)`.as(
         "available_amount",
       ),
-      reference: sql<string | null>`${refunds.reference}`.as("reference"),
-      internalNote: sql<string | null>`${refunds.internalNote}`.as(
-        "internal_note",
-      ),
-      // The ISO form `updatedAt.toISOString()` gives, so a version read here
-      // compares equal to the one the write module reads.
-      version: sql<
-        string | null
-      >`to_char(${refunds.updatedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`.as(
-        "version",
-      ),
     })
     .from(refunds)
     .innerJoin(academies, eq(refunds.academyId, academies.id))
@@ -371,58 +289,24 @@ type EventMovements = ReturnType<typeof eventMovementsSubquery>;
 
 type PageRow = Omit<MovementsListRowBase, "method"> & {
   availableAmount: number | null;
-  internalNote: string | null;
   kind: MovementKind;
   method: PaymentMethod;
-  reference: string | null;
-  version: string | null;
 };
 
-/**
- * Adds to each refund of the page its owner's `Saldo disponible`, read from
- * the balance module like every other screen. Only the page's owners are
- * read, so the cost is the page's.
- */
-async function completeRefundRows(
-  eventId: string,
-  rows: PageRow[],
-): Promise<MovementsListRow[]> {
-  const refundRows = rows.filter((row) => row.kind === "refund");
-  const balances: Awaited<ReturnType<typeof readAvailableBalances>> =
-    refundRows.length === 0
-      ? new Map()
-      : await readAvailableBalances(db, {
-          academyIds: refundRows.map((row) => row.academyId),
-          eventId,
-        });
+function toMovementsListRow(row: PageRow): MovementsListRow {
+  const shared = {
+    ...row,
+    amount: Number(row.amount),
+    number: Number(row.number),
+  };
 
-  return rows.map((row): MovementsListRow => {
-    if (row.kind === "payment") {
-      return paymentRow(row);
-    }
-
-    if (row.version === null) {
-      throw new Error("Expected a refund row to carry its version.");
-    }
-
-    return {
-      ...row,
-      availableAmount: null,
-      kind: "refund",
-      ownerAvailableBalanceAmount:
-        balances.get(row.academyId)?.availableBalanceAmount ?? 0,
-      version: row.version,
-    };
-  });
-}
-
-function paymentRow({
-  internalNote: _internalNote,
-  reference: _reference,
-  version: _version,
-  ...row
-}: PageRow): PaymentMovementsListRow {
-  return { ...row, availableAmount: row.availableAmount ?? 0, kind: "payment" };
+  return row.kind === "payment"
+    ? {
+        ...shared,
+        availableAmount: Number(row.availableAmount ?? 0),
+        kind: "payment",
+      }
+    : { ...shared, availableAmount: null, kind: "refund" };
 }
 
 function readMovementsListFilters(

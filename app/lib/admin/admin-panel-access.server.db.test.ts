@@ -50,6 +50,7 @@ const auditorReviewedRoutes = new Set([
   "administracion.coreografias_.$choreographyId",
   "administracion.movimientos",
   "administracion.movimientos_.pagos.$paymentId",
+  "administracion.movimientos_.reembolsos.$refundId",
   "administracion.seminarios",
   "administracion_.academias.exportar",
   "administracion_.bailarines.exportar",

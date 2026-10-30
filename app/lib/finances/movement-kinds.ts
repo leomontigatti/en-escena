@@ -20,3 +20,13 @@ const movementKindBadgeVariants = {
 export function getMovementKindBadgeVariant(kind: MovementKind) {
   return movementKindBadgeVariants[kind];
 }
+
+/** Where a movement is read and corrected: each kind has its own page. */
+export function movementDetailPath(movement: {
+  id: string;
+  kind: MovementKind;
+}) {
+  return movement.kind === "payment"
+    ? `/administracion/movimientos/pagos/${movement.id}`
+    : `/administracion/movimientos/reembolsos/${movement.id}`;
+}

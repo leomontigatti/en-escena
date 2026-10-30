@@ -8,19 +8,18 @@ import {
   academyFinancesUrl,
   seedOwnerPoolForTest,
 } from "@/lib/admin/finances/finances.test-support";
-import { registerRefundForTest } from "@/lib/test-support/refunds";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
-import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createSavedEvent } from "@/lib/test-support/events";
 import { createIndividualUser } from "@/lib/test-support/individuals";
-import {
-  action as academyFinancesAction,
-  loader as academyFinancesLoader,
-} from "@/routes/administracion.finanzas_.$academyId";
+import { registerRefundForTest } from "@/lib/test-support/refunds";
+import { loader as academyFinancesLoader } from "@/routes/administracion.finanzas_.$academyId";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
+import { handleRefundDetailAction, loadRefundDetail } from "./server";
 import { deleteRefundIntent, updateRefundIntent } from "./shared";
 
 installDatabaseTestHooks();
@@ -31,20 +30,10 @@ beforeEach(() => {
   );
 });
 
-type RefundFields = {
-  amount?: string;
-  refundDate?: string;
-  refundMethod?: string;
-};
+const refundUrl = (id: string) =>
+  `http://localhost/administracion/movimientos/reembolsos/${id}`;
 
-async function readRefunds(academyId: string) {
-  return await db
-    .select()
-    .from(refunds)
-    .where(eq(refunds.academyId, academyId));
-}
-
-async function seedPool() {
+async function seedRefund() {
   const event = await createSavedEvent({ requiredDepositPercentage: 30 });
   const { academyId } = await seedOwnerPoolForTest({
     academyName: "Academia Reembolsos",
@@ -52,11 +41,16 @@ async function seedPool() {
     fundedAmount: 0,
     paymentAmounts: [3000],
   });
+  const { refundId } = await registerRefundForTest({
+    academyId,
+    amount: 1000,
+    eventId: event.id,
+  });
 
-  return { academyId, eventId: event.id };
+  return { academyId, eventId: event.id, refund: await readRefund(refundId) };
 }
 
-async function readRefundVersion(refundId: string) {
+async function readRefund(refundId: string) {
   const [refund] = await db
     .select()
     .from(refunds)
@@ -69,23 +63,25 @@ async function readRefundVersion(refundId: string) {
   return { ...refund, version: refund.updatedAt.toISOString() };
 }
 
-function correctionFormData(
-  refund: Awaited<ReturnType<typeof readRefundVersion>>,
-  intent: typeof updateRefundIntent | typeof deleteRefundIntent,
-  fields: RefundFields & { academyId?: string; eventId?: string } = {},
+function editForm(
+  refund: Awaited<ReturnType<typeof readRefund>>,
+  fields: {
+    academyId?: string;
+    amount?: string;
+    eventId?: string;
+    paymentDate?: string;
+    version?: string;
+  } = {},
 ) {
   const formData = new FormData();
-  formData.set("intent", intent);
-  formData.set("refundId", refund.id);
-  formData.set("version", refund.version);
+  formData.set("intent", updateRefundIntent);
+  formData.set("version", fields.version ?? refund.version);
+  formData.set("academyId", fields.academyId ?? refund.academyId);
   formData.set("amount", fields.amount ?? String(refund.amount));
-  formData.set("refundDate", fields.refundDate ?? refund.refundDate);
-  formData.set("refundMethod", fields.refundMethod ?? refund.refundMethod);
+  formData.set("paymentDate", fields.paymentDate ?? refund.refundDate);
+  formData.set("paymentMethod", refund.refundMethod);
   formData.set("reference", "TRX-R2");
   formData.set("internalNote", "Corregido");
-  if (fields.academyId) {
-    formData.set("academyId", fields.academyId);
-  }
   if (fields.eventId) {
     formData.set("eventId", fields.eventId);
   }
@@ -93,180 +89,184 @@ function correctionFormData(
   return formData;
 }
 
-async function postCorrection(input: {
-  academyId: string;
-  cookie?: string;
-  eventId: string;
-  formData: FormData;
-  role?: "admin" | "auditor";
-}) {
-  const cookie =
-    input.cookie ??
-    (
-      await createSignedInRequest({
-        email: `${crypto.randomUUID()}@example.com`,
-        role: input.role ?? "admin",
-      })
-    ).request.headers.get("cookie") ??
-    "";
+function deleteForm(version: string) {
+  const formData = new FormData();
+  formData.set("intent", deleteRefundIntent);
+  formData.set("version", version);
 
-  return await academyFinancesAction(
-    academyFinancesRouteArgs(
-      new Request(academyFinancesUrl(input.academyId, input.eventId), {
-        body: input.formData,
-        headers: { cookie },
-        method: "POST",
-      }),
-      input.academyId,
-    ),
+  return formData;
+}
+
+async function post(
+  refundId: string,
+  body: FormData,
+  role: "admin" | "auditor" = "admin",
+) {
+  const { request } = await createSignedInRequest({
+    body,
+    email: `${crypto.randomUUID()}@example.com`,
+    requestUrl: refundUrl(refundId),
+    role,
+  });
+
+  return await handleRefundDetailAction(request, refundId);
+}
+
+async function read(refundId: string, role: "admin" | "auditor" = "admin") {
+  const { request } = await createSignedInRequest({
+    email: `${crypto.randomUUID()}@example.com`,
+    requestUrl: refundUrl(refundId),
+    role,
+  });
+
+  return await loadRefundDetail(request, refundId);
+}
+
+async function readBalance(academyId: string, eventId: string) {
+  const { request } = await createSignedInRequest({
+    email: `${crypto.randomUUID()}@example.com`,
+    requestUrl: academyFinancesUrl(academyId, eventId),
+    role: "admin",
+  });
+  const page = await academyFinancesLoader(
+    academyFinancesRouteArgs(request, academyId),
   );
+
+  return page.summary.availableBalanceAmount;
 }
 
-async function seedRefundedPool() {
-  const pool = await seedPool();
-  const { refundId } = await registerRefundForTest({ ...pool, amount: 1000 });
+describe("a refund's page", () => {
+  test("hands the form what the refund holds, with the version it saves against", async () => {
+    const { academyId, refund } = await seedRefund();
 
-  return { pool, refund: await readRefundVersion(refundId) };
-}
+    await expect(read(refund.id)).resolves.toMatchObject({
+      canWrite: true,
+      refund: { academyName: "Academia Reembolsos", id: refund.id },
+      values: {
+        academyId,
+        amount: "1000",
+        paymentDate: refund.refundDate,
+        paymentMethod: refund.refundMethod,
+      },
+      version: refund.version,
+    });
+  });
 
-describe("correcting a refund from the owner's finance page", () => {
+  test("reads for the auditor, who can write nothing", async () => {
+    const { refund } = await seedRefund();
+
+    await expect(read(refund.id, "auditor")).resolves.toMatchObject({
+      canWrite: false,
+    });
+  });
+
+  test("answers 404 for a refund that does not exist", async () => {
+    await createSavedEvent();
+
+    await expect(read("missing")).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("correcting a refund", () => {
   test("saves an edit up to the `Saldo disponible` plus the refund's own amount", async () => {
-    const { pool, refund } = await seedRefundedPool();
+    const { refund } = await seedRefund();
 
     await expect(
-      postCorrection({
-        ...pool,
-        formData: correctionFormData(refund, updateRefundIntent, {
-          amount: "3001",
-        }),
-      }),
-    ).resolves.toEqual({
-      intent: updateRefundIntent,
+      post(refund.id, editForm(refund, { amount: "3001" })),
+    ).resolves.toMatchObject({
+      fieldErrors: {},
       message:
         "El reembolso no puede superar $ 3.000, el saldo disponible más su monto actual.",
       status: "error",
+      values: { amount: "3001" },
     });
+
     await expect(
-      postCorrection({
-        ...pool,
-        formData: correctionFormData(refund, updateRefundIntent, {
-          amount: "3000",
-          refundDate: "2026-04-10",
-        }),
-      }),
+      post(refund.id, editForm(refund, { amount: "3000" })),
     ).resolves.toEqual({
       intent: updateRefundIntent,
       message: "Reembolso guardado.",
       status: "success",
     });
-    await expect(readRefundVersion(refund.id)).resolves.toMatchObject({
+    await expect(readRefund(refund.id)).resolves.toMatchObject({
       amount: 3000,
       internalNote: "Corregido",
       reference: "TRX-R2",
-      refundDate: "2026-04-10",
     });
   });
 
   test("refuses a future date and keeps academy and event whatever the form sends", async () => {
-    const { pool, refund } = await seedRefundedPool();
-    const otherEvent = await createSavedEvent({
-      active: false,
-      requiredDepositPercentage: 30,
-    });
-    const other = await seedOwnerPoolForTest({
-      academyName: "Academia Otra",
-      event: otherEvent,
-      fundedAmount: 0,
-      paymentAmounts: [3000],
+    const { academyId, eventId, refund } = await seedRefund();
+    const other = await createAcademyUser({
+      academyName: "Academia Ajena",
+      email: `${crypto.randomUUID()}@example.com`,
     });
 
     await expect(
-      postCorrection({
-        ...pool,
-        formData: correctionFormData(refund, updateRefundIntent, {
-          refundDate: "2026-04-11",
-        }),
-      }),
+      post(refund.id, editForm(refund, { paymentDate: "2026-04-11" })),
     ).resolves.toMatchObject({
-      message: "La fecha del reembolso no puede ser futura.",
+      fieldErrors: { paymentDate: "La fecha no puede ser futura." },
       status: "error",
     });
-    await expect(
-      postCorrection({
-        ...pool,
-        formData: correctionFormData(refund, updateRefundIntent, {
-          academyId: other.academyId,
-          amount: "500",
-          eventId: otherEvent.id,
-        }),
-      }),
-    ).resolves.toMatchObject({ status: "success" });
-    await expect(readRefundVersion(refund.id)).resolves.toMatchObject({
-      academyId: pool.academyId,
-      amount: 500,
-      eventId: pool.eventId,
+
+    await post(
+      refund.id,
+      editForm(refund, { academyId: other.academy.id, eventId: "other" }),
+    );
+
+    await expect(readRefund(refund.id)).resolves.toMatchObject({
+      academyId,
+      eventId,
     });
   });
 
-  test("deletes a refund, raising the page's `Saldo disponible` by its amount", async () => {
-    const { pool, refund } = await seedRefundedPool();
-    const readBalance = async () => {
-      const { request } = await createSignedInRequest({
-        email: `${crypto.randomUUID()}@example.com`,
-        requestUrl: academyFinancesUrl(pool.academyId, pool.eventId),
-        role: "admin",
-      });
-      const page = await academyFinancesLoader(
-        academyFinancesRouteArgs(request, pool.academyId),
-      );
+  test("answers an edit over a refund changed meanwhile without its values, so the form takes the fresh ones", async () => {
+    const { refund } = await seedRefund();
+    await post(refund.id, editForm(refund, { amount: "900" }));
 
-      return page.summary.availableBalanceAmount;
-    };
-    const before = await readBalance();
+    const answer = await post(refund.id, editForm(refund, { amount: "500" }));
 
-    await expect(
-      postCorrection({
-        ...pool,
-        formData: correctionFormData(refund, deleteRefundIntent),
-      }),
-    ).resolves.toEqual({
-      intent: deleteRefundIntent,
-      message: "Reembolso eliminado.",
-      status: "success",
+    expect(answer).toMatchObject({
+      message:
+        "El reembolso cambió mientras se guardaba. Revisalo y volvé a intentarlo.",
+      status: "error",
     });
-    await expect(readBalance()).resolves.toBe(before + 1000);
-    await expect(readRefunds(pool.academyId)).resolves.toEqual([]);
+    expect(answer).not.toHaveProperty("values");
+    await expect(readRefund(refund.id)).resolves.toMatchObject({ amount: 900 });
   });
 
-  test("refuses an edit or a deletion over a refund changed meanwhile", async () => {
-    const { pool, refund } = await seedRefundedPool();
-    await postCorrection({
-      ...pool,
-      formData: correctionFormData(refund, updateRefundIntent, {
-        amount: "900",
-      }),
-    });
+  test("deletes it, raising the `Saldo disponible` by its amount, and returns to the list", async () => {
+    const { academyId, eventId, refund } = await seedRefund();
+    const before = await readBalance(academyId, eventId);
 
-    for (const intent of [updateRefundIntent, deleteRefundIntent] as const) {
-      await expect(
-        postCorrection({
-          ...pool,
-          formData: correctionFormData(refund, intent, { amount: "700" }),
-        }),
-      ).resolves.toEqual({
-        intent,
-        message:
-          "El reembolso cambió mientras se guardaba. Revisalo y volvé a intentarlo.",
-        status: "error",
-      });
-    }
-    await expect(readRefundVersion(refund.id)).resolves.toMatchObject({
-      amount: 900,
-    });
+    const thrown = await post(refund.id, deleteForm(refund.version)).catch(
+      (response: unknown) => response,
+    );
+
+    await expectFlashRedirect(
+      thrown as Response,
+      "/administracion/movimientos",
+      {
+        id: "route-notification:refund-deleted",
+        message: "Reembolso eliminado.",
+        variant: "success",
+      },
+    );
+    await expect(readBalance(academyId, eventId)).resolves.toBe(before + 1000);
+  });
+
+  test("refuses a deletion over a refund changed meanwhile", async () => {
+    const { refund } = await seedRefund();
+    await post(refund.id, editForm(refund, { amount: "900" }));
+
+    await expect(
+      post(refund.id, deleteForm(refund.version)),
+    ).resolves.toMatchObject({ status: "error" });
+    await expect(readRefund(refund.id)).resolves.toMatchObject({ amount: 900 });
   });
 
   test("refuses the auditor, an academy and an individual every correction", async () => {
-    const { pool, refund } = await seedRefundedPool();
+    const { refund } = await seedRefund();
     const academy = await createAcademyUser({
       academyName: "Academia Portal",
       email: `${crypto.randomUUID()}@example.com`,
@@ -275,27 +275,29 @@ describe("correcting a refund from the owner's finance page", () => {
       email: `${crypto.randomUUID()}@example.com`,
     });
 
-    for (const intent of [updateRefundIntent, deleteRefundIntent] as const) {
-      await expect(
-        postCorrection({
-          ...pool,
-          formData: correctionFormData(refund, intent, { amount: "500" }),
-          role: "auditor",
-        }),
-      ).rejects.toMatchObject({ status: 403 });
-      for (const cookie of [academy.cookie, individual.cookie]) {
+    await expect(
+      post(refund.id, editForm(refund), "auditor"),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      post(refund.id, deleteForm(refund.version), "auditor"),
+    ).rejects.toMatchObject({ status: 403 });
+
+    for (const cookie of [academy.cookie, individual.cookie]) {
+      for (const body of [editForm(refund), deleteForm(refund.version)]) {
         await expect(
-          postCorrection({
-            ...pool,
-            cookie,
-            formData: correctionFormData(refund, intent, { amount: "500" }),
-          }),
+          handleRefundDetailAction(
+            new Request(refundUrl(refund.id), {
+              body,
+              headers: { cookie },
+              method: "POST",
+            }),
+            refund.id,
+          ),
         ).rejects.toMatchObject({ status: 403 });
       }
     }
-    await expect(readRefundVersion(refund.id)).resolves.toMatchObject({
+    await expect(readRefund(refund.id)).resolves.toMatchObject({
       amount: 1000,
-      version: refund.version,
     });
   });
 });

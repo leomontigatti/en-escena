@@ -6,6 +6,7 @@ import { registerAcademyEventPayment } from "@/features/admin/finances/academy-c
 import { refundRegistrationRefusalMessage } from "@/features/admin/finances/refunds/server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
+import { movementDetailPath } from "@/lib/finances/movement-kinds";
 import { registerRefund } from "@/lib/finances/refunds.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
@@ -99,9 +100,8 @@ export async function handleMovementCreateAction(
       };
     }
 
-    // A refund has no page of its own: it is read from the list.
     throw await redirectWithFlashNotification(
-      "/administracion/movimientos",
+      movementDetailPath({ id: result.refundId, kind: "refund" }),
       "refund-recorded",
     );
   }
@@ -113,7 +113,7 @@ export async function handleMovementCreateAction(
   });
 
   throw await redirectWithFlashNotification(
-    `/administracion/movimientos/pagos/${paymentId}`,
+    movementDetailPath({ id: paymentId, kind: "payment" }),
     "payment-recorded",
   );
 }

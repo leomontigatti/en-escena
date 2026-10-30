@@ -1,5 +1,5 @@
 import { HandCoins } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   AdminEmptyState,
@@ -14,11 +14,10 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import type { DataTableFacetedFilterValue } from "@/components/shared/data-table.shared";
 import { MetricCard } from "@/components/shared/metric-card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { EditRefundDialog } from "@/features/admin/finances/refunds/edit-dialog";
 import { formatAmount, formatDate } from "@/lib/finances/formatters";
 import {
   getMovementKindBadgeVariant,
+  movementDetailPath,
   movementKindLabels,
 } from "@/lib/finances/movement-kinds";
 import {
@@ -42,94 +41,74 @@ type MovementsListRouteViewProps = {
   loaderData: MovementsListLoaderData;
 };
 
-function movementColumns({
-  onOpenRefund,
-}: {
-  onOpenRefund: (refundId: string) => void;
-}): DataTableColumn<MovementsListRow>[] {
-  return [
-    {
-      id: "kind",
-      header: "Tipo",
-      cell: (row) => (
-        <Badge variant={getMovementKindBadgeVariant(row.kind)}>
-          {movementKindLabels[row.kind]}
-        </Badge>
-      ),
-    },
-    {
-      // Each kind counts in its own series, so a number is only read beside
-      // its kind. A payment opens its page; a refund has none, so it opens its
-      // dialog in place.
-      id: "number",
-      header: "#",
-      className: "font-medium tabular-nums",
-      cell: (row) =>
-        row.kind === "payment" ? (
-          <DataTableLink
-            recordTitle
-            to={`/administracion/movimientos/pagos/${row.id}`}
-          >
-            {formatEventSequenceNumber(row.number)}
-          </DataTableLink>
-        ) : (
-          <Button
-            type="button"
-            variant="link"
-            className="h-auto p-0 text-left font-medium tabular-nums"
-            onClick={() => onOpenRefund(row.id)}
-          >
-            {formatEventSequenceNumber(row.number)}
-          </Button>
-        ),
-    },
-    {
-      id: "date",
-      header: "Fecha",
-      cell: (row) => formatDate(row.date),
-      sortValue: (row) => row.date,
-    },
-    {
-      id: "academyName",
-      header: "Academia",
-      className: "min-w-56 text-muted-foreground",
-      cell: (row) => row.academyName,
-      filterValue: (row) => `${row.academyName} ${row.number}`,
-    },
-    {
-      id: "method",
-      header: "Medio",
-      cell: (row) => (
-        <Badge variant={getPaymentMethodBadgeVariant(row.method)}>
-          {formatPaymentMethodLabel(row.method)}
-        </Badge>
-      ),
-      filterValue: (row) => row.method,
-    },
-    {
-      // Positive on both kinds, and muted like `Total` on the finance lists:
-      // the badge says which way the money went, and the amount is the context
-      // the remainder is read against.
-      id: "amount",
-      header: "Monto",
-      className: "text-right tabular-nums text-muted-foreground",
-      headerClassName: "text-right",
-      cell: (row) => formatAmount(row.amount),
-    },
-    {
-      // A payment's actionable figure, emphasised by column: money received
-      // and not yet committed to any inscription. `$ 0` and not a dash on a
-      // fully applied payment — a zero there is an answer. A refund has no
-      // `Disponible`, so its cell is empty rather than a zero.
-      id: "availableAmount",
-      header: "Disponible",
-      className: "text-right font-medium tabular-nums",
-      headerClassName: "text-right",
-      cell: (row) =>
-        row.availableAmount === null ? "" : formatAmount(row.availableAmount),
-    },
-  ];
-}
+const movementColumns: DataTableColumn<MovementsListRow>[] = [
+  {
+    id: "kind",
+    header: "Tipo",
+    cell: (row) => (
+      <Badge variant={getMovementKindBadgeVariant(row.kind)}>
+        {movementKindLabels[row.kind]}
+      </Badge>
+    ),
+  },
+  {
+    // Each kind counts in its own series, so a number is only read beside
+    // its kind.
+    id: "number",
+    header: "#",
+    className: "font-medium tabular-nums",
+    cell: (row) => (
+      <DataTableLink recordTitle to={movementDetailPath(row)}>
+        {formatEventSequenceNumber(row.number)}
+      </DataTableLink>
+    ),
+  },
+  {
+    id: "date",
+    header: "Fecha",
+    cell: (row) => formatDate(row.date),
+    sortValue: (row) => row.date,
+  },
+  {
+    id: "academyName",
+    header: "Academia",
+    className: "min-w-56 text-muted-foreground",
+    cell: (row) => row.academyName,
+    filterValue: (row) => `${row.academyName} ${row.number}`,
+  },
+  {
+    id: "method",
+    header: "Medio",
+    cell: (row) => (
+      <Badge variant={getPaymentMethodBadgeVariant(row.method)}>
+        {formatPaymentMethodLabel(row.method)}
+      </Badge>
+    ),
+    filterValue: (row) => row.method,
+  },
+  {
+    // Positive on both kinds, and muted like `Total` on the finance lists:
+    // the badge says which way the money went, and the amount is the context
+    // the remainder is read against.
+    id: "amount",
+    header: "Monto",
+    className: "text-right tabular-nums text-muted-foreground",
+    headerClassName: "text-right",
+    cell: (row) => formatAmount(row.amount),
+  },
+  {
+    // A payment's actionable figure, emphasised by column: money received
+    // and not yet committed to any inscription. `$ 0` and not a dash on a
+    // fully applied payment — a zero there is an answer. A refund has no
+    // `Disponible`, so its cell is empty rather than a zero.
+    id: "availableAmount",
+    header: "Disponible",
+    className: "text-right font-medium tabular-nums",
+    headerClassName: "text-right",
+    cell: (row) =>
+      row.availableAmount === null ? "" : formatAmount(row.availableAmount),
+  },
+];
 
 const movementFacetedFilters: DataTableFacetedFilter[] = [
   {
@@ -193,17 +172,7 @@ export function MovementsListRouteView({
   // metric card re-scopes to it. Selecting a few movements is how the
   // administrator asks what *those* came to without adding them up by hand.
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
-  const [openRefundId, setOpenRefundId] = useState<string | null>(null);
   const visibleRowKeys = loaderData.rows.map(movementRowKey).join(",");
-  // Read from the revalidated rows, so a refund deleted meanwhile closes its
-  // dialog.
-  const openRefund = loaderData.rows.find(
-    (row) => row.kind === "refund" && row.id === openRefundId,
-  );
-  const columns = useMemo(
-    () => movementColumns({ onOpenRefund: setOpenRefundId }),
-    [],
-  );
 
   // The list is server-paginated, so a selection only ever reaches the page on
   // screen. Any navigation —page, search, facet, sort— sends a different set of
@@ -286,7 +255,7 @@ export function MovementsListRouteView({
         {shouldShowTable ? (
           <ServerDataTable
             rows={loaderData.rows}
-            columns={columns}
+            columns={movementColumns}
             facetedFilters={movementFacetedFilters}
             initialFacetedFilterValues={buildInitialFacetedFilterValues(
               loaderData,
@@ -311,19 +280,6 @@ export function MovementsListRouteView({
           />
         )}
       </div>
-      {openRefund?.kind === "refund" ? (
-        <EditRefundDialog
-          key={openRefund.id}
-          availableBalanceAmount={openRefund.ownerAvailableBalanceAmount}
-          onOpenChange={(open) => {
-            if (!open) {
-              setOpenRefundId(null);
-            }
-          }}
-          readOnly={!loaderData.canWrite}
-          refund={openRefund}
-        />
-      ) : null}
     </AdminResourceLayout>
   );
 }

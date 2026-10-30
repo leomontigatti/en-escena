@@ -673,13 +673,13 @@ they live in one module.
   15-day clock. It is registered like a payment, at
   `/administracion/movimientos/nuevo`, one form whose `Tipo` says which of the
   two it is; an amount above the cap is the submit's refusal, a toast, and the
-  form states no maximum. A payment lands on its detail, a refund back on the
-  list, since it has no page. The `Movimientos` tab of the owner's finance page
-  lists the owner's payments and refunds newest first, never its allocations.
-  The portal's and an individual's own `Movimientos` page list the owner's
-  refunds beside its payments the same way, kind badged, without either's
-  internal note. The
-  event-wide list at `/administracion/movimientos` pages both kinds as one
+  form states no maximum. Each movement then has its own page, a payment under
+  `/administracion/movimientos/pagos/` and a refund under
+  `/administracion/movimientos/reembolsos/`, which both lists link to. The
+  `Movimientos` tab of the owner's finance page lists the owner's payments and
+  refunds newest first, never its allocations. The portal's and an individual's
+  own `Movimientos` page list the owner's refunds beside its payments the same
+  way, kind badged, without either's internal note. The event-wide list at `/administracion/movimientos` pages both kinds as one
   set, ordering a day's movements by recording time as the owner's tab does
   (the workbook puts payments first); its cards read the whole event, never
   the filtered set. A
@@ -689,18 +689,15 @@ they live in one module.
   reserved for the judge's private feedback audio and must not be used for
   money.
 - **Correcting a refund** is editing or deleting it, never a counter-movement,
-  from a dialog its row opens in the owner's `Movimientos` tab or the
-  event-wide list (a refund has no page), administration only; the auditor's
-  dialog on the event-wide list shows the same fields locked, with `Cerrar`
-  only. On the event-wide list the cap reads the refund's owner's
-  `Saldo disponible`. Both go through the same write module, under the
-  pool lock: an edit is capped at the `Saldo disponible` plus the refund's own
-  current amount, so lowering or keeping the amount always saves, and a
-  deletion is never refused, raising the `Saldo disponible` by exactly its
-  amount. Its event and number are fixed once it exists, and its academy
-  changes only by an academy merge. Both carry the version (`updatedAt`) the
-  dialog read, and a refund that changed, was deleted or was moved by a merge
-  meanwhile is refused as changed while saving rather than overwritten.
+  on its page, administration only; the auditor reads the same fields locked.
+  Both go through the same write module, under the pool lock: an edit is capped
+  at the `Saldo disponible` plus the refund's own current amount, so lowering or
+  keeping the amount always saves, and a deletion is never refused, raising the
+  `Saldo disponible` by exactly its amount. Its event and number are fixed once
+  it exists, and its academy changes only by an academy merge. Both carry the
+  version (`updatedAt`) the page read, and a refund that changed, was deleted or
+  was moved by a merge meanwhile is refused as changed while saving rather than
+  overwritten; the form then shows what the refund holds now.
 
 ## The money gestures
 

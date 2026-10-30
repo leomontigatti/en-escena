@@ -1,5 +1,4 @@
-import { eq } from "drizzle-orm";
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import {
@@ -10,13 +9,12 @@ import {
 } from "@/db/schema";
 import { createDancer } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
-import * as availableBalance from "@/lib/finances/available-balance.server";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
-import { handleMovementsListAction, loadMovementsList } from "./server";
+import { loadMovementsList } from "./server";
 
 installDatabaseTestHooks();
 
@@ -333,56 +331,6 @@ describe("refunds in the admin movements list", () => {
     expect(secondPage.rows.at(-1)?.number).toBe(1);
   });
 
-  // What the edit/delete dialog needs, on the row it opens from: the refund's
-  // own fields with the version it edits, and its owner's `Saldo disponible`,
-  // which caps a raise.
-  test("gives a refund row what its dialog edits", async () => {
-    const fixture = await buildMovementsFixture();
-
-    const loaderData = await loadMovementsList(await listRequest());
-    const refund = loaderData.rows.find(
-      (row) => row.kind === "refund" && row.number === 1,
-    );
-
-    expect(refund).toMatchObject({
-      academyId: fixture.academyId,
-      date: "2026-03-17",
-      internalNote: "Devuelto por error de carga",
-      ownerAvailableBalanceAmount: 2000,
-      reference: null,
-      version: fixture.refunds[0]!.updatedAt.toISOString(),
-    });
-  });
-
-  // The dialog saves its fields against its version, so a refund edited while
-  // the page loads must not reach it with the old fields and the new version:
-  // that edit would then overwrite the other one unseen.
-  test("reads a refund row's fields and its version together", async () => {
-    const fixture = await buildMovementsFixture();
-    const refund = fixture.refunds[0]!;
-    const readBalances = availableBalance.readAvailableBalances;
-    vi.spyOn(availableBalance, "readAvailableBalances").mockImplementationOnce(
-      async (...args) => {
-        await db
-          .update(refunds)
-          .set({
-            amount: refund.amount - 100,
-            updatedAt: new Date(refund.updatedAt.getTime() + 1000),
-          })
-          .where(eq(refunds.id, refund.id));
-
-        return await readBalances(...args);
-      },
-    );
-
-    const loaderData = await loadMovementsList(await listRequest());
-
-    expect(loaderData.rows.find((row) => row.id === refund.id)).toMatchObject({
-      amount: refund.amount,
-      version: refund.updatedAt.toISOString(),
-    });
-  });
-
   test("states the zero position of an event with no movements", async () => {
     await createSavedEvent();
 
@@ -394,72 +342,6 @@ describe("refunds in the admin movements list", () => {
       netAmount: 0,
       paymentsAmount: 0,
       refundsAmount: 0,
-    });
-  });
-});
-
-describe("correcting a refund from the admin movements list", () => {
-  test("edits and deletes a refund with the owner tab's rules", async () => {
-    const fixture = await buildMovementsFixture();
-    const refund = fixture.refunds[1]!;
-    const edit = new FormData();
-    edit.set("intent", "update-refund");
-    edit.set("refundId", refund.id);
-    edit.set("version", refund.updatedAt.toISOString());
-    edit.set("refundDate", refund.refundDate);
-    edit.set("refundMethod", refund.refundMethod);
-    // 2000 free plus its own 2000 is the cap.
-    edit.set("amount", "4001");
-
-    await expect(postAction(edit, "admin")).resolves.toMatchObject({
-      status: "error",
-    });
-
-    edit.set("amount", "4000");
-    await expect(postAction(edit, "admin")).resolves.toMatchObject({
-      message: "Reembolso guardado.",
-      status: "success",
-    });
-
-    const [saved] = await db
-      .select()
-      .from(refunds)
-      .where(eq(refunds.id, refund.id));
-    const remove = new FormData();
-    remove.set("intent", "delete-refund");
-    remove.set("refundId", refund.id);
-    remove.set("version", saved!.updatedAt.toISOString());
-
-    await expect(postAction(remove, "admin")).resolves.toMatchObject({
-      message: "Reembolso eliminado.",
-      status: "success",
-    });
-    expect(
-      (await loadMovementsList(await listRequest())).summary.refundsAmount,
-    ).toBe(4000);
-  });
-
-  test("refuses the auditor, who reads the list", async () => {
-    const fixture = await buildMovementsFixture();
-    const remove = new FormData();
-    remove.set("intent", "delete-refund");
-    remove.set("refundId", fixture.refunds[0]!.id);
-    remove.set("version", fixture.refunds[0]!.updatedAt.toISOString());
-
-    await expect(postAction(remove, "auditor")).rejects.toMatchObject({
-      status: 403,
-    });
-    await expect(
-      loadMovementsList(await listRequest("", "auditor")),
-    ).resolves.toMatchObject({ canWrite: false, totalCount: 5 });
-  });
-
-  test("refuses an intent the list does not hold", async () => {
-    const form = new FormData();
-    form.set("intent", "create-movement");
-
-    await expect(postAction(form, "admin")).resolves.toMatchObject({
-      status: "error",
     });
   });
 });
@@ -651,17 +533,6 @@ async function listRequest(
   });
 
   return request;
-}
-
-async function postAction(formData: FormData, role: "admin" | "auditor") {
-  const { request } = await createSignedInRequest({
-    body: formData,
-    email: `${crypto.randomUUID()}@example.com`,
-    role,
-    requestUrl: "http://localhost/administracion/movimientos",
-  });
-
-  return await handleMovementsListAction(request);
 }
 
 type MovementsList = Awaited<ReturnType<typeof loadMovementsList>>;

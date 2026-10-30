@@ -270,10 +270,7 @@ export function AcademyFinancesRouteView({
             />
           </TabsContent>
           <TabsContent value={movementsTabValue} className="pt-2">
-            <OwnerMovementsTab
-              availableBalanceAmount={loaderData.summary.availableBalanceAmount}
-              movements={loaderData.movements}
-            />
+            <OwnerMovementsTab movements={loaderData.movements} />
           </TabsContent>
         </Tabs>
       </div>

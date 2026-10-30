@@ -46,20 +46,11 @@ import {
   readSeminarCobroPreviews,
   type SeminarCobroPreview,
 } from "@/lib/finances/seminar-cobro-presets.server";
-import {
-  readOwnerMovements,
-  type OwnerMovementRow,
-} from "@/features/admin/finances/owner-movements/server";
-import {
-  handleDeleteRefund,
-  handleUpdateRefund,
-} from "@/features/admin/finances/refunds/server";
-import {
-  deleteRefundIntent,
-  updateRefundIntent,
-  type RefundActionData,
-} from "@/features/admin/finances/refunds/shared";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
+import {
+  readOwnerEventMovements,
+  type OwnerEventMovement,
+} from "@/lib/finances/owner-event-movements.server";
 import { readFormData } from "@/lib/shared/read-form-data";
 import type { PresetInscription } from "./preset-figures";
 import {
@@ -104,7 +95,7 @@ export async function loadAcademyFinances(input: {
           {} as Record<string, PresetPriceOption[]>,
           {} as Record<string, string | null>,
           {} as Record<string, SeminarCobroPreview>,
-          [] as OwnerMovementRow[],
+          [] as OwnerEventMovement[],
         ]
       : await Promise.all([
           readAcademyEventOperationalFinanceDetail({
@@ -125,7 +116,7 @@ export async function loadAcademyFinances(input: {
             eventId: eventContext.selectedEventId,
             now: new Date(),
           }),
-          readOwnerMovements({
+          readOwnerEventMovements({
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
           }),
@@ -204,22 +195,11 @@ export async function handleAcademyFinancesAction(input: {
   request: Request;
   // Injectable emission inputs: the tests pass a mocked ARCA client.
   resolveEmissionDeps?: () => ComprobanteEmissionDeps;
-}): Promise<
-  AcademyFinancesActionData | BulkEmissionActionData | RefundActionData | never
-> {
+}): Promise<AcademyFinancesActionData | BulkEmissionActionData | never> {
   await requireAdminPanelWriter(input.request);
   const academyId = readFinanceAcademyId(input.params);
   const formData = await readFormData(input.request);
   const intent = String(formData.get("intent") ?? "");
-
-  // The `Movimientos` tab's writes, with their own access checks.
-  if (intent === updateRefundIntent) {
-    return await handleUpdateRefund({ formData, request: input.request });
-  }
-
-  if (intent === deleteRefundIntent) {
-    return await handleDeleteRefund({ formData, request: input.request });
-  }
 
   const eventContext = await loadEventContext(input.request);
 

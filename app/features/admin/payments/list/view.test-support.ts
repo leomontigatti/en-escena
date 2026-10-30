@@ -1,7 +1,6 @@
 import type {
   MovementsListLoaderData,
   PaymentMovementsListRow,
-  RefundMovementsListRow,
 } from "./server";
 
 export function movementsListFiltersFixture(): MovementsListLoaderData["filters"] {
@@ -36,7 +35,7 @@ export function movementsListLoaderDataFixture(
   };
 }
 
-export function paymentRowFixture(
+function paymentRowFixture(
   overrides: Partial<PaymentMovementsListRow> = {},
 ): PaymentMovementsListRow {
   return {
@@ -49,27 +48,6 @@ export function paymentRowFixture(
     kind: "payment",
     method: "transferencia",
     number: 1,
-    ...overrides,
-  };
-}
-
-export function refundRowFixture(
-  overrides: Partial<RefundMovementsListRow> = {},
-): RefundMovementsListRow {
-  return {
-    academyId: "academy_1",
-    academyName: "Academia Norte",
-    amount: 2500,
-    availableAmount: null,
-    date: "2026-03-17",
-    id: "refund_1",
-    internalNote: "Se retiró",
-    kind: "refund",
-    method: "efectivo",
-    number: 1,
-    ownerAvailableBalanceAmount: 1500,
-    reference: "REC-1",
-    version: "2026-03-17T12:00:00.000Z",
     ...overrides,
   };
 }
