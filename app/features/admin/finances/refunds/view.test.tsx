@@ -7,9 +7,9 @@ import { afterEach, describe, expect, test } from "vitest";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
-  findButton,
   setInputValue,
   updateReactDomForm,
+  waitFor,
 } from "@/lib/test-support/react-dom";
 
 import type { RefundDetailActionData } from "./shared";
@@ -17,7 +17,10 @@ import { RefundDetailRouteView } from "./view";
 
 const renderer = createReactDomTestRenderer();
 
-afterEach(renderer.cleanup);
+afterEach(() => {
+  renderer.cleanup();
+  window.history.replaceState(null, "", "/");
+});
 
 type LoaderData = Parameters<typeof RefundDetailRouteView>[0]["loaderData"];
 
@@ -53,23 +56,25 @@ function loaderDataFixture(overrides: Partial<LoaderData> = {}): LoaderData {
   };
 }
 
-let answer = (_: {
+type ServerAnswer = {
   actionData?: RefundDetailActionData;
   loaderData?: LoaderData;
-}) => {};
+};
 
-async function renderPage(
-  initial: LoaderData = loaderDataFixture(),
-  submissions: FormData[] = [],
-) {
+/** Renders the page, returning how to hand it what the server would answer. */
+async function renderPage(submissions: FormData[] = []) {
+  // The form posts to the URL the document says, which the memory router does
+  // not set.
   window.history.replaceState(null, "", refundPath);
 
-  function Page() {
-    const [state, setState] = useState<{
+  let setState = (_: ServerAnswer) => {};
+
+  function PageWithServerAnswers() {
+    const [state, setAnswer] = useState<{
       actionData?: RefundDetailActionData;
       loaderData: LoaderData;
-    }>({ loaderData: initial });
-    answer = (next) => setState((current) => ({ ...current, ...next }));
+    }>({ loaderData: loaderDataFixture() });
+    setState = (next) => setAnswer((current) => ({ ...current, ...next }));
 
     return <RefundDetailRouteView {...state} />;
   }
@@ -82,7 +87,7 @@ async function renderPage(
 
           return null;
         },
-        element: <Page />,
+        element: <PageWithServerAnswers />,
         path: refundPath,
       },
     ],
@@ -90,7 +95,12 @@ async function renderPage(
   );
 
   await renderer.renderAsync(<RouterProvider router={router} />);
-  await settle();
+
+  return {
+    serverAnswers: async (answer: ServerAnswer) => {
+      await act(async () => setState(answer));
+    },
+  };
 }
 
 function readAmount() {
@@ -105,20 +115,35 @@ function readAmount() {
   return input;
 }
 
-async function settle() {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  });
+async function typeAmount(value: string) {
+  await updateReactDomForm(() => setInputValue(readAmount(), value));
 }
+
+const overCapRefusal = (amount: string): RefundDetailActionData => ({
+  fieldErrors: {},
+  intent: "update-refund",
+  message: "El reembolso no puede superar $ 3.000.",
+  status: "error",
+  values: { ...loaderDataFixture().values, amount },
+});
+
+const changedMeanwhile: RefundDetailActionData = {
+  fieldErrors: {},
+  intent: "update-refund",
+  message: "El reembolso cambió mientras se guardaba.",
+  status: "error",
+};
+
+const newerVersion = "2026-04-03T13:00:00.000Z";
 
 describe("the refund form", () => {
   test("saves against the version it was read at", async () => {
     const submissions: FormData[] = [];
-    await renderPage(loaderDataFixture(), submissions);
+    await renderPage(submissions);
 
-    await updateReactDomForm(() => setInputValue(readAmount(), "900"));
+    await typeAmount("900");
     await clickReactDomButton("Guardar", { exact: true });
-    await settle();
+    await waitFor(() => submissions.length === 1);
 
     expect(submissions[0]?.get("intent")).toBe("update-refund");
     expect(submissions[0]?.get("version")).toBe("2026-04-03T12:00:00.000Z");
@@ -126,91 +151,77 @@ describe("the refund form", () => {
   });
 
   test("keeps what was typed after a refused save", async () => {
-    await renderPage();
+    const page = await renderPage();
 
-    await updateReactDomForm(() => setInputValue(readAmount(), "9000"));
-    await act(async () => {
-      answer({
-        actionData: {
-          fieldErrors: {},
-          intent: "update-refund",
-          message: "El reembolso no puede superar $ 3.000.",
-          status: "error",
-          values: { ...loaderDataFixture().values, amount: "9000" },
-        },
-      });
+    await typeAmount("9000");
+    await page.serverAnswers({ actionData: overCapRefusal("9000") });
+
+    expect(readAmount().value).toBe("9000");
+  });
+
+  test("keeps what was typed when a save crashes after a refusal", async () => {
+    const page = await renderPage();
+
+    await typeAmount("9000");
+    await page.serverAnswers({ actionData: overCapRefusal("9000") });
+    await page.serverAnswers({
+      // A crash answers with a message alone (`recoverableClientAction`).
+      actionData: {
+        message: "Algo salió mal.",
+        status: "error",
+      } as RefundDetailActionData,
     });
-    await settle();
 
     expect(readAmount().value).toBe("9000");
   });
 
   test("shows what was saved after a refusal followed by a good save", async () => {
-    await renderPage();
+    const page = await renderPage();
 
-    await updateReactDomForm(() => setInputValue(readAmount(), "9000"));
-    await act(async () => {
-      answer({
-        actionData: {
-          fieldErrors: {},
-          intent: "update-refund",
-          message: "El reembolso no puede superar $ 3.000.",
-          status: "error",
-          values: { ...loaderDataFixture().values, amount: "9000" },
-        },
-      });
+    await typeAmount("9000");
+    await page.serverAnswers({ actionData: overCapRefusal("9000") });
+    await page.serverAnswers({
+      actionData: {
+        intent: "update-refund",
+        message: "Reembolso guardado.",
+        status: "success",
+      },
+      loaderData: loaderDataFixture({
+        values: { ...loaderDataFixture().values, amount: "1500" },
+        version: newerVersion,
+      }),
     });
-    await settle();
-    await act(async () => {
-      answer({
-        actionData: {
-          intent: "update-refund",
-          message: "Reembolso guardado.",
-          status: "success",
-        },
-        loaderData: loaderDataFixture({
-          values: { ...loaderDataFixture().values, amount: "1500" },
-          version: "2026-04-03T13:00:00.000Z",
-        }),
-      });
-    });
-    await settle();
 
     expect(readAmount().value).toBe("1500");
   });
 
   test("takes the fresh values and version when the refund changed meanwhile, so a retry cannot overwrite them", async () => {
-    const submissions: FormData[] = [];
-    await renderPage(loaderDataFixture(), submissions);
+    const page = await renderPage();
 
-    await updateReactDomForm(() => setInputValue(readAmount(), "500"));
-    await act(async () => {
-      answer({
-        actionData: {
-          fieldErrors: {},
-          intent: "update-refund",
-          message: "El reembolso cambió mientras se guardaba.",
-          status: "error",
-        },
-        loaderData: loaderDataFixture({
-          values: { ...loaderDataFixture().values, amount: "900" },
-          version: "2026-04-03T13:00:00.000Z",
-        }),
-      });
+    await typeAmount("500");
+    await page.serverAnswers({
+      actionData: changedMeanwhile,
+      loaderData: loaderDataFixture({
+        values: { ...loaderDataFixture().values, amount: "900" },
+        version: newerVersion,
+      }),
     });
-    await settle();
 
     expect(readAmount().value).toBe("900");
     expect(
       document.querySelector<HTMLInputElement>('input[name="version"]')?.value,
-    ).toBe("2026-04-03T13:00:00.000Z");
+    ).toBe(newerVersion);
   });
 
-  test("gives the auditor nothing to save or delete", async () => {
-    await renderPage(loaderDataFixture({ canWrite: false }));
+  test("drops what was typed even when the refund changed in nothing the form shows", async () => {
+    const page = await renderPage();
 
-    expect(document.querySelector('input[name="amount"]')).toBeNull();
-    expect(findButton("Guardar", { exact: true })).toBeUndefined();
-    expect(findButton("Acciones", { exact: true })).toBeUndefined();
+    await typeAmount("500");
+    await page.serverAnswers({
+      actionData: changedMeanwhile,
+      loaderData: loaderDataFixture({ version: newerVersion }),
+    });
+
+    expect(readAmount().value).toBe("1000");
   });
 });

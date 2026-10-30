@@ -188,10 +188,12 @@ describe("correcting a refund", () => {
       message: "Reembolso guardado.",
       status: "success",
     });
-    await expect(readRefund(refund.id)).resolves.toMatchObject({
-      amount: 3000,
-      internalNote: "Corregido",
-      reference: "TRX-R2",
+    await expect(read(refund.id)).resolves.toMatchObject({
+      refund: {
+        amount: 3000,
+        internalNote: "Corregido",
+        reference: "TRX-R2",
+      },
     });
   });
 
@@ -214,9 +216,8 @@ describe("correcting a refund", () => {
       editForm(refund, { academyId: other.academy.id, eventId: "other" }),
     );
 
-    await expect(readRefund(refund.id)).resolves.toMatchObject({
-      academyId,
-      eventId,
+    await expect(read(refund.id)).resolves.toMatchObject({
+      refund: { academyId, eventId },
     });
   });
 
@@ -232,7 +233,9 @@ describe("correcting a refund", () => {
       status: "error",
     });
     expect(answer).not.toHaveProperty("values");
-    await expect(readRefund(refund.id)).resolves.toMatchObject({ amount: 900 });
+    await expect(read(refund.id)).resolves.toMatchObject({
+      refund: { amount: 900 },
+    });
   });
 
   test("deletes it, raising the `Saldo disponible` by its amount, and returns to the list", async () => {
@@ -262,7 +265,9 @@ describe("correcting a refund", () => {
     await expect(
       post(refund.id, deleteForm(refund.version)),
     ).resolves.toMatchObject({ status: "error" });
-    await expect(readRefund(refund.id)).resolves.toMatchObject({ amount: 900 });
+    await expect(read(refund.id)).resolves.toMatchObject({
+      refund: { amount: 900 },
+    });
   });
 
   test("refuses the auditor, an academy and an individual every correction", async () => {
@@ -296,8 +301,8 @@ describe("correcting a refund", () => {
         ).rejects.toMatchObject({ status: 403 });
       }
     }
-    await expect(readRefund(refund.id)).resolves.toMatchObject({
-      amount: 1000,
+    await expect(read(refund.id)).resolves.toMatchObject({
+      refund: { amount: 1000 },
     });
   });
 });

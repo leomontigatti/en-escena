@@ -31,6 +31,7 @@ import { paymentMethodOptions } from "@/lib/finances/payment-methods";
 import {
   createValidatedRouteFormDataSubmitHandler,
   isRouteFormPending,
+  useLastRefusedValues,
   useOptionalNavigation,
   useSavedFormValues,
 } from "@/lib/shared/forms";
@@ -83,7 +84,14 @@ export function RefundDetailRouteView({
         }
       >
         {canWrite ? (
-          <EditableRefundForm actionData={actionData} loaderData={loaderData} />
+          // A new version starts a new form: a retry must not save what was
+          // typed against a refund that has since changed, even when what the
+          // form shows of it reads the same.
+          <EditableRefundForm
+            key={version}
+            actionData={actionData}
+            loaderData={loaderData}
+          />
         ) : (
           <ReadOnlyRefund refund={refund} />
         )}
@@ -132,7 +140,7 @@ function EditableRefundForm({
       ? actionData.values
       : undefined;
 
-  useSavedFormValues(form, loaderData.values, refused);
+  useSavedFormValues(form, loaderData.values, useLastRefusedValues(refused));
 
   return (
     <form
