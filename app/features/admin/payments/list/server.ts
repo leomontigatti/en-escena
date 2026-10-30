@@ -115,7 +115,7 @@ export type MovementsListSummary = {
 
 export type MovementsListLoaderData = {
   /**
-   * False for the auditor: no `Nuevo pago`, the `Exportar` entry instead, and
+   * False for the auditor: no `Nuevo movimiento`, the `Exportar` entry instead, and
    * a refund's dialog that only reads.
    */
   canWrite: boolean;

@@ -977,3 +977,24 @@ Rejected:
 - **Leaving each payment's `Disponible` blind to refunds.** The sum would
   overstate the pool by every refund, and the funding cap would need a second
   rule to stop allocating refunded money.
+
+## Correction (2026-10-30): a refund is registered from the movement form
+
+Appended, not edited in place. The 2026-10-24 correction made the tab on the
+academy's finance page "the only place a refund is registered", because a refund
+is always born inside an academy and its cap showed there. The decision (owner,
+2026-10-30; [#728](https://github.com/leomontigatti/en-escena/issues/728)) moves
+it:
+
+- **Payments and refunds are registered from one form**, at
+  `/administracion/movimientos/nuevo`, with a `Tipo` beside the academy, so both
+  ways money moves start from the same place. `Nuevo pago` became
+  `Nuevo movimiento`. The tab on the finance page lists and corrects, and
+  registers nothing.
+- **The form states no maximum.** The cap is unchanged and is still checked
+  under the pool lock; an amount above it is the submit's refusal, a toast, like
+  any other server refusal
+  ([form-feedback.md](../agents/form-feedback.md)).
+
+The cost, accepted: the administrator no longer sees the owner's
+`Saldo disponible` while filling the form, and learns it from the refusal.

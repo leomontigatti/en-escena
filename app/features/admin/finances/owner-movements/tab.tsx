@@ -7,7 +7,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EditRefundDialog } from "@/features/admin/finances/refunds/edit-dialog";
-import { RegisterRefundDialog } from "@/features/admin/finances/refunds/register-dialog";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatAmount, formatDate } from "@/lib/finances/formatters";
 import {
@@ -23,10 +22,8 @@ import type { OwnerMovementRow } from "./server";
 
 /**
  * The `Movimientos` tab of an owner's finance page: its payments and refunds
- * in the active event, newest first, never its allocations. It holds the only
- * `Registrar reembolso`, so a refund is always registered with the owner's
- * `Saldo disponible` in sight. A refund's number opens its edit/delete
- * dialog, since a refund has no page of its own.
+ * in the active event, newest first, never its allocations. A refund's number
+ * opens its edit/delete dialog, since a refund has no page of its own.
  */
 export function OwnerMovementsTab({
   availableBalanceAmount,
@@ -35,7 +32,6 @@ export function OwnerMovementsTab({
   availableBalanceAmount: number;
   movements: OwnerMovementRow[];
 }) {
-  const [isRegistering, setIsRegistering] = useState(false);
   const [openRefundId, setOpenRefundId] = useState<string | null>(null);
   // Read from the revalidated rows, so a refund deleted meanwhile closes its
   // dialog.
@@ -49,11 +45,6 @@ export function OwnerMovementsTab({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <Button type="button" onClick={() => setIsRegistering(true)}>
-          Registrar reembolso
-        </Button>
-      </div>
       <ClientDataTable
         rows={movements}
         columns={columns}
@@ -63,12 +54,6 @@ export function OwnerMovementsTab({
         pageSize={25}
         emptyMessage="No hay movimientos para mostrar."
       />
-      {isRegistering ? (
-        <RegisterRefundDialog
-          availableBalanceAmount={availableBalanceAmount}
-          onOpenChange={setIsRegistering}
-        />
-      ) : null}
       {openRefund ? (
         <EditRefundDialog
           key={openRefund.id}

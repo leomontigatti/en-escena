@@ -454,11 +454,9 @@ describe("correcting a refund from the admin movements list", () => {
     ).resolves.toMatchObject({ canWrite: false, totalCount: 5 });
   });
 
-  // Registering is the owner tab's alone, so this list answers it as it
-  // answers any intent it does not hold.
   test("refuses an intent the list does not hold", async () => {
     const form = new FormData();
-    form.set("intent", "register-refund");
+    form.set("intent", "create-movement");
 
     await expect(postAction(form, "admin")).resolves.toMatchObject({
       status: "error",

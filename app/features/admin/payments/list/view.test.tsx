@@ -22,11 +22,11 @@ describe("MovementsListRouteView", () => {
     expect(markup).toContain('aria-label="Seleccionar fila"');
   });
 
-  test("offers `Nuevo pago` to the administrator and not to the auditor", () => {
-    expect(render()).toContain("Nuevo pago");
+  test("offers `Nuevo movimiento` to the administrator and not to the auditor", () => {
+    expect(render()).toContain("Nuevo movimiento");
     expect(
       render(movementsListLoaderDataFixture({ canWrite: false })),
-    ).not.toContain("Nuevo pago");
+    ).not.toContain("Nuevo movimiento");
   });
 
   // A filter that matched nothing must not fall back to the "no movements

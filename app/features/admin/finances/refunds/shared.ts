@@ -1,20 +1,17 @@
 import { z } from "zod";
 
 import { registerPaymentSchema } from "@/features/admin/finances/academy-choreographies/shared";
-import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
 
-export const registerRefundIntent = "register-refund";
 export const updateRefundIntent = "update-refund";
 export const deleteRefundIntent = "delete-refund";
 
 /**
  * A refund's fields: a payment's, with its own date. The amount, the method
  * (over the payment methods) and the two free texts read as a payment's do.
- * Registering and editing share them; neither carries an academy or an event,
- * which the page (on register) and the refund itself (on edit) fix. The date
- * is read here; that it is not after today is the write module's rule, which
- * the dialogs check early (`isRefundDateNotFuture`).
+ * No academy or event: the refund keeps its own. The date is read here; that it
+ * is not after today is the write module's rule, which the edit dialog checks
+ * early (`isRefundDateNotFuture`).
  */
 const refundFieldsSchema = z.object({
   refundDate: z
@@ -46,16 +43,12 @@ export const futureRefundDateMessage =
   "La fecha del reembolso no puede ser futura.";
 
 /**
- * The dialogs' early answer to a date after today, so it shows on the field
+ * The edit dialog's early answer to a date after today, so it shows on the field
  * before anything posts; the write module refuses it again on save.
  */
 export function isRefundDateNotFuture(values: { refundDate: string }) {
   return !isFutureDateOnly(values.refundDate);
 }
-
-export const registerRefundSchema = refundFieldsSchema.extend({
-  intent: z.literal(registerRefundIntent),
-});
 
 /**
  * An edit names the refund and the version it was made against
@@ -67,19 +60,7 @@ export const updateRefundSchema = refundFieldsSchema.extend({
   version: z.string().min(1),
 });
 
-export type RegisterRefundFormValues = z.input<typeof registerRefundSchema>;
 export type UpdateRefundFormValues = z.input<typeof updateRefundSchema>;
-
-export function defaultRegisterRefundValues(): RegisterRefundFormValues {
-  return {
-    intent: registerRefundIntent,
-    refundDate: getBusinessDateOnly(),
-    amount: "",
-    refundMethod: "transferencia",
-    reference: "",
-    internalNote: "",
-  };
-}
 
 function readRefundFieldValues(formData: FormData) {
   return {
@@ -89,12 +70,6 @@ function readRefundFieldValues(formData: FormData) {
     reference: String(formData.get("reference") ?? "").trim(),
     internalNote: String(formData.get("internalNote") ?? "").trim(),
   };
-}
-
-export function readRegisterRefundValues(
-  formData: FormData,
-): RegisterRefundFormValues {
-  return { intent: registerRefundIntent, ...readRefundFieldValues(formData) };
 }
 
 export function readUpdateRefundValues(
@@ -109,10 +84,7 @@ export function readUpdateRefundValues(
 }
 
 export type RefundActionData = {
-  intent:
-    | typeof deleteRefundIntent
-    | typeof registerRefundIntent
-    | typeof updateRefundIntent;
+  intent: typeof deleteRefundIntent | typeof updateRefundIntent;
   message: string;
   status: "error" | "success";
 };

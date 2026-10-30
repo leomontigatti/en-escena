@@ -29,7 +29,7 @@ export const ownerMovementFacetedFilters: DataTableFacetedFiltersOf<
 > = [
   {
     id: "medio",
-    label: "Medio de pago",
+    label: "Medio",
     options: [...paymentMethodOptions],
     renderValue: (option) => {
       const method = paymentMethodValues.find(

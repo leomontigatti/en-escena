@@ -242,8 +242,8 @@ export function MovementsListRouteView({
       action={
         loaderData.canWrite
           ? {
-              label: "Nuevo pago",
-              to: getCreatePaymentUrl(loaderData.selectedEventId),
+              label: "Nuevo movimiento",
+              to: getCreateMovementUrl(loaderData.selectedEventId),
             }
           : undefined
       }
@@ -328,10 +328,10 @@ export function MovementsListRouteView({
   );
 }
 
-function getCreatePaymentUrl(selectedEventId: string | null) {
+function getCreateMovementUrl(selectedEventId: string | null) {
   return selectedEventId
-    ? `/administracion/movimientos/pagos/nuevo?evento=${selectedEventId}`
-    : "/administracion/movimientos/pagos/nuevo";
+    ? `/administracion/movimientos/nuevo?evento=${selectedEventId}`
+    : "/administracion/movimientos/nuevo";
 }
 
 function buildInitialFacetedFilterValues(

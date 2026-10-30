@@ -22,7 +22,7 @@ export const registerPaymentSchema = z.object({
       if (!value) {
         context.addIssue({
           code: "custom",
-          message: "Ingresá la fecha de pago.",
+          message: "Ingresá la fecha.",
         });
         return;
       }
@@ -38,7 +38,7 @@ export const registerPaymentSchema = z.object({
       if (isFutureDateOnly(value)) {
         context.addIssue({
           code: "custom",
-          message: "La fecha de pago no puede ser futura.",
+          message: "La fecha no puede ser futura.",
         });
       }
     }),
@@ -56,7 +56,7 @@ export const registerPaymentSchema = z.object({
     .trim()
     .pipe(
       z.enum(paymentMethodValues, {
-        message: "Seleccioná un medio de pago.",
+        message: "Seleccioná un medio.",
       }),
     ),
   reference: z.string().trim(),

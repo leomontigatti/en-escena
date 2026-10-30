@@ -14,7 +14,7 @@ import { loader as dancersLoader } from "@/routes/administracion.bailarines";
 import { loader as choreographiesLoader } from "@/routes/administracion.coreografias";
 import { loader as eventsLoader } from "@/routes/administracion.eventos";
 import { loader as paymentsLoader } from "@/routes/administracion.movimientos";
-import { loader as newPaymentLoader } from "@/routes/administracion.movimientos_.pagos.nuevo";
+import { loader as newPaymentLoader } from "@/routes/administracion.movimientos_.nuevo";
 import { loader as professorsLoader } from "@/routes/administracion.profesores";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { expectThrownResponse } from "@/lib/test-support/http";
@@ -229,7 +229,7 @@ describe("the administration panel for an auditor", () => {
 
   test.each([
     ["Eventos", "/administracion/eventos", eventsLoader],
-    ["Nuevo pago", "/administracion/movimientos/pagos/nuevo", newPaymentLoader],
+    ["Nuevo movimiento", "/administracion/movimientos/nuevo", newPaymentLoader],
   ] as const)(
     "is still refused the admin-only %s screen",
     async (_label, path, child) => {

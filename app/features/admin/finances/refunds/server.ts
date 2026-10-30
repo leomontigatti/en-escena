@@ -1,10 +1,7 @@
-import { readFinanceAcademy } from "@/features/admin/finances/academy.server";
-import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { formatAmount } from "@/lib/finances/formatters";
 import {
   deleteRefund,
-  registerRefund,
   updateRefund,
   type RefundRefusal,
 } from "@/lib/finances/refunds.server";
@@ -12,67 +9,15 @@ import {
 import {
   deleteRefundIntent,
   futureRefundDateMessage,
-  readRegisterRefundValues,
   readUpdateRefundValues,
-  registerRefundIntent,
-  registerRefundSchema,
   updateRefundIntent,
   updateRefundSchema,
   type RefundActionData,
 } from "./shared";
 
-/**
- * Registers a `Reembolso` for the owner a finance page is about, against the
- * active event: administration only, and the cap is the write module's
- * (`registerRefund`). A dialog over the owner's `Movimientos` tab posts it, so
- * it answers in place and never redirects (docs/agents/form-feedback.md).
- */
-export async function handleRegisterRefund(input: {
-  academyId: string;
-  formData: FormData;
-  request: Request;
-}): Promise<RefundActionData> {
-  await requireAdminPanelWriter(input.request);
-  const academy = await readFinanceAcademy(input.academyId);
-  const eventContext = await loadEventContext(input.request);
-
-  if (eventContext.selectedEventId === null) {
-    return refusal(
-      registerRefundIntent,
-      "Activá un evento para registrar reembolsos.",
-    );
-  }
-
-  const parsed = registerRefundSchema.safeParse(
-    readRegisterRefundValues(input.formData),
-  );
-
-  if (!parsed.success) {
-    return refusal(registerRefundIntent, firstIssue(parsed.error));
-  }
-
-  const result = await registerRefund({
-    academyId: academy.id,
-    amount: Number(parsed.data.amount),
-    eventId: eventContext.selectedEventId,
-    internalNote: parsed.data.internalNote || null,
-    reference: parsed.data.reference || null,
-    refundDate: parsed.data.refundDate,
-    refundMethod: parsed.data.refundMethod,
-  });
-
-  if (!result.ok) {
-    return refusal(
-      registerRefundIntent,
-      refusalMessage(result, refundAboveBalanceMessage),
-    );
-  }
-
-  return {
-    intent: registerRefundIntent,
-    message: "Reembolso registrado.",
-    status: "success",
-  };
+/** The copy for a refusal of `registerRefund`, shown as the submit's toast. */
+export function refundRegistrationRefusalMessage(refusal: RefundRefusal) {
+  return refusalMessage(refusal, refundAboveBalanceMessage);
 }
 
 /**

@@ -3,8 +3,8 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { seminarInscriptions, seminarPrices, seminars } from "@/db/schema";
 import {
-  handlePaymentCreateAction,
-  loadPaymentCreate,
+  handleMovementCreateAction,
+  loadMovementCreate,
 } from "@/features/admin/payments/create/server";
 import { buildGlobalPaymentRequest } from "@/lib/admin/finances/finances.test-support";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
@@ -87,11 +87,11 @@ async function recordPayment(ownerId: string, amount: number) {
     amount: String(amount),
     paymentDate: "2026-04-01",
     paymentMethod: "transferencia",
-    requestUrl: "http://localhost/administracion/movimientos/pagos/nuevo",
+    requestUrl: "http://localhost/administracion/movimientos/nuevo",
     role: "admin",
   });
 
-  await expect(handlePaymentCreateAction(request)).rejects.toBeInstanceOf(
+  await expect(handleMovementCreateAction(request)).rejects.toBeInstanceOf(
     Response,
   );
 }
@@ -122,11 +122,11 @@ describe("an individual's seminar money", () => {
     });
     const { request } = await createSignedInRequest({
       email: `admin.${crypto.randomUUID()}@example.com`,
-      requestUrl: "http://localhost/administracion/movimientos/pagos/nuevo",
+      requestUrl: "http://localhost/administracion/movimientos/nuevo",
       role: "admin",
     });
 
-    const loaderData = await loadPaymentCreate(request);
+    const loaderData = await loadMovementCreate(request);
 
     expect(
       loaderData.academies.map(({ kind, name }) => ({ kind, name })),

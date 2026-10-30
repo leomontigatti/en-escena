@@ -28,6 +28,7 @@ import {
   loader as financeAccountsLoader,
 } from "@/routes/administracion.finanzas";
 import { date as choreographyDate } from "@/features/portal/choreographies/test-support/db";
+import type { MovementKind } from "@/lib/finances/movement-kinds";
 import { renderInDataRouter } from "@/lib/test-support/data-router";
 import { createSavedEvent } from "@/lib/test-support/events";
 
@@ -62,6 +63,7 @@ export async function buildGlobalPaymentRequest(input: {
   academyId: string;
   amount: string;
   internalNote?: string;
+  movementKind?: MovementKind;
   paymentDate: string;
   paymentMethod: string;
   reference?: string;
@@ -69,7 +71,8 @@ export async function buildGlobalPaymentRequest(input: {
   role: "admin" | "auditor";
 }) {
   const result = await buildSignedFormPostRequest(input, (formData) => {
-    formData.set("intent", "create-payment");
+    formData.set("intent", "create-movement");
+    formData.set("movementKind", input.movementKind ?? "payment");
     formData.set("academyId", input.academyId);
     formData.set("amount", input.amount);
     formData.set("paymentDate", input.paymentDate);
@@ -257,6 +260,6 @@ export function paymentCreateRouteArgs(request: Request) {
     params: {},
     context: new RouterContextProvider(),
     url: readRequestedUrl(request),
-    pattern: "/administracion/movimientos/pagos/nuevo",
+    pattern: "/administracion/movimientos/nuevo",
   };
 }

@@ -398,14 +398,11 @@ function ReadOnlyPaymentDetail({ loaderData }: { loaderData: LoaderData }) {
             label="Academia"
             value={payment.academyName}
           />
-          <ReadOnlyDateField
-            label="Fecha de pago"
-            value={payment.paymentDate}
-          />
+          <ReadOnlyDateField label="Fecha" value={payment.paymentDate} />
           <ReadOnlyField label="Referencia" value={payment.reference ?? ""} />
           <ReadOnlyField label="Monto" value={formatAmount(payment.amount)} />
           <ReadOnlySelectField
-            label="Medio de pago"
+            label="Medio"
             options={paymentMethodOptions}
             value={payment.paymentMethod}
           />

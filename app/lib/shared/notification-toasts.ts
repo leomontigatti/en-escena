@@ -45,6 +45,7 @@ export const notificationToastIds = {
   "price-deleted": "route-notification:price-deleted",
   "payment-recorded": "route-notification:payment-recorded",
   "payment-saved": "route-notification:payment-saved",
+  "refund-recorded": "route-notification:refund-recorded",
   "comprobante-recovered": "route-notification:comprobante-recovered",
   "results-hidden": "route-notification:results-hidden",
   "category-saved": "route-notification:category-saved",
@@ -253,6 +254,11 @@ export const notificationToasts = {
   "payment-saved": {
     id: notificationToastIds["payment-saved"],
     message: "Pago guardado.",
+    variant: "success",
+  },
+  "refund-recorded": {
+    id: notificationToastIds["refund-recorded"],
+    message: "Reembolso registrado.",
     variant: "success",
   },
   "comprobante-recovered": {

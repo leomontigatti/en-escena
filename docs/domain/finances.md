@@ -670,11 +670,15 @@ they live in one module.
   split above reads it as drawing on each payment's free money newest-first, in
   the module and in its SQL form alike, so funding can never spend refunded
   money. A refund changes no inscription's status, comprobante comparison or
-  15-day clock. It is registered from the `Movimientos` tab of the owner's
-  finance page, the only place to do so, which lists the owner's payments and
-  refunds newest first, never its allocations. The portal's and an
-  individual's own `Movimientos` page list the owner's refunds beside its
-  payments the same way, kind badged, without either's internal note. The
+  15-day clock. It is registered like a payment, at
+  `/administracion/movimientos/nuevo`, one form whose `Tipo` says which of the
+  two it is; an amount above the cap is the submit's refusal, a toast, and the
+  form states no maximum. A payment lands on its detail, a refund back on the
+  list, since it has no page. The `Movimientos` tab of the owner's finance page
+  lists the owner's payments and refunds newest first, never its allocations.
+  The portal's and an individual's own `Movimientos` page list the owner's
+  refunds beside its payments the same way, kind badged, without either's
+  internal note. The
   event-wide list at `/administracion/movimientos` pages both kinds as one
   set, ordering a day's movements by recording time as the owner's tab does
   (the workbook puts payments first); its cards read the whole event, never

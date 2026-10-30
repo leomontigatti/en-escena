@@ -3,7 +3,9 @@
  * owner's pool. Every list of movements tells them apart by this badge, with
  * the amount always positive.
  */
-export type MovementKind = "payment" | "refund";
+export const movementKinds = ["payment", "refund"] as const;
+
+export type MovementKind = (typeof movementKinds)[number];
 
 export const movementKindLabels = {
   payment: "Pago",

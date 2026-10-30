@@ -78,36 +78,6 @@ describe("OwnerMovementsTab", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 
-  test("the refund dialog states the `Saldo disponible` as its maximum and posts nothing above it", async () => {
-    const submissions: FormData[] = [];
-    await renderTab(submissions);
-
-    await clickReactDomButton("Registrar reembolso");
-
-    const dialog = document.querySelector('[role="dialog"]');
-    expect(dialog?.textContent).toContain(
-      "Hasta $ 1.500, el saldo disponible.",
-    );
-
-    const amount = document.querySelector<HTMLInputElement>("#refund-amount");
-    await updateReactDomForm(() => setInputValue(amount!, "1501"));
-    await clickReactDomButton("Registrar", { exact: true, within: dialog });
-
-    await waitFor(() =>
-      (dialog?.textContent ?? "").includes(
-        "El reembolso no puede superar el saldo disponible de $ 1.500.",
-      ),
-    );
-    expect(submissions).toEqual([]);
-
-    await updateReactDomForm(() => setInputValue(amount!, "1500"));
-    await clickReactDomButton("Registrar", { exact: true, within: dialog });
-
-    await waitFor(() => submissions.length === 1);
-    expect(submissions[0]?.get("intent")).toBe("register-refund");
-    expect(submissions[0]?.get("amount")).toBe("1500");
-  });
-
   test("a refund's number opens its dialog, capped at the balance plus its own amount; a payment's opens none", async () => {
     const submissions: FormData[] = [];
     await renderTab(submissions);
@@ -184,24 +154,6 @@ describe("OwnerMovementsTab", () => {
     });
   });
 
-  test("`Registrar` stays disabled until the form differs from its empty defaults", async () => {
-    await renderTab();
-
-    await clickReactDomButton("Registrar reembolso");
-
-    const dialog = document.querySelector('[role="dialog"]');
-    const register = () =>
-      findButton("Registrar", { exact: true, within: dialog });
-    expect(register()?.disabled).toBe(true);
-
-    const amount = document.querySelector<HTMLInputElement>("#refund-amount");
-    await updateReactDomForm(() => setInputValue(amount!, "100"));
-    expect(register()?.disabled).toBe(false);
-
-    await updateReactDomForm(() => setInputValue(amount!, ""));
-    expect(register()?.disabled).toBe(true);
-  });
-
   test("`Guardar` cannot post an edit while a deletion runs", async () => {
     const submissions: FormData[] = [];
     let release = () => {};
@@ -253,35 +205,6 @@ describe("OwnerMovementsTab", () => {
         dayButton.click();
       });
     }
-
-    test("is refused in the register dialog before anything posts", async () => {
-      vi.useFakeTimers({
-        now: new Date("2026-04-15T15:00:00Z"),
-        toFake: ["Date"],
-      });
-      const submissions: FormData[] = [];
-      await renderTab(submissions);
-
-      await clickReactDomButton("Registrar reembolso");
-      const dialog = document.querySelector('[role="dialog"]');
-      const amount = document.querySelector<HTMLInputElement>("#refund-amount");
-      await updateReactDomForm(() => setInputValue(amount!, "100"));
-      await pickApril("#refund-date", 20);
-      await clickReactDomButton("Registrar", { exact: true, within: dialog });
-
-      await waitFor(() =>
-        (dialog?.textContent ?? "").includes(
-          "La fecha del reembolso no puede ser futura.",
-        ),
-      );
-      expect(submissions).toEqual([]);
-
-      await pickApril("#refund-date", 15);
-      await clickReactDomButton("Registrar", { exact: true, within: dialog });
-
-      await waitFor(() => submissions.length === 1);
-      expect(submissions[0]?.get("refundDate")).toBe("2026-04-15");
-    });
 
     test("is refused in the edit dialog before anything posts", async () => {
       vi.useFakeTimers({

@@ -4,7 +4,7 @@ import { act } from "react";
 import { createMemoryRouter, redirect, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { NewPaymentRouteView } from "@/features/admin/payments/create/view";
+import { NewMovementRouteView } from "@/features/admin/payments/create/view";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
@@ -17,9 +17,9 @@ const renderer = createReactDomTestRenderer();
 
 afterEach(renderer.cleanup);
 
-const createPath = "/administracion/movimientos/pagos/nuevo";
+const createPath = "/administracion/movimientos/nuevo";
 
-describe("the payment creation form", () => {
+describe("the movement creation form", () => {
   test("keeps `Guardar` off until something is typed, and `Descartar cambios` empties it again", async () => {
     await renderPage();
 
@@ -53,6 +53,18 @@ describe("the payment creation form", () => {
     expect(page.pathname()).toBe(createPath);
   });
 
+  test("posts the kind with the rest of the form", async () => {
+    const submissions: FormData[] = [];
+    await renderPage({ submissions });
+
+    await typeAmount("15000");
+    await clickReactDomButton("Guardar", { exact: true });
+    await settle();
+
+    expect(submissions[0]?.get("movementKind")).toBe("payment");
+    expect(submissions[0]?.get("intent")).toBe("create-movement");
+  });
+
   test("lets the save redirect to the new payment without asking", async () => {
     const page = await renderPage();
 
@@ -84,6 +96,7 @@ const emptyValues = {
   academyId: "academy_1",
   amount: "",
   internalNote: "",
+  movementKind: "payment",
   paymentDate: "2026-05-10",
   paymentMethod: "transferencia",
   reference: "",
@@ -91,8 +104,10 @@ const emptyValues = {
 
 async function renderPage({
   actionData,
+  submissions = [],
 }: {
-  actionData?: Parameters<typeof NewPaymentRouteView>[0]["actionData"];
+  actionData?: Parameters<typeof NewMovementRouteView>[0]["actionData"];
+  submissions?: FormData[];
 } = {}) {
   // The form posts to the URL the document says, which the memory router does
   // not set.
@@ -106,9 +121,13 @@ async function renderPage({
         path: "/administracion/movimientos/pagos/payment_1",
       },
       {
-        action: () => redirect("/administracion/movimientos/pagos/payment_1"),
+        action: async ({ request }) => {
+          submissions.push(await request.formData());
+
+          return redirect("/administracion/movimientos/pagos/payment_1");
+        },
         element: (
-          <NewPaymentRouteView
+          <NewMovementRouteView
             actionData={actionData}
             loaderData={{
               academies: [

@@ -151,6 +151,7 @@ async function seedIndividual(event: SavedEvent) {
     amount: price!.depositAmount,
     eventId: event.id,
     inscriptionId: inscription!.id,
+    now: new Date("2026-04-05T12:00:00Z"),
     priceId: price!.id,
     seminarId: created.seminar.id,
   });

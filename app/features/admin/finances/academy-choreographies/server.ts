@@ -52,12 +52,10 @@ import {
 } from "@/features/admin/finances/owner-movements/server";
 import {
   handleDeleteRefund,
-  handleRegisterRefund,
   handleUpdateRefund,
 } from "@/features/admin/finances/refunds/server";
 import {
   deleteRefundIntent,
-  registerRefundIntent,
   updateRefundIntent,
   type RefundActionData,
 } from "@/features/admin/finances/refunds/shared";
@@ -214,15 +212,7 @@ export async function handleAcademyFinancesAction(input: {
   const formData = await readFormData(input.request);
   const intent = String(formData.get("intent") ?? "");
 
-  // The `Movimientos` tab's writes, with their own event and access checks.
-  if (intent === registerRefundIntent) {
-    return await handleRegisterRefund({
-      academyId,
-      formData,
-      request: input.request,
-    });
-  }
-
+  // The `Movimientos` tab's writes, with their own access checks.
   if (intent === updateRefundIntent) {
     return await handleUpdateRefund({ formData, request: input.request });
   }
