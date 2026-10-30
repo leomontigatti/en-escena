@@ -18,6 +18,7 @@ import {
   createProfessor,
 } from "@/features/portal/choreographies/test-support/db";
 import type { Province } from "@/lib/academies/provinces";
+import { registerRefund } from "@/lib/finances/refunds.server";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSavedEvent } from "@/lib/test-support/events";
@@ -181,6 +182,29 @@ export async function seedPeriodExportFixture() {
     return paymentId;
   };
 
+  /** A refund to the academy, drawn on the money its payments left free. */
+  const addRefund = async (input: {
+    academyId: string;
+    amount: number;
+    refundDate: string;
+  }) => {
+    const result = await registerRefund({
+      academyId: input.academyId,
+      amount: input.amount,
+      eventId: event.id,
+      internalNote: null,
+      reference: null,
+      refundDate: input.refundDate,
+      refundMethod: "efectivo",
+    });
+
+    if (!result.ok) {
+      throw new Error(`The test refund was refused: ${result.reason}`);
+    }
+
+    return result.refundId;
+  };
+
   return {
     addAcademy,
     addChoreography,
@@ -188,6 +212,7 @@ export async function seedPeriodExportFixture() {
     addModality,
     addPayment,
     addProfessor: createProfessor,
+    addRefund,
     addSeminarInscription,
     catalog,
     event,

@@ -5,16 +5,17 @@ import { ClientDataTable } from "@/components/shared/data-table";
 import type { loadPortalAcademyPayments } from "@/features/portal/payments/list/server";
 import { PaymentInstructionsAlert } from "@/components/shared/payment-instructions-alert";
 import {
-  ownerPaymentColumns,
-  ownerPaymentFacetedFilterIds,
-  ownerPaymentFacetedFilters,
-} from "@/lib/finances/owner-payment-columns";
+  OwnerMovementCard,
+  ownerMovementColumns,
+  ownerMovementFacetedFilterIds,
+  ownerMovementFacetedFilters,
+} from "@/lib/finances/owner-movement-columns";
 
 type PortalAcademyPaymentsLoaderData = Awaited<
   ReturnType<typeof loadPortalAcademyPayments>
 >;
 
-export const portalPaymentFacetedFilterIds = ownerPaymentFacetedFilterIds;
+export const portalPaymentFacetedFilterIds = ownerMovementFacetedFilterIds;
 
 export function PortalAcademyPaymentsRouteView({
   loaderData,
@@ -25,12 +26,12 @@ export function PortalAcademyPaymentsRouteView({
     return (
       <PortalListPage
         titleId="payments-title"
-        title="Pagos"
-        description="Consultá los pagos que administración registró para tu academia."
+        title="Movimientos"
+        description="Consultá los pagos y reembolsos que administración registró para tu academia."
       >
         <PortalEmptyState
           title="Todavía no hay un evento activo"
-          description="Cuando administración active un evento, vas a poder consultar acá los pagos registrados."
+          description="Cuando administración active un evento, vas a poder consultar acá los pagos y reembolsos registrados."
           icon={<HandCoins aria-hidden="true" />}
         />
       </PortalListPage>
@@ -44,17 +45,17 @@ export function PortalAcademyPaymentsRouteView({
     <PaymentInstructionsAlert instructions={loaderData.paymentInstructions} />
   ) : null;
 
-  if (loaderData.payments.length === 0) {
+  if (loaderData.movements.length === 0) {
     return (
       <PortalListPage
         titleId="payments-title"
-        title="Pagos"
-        description="Consultá los pagos que administración registró para tu academia."
+        title="Movimientos"
+        description="Consultá los pagos y reembolsos que administración registró para tu academia."
       >
         {instructionsAlert}
         <PortalEmptyState
-          title="Todavía no hay pagos registrados"
-          description="Cuando administración registre un pago de tu academia en este evento, lo vas a poder revisar acá."
+          title="Todavía no hay movimientos registrados"
+          description="Cuando administración registre un pago o un reembolso de tu academia en este evento, lo vas a poder revisar acá."
           icon={<HandCoins aria-hidden="true" />}
         />
       </PortalListPage>
@@ -64,21 +65,22 @@ export function PortalAcademyPaymentsRouteView({
   return (
     <PortalListPage
       titleId="payments-title"
-      title="Pagos"
-      description="Consultá los pagos que administración registró para tu academia."
+      title="Movimientos"
+      description="Consultá los pagos y reembolsos que administración registró para tu academia."
     >
       {instructionsAlert}
       <ClientDataTable
-        rows={loaderData.payments}
-        columns={ownerPaymentColumns}
-        facetedFilters={ownerPaymentFacetedFilters}
-        getRowKey={(row) => row.id}
+        rows={loaderData.movements}
+        columns={ownerMovementColumns}
+        facetedFilters={ownerMovementFacetedFilters}
+        getRowKey={(row) => `${row.kind}:${row.id}`}
+        renderCard={(row) => <OwnerMovementCard row={row} />}
         searchPlaceholder="Buscar por referencia o número"
         initialSort={{
-          columnId: "paymentDate",
+          columnId: "date",
           direction: "desc",
         }}
-        emptyMessage="No hay pagos para mostrar."
+        emptyMessage="No hay movimientos para mostrar."
       />
     </PortalListPage>
   );

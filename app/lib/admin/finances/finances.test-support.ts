@@ -6,11 +6,16 @@ import {
   RouterProvider,
 } from "react-router";
 
+import { db } from "@/db";
+import { choreographyDancers } from "@/db/schema";
+import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
+import { choreographyTarget } from "@/lib/finances/allocation-target.server";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import {
   createChoreographyRecord,
+  createDancer,
   createEventCatalog,
 } from "@/features/portal/choreographies/test-support/db";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
@@ -23,6 +28,7 @@ import {
   loader as financeAccountsLoader,
 } from "@/routes/administracion.finanzas";
 import { date as choreographyDate } from "@/features/portal/choreographies/test-support/db";
+import type { MovementKind } from "@/lib/finances/movement-kinds";
 import { renderInDataRouter } from "@/lib/test-support/data-router";
 import { createSavedEvent } from "@/lib/test-support/events";
 
@@ -57,6 +63,7 @@ export async function buildGlobalPaymentRequest(input: {
   academyId: string;
   amount: string;
   internalNote?: string;
+  movementKind?: MovementKind;
   paymentDate: string;
   paymentMethod: string;
   reference?: string;
@@ -64,7 +71,8 @@ export async function buildGlobalPaymentRequest(input: {
   role: "admin" | "auditor";
 }) {
   const result = await buildSignedFormPostRequest(input, (formData) => {
-    formData.set("intent", "create-payment");
+    formData.set("intent", "create-movement");
+    formData.set("movementKind", input.movementKind ?? "payment");
     formData.set("academyId", input.academyId);
     formData.set("amount", input.amount);
     formData.set("paymentDate", input.paymentDate);
@@ -118,6 +126,66 @@ export async function registerPaymentForTest(input: {
     paymentMethod: "transferencia",
     reference: null,
   });
+}
+
+/**
+ * An academy with a `solo` inscription at the catalogue price (10000), the
+ * given payments numbered from 1, and the given amount funded onto the
+ * inscription through the pool (oldest payment first).
+ */
+export async function seedOwnerPoolForTest(input: {
+  academyName: string;
+  catalog?: Awaited<ReturnType<typeof createEventCatalog>>;
+  event: Awaited<ReturnType<typeof createSavedEvent>>;
+  fundedAmount: number;
+  paymentAmounts: number[];
+}) {
+  const { academy, choreography } =
+    await createAcademyFinanceChoreographyFixture({
+      academyName: input.academyName,
+      catalog: input.catalog,
+      choreographyName: `${input.academyName} solo`,
+      email: `${crypto.randomUUID()}@example.com`,
+      event: input.event,
+    });
+  const academyId = academy.academy.id;
+  const dancer = await createDancer(academyId, {
+    firstName: "Ana",
+    lastName: input.academyName,
+  });
+  const [inscription] = await db
+    .insert(choreographyDancers)
+    .values({
+      ageAtEventStart: 14,
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+    })
+    .returning();
+
+  for (const [index, amount] of input.paymentAmounts.entries()) {
+    await registerPaymentForTest({
+      academyId,
+      amount: String(amount),
+      eventId: input.event.id,
+      paymentDate: `2026-04-0${index + 1}`,
+    });
+  }
+
+  if (input.fundedAmount > 0) {
+    const funded = await db.transaction((tx) =>
+      spreadFromPool(tx, {
+        academyId,
+        amount: input.fundedAmount,
+        eventId: input.event.id,
+        target: choreographyTarget(inscription!.id),
+      }),
+    );
+    if (!funded.ok) {
+      throw new Error(`The test funding was refused: ${funded.message}`);
+    }
+  }
+
+  return { academyId, inscriptionId: inscription!.id };
 }
 
 export function renderAcademyFinancesRoute(input: {
@@ -192,6 +260,6 @@ export function paymentCreateRouteArgs(request: Request) {
     params: {},
     context: new RouterContextProvider(),
     url: readRequestedUrl(request),
-    pattern: "/administracion/pagos/nuevo",
+    pattern: "/administracion/movimientos/nuevo",
   };
 }

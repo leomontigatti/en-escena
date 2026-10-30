@@ -2,8 +2,14 @@ import { and, eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { choreographyDancers, paymentAllocations, payments } from "@/db/schema";
+import {
+  choreographyDancers,
+  paymentAllocations,
+  payments,
+  refunds,
+} from "@/db/schema";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
+import { registerRefundForTest } from "@/lib/test-support/refunds";
 import {
   createChoreographyRecord,
   createEventCatalog,
@@ -24,7 +30,7 @@ import {
 } from "../../../../../tests/db/harness";
 import { runBehindAHolder } from "../../../../../tests/db/lock-contention";
 
-import { handlePaymentDetailAction } from "./server";
+import { handlePaymentDetailAction, loadPaymentDetail } from "./server";
 import { deletePaymentIntent, updatePaymentIntent } from "./shared";
 
 installDatabaseTestHooks();
@@ -321,6 +327,231 @@ describe("admin payment detail", () => {
 });
 
 /**
+ * Refunds draw on the owner's pool, never on one payment, so a payment that
+ * leaves or shrinks can take with it money a refund already handed back. The
+ * pool floor refuses that, and nothing else.
+ */
+describe("a payment edit or deletion against the owner's refunds", () => {
+  const refusedMessage =
+    "Los reembolsos superarían el saldo disponible. Editá o eliminá un reembolso primero.";
+
+  // Two payments of 3000 and 2000, 1000 allocated, 2500 refunded: 1500 left.
+  async function seedRefundedPool() {
+    const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+    const academy = await createAcademyUser({
+      email: `${crypto.randomUUID()}@example.com`,
+      academyName: "Academia Reembolsada",
+    });
+    const otherAcademy = await createAcademyUser({
+      email: `${crypto.randomUUID()}@example.com`,
+      academyName: "Academia Destino",
+    });
+
+    for (const [amount, reference] of [
+      [3000, "PRIMERO"],
+      [2000, "SEGUNDO"],
+    ] as const) {
+      await registerAcademyEventPayment({
+        academyId: academy.academy.id,
+        amount,
+        eventId: event.id,
+        internalNote: null,
+        paymentDate: "2026-03-15",
+        paymentMethod: "transferencia",
+        reference,
+      });
+    }
+
+    const first = await findPaymentByReference(academy.academy.id, "PRIMERO");
+    const second = await findPaymentByReference(academy.academy.id, "SEGUNDO");
+    const inscription = await createFrozenInscription({
+      academyId: academy.academy.id,
+      eventId: event.id,
+    });
+
+    await db.insert(paymentAllocations).values({
+      academyId: academy.academy.id,
+      amount: 1000,
+      choreographyInscriptionId: inscription.id,
+      eventId: event.id,
+      paymentId: first.id,
+    });
+    await registerRefundForTest({
+      academyId: academy.academy.id,
+      amount: 2500,
+      eventId: event.id,
+    });
+
+    return { academy, event, first, otherAcademy, second };
+  }
+
+  function editRequest(
+    seeded: Awaited<ReturnType<typeof seedRefundedPool>>,
+    payment: Awaited<ReturnType<typeof findPaymentById>> & {},
+    fields: { academyId?: string; amount?: number },
+  ) {
+    return buildPaymentDetailPostRequest({
+      fields: {
+        academyId: fields.academyId ?? payment.academyId,
+        amount: String(fields.amount ?? payment.amount),
+        internalNote: "",
+        paymentDate: payment.paymentDate,
+        paymentMethod: payment.paymentMethod,
+        reference: payment.reference ?? "",
+      },
+      intent: updatePaymentIntent,
+      paymentId: payment.id,
+      requestUrl: paymentDetailUrl(payment.id, seeded.event.id),
+    });
+  }
+
+  function deleteRequest(
+    seeded: Awaited<ReturnType<typeof seedRefundedPool>>,
+    paymentId: string,
+  ) {
+    return buildPaymentDetailPostRequest({
+      fields: { confirmDeletion: paymentId, id: paymentId },
+      intent: deletePaymentIntent,
+      paymentId,
+      requestUrl: paymentDetailUrl(paymentId, seeded.event.id),
+    });
+  }
+
+  test("refuses a deletion that would leave the refunds uncovered, and keeps the payment", async () => {
+    const seeded = await seedRefundedPool();
+
+    // Without the 2000 payment: 3000 − 1000 allocated = 2000 < 2500 refunded.
+    await expect(
+      handlePaymentDetailAction(
+        await deleteRequest(seeded, seeded.second.id),
+        seeded.second.id,
+      ),
+    ).resolves.toEqual({
+      fieldErrors: {},
+      intent: deletePaymentIntent,
+      message: `No se puede eliminar el pago. ${refusedMessage}`,
+      status: "error",
+    });
+    await expect(findPaymentById(seeded.second.id)).resolves.toBeDefined();
+  });
+
+  test("deletes the payment when the rest of the pool still covers the refunds", async () => {
+    const seeded = await seedRefundedPool();
+
+    await registerAcademyEventPayment({
+      academyId: seeded.academy.academy.id,
+      amount: 1000,
+      eventId: seeded.event.id,
+      internalNote: null,
+      paymentDate: "2026-03-20",
+      paymentMethod: "efectivo",
+      reference: null,
+    });
+
+    // 3000 + 1000 − 1000 allocated = 3000 ≥ 2500 refunded.
+    await expect(
+      handlePaymentDetailAction(
+        await deleteRequest(seeded, seeded.second.id),
+        seeded.second.id,
+      ),
+    ).rejects.toMatchObject({ status: 302 });
+    await expect(findPaymentById(seeded.second.id)).resolves.toBeUndefined();
+  });
+
+  test("refuses an amount cut below the refunds and saves one down to them", async () => {
+    const seeded = await seedRefundedPool();
+
+    await expect(
+      handlePaymentDetailAction(
+        await editRequest(seeded, seeded.second, { amount: 499 }),
+        seeded.second.id,
+      ),
+    ).resolves.toMatchObject({
+      fieldErrors: { amount: refusedMessage },
+      status: "error",
+    });
+    await expect(findPaymentById(seeded.second.id)).resolves.toMatchObject({
+      amount: 2000,
+    });
+
+    await expect(
+      handlePaymentDetailAction(
+        await editRequest(seeded, seeded.second, { amount: 500 }),
+        seeded.second.id,
+      ),
+    ).resolves.toMatchObject({ status: "success" });
+    await expect(findPaymentById(seeded.second.id)).resolves.toMatchObject({
+      amount: 500,
+    });
+  });
+
+  test("refuses moving the payment to another owner when the refunds would be uncovered", async () => {
+    const seeded = await seedRefundedPool();
+
+    await expect(
+      handlePaymentDetailAction(
+        await editRequest(seeded, seeded.second, {
+          academyId: seeded.otherAcademy.academy.id,
+        }),
+        seeded.second.id,
+      ),
+    ).resolves.toMatchObject({
+      fieldErrors: { academyId: refusedMessage },
+      status: "error",
+    });
+    await expect(findPaymentById(seeded.second.id)).resolves.toMatchObject({
+      academyId: seeded.academy.academy.id,
+    });
+  });
+
+  test("keeps the allocation guards ahead of the pool floor", async () => {
+    const seeded = await seedRefundedPool();
+
+    await expect(
+      handlePaymentDetailAction(
+        await editRequest(seeded, seeded.first, {
+          academyId: seeded.otherAcademy.academy.id,
+          amount: 999,
+        }),
+        seeded.first.id,
+      ),
+    ).resolves.toMatchObject({
+      fieldErrors: {
+        academyId:
+          "No se puede cambiar la academia de un pago con asignaciones activas.",
+        amount: "El monto no puede ser menor al total ya asignado.",
+      },
+      status: "error",
+    });
+  });
+
+  test("the detail tells the deletion dialog when the refunds block it", async () => {
+    const seeded = await seedRefundedPool();
+    const load = async (paymentId: string) =>
+      await loadPaymentDetail(
+        (
+          await createSignedInRequest({
+            email: `${crypto.randomUUID()}@example.com`,
+            role: "admin",
+            requestUrl: paymentDetailUrl(paymentId, seeded.event.id),
+          })
+        ).request,
+        paymentId,
+      );
+
+    await expect(load(seeded.second.id)).resolves.toMatchObject({
+      deletionUncoversRefunds: true,
+    });
+
+    await db.delete(refunds).where(eq(refunds.eventId, seeded.event.id));
+
+    await expect(load(seeded.second.id)).resolves.toMatchObject({
+      deletionUncoversRefunds: false,
+    });
+  });
+});
+
+/**
  * The edit checks the payment still covers what is allocated to it while a
  * spread is allocating to it. Only the academy's pool lock orders the two; one
  * PGlite connection would order them on its own, so this runs on Postgres only.
@@ -582,5 +813,5 @@ async function findInscriptionById(inscriptionId: string) {
 }
 
 function paymentDetailUrl(paymentId: string, eventId: string) {
-  return `http://localhost/administracion/pagos/${paymentId}?evento=${eventId}`;
+  return `http://localhost/administracion/movimientos/pagos/${paymentId}?evento=${eventId}`;
 }

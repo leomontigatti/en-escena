@@ -23,7 +23,7 @@ import {
   recordComprobante,
   type RecordComprobanteInput,
 } from "@/lib/comprobantes/comprobantes.server";
-import { readAcademyAvailableBalance } from "@/lib/finances/allocation-pool.server";
+import { readAcademyAvailableBalance } from "@/lib/finances/available-balance.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";

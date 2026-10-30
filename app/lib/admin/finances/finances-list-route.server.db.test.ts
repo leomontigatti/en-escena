@@ -19,7 +19,7 @@ import { loader as financeAccountsLoader } from "@/routes/administracion.finanza
 import {
   action as paymentCreateAction,
   loader as paymentCreateLoader,
-} from "@/routes/administracion.pagos_.nuevo";
+} from "@/routes/administracion.movimientos_.nuevo";
 import {
   buildGlobalPaymentRequest,
   financesListRouteArgs,
@@ -424,7 +424,7 @@ describe("`/administracion/finanzas`", () => {
       email: "academia.pago.global@example.com",
       academyName: "Academia Pago Global",
     });
-    const createUrl = `http://localhost/administracion/pagos/nuevo?evento=${event.id}`;
+    const createUrl = `http://localhost/administracion/movimientos/nuevo?evento=${event.id}`;
     const { request: loaderRequest } = await createSignedInRequest({
       email: "admin.pago.global@example.com",
       role: "admin",
@@ -458,7 +458,7 @@ describe("`/administracion/finanzas`", () => {
     expect(invalidResult).toMatchObject({
       status: "error",
       fieldErrors: {
-        academyId: "Seleccioná una academia.",
+        academyId: "Este campo es obligatorio.",
         amount: "Ingresá un monto mayor a cero.",
       },
     });

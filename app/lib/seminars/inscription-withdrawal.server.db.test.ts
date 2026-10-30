@@ -9,10 +9,8 @@ import {
   seminarPrices,
 } from "@/db/schema";
 import { createDancer } from "@/lib/choreographies/registration.test-support";
-import {
-  readAcademyAvailableBalance,
-  readInscriptionAllocatedAmount,
-} from "@/lib/finances/allocation-pool.server";
+import { readInscriptionAllocatedAmount } from "@/lib/finances/allocation-pool.server";
+import { readAcademyAvailableBalance } from "@/lib/finances/available-balance.server";
 import {
   allocateToSeminarInscription,
   releaseRetainedSeminarInscriptionDeposit,

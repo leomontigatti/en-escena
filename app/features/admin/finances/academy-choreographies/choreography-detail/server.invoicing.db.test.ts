@@ -36,7 +36,7 @@ import {
 } from "@/lib/comprobantes/emit-comprobante.server";
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { removeInscriptionsFromRoster } from "@/lib/choreographies/inscription-withdrawal.server";
-import { readAcademyAvailableBalance } from "@/lib/finances/allocation-pool.server";
+import { readAcademyAvailableBalance } from "@/lib/finances/available-balance.server";
 import { releaseRetainedInscriptionDeposit } from "@/lib/finances/inscription-allocation.server";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import {

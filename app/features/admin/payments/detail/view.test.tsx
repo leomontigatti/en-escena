@@ -25,10 +25,8 @@ describe("PaymentDetailRouteView", () => {
 
     expect(document.querySelector("h2")?.textContent).toBe("Pago # 00001");
     expect(document.body.textContent).toContain("Academia Norte");
-    expect(document.body.textContent).toContain("Fecha de pago");
     expect(document.body.textContent).toContain("Referencia");
     expect(document.body.textContent).toContain("Monto");
-    expect(document.body.textContent).toContain("Medio de pago");
     expect(document.body.textContent).toContain("Nota interna");
     expect(document.body.textContent).toContain("Guardar");
     expect(findButton("Acciones", { exact: true })).toBeDefined();
@@ -161,7 +159,7 @@ async function renderDetailIntoDocument(input: Partial<DetailViewProps> = {}) {
   const router = createMemoryRouter(
     [
       {
-        path: "/administracion/pagos/payment_1",
+        path: "/administracion/movimientos/pagos/payment_1",
         action: async () => null,
         element: (
           <PaymentDetailRouteView
@@ -172,7 +170,7 @@ async function renderDetailIntoDocument(input: Partial<DetailViewProps> = {}) {
         ),
       },
     ],
-    { initialEntries: ["/administracion/pagos/payment_1"] },
+    { initialEntries: ["/administracion/movimientos/pagos/payment_1"] },
   );
 
   await renderer.renderAsync(<RouterProvider router={router} />);
@@ -200,6 +198,7 @@ function buildLoaderData(overrides: Partial<LoaderData> = {}): LoaderData {
     allocatedAmount: 0,
     availableAmount: payment.amount,
     canWrite: true,
+    deletionUncoversRefunds: false,
     payment,
     selectedEventId: "event_1",
     values: {

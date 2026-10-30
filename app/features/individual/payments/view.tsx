@@ -4,10 +4,10 @@ import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import { ClientDataTable } from "@/components/shared/data-table";
 import { PaymentInstructionsAlert } from "@/components/shared/payment-instructions-alert";
 import {
-  OwnerPaymentCard,
-  ownerPaymentColumns,
-  ownerPaymentFacetedFilters,
-} from "@/lib/finances/owner-payment-columns";
+  OwnerMovementCard,
+  ownerMovementColumns,
+  ownerMovementFacetedFilters,
+} from "@/lib/finances/owner-movement-columns";
 
 import type { loadIndividualPayments } from "./server";
 
@@ -15,11 +15,12 @@ type IndividualPaymentsLoaderData = Awaited<
   ReturnType<typeof loadIndividualPayments>
 >;
 
-const description = "Consultá los pagos que administración registró para vos.";
+const description =
+  "Consultá los pagos y reembolsos que administración registró para vos.";
 
 /**
- * `Pagos` (ADR-0019): how to pay, then what administration recorded. It is
- * read-only, as the portal's `Pagos` is: administration records and allocates.
+ * `Movimientos` (ADR-0019): how to pay, then the payments and refunds administration recorded. It is
+ * read-only, as the portal's `Movimientos` is: administration records and allocates.
  */
 export function IndividualPaymentsView({
   loaderData,
@@ -29,7 +30,7 @@ export function IndividualPaymentsView({
   return (
     <PortalListPage
       titleId="individual-payments-title"
-      title="Pagos"
+      title="Movimientos"
       description={description}
     >
       {loaderData.activeEvent ? (
@@ -40,20 +41,20 @@ export function IndividualPaymentsView({
             />
           ) : null}
           <ClientDataTable
-            rows={loaderData.payments}
-            columns={ownerPaymentColumns}
-            facetedFilters={ownerPaymentFacetedFilters}
-            getRowKey={(row) => row.id}
-            renderCard={(row) => <OwnerPaymentCard row={row} />}
+            rows={loaderData.movements}
+            columns={ownerMovementColumns}
+            facetedFilters={ownerMovementFacetedFilters}
+            getRowKey={(row) => `${row.kind}:${row.id}`}
+            renderCard={(row) => <OwnerMovementCard row={row} />}
             searchPlaceholder="Buscar por referencia o número"
-            initialSort={{ columnId: "paymentDate", direction: "desc" }}
-            emptyMessage="Todavía no hay pagos registrados."
+            initialSort={{ columnId: "date", direction: "desc" }}
+            emptyMessage="Todavía no hay movimientos registrados."
           />
         </>
       ) : (
         <PortalEmptyState
           title="No hay un evento activo"
-          description="Cuando administración active un evento, vas a poder consultar acá tus pagos."
+          description="Cuando administración active un evento, vas a poder consultar acá tus pagos y reembolsos."
           icon={<HandCoins aria-hidden="true" />}
         />
       )}

@@ -18,9 +18,9 @@
  * could overshoot — with no pool, the write is refused before a single row is
  * touched.
  *
- * The refunds term is in the invariant because it is part of the rule, but it
- * **does not exist yet**: there is no refunds table or column, so until #728
- * adds one, `Saldo disponible` reads as `Σ payments − Σ allocations`.
+ * The figure and its per-payment split are not computed here: both halves read
+ * them from `available-balance.server.ts`, the one owner of `Saldo disponible`,
+ * so the funding cap is the figure every screen shows.
  *
  * ## The two directions
  *
@@ -65,7 +65,7 @@
  * removes: Postgres aborts one of them and no money moves (#1065 review).
  */
 
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 
 import {
   choreographyDancers,
@@ -74,7 +74,7 @@ import {
   seminarInscriptions,
 } from "@/db/schema";
 import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
-import { resolvePaymentAvailableAmount } from "@/lib/finances/payment-available-amount.server";
+import { readAvailableBalance } from "@/lib/finances/available-balance.server";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
 import { readSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-thresholds.server";
 import type { InscriptionThresholds } from "@/lib/finances/inscription-financial-status";
@@ -198,13 +198,9 @@ export async function spreadFromPool(
 
   const poolKey = { academyId: input.academyId, eventId: input.eventId };
   await lockAcademyPool(tx, poolKey);
-  const pool = await readPoolAvailability(tx, poolKey);
-  const availableAmount = pool.reduce(
-    (sum, entry) => sum + entry.availableAmount,
-    0,
-  );
+  const pool = await readAvailableBalance(tx, poolKey);
 
-  if (availableAmount < input.amount) {
+  if (pool.availableBalanceAmount < input.amount) {
     return {
       ok: false,
       message: "La academia no tiene saldo disponible suficiente.",
@@ -213,12 +209,12 @@ export async function spreadFromPool(
 
   let remaining = input.amount;
 
-  for (const entry of pool) {
+  for (const entry of pool.payments) {
     if (remaining === 0) {
       break;
     }
 
-    const delta = Math.min(remaining, entry.availableAmount);
+    const delta = Math.min(remaining, entry.paymentAvailableAmount);
 
     if (delta === 0) {
       continue;
@@ -306,24 +302,6 @@ export async function readInscriptionAllocatedAmount(
   const allocations = await readInscriptionAllocations(tx, target);
 
   return allocations.reduce((sum, allocation) => sum + allocation.amount, 0);
-}
-
-/**
- * The academy's `Saldo disponible` for an event: what is left free across its
- * payments. The presets read it before writing anything, so a shortfall is
- * refused whole instead of halfway through a choreography.
- *
- * It is **target-agnostic** on purpose: an allocation row carries `academyId`
- * and `eventId` whichever kind of inscription it points at, so the pool one
- * academy draws on is one pool and not one per kind.
- */
-export async function readAcademyAvailableBalance(
-  tx: Executor,
-  input: { academyId: string; eventId: string },
-): Promise<number> {
-  const pool = await readPoolAvailability(tx, input);
-
-  return pool.reduce((sum, entry) => sum + entry.availableAmount, 0);
 }
 
 /** One academy's pool in one event: what `lockAcademyPool` serialises on. */
@@ -509,59 +487,6 @@ export async function lockTargetRow(
       .where(eq(seminarInscriptions.id, target.id))
       .for("update");
   }
-}
-
-/**
- * The academy's payments in the event with what is still free on each, oldest
- * first by payment number. This is the pool: the sum of these is the academy's
- * `Saldo disponible`, and the per-payment split is what funding walks.
- */
-async function readPoolAvailability(
-  tx: Executor,
-  input: { academyId: string; eventId: string },
-): Promise<Array<{ availableAmount: number; paymentId: string }>> {
-  const paymentRows = await tx
-    .select({
-      amount: payments.amount,
-      id: payments.id,
-    })
-    .from(payments)
-    .where(
-      and(
-        eq(payments.academyId, input.academyId),
-        eq(payments.eventId, input.eventId),
-      ),
-    )
-    .orderBy(asc(payments.paymentNumber));
-
-  const allocationRows = await tx
-    .select({
-      amount: paymentAllocations.amount,
-      paymentId: paymentAllocations.paymentId,
-    })
-    .from(paymentAllocations)
-    .where(
-      and(
-        eq(paymentAllocations.academyId, input.academyId),
-        eq(paymentAllocations.eventId, input.eventId),
-      ),
-    );
-
-  const allocatedByPayment = new Map<string, number>();
-  for (const allocation of allocationRows) {
-    allocatedByPayment.set(
-      allocation.paymentId,
-      (allocatedByPayment.get(allocation.paymentId) ?? 0) + allocation.amount,
-    );
-  }
-
-  return paymentRows.map((payment) => ({
-    availableAmount: resolvePaymentAvailableAmount({
-      allocatedAmount: allocatedByPayment.get(payment.id) ?? 0,
-      amount: payment.amount,
-    }),
-    paymentId: payment.id,
-  }));
 }
 
 /**

@@ -47,6 +47,10 @@ import {
   type SeminarCobroPreview,
 } from "@/lib/finances/seminar-cobro-presets.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
+import {
+  readOwnerEventMovements,
+  type OwnerEventMovement,
+} from "@/lib/finances/owner-event-movements.server";
 import { readFormData } from "@/lib/shared/read-form-data";
 import type { PresetInscription } from "./preset-figures";
 import {
@@ -76,6 +80,7 @@ export async function loadAcademyFinances(input: {
     priceOptionsByGroupType,
     pricingScheduleIdByChoreography,
     seminarPresetPreviews,
+    movements,
   ] =
     eventContext.selectedEventId === null
       ? [
@@ -90,6 +95,7 @@ export async function loadAcademyFinances(input: {
           {} as Record<string, PresetPriceOption[]>,
           {} as Record<string, string | null>,
           {} as Record<string, SeminarCobroPreview>,
+          [] as OwnerEventMovement[],
         ]
       : await Promise.all([
           readAcademyEventOperationalFinanceDetail({
@@ -109,6 +115,10 @@ export async function loadAcademyFinances(input: {
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
             now: new Date(),
+          }),
+          readOwnerEventMovements({
+            academyId: academy.id,
+            eventId: eventContext.selectedEventId,
           }),
         ]);
 
@@ -149,6 +159,8 @@ export async function loadAcademyFinances(input: {
       }),
     ),
     inscriptions: financeDetail.inscriptions.map(toPresetInscription),
+    // The `Movimientos` tab's rows: the owner's payments and refunds.
+    movements,
     priceOptionsByGroupType,
     pricingScheduleIdByChoreography,
     selectedEventId: eventContext.selectedEventId,
@@ -186,6 +198,9 @@ export async function handleAcademyFinancesAction(input: {
 }): Promise<AcademyFinancesActionData | BulkEmissionActionData | never> {
   await requireAdminPanelWriter(input.request);
   const academyId = readFinanceAcademyId(input.params);
+  const formData = await readFormData(input.request);
+  const intent = String(formData.get("intent") ?? "");
+
   const eventContext = await loadEventContext(input.request);
 
   if (eventContext.selectedEventId === null) {
@@ -194,9 +209,6 @@ export async function handleAcademyFinancesAction(input: {
       message: "Activá un evento para operar las coreografías.",
     };
   }
-
-  const formData = await readFormData(input.request);
-  const intent = String(formData.get("intent") ?? "");
 
   if (emissionIntents.has(intent)) {
     return await runBulkEmissionIntent({

@@ -170,3 +170,53 @@ export const paymentAllocations = createTable(
     ),
   ],
 ).enableRLS();
+
+// Money handed back to an owner, out of its pool for the event (`Saldo
+// disponible`). The mirror of a payment, and deliberately bound to nothing
+// else: a refund names no payment, no allocation and no inscription. Declared
+// without RLS, as new tables are until #506 (tests/db/schema-security.db.test.ts).
+export const refunds = createTable(
+  "refund",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    eventId: varchar("event_id", { length: 255 })
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    academyId: varchar("academy_id", { length: 255 })
+      .notNull()
+      .references(() => academies.id, { onDelete: "cascade" }),
+    refundNumber: integer("refund_number").notNull(),
+    refundDate: text("refund_date").notNull(),
+    amount: integer("amount").notNull(),
+    refundMethod: paymentMethod("refund_method").notNull(),
+    reference: text("reference"),
+    internalNote: text("internal_note"),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("refund_event_number_unique").on(
+      table.eventId,
+      table.refundNumber,
+    ),
+    index("refund_event_academy_idx").on(
+      table.eventId,
+      table.academyId,
+      table.createdAt,
+    ),
+    check("refund_amount_positive", sql`${table.amount} > 0`),
+  ],
+);

@@ -11,7 +11,7 @@ for _why_; read this for _what_. The identifier → UI term mapping is in
 ## How to read this document
 
 The settled model is larger than what is built. Half of it shipped; the invoicing half
-and the refund are specified and not implemented.
+is specified and not implemented.
 Every statement here is therefore one of three things, and they are never mixed
 silently:
 
@@ -453,8 +453,8 @@ Production held no crossed row on a foreign key when this landed (#660, counted
   never by registering a negative or zero one.
 - **A payment is editable after the fact.** The admin payment detail carries a
   full edit form — academy, amount, date, method, reference and internal note —
-  and it writes all of them. **Exactly two accounting guards stand in its way**,
-  and nothing else:
+  and it writes all of them. **Two allocation guards stand in its way**, and
+  behind them only the refunds floor below:
   - the **academy is frozen once the payment carries allocations**
     (`No se puede cambiar la academia de un pago con asignaciones activas.`), so a payment
     registered against the wrong academy is re-pointed by editing while it is
@@ -478,17 +478,20 @@ Production held no crossed row on a foreign key when this landed (#660, counted
   the wrong academy is corrected by editing it while it holds no allocations, and
   once it does, by taking its money off or deleting it.
 - **Deleting a payment cascades its allocations** at the database level. There is
-  no reversal order, no blocking case, and no automatic refill of what the
+  no reversal order, no blocking allocation, and no automatic refill of what the
   deletion freed.
-
-> **Specified, not built.**
-> Once refunds exist, the payment edit and deletion gain one refusal: an amount
-> cut, an academy change or a deletion that would leave the academy's
-> `Saldo disponible` below zero is refused under the pool lock, and the
-> administrator is told to edit or delete the refund first. The two edit guards
-> above stay as they are; deletion stays unblocked by allocations, so only money
-> already refunded can block it. Owner:
-> [#728](https://github.com/leomontigatti/en-escena/issues/728).
+- **The refunds floor.** A refund draws on the owner's pool and names no
+  payment, so it is the one subtraction the floor does not hold by
+  construction. An amount cut, an academy change or a deletion that would leave
+  `Σ payments − Σ allocations − Σ refunds` below zero is refused under the pool
+  lock with `Los reembolsos superarían el saldo disponible. Editá o eliminá un
+reembolso primero.` (on the amount or the academy field, or after
+  `No se puede eliminar el pago.`). It reads that sum unfloored, from the
+  split's inputs (`paymentChangeUncoversRefunds`), and only for a change that
+  lowers the payment. It runs after the two edit guards, which stay as they
+  are; with no refunds it never refuses, so a deletion is still never blocked
+  by allocations. When it applies, the deletion dialog opens blocked and says
+  so instead of offering the button.
 
 ## Payment instructions
 
@@ -522,11 +525,11 @@ and is not a `payment`.
   is a plain save.
 - **Registration readiness ignores them.** Missing instructions never block
   `Abrir inscripciones` on a `Cronograma`.
-- **Where they show**: the payments page of the `Portal de academias`, as an
+- **Where they show**: the `Movimientos` page of the `Portal de academias`, as an
   info note between the page subtitle and the payment list or its empty state,
   in the `Evento activo` only, with a copy control on the `CBU/CVU` and the
   `Alias` and the `Titular` and `CUIT` read together; and the same note above
-  the payments of an individual's `Pagos` (see [Surfaces](#surfaces)).
+  the movements of an individual's `Movimientos` (see [Surfaces](#surfaces)).
   Nowhere else — not the academy's finances
   page, not the portal home, not any admin list.
 
@@ -578,6 +581,16 @@ they live in one module.
   allocation is capped against what is still free, and the one way to shrink the
   other side — editing a payment down — is floored at what that payment already
   funds. There is no subtraction that could overshoot.
+- **One owner for the figure.** `Saldo disponible` and each payment's
+  `Disponible` are computed in one module (`available-balance.server.ts`), and
+  every reader takes them from there: the finance summaries of the panel, the
+  portal and an individual's area, the funding cap, the payment detail with its
+  edit guard, and the payments list. A payment's free money is its amount minus
+  its own allocations; the split draws an owner's refunds total on that free
+  money newest payment number first, never more from a payment than it has free,
+  and what is left on each payment is its `Disponible`. The payments' figures sum
+  to `Saldo disponible`. The list filters and sums `Disponible` in SQL, so it
+  reads the module's SQL form of the same figure.
 - **Funding** — the administrator names an inscription and an amount, **never a
   payment**. The system consumes the academy's payments **oldest-first by payment
   number**, creating or incrementing the `(payment, inscription)` row until the
@@ -614,7 +627,8 @@ they live in one module.
   (`lockAcademyPool`, in the pool module) before it reads what is free: funding
   and unfunding, so every preset and every single-inscription gesture of either
   kind; the payment edit, before it checks the payment still covers what it
-  funds; the payment deletion; and the academy merge, on both academies in every
+  funds and that the refunds stay covered; the payment deletion, before the
+  same refunds check; and the academy merge, on both academies in every
   event. The write that comes second reads what the first left, so of two
   charges the pool can cover only one of, the second is refused with
   `La academia no tiene saldo disponible suficiente.` Funding and unfunding take
@@ -644,29 +658,46 @@ they live in one module.
   Taking money off refuses nothing: it only frees places
   (`docs/domain/seminars.md`, "The place").
 
-> **Specified, not built.**
-> The `− Σ refunds` term has nothing behind it: there is no refunds table and no
-> refund code path, so `Saldo disponible` reads as `Σ payments − Σ allocations`.
-> ADR-0014 §6 specifies a `Reembolso` mirroring `Pago` — academy, event, amount,
-> date, `refundMethod` over the same method enum, `refundNumber` — that **never
-> carries allocations** and is capped at `Saldo disponible` (plus its own
-> current amount when edited), re-checked under the pool lock; its academy and
-> event are fixed once it exists. A refund names no payment: it is read as
-> drawing on each payment's **free money** (amount minus its own allocations),
-> **newest-first**, derived and never stored, so no payment carries more refund
-> than it has free. A payment's `Disponible` becomes its free money minus the
-> refund it carries, the funding cap reads that same figure, and their sum is
-> `Saldo disponible`. One module computes the figure for every reader. A refund
-> is the one subtraction the floor does not hold by construction, which is why
-> the payment edit and deletion gain a refusal (see "Payments"). An academy
-> merge moves the removed academy's refunds with its payments. Payments
-> and refunds are listed together as `Movimientos` — the event-wide list at
-> `/administracion/movimientos`, a tab on the academy's finance page (the only
-> place a refund is registered), and the portal's and an individual's own
-> page — never with allocations. Owner:
-> [#728](https://github.com/leomontigatti/en-escena/issues/728). Note the term:
-> `Devolución` is reserved for the judge's private feedback audio and must not be
-> used for money.
+- **A refund** (`Reembolso`, `refund`) mirrors a payment — owner, event, amount,
+  date, `refundMethod` over the same method enum, optional reference and internal
+  note, and a `refundNumber` sequential within the event in a series of its own,
+  handed out under the same sequence row lock as the payment number — and
+  **never carries allocations**: it names no payment, allocation or inscription.
+  It is written only by the refund write module (`refunds.server.ts`), which
+  takes the pool lock, reads the live `Saldo disponible` and refuses a refund
+  above it; the date cannot be in the future, and registration is against the
+  active event and administration only. Since a refund names no payment, the
+  split above reads it as drawing on each payment's free money newest-first, in
+  the module and in its SQL form alike, so funding can never spend refunded
+  money. A refund changes no inscription's status, comprobante comparison or
+  15-day clock. It is registered like a payment, at
+  `/administracion/movimientos/nuevo`, one form whose `Tipo` says which of the
+  two it is; an amount above the cap is the submit's refusal, a toast, and the
+  form states no maximum. Each movement then has its own page, a payment under
+  `/administracion/movimientos/pagos/` and a refund under
+  `/administracion/movimientos/reembolsos/`, which both lists link to. The
+  `Movimientos` tab of the owner's finance page lists the owner's payments and
+  refunds newest first, never its allocations. The portal's and an individual's
+  own `Movimientos` page list the owner's refunds beside its payments the same
+  way, kind badged, without either's internal note. The event-wide list at `/administracion/movimientos` pages both kinds as one
+  set, ordering a day's movements by recording time as the owner's tab does
+  (the workbook puts payments first); its cards read the whole event, never
+  the filtered set. A
+  payment edit or deletion that would leave refunds uncovered is refused (see
+  "Payments"), and an academy merge moves the removed academy's refunds with
+  its payments. Note the term: `Devolución` is
+  reserved for the judge's private feedback audio and must not be used for
+  money.
+- **Correcting a refund** is editing or deleting it, never a counter-movement,
+  on its page, administration only; the auditor reads the same fields locked.
+  Both go through the same write module, under the pool lock: an edit is capped
+  at the `Saldo disponible` plus the refund's own current amount, so lowering or
+  keeping the amount always saves, and a deletion is never refused, raising the
+  `Saldo disponible` by exactly its amount. Its event and number are fixed once
+  it exists, and its academy changes only by an academy merge. Both carry the
+  version (`updatedAt`) the page read, and a refund that changed, was deleted or
+  was moved by a merge meanwhile is refused as changed while saving rather than
+  overwritten; the form then shows what the refund holds now.
 
 ## The money gestures
 
@@ -1376,12 +1407,17 @@ and no request actions. The restriction is **permanent and role-based**.
 ## Surfaces
 
 - Finance surfaces are the admin academy financial list and choreography
-  financial detail, the admin payments list and detail, and the two mirrors in
+  financial detail, the admin movements list and payment detail, and the two mirrors in
   the `Portal de academias`. **"The four finance surfaces" elsewhere in this
   document names a subset of these six**: the four that consume the shared money
-  rollup — the two admin financial ones and the two portal ones. The payments
-  list and detail are finance surfaces too; they just read payments, not the
-  rollup.
+  rollup — the two admin financial ones and the two portal ones. The movements
+  list and the payment detail are finance surfaces too; they read payments and
+  refunds, not the rollup.
+- The movements list is the `Movimientos` section, at `/administracion/movimientos`
+  with a payment under `/administracion/movimientos/pagos/`, and the portal's
+  and an individual's own payments page is `Movimientos` too. The portal's and
+  the individual's pages, the `Movimientos` tab of an owner's finance page and
+  the event-wide list all list payments and refunds (see "The pool rules").
 - Panel and portal read the **same derivation**, so the portal cannot disagree
   with the panel. The primary amounts on both are `Seña adeudada`, `Saldo disponible`
   and `Saldo adeudado`.
@@ -1472,7 +1508,7 @@ apart beyond these surfaces:
   inscriptions.
 - The individual's area has a `Finanzas` group, read-only, shaped like the
   portal's: `Seminarios`, the five metrics over its own account and its
-  seminars with their status, and `Pagos`, its payments under the event's
+  seminars with their status, and `Movimientos`, its payments under the event's
   `Instrucciones de pago`. Comprobantes are not shown to individuals, as they
   are not to academies.
 

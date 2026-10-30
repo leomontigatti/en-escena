@@ -26,6 +26,7 @@ import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financ
 import { renderInscriptionStatusFilterValue } from "@/lib/finances/inscription-finance-columns";
 import {
   choreographiesTabValue,
+  movementsTabValue,
   seminarsTabValue,
   useFinanceTabs,
 } from "@/lib/finances/finance-tabs";
@@ -36,6 +37,7 @@ import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import { BulkEmissionBlockedDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { BulkEmissionDialog } from "@/features/admin/finances/comprobante-emission/bulk-dialog";
+import { OwnerMovementsTab } from "@/features/admin/finances/owner-movements/tab";
 import { FinancePresetDialog } from "./preset-dialog";
 import { financePresetLabels, type FinancePresetTarget } from "./presets";
 import { SeminarPresetDialog } from "./seminar-preset-dialog";
@@ -43,6 +45,27 @@ import type { AcademyFinancesLoaderData } from "./types";
 
 function presetTargetOf(tab: string): FinancePresetTarget {
   return tab === seminarsTabValue ? "seminars" : "choreographies";
+}
+
+/**
+ * What the header menu can do from the open tab: the presets act on its
+ * selection and the bulk emission on the choreographies' only. The
+ * `Movimientos` tab has no selection, so nothing is collected from it.
+ */
+function headerActionsOf(
+  tab: string,
+  hasSelection: Record<FinancePresetTarget, boolean>,
+) {
+  if (tab === movementsTabValue) {
+    return { canCollect: false, canEmit: false };
+  }
+
+  const target = presetTargetOf(tab);
+
+  return {
+    canCollect: hasSelection[target],
+    canEmit: target === "choreographies" && hasSelection.choreographies,
+  };
 }
 
 type ChoreographyFinanceRow =
@@ -92,7 +115,7 @@ export function AcademyFinancesRouteView({
     selectedSeminarIds,
     setSelectedChoreographyIds,
     setSelectedSeminarIds,
-  } = useFinanceTabs(loaderData);
+  } = useFinanceTabs({ ...loaderData, withMovementsTab: true });
   // The preset remembers the tab it was opened from, which is the selection it
   // acts on.
   const [preset, setPreset] = useState<{
@@ -112,10 +135,10 @@ export function AcademyFinancesRouteView({
     blockedReason: string | null;
   } | null>(null);
   const activeTarget = presetTargetOf(activeTab);
-  const canCollect =
-    activeTarget === "seminars"
-      ? seminarTotals.hasSelection
-      : choreographyTotals.hasSelection;
+  const { canCollect, canEmit } = headerActionsOf(activeTab, {
+    choreographies: choreographyTotals.hasSelection,
+    seminars: seminarTotals.hasSelection,
+  });
   const choreographyColumns = useMemo(
     () => buildChoreographyFinanceColumns(loaderData.academy.id),
     [loaderData.academy.id],
@@ -169,10 +192,7 @@ export function AcademyFinancesRouteView({
           {/* The choreographies' only: it acts on the choreography tab's
               selection, and a seminar unit emits from its own detail. */}
           <DropdownMenuItem
-            disabled={
-              activeTarget !== "choreographies" ||
-              !choreographyTotals.hasSelection
-            }
+            disabled={!canEmit}
             onSelect={() =>
               setBulkEmission({
                 ids: choreographyTotals.selectedRows.map((row) => row.id),
@@ -202,6 +222,7 @@ export function AcademyFinancesRouteView({
               Coreografías
             </TabsTrigger>
             <TabsTrigger value={seminarsTabValue}>Seminarios</TabsTrigger>
+            <TabsTrigger value={movementsTabValue}>Movimientos</TabsTrigger>
           </TabsList>
           <TabsContent value={choreographiesTabValue} className="pt-2">
             <ClientDataTable
@@ -247,6 +268,9 @@ export function AcademyFinancesRouteView({
               initialSort={{ columnId: "scheduledDate", direction: "asc" }}
               emptyMessage="No hay seminarios para mostrar."
             />
+          </TabsContent>
+          <TabsContent value={movementsTabValue} className="pt-2">
+            <OwnerMovementsTab movements={loaderData.movements} />
           </TabsContent>
         </Tabs>
       </div>

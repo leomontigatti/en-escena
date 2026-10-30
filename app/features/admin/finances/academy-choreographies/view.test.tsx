@@ -93,7 +93,6 @@ describe("AcademyFinancesRouteView", () => {
     expect(text).not.toContain("Imputar pago");
     expect(text).not.toContain("Fecha de imputación");
     expect(text).not.toContain("Imputaciones activas");
-    expect(text).not.toContain("Movimientos");
   });
 
   test("shows the total and the owed balance before the status", async () => {
@@ -1542,6 +1541,7 @@ function academyFinancesLoaderDataFixture(
       choreography_1: "schedule_1",
       choreography_2: "schedule_1",
     },
+    movements: [],
     selectedEventId: "event_1",
     seminarFinanceRows: [],
     seminarPresetPreviews: {},

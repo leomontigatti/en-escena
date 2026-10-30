@@ -12,6 +12,7 @@ import { db } from "@/db";
 const tablesWithoutRowLevelSecurity = [
   "en_escena_event_document",
   "en_escena_program_visible_day",
+  "en_escena_refund",
 ];
 
 describe("database schema security", () => {
