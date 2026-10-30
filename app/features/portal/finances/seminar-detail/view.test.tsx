@@ -70,7 +70,11 @@ describe("PortalSeminarFinanceDetailRouteView", () => {
 
   test("repeats the full-quota notice without blocking anything", () => {
     const full = renderDetail({
-      seminar: { ...loaderDataFixture().seminar, availablePlaces: 0 },
+      seminar: {
+        ...loaderDataFixture().seminar,
+        availablePlaces: 0,
+        isFull: true,
+      },
     });
 
     expect(full).toContain("El seminario no tiene lugares disponibles");
@@ -129,6 +133,7 @@ function loaderDataFixture(overrides: Partial<LoaderData> = {}): LoaderData {
       allocatedAmount: 5000,
       anomalies: [],
       availablePlaces: 4,
+      isFull: false,
       depositAmount: { amount: 5000, status: "complete" },
       financialStatus: "depositMet",
       id: "seminar_1",

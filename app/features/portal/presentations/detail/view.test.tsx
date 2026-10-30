@@ -73,15 +73,13 @@ describe("PortalPresentationEvaluationView", () => {
     // The loader empties the sheet and the score of a disqualified
     // presentation, so the view is only asked to lay out the feedback.
     const markup = renderView({
-      average: null,
-      disqualified: true,
+      result: { kind: "disqualified" },
       judges: [
         buildJudge({
           feedbackAudioUrl: "https://audio.example/ana.webm",
           judgeName: "Ana Juez",
         }),
       ],
-      award: null,
     });
 
     expect(markup).toContain("Descalificada");
@@ -96,10 +94,8 @@ describe("PortalPresentationEvaluationView", () => {
   // under it.
   test("points at the feedback only when a judge left some", () => {
     const markup = renderView({
-      average: null,
-      disqualified: true,
+      result: { kind: "disqualified" },
       judges: [buildJudge({ judgeName: "Ana Juez" })],
-      award: null,
     });
 
     expect(markup).toContain("no tiene puntaje ni premio");
@@ -107,7 +103,7 @@ describe("PortalPresentationEvaluationView", () => {
   });
 
   test("says there is nothing to show when no judge survived the filter", () => {
-    const markup = renderView({ average: null, judges: [], award: null });
+    const markup = renderView({ judges: [], result: { kind: "unscored" } });
 
     expect(markup).toContain(
       "Esta presentación no tiene puntajes para mostrar.",
@@ -119,10 +115,8 @@ describe("PortalPresentationEvaluationView", () => {
     // The disqualification alert already says what happened; a second notice
     // under it would only repeat it.
     const markup = renderView({
-      average: null,
-      disqualified: true,
+      result: { kind: "disqualified" },
       judges: [],
-      award: null,
     });
 
     expect(markup).toContain("no tiene puntaje ni premio");
@@ -133,9 +127,8 @@ describe("PortalPresentationEvaluationView", () => {
 
   test("shows neither award nor average when nothing counted", () => {
     const markup = renderView({
-      average: null,
       judges: [buildJudge({ judgeName: "Ana Juez" })],
-      award: null,
+      result: { kind: "unscored" },
     });
 
     expect(markup).not.toContain("Medalla");
@@ -165,13 +158,11 @@ function renderView(
   overrides: Partial<PortalPresentationEvaluationLoaderData> = {},
 ) {
   const loaderData: PortalPresentationEvaluationLoaderData = {
-    average: 90,
     certificates: null,
     criteria: [],
     details: "Infantil · Solo · Jazz",
-    disqualified: false,
     judges: [buildJudge()],
-    award: "gold",
+    result: { average: 90, award: "gold", kind: "scored" },
     title: "Pieza · N.º 1",
     ...overrides,
   };

@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { presentations, scoreCriterionValues, scores, user } from "@/db/schema";
+import { scoreCriterionValues, scores, user } from "@/db/schema";
 import { loadPortalPresentationEvaluation } from "@/features/portal/presentations/detail/server";
 import { activateEvent } from "@/lib/events/management.server";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
@@ -91,8 +91,11 @@ describe("an academy's evaluation detail", () => {
 
     expect(loaderData.title).toBe("Primera · N.º 1");
     expect(loaderData.details).toContain("Solo");
-    expect(loaderData.average).toBe(90);
-    expect(loaderData.award).toBe("gold");
+    expect(loaderData.result).toEqual({
+      average: 90,
+      award: "gold",
+      kind: "scored",
+    });
     // Its seeded dancer, whose certificate the page offers, under the
     // choreography's name without the number the title carries.
     expect(loaderData.certificates).toEqual({
@@ -136,7 +139,7 @@ describe("an academy's evaluation detail", () => {
     );
 
     expect(loaderData.title).toBe("Primera");
-    expect(loaderData.average).toBe(90);
+    expect(loaderData.result).toMatchObject({ average: 90 });
     expect(JSON.stringify(loaderData)).not.toContain("N.º");
   });
 
@@ -193,51 +196,12 @@ describe("an academy's evaluation detail", () => {
     await publishResults(fixture.event.id);
     await expect(
       loadEvaluation(fixture, presentation.choreographyId),
-    ).resolves.toMatchObject({ average: 80 });
+    ).resolves.toMatchObject({ result: { average: 80 } });
 
     await hideResults(fixture.event.id);
     await expect(
       loadEvaluation(fixture, presentation.choreographyId),
     ).rejects.toMatchObject({ status: 404 });
-  });
-
-  test("keeps only the feedback of a disqualified presentation", async () => {
-    const { fixture, presentation } = await seedPublishedEvaluation();
-    const judge = await fixture.assignJudge(presentation.presentationId);
-
-    await nameJudge(judge.judgeId, "Ana Juez");
-    await db.insert(scores).values({
-      feedbackAudioStorageKey: "takes/a.webm",
-      judgeAssignmentId: judge.judgeAssignmentId,
-      value: "92.0",
-    });
-    await db
-      .update(presentations)
-      .set({ disqualifiedAt: new Date() })
-      .where(eq(presentations.id, presentation.presentationId));
-    await publishResults(fixture.event.id);
-
-    const loaderData = await loadEvaluation(
-      fixture,
-      presentation.choreographyId,
-    );
-
-    expect(loaderData).toMatchObject({
-      average: null,
-      criteria: [],
-      disqualified: true,
-      award: null,
-      certificates: null,
-    });
-    expect(loaderData.judges).toEqual([
-      {
-        criteriaValues: {},
-        feedbackAudioUrl: "https://example.test/takes/a.webm",
-        judgeId: judge.judgeId,
-        judgeName: "Ana Juez",
-        value: null,
-      },
-    ]);
   });
 
   test("reads a correction made after publishing", async () => {
@@ -256,7 +220,9 @@ describe("an academy's evaluation detail", () => {
 
     await expect(
       loadEvaluation(fixture, presentation.choreographyId),
-    ).resolves.toMatchObject({ average: 95, award: "gold" });
+    ).resolves.toMatchObject({
+      result: { average: 95, award: "gold", kind: "scored" },
+    });
   });
 
   test("carries the sheet a criteria-judged presentation was scored on", async () => {

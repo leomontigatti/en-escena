@@ -33,9 +33,9 @@ on 2026-10-16.
 
 ### scheduled-run-worktree
 
-- **Relies on:** a scheduled task not bound to a thread launches each run as a fresh thread with the task's stored `workspaceStrategy`; with `{type: "worktree", baseRef: "master", startFromOrigin: true}` that is a new T3-managed worktree from `origin/master` (`apps/server/src/scheduledTasks/ScheduledTaskService.ts`, the run's `launchThread`). The app's Settings → Scheduled tasks edits the strategy ("Create a new worktree", Base branch, Start from origin; `apps/web/src/components/settings/ScheduledTasksSettings.tsx`). `update_scheduled_task` keeps it unless `bindToCurrentThread` is passed (`apps/server/src/mcp/OrchestratorMcpService.ts`).
+- **Relies on:** a scheduled task not bound to a thread launches each run as a fresh thread with the task's stored `workspaceStrategy`; with `{type: "worktree", baseRef: "master", startFromOrigin: true}` that is a new T3-managed worktree from `origin/master` (`apps/server/src/scheduledTasks/ScheduledTaskService.ts`, the run's `launchThread`). The app's Settings → Scheduled tasks edits the strategy ("Create a new worktree", Base branch, Start from origin; `apps/web/src/components/settings/ScheduledTasksSettings.tsx`). `schedule_task` given a `scheduledTaskId` (pingdotgg/t3code#25423, since 0.1.3-nightly.20261027.3748) keeps it unless `bindToCurrentThread` is passed (`apps/server/src/mcp/toolkits/orchestrator/handlers.ts`, `apps/server/src/mcp/OrchestratorMcpService.ts`).
 - **Used by:** `docs/agents/architecture-review.md` § The contract and § The prompt (the "Work in this thread's worktree" rule).
-- **Breaks if:** unbound runs stop getting a worktree from the stored strategy, the app loses the Base branch field, or `update_scheduled_task` starts resetting the strategy on a prompt-only update.
+- **Breaks if:** unbound runs stop getting a worktree from the stored strategy, the app loses the Base branch field, or `schedule_task` given a `scheduledTaskId` starts resetting the strategy on a prompt-only update.
 
 ## Watching
 

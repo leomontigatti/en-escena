@@ -21,13 +21,12 @@ import {
 import { lockEventSeminarPricesForEdit } from "@/lib/seminar-prices/price-locks.server";
 import { createSeminarPrice } from "@/lib/seminar-prices/repository.server";
 import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
-import {
-  countCoveredSeminarInscriptions,
-  readSeminarPlaces,
-} from "@/lib/seminars/covered-inscriptions.server";
 import { readSeminarInscriptionFinanceRows } from "@/lib/finances/seminar-inscriptions.server";
 import { createSeminar, listSeminars } from "@/lib/seminars/repository.server";
-import { coverSeminarInscriptionDeposit } from "@/lib/seminars/seminars.test-support";
+import {
+  coverSeminarInscriptionDeposit,
+  readSeminarPlaceLedger,
+} from "@/lib/seminars/seminars.test-support";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSavedEvent, eventDates } from "@/lib/test-support/events";
@@ -149,7 +148,7 @@ describe("seminar inscriptions", () => {
     ]);
     // Nobody covered a deposit, so the quota is untouched and both rows are on
     // the roster: registration does not spend places.
-    await expect(listSeminars(eventId)).resolves.toMatchObject([
+    await expect(listSeminars(eventId, new Date())).resolves.toMatchObject([
       { id: seminar.id, availablePlaces: 2, registeredCount: 2 },
     ]);
   });
@@ -170,7 +169,7 @@ describe("seminar inscriptions", () => {
     expectRegistered(await register(first.id));
     expectRegistered(await register(second.id));
 
-    await expect(listSeminars(eventId)).resolves.toMatchObject([
+    await expect(listSeminars(eventId, new Date())).resolves.toMatchObject([
       { id: seminar.id, availablePlaces: 1, registeredCount: 2 },
     ]);
   });
@@ -524,7 +523,7 @@ describe("the administrative reading of a seminar's inscriptions", () => {
       }),
     ).resolves.toEqual({ ok: true, withdrawn: false });
     await expect(listSeminarInscriptions(seminar.id)).resolves.toEqual([]);
-    await expect(listSeminars(eventId)).resolves.toMatchObject([
+    await expect(listSeminars(eventId, new Date())).resolves.toMatchObject([
       { id: seminar.id, availablePlaces: 1, registeredCount: 0 },
     ]);
 
@@ -644,9 +643,11 @@ describe("an individual's own seminar inscription", () => {
   /** Whether the inscription holds a reserved place, as every quota reading
    * counts it. */
   async function holdsReservation(seminarId: string, inscriptionId: string) {
-    const places = await readSeminarPlaces([seminarId], beforeStart);
-
-    return places.get(seminarId)?.reservedIds.includes(inscriptionId) ?? false;
+    return (
+      (await readSeminarPlaceLedger(seminarId, beforeStart)).holdingOf(
+        inscriptionId,
+      ) === "reserved"
+    );
   }
 
   test("registers itself, reserves a free place and is read back as a `Particular`", async () => {
@@ -696,7 +697,7 @@ describe("an individual's own seminar inscription", () => {
       { fullName: "Abril Sosa", personKind: "dancer" },
       { id: inscriptionId, fullName: "Clara Ríos", personKind: "individual" },
     ]);
-    await expect(listSeminars(eventId)).resolves.toMatchObject([
+    await expect(listSeminars(eventId, new Date())).resolves.toMatchObject([
       { id: seminar.id, registeredCount: 2 },
     ]);
   });
@@ -737,7 +738,7 @@ describe("an individual's own seminar inscription", () => {
       seminarId: seminar.id,
     });
 
-    await expect(countCoveredSeminarInscriptions(seminar.id)).resolves.toBe(1);
+    expect((await readSeminarPlaceLedger(seminar.id)).coveredCount).toBe(1);
   });
 
   test("refuses a second inscription of itself and somebody else's individual", async () => {
@@ -826,11 +827,14 @@ describe("an individual's own seminar inscription", () => {
     // Deleted rather than withdrawn: not even the finance read, which keeps
     // withdrawn rows, still has it.
     await expect(
-      readSeminarInscriptionFinanceRows({
-        academyId: individual.ownerId,
-        eventId,
-        seminarId: seminar.id,
-      }),
+      readSeminarInscriptionFinanceRows(
+        {
+          academyId: individual.ownerId,
+          eventId,
+          seminarId: seminar.id,
+        },
+        new Date(),
+      ),
     ).resolves.toEqual([]);
 
     const paid = expectRegistered(await register());

@@ -1,60 +1,62 @@
 import { describe, expect, test } from "vitest";
 
-import { presentationAverage, awardForAverage } from "@/lib/judging/award";
+import { resolvePresentationResult } from "@/lib/judging/award";
 
-describe("a presentation's average", () => {
-  test("is the mean of the values every judge left", () => {
+describe("a presentation's result", () => {
+  test("averages the values every judge left and reads the award off it", () => {
     expect(
-      presentationAverage({
+      resolvePresentationResult({
         disqualified: false,
-        scores: [{ value: "80.0" }, { value: "90.0" }],
+        values: ["80.0", "90.0"],
       }),
-    ).toBe(80 + 5);
+    ).toEqual({ average: 85, award: "silver", kind: "scored" });
   });
 
-  test("rounds to two decimals", () => {
+  test("rounds the average to two decimals before reading the award", () => {
     expect(
-      presentationAverage({
+      resolvePresentationResult({
         disqualified: false,
-        scores: [{ value: "80.0" }, { value: "85.5" }, { value: "90.0" }],
+        values: ["80.0", "85.5", "90.0"],
       }),
-    ).toBe(85.17);
+    ).toEqual({ average: 85.17, award: "silver", kind: "scored" });
   });
 
   test("leaves out a score that has no value", () => {
     expect(
-      presentationAverage({
+      resolvePresentationResult({
         disqualified: false,
-        scores: [{ value: null }, { value: "90.0" }],
+        values: [null, "90.0"],
       }),
-    ).toBe(90);
+    ).toEqual({ average: 90, award: "gold", kind: "scored" });
   });
 
-  test("is absent for a disqualified presentation, and when nothing counts", () => {
+  test("is unscored while no value counts", () => {
     expect(
-      presentationAverage({
-        disqualified: true,
-        scores: [{ value: "90.0" }],
-      }),
-    ).toBeNull();
+      resolvePresentationResult({ disqualified: false, values: [] }),
+    ).toEqual({ kind: "unscored" });
     expect(
-      presentationAverage({ disqualified: false, scores: [{ value: null }] }),
-    ).toBeNull();
-    expect(presentationAverage({ disqualified: false, scores: [] })).toBeNull();
+      resolvePresentationResult({ disqualified: false, values: [null] }),
+    ).toEqual({ kind: "unscored" });
   });
-});
 
-describe("the award read from that average", () => {
+  test("is disqualified whatever the judges saved", () => {
+    expect(
+      resolvePresentationResult({ disqualified: true, values: ["90.0"] }),
+    ).toEqual({ kind: "disqualified" });
+  });
+
   test.each([
-    [0, "specialMention"],
-    [59.99, "specialMention"],
-    [60, "bronze"],
-    [79.99, "bronze"],
-    [80, "silver"],
-    [89.99, "silver"],
-    [90, "gold"],
-    [100, "gold"],
-  ])("reads %s as %s", (average, award) => {
-    expect(awardForAverage(average)).toBe(award);
+    ["0.0", "specialMention"],
+    ["59.99", "specialMention"],
+    ["60.0", "bronze"],
+    ["79.99", "bronze"],
+    ["80.0", "silver"],
+    ["89.99", "silver"],
+    ["90.0", "gold"],
+    ["100.0", "gold"],
+  ])("reads an average of %s as %s", (value, award) => {
+    expect(
+      resolvePresentationResult({ disqualified: false, values: [value] }),
+    ).toMatchObject({ award });
   });
 });

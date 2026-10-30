@@ -101,7 +101,11 @@ describe("SeminarFinanceDetailView", () => {
 
   test("states a full quota without blocking anything, and says nothing while a place is left", () => {
     const full = renderDetail({
-      seminar: { ...loaderDataFixture().seminar, availablePlaces: 0 },
+      seminar: {
+        ...loaderDataFixture().seminar,
+        availablePlaces: 0,
+        isFull: true,
+      },
     });
 
     expect(full).toContain("El seminario no tiene lugares disponibles");
@@ -197,6 +201,7 @@ function loaderDataFixture(
       allocatedAmount: 5000,
       anomalies: [],
       availablePlaces: 4,
+      isFull: false,
       depositAmount: { amount: 5000, status: "complete" },
       financialStatus: "depositMet",
       id: "seminar_1",

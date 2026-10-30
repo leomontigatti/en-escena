@@ -140,7 +140,7 @@ async function removeSeminar(
     };
   }
 
-  const seminar = await getSeminar(seminarId);
+  const seminar = await getSeminar(seminarId, new Date());
 
   // The row goes first, because `deleteSeminar` is what actually decides: it
   // re-reads the guard, so an inscription created since this handler started

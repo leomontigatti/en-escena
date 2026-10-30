@@ -77,7 +77,10 @@ describe("the presentation's scores route", () => {
       }),
     ).resolves.toMatchObject({
       canWrite: true,
-      presentation: { average: 90, award: "gold", name: "Primera" },
+      presentation: {
+        name: "Primera",
+        result: { average: 90, award: "gold", kind: "scored" },
+      },
     });
   });
 

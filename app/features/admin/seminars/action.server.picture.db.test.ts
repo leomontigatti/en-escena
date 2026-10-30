@@ -172,9 +172,9 @@ describe("the seminar instructor picture", () => {
     const result = await saveJpgPicture(seminar.id);
 
     expect(result).toMatchObject({ status: "success" });
-    expect((await getSeminar(seminar.id))?.instructorPictureStorageKey).toBe(
-      `events/${event.id}/seminars/${seminar.id}/instructor.jpg`,
-    );
+    expect(
+      (await getSeminar(seminar.id, new Date()))?.instructorPictureStorageKey,
+    ).toBe(`events/${event.id}/seminars/${seminar.id}/instructor.jpg`);
     expect(await readdir(pictureFolder(event.id, seminar.id))).toEqual([
       "instructor.jpg",
     ]);
@@ -196,9 +196,9 @@ describe("the seminar instructor picture", () => {
     expect(await readdir(pictureFolder(event.id, seminar.id))).toEqual([
       "instructor.png",
     ]);
-    expect((await getSeminar(seminar.id))?.instructorPictureStorageKey).toBe(
-      `events/${event.id}/seminars/${seminar.id}/instructor.png`,
-    );
+    expect(
+      (await getSeminar(seminar.id, new Date()))?.instructorPictureStorageKey,
+    ).toBe(`events/${event.id}/seminars/${seminar.id}/instructor.png`);
   });
 
   test("emptying the field deletes the object and nulls the key", async () => {
@@ -214,7 +214,7 @@ describe("the seminar instructor picture", () => {
       status: "success",
     });
     expect(
-      (await getSeminar(seminar.id))?.instructorPictureStorageKey,
+      (await getSeminar(seminar.id, new Date()))?.instructorPictureStorageKey,
     ).toBeNull();
     expect(await readdir(pictureFolder(event.id, seminar.id))).toEqual([]);
   });
@@ -226,9 +226,9 @@ describe("the seminar instructor picture", () => {
     await saveJpgPicture(seminar.id);
     await save(seminar.id, { kind: "keep" });
 
-    expect((await getSeminar(seminar.id))?.instructorPictureStorageKey).toBe(
-      `events/${event.id}/seminars/${seminar.id}/instructor.jpg`,
-    );
+    expect(
+      (await getSeminar(seminar.id, new Date()))?.instructorPictureStorageKey,
+    ).toBe(`events/${event.id}/seminars/${seminar.id}/instructor.jpg`);
   });
 
   // Three absent fields look exactly like "remove the picture", and the costly
@@ -240,9 +240,9 @@ describe("the seminar instructor picture", () => {
     await saveJpgPicture(seminar.id);
     await save(seminar.id, { kind: "absent" });
 
-    expect((await getSeminar(seminar.id))?.instructorPictureStorageKey).toBe(
-      `events/${event.id}/seminars/${seminar.id}/instructor.jpg`,
-    );
+    expect(
+      (await getSeminar(seminar.id, new Date()))?.instructorPictureStorageKey,
+    ).toBe(`events/${event.id}/seminars/${seminar.id}/instructor.jpg`);
   });
 
   test("a refused format is a message about the picture, not a saved key", async () => {
@@ -259,7 +259,7 @@ describe("the seminar instructor picture", () => {
       message: "La foto del instructor debe ser JPG, PNG o WEBP.",
     });
     expect(
-      (await getSeminar(seminar.id))?.instructorPictureStorageKey,
+      (await getSeminar(seminar.id, new Date()))?.instructorPictureStorageKey,
     ).toBeNull();
   });
 
@@ -323,7 +323,7 @@ describe("the seminar instructor picture", () => {
     expect(await readdir(pictureFolder(event.id, seminar.id))).toEqual([
       "instructor.jpg",
     ]);
-    expect(await getSeminar(seminar.id)).not.toBeNull();
+    expect(await getSeminar(seminar.id, new Date())).not.toBeNull();
   });
 
   // The row is removed before the object, and a retry has to converge: a key
@@ -338,7 +338,7 @@ describe("the seminar instructor picture", () => {
     await expect(deleteSeminarRequest(seminar.id)).rejects.toBeInstanceOf(
       Response,
     );
-    expect(await getSeminar(seminar.id)).toBeNull();
+    expect(await getSeminar(seminar.id, new Date())).toBeNull();
   });
 
   test("deleting the seminar removes its picture object", async () => {
@@ -370,6 +370,6 @@ describe("the seminar instructor picture", () => {
     ).rejects.toBeInstanceOf(Response);
 
     expect(await readdir(pictureFolder(event.id, seminar.id))).toEqual([]);
-    expect(await getSeminar(seminar.id)).toBeNull();
+    expect(await getSeminar(seminar.id, new Date())).toBeNull();
   });
 });

@@ -72,7 +72,7 @@ export async function loadIndividualSeminars(
   const now = new Date();
   const [eventSeminars, priceRows, inscriptions, academyMade, forParticipants] =
     await Promise.all([
-      listSeminars(activeEvent.id),
+      listSeminars(activeEvent.id, now),
       db.query.seminarPrices.findMany({
         where: eq(seminarPrices.eventId, activeEvent.id),
       }),
@@ -138,7 +138,7 @@ function toSeminarFacts(seminar: SeminarListItem, now: Date): SeminarFacts {
     startTime: seminar.startTime,
     requiredDepositPercentage: seminar.requiredDepositPercentage,
     hasStarted: hasSeminarStarted(seminar, now),
-    isFull: seminar.availablePlaces === 0,
+    isFull: seminar.isFull,
     startsBeforePaymentDeadline: doesSeminarStartBeforePaymentDeadline(
       seminar,
       now,

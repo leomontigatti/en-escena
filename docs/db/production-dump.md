@@ -15,7 +15,9 @@ replaces the local database `DATABASE_URL` names with it — the worktree's own
 from `.env.local` ([one database per worktree](../local-auth.md#one-database-per-worktree)),
 `en-escena` in the main checkout — prints the migration journal and
 basic row counts, and removes the local copy. Pass `-- --keep-dump` when you need
-to inspect the artifact after the restore.
+to inspect the artifact after the restore. A worktree with no `.env.local` is
+refused before anything is fetched: its `.env` and the default both name the main
+checkout's database.
 
 At a terminal it asks for confirmation — type the database name — because there the
 command may be a slip. Run non-interactively (an agent, a script, a piped shell)

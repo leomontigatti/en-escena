@@ -28,7 +28,7 @@ installDatabaseTestHooks();
 
 // The seminar guards read what the money says: whether any inscription covered
 // its deposit, and how many did. Both are read off the database here rather than
-// stubbed — `covered-inscriptions.server` is ours, and a suite that mocks it
+// stubbed — `seminar-places.server` is ours, and a suite that mocks it
 // stops seeing the rule it is guarding against. A place is taken with real
 // money, through `coverSeminarInscriptionDeposit`.
 
@@ -67,7 +67,7 @@ describe("seminar repository", () => {
       startTime: "18:30",
       quota: 20,
     });
-    await expect(listSeminars(event.id)).resolves.toMatchObject([
+    await expect(listSeminars(event.id, new Date())).resolves.toMatchObject([
       { id: seminar.id, availablePlaces: 20 },
     ]);
   });
@@ -185,7 +185,7 @@ describe("seminar repository", () => {
   });
 
   test("reports a missing seminar on read, update and delete", async () => {
-    await expect(getSeminar("seminar_missing")).resolves.toBeNull();
+    await expect(getSeminar("seminar_missing", new Date())).resolves.toBeNull();
     await expect(
       updateSeminar("seminar_missing", seminarInput),
     ).resolves.toMatchObject({ ok: false, code: "seminar-not-found" });
@@ -231,7 +231,9 @@ describe("seminar repository", () => {
         ('seminar_legacy', ${event.id}, 'Abril Sosa', '2026-10-10', '18:30', 20)
     `);
 
-    await expect(getSeminar("seminar_legacy")).resolves.toMatchObject({
+    await expect(
+      getSeminar("seminar_legacy", new Date()),
+    ).resolves.toMatchObject({
       kind: "regular",
       requiredDepositPercentage: 50,
     });
@@ -305,7 +307,7 @@ describe("seminar repository", () => {
       code: "has-inscriptions",
       error: "Este seminario tiene inscripciones. No podés eliminarlo.",
     });
-    await expect(listSeminars(eventId)).resolves.toHaveLength(1);
+    await expect(listSeminars(eventId, new Date())).resolves.toHaveLength(1);
 
     await db
       .delete(seminarInscriptions)
@@ -369,13 +371,13 @@ describe("seminar repository", () => {
 
     await coverPlaces(registration, 1);
 
-    await expect(getSeminar(seminarId)).resolves.toMatchObject({
+    await expect(getSeminar(seminarId, new Date())).resolves.toMatchObject({
       quota: 20,
       registeredCount: 2,
       inscriptionCount: 2,
       availablePlaces: 19,
     });
-    await expect(listSeminars(eventId)).resolves.toMatchObject([
+    await expect(listSeminars(eventId, new Date())).resolves.toMatchObject([
       { id: seminarId, availablePlaces: 19, registeredCount: 2 },
     ]);
   });
@@ -395,7 +397,7 @@ describe("seminar repository", () => {
     }
 
     // One covered, one reserved: the covered row's own reservation is moot.
-    await expect(getSeminar(seminarId)).resolves.toMatchObject({
+    await expect(getSeminar(seminarId, new Date())).resolves.toMatchObject({
       availablePlaces: 18,
     });
 
@@ -403,7 +405,7 @@ describe("seminar repository", () => {
       await reserveForHours(inscriptionId, -1);
     }
 
-    await expect(getSeminar(seminarId)).resolves.toMatchObject({
+    await expect(getSeminar(seminarId, new Date())).resolves.toMatchObject({
       availablePlaces: 19,
     });
   });
@@ -421,7 +423,7 @@ describe("seminar repository", () => {
       .set({ scheduledDate: "2020-01-01" })
       .where(eq(seminars.id, seminarId));
 
-    await expect(getSeminar(seminarId)).resolves.toMatchObject({
+    await expect(getSeminar(seminarId, new Date())).resolves.toMatchObject({
       availablePlaces: 20,
     });
   });
@@ -437,8 +439,8 @@ describe("seminar repository", () => {
       .where(eq(seminarInscriptions.seminarId, seminarId));
 
     for (const seminar of [
-      await getSeminar(seminarId),
-      ...(await listSeminars(eventId)),
+      await getSeminar(seminarId, new Date()),
+      ...(await listSeminars(eventId, new Date())),
     ]) {
       expect(seminar).toMatchObject({
         registeredCount: 0,
@@ -464,13 +466,13 @@ describe("seminar repository", () => {
     );
 
     await expect(deleteSeminar(seminar.id)).resolves.toEqual({ ok: true });
-    await expect(listSeminars(event.id)).resolves.toMatchObject([
+    await expect(listSeminars(event.id, new Date())).resolves.toMatchObject([
       { id: survivor.id },
     ]);
 
     await db.delete(events).where(eq(events.id, event.id));
 
-    await expect(listSeminars(event.id)).resolves.toEqual([]);
+    await expect(listSeminars(event.id, new Date())).resolves.toEqual([]);
   });
 });
 

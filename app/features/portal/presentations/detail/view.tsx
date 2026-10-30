@@ -3,6 +3,7 @@ import { TriangleAlert } from "lucide-react";
 import { PortalListPage } from "@/components/portal/ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AwardBadge } from "@/components/shared/award-badge";
+import { resultAverage } from "@/lib/judging/award";
 import {
   Card,
   CardAction,
@@ -48,25 +49,25 @@ export function PortalPresentationEvaluationView({
 }: {
   loaderData: PortalPresentationEvaluationLoaderData;
 }) {
+  const average = resultAverage(loaderData.result);
+  const disqualified = loaderData.result.kind === "disqualified";
+
   return (
     <PortalListPage
       titleId="evaluation-title"
       title={
         <span className="flex flex-wrap items-center gap-2">
           {loaderData.title}
-          <AwardBadge
-            disqualified={loaderData.disqualified}
-            award={loaderData.award}
-          />
+          <AwardBadge result={loaderData.result} />
         </span>
       }
       description={loaderData.details}
       action={
-        loaderData.average === null && !loaderData.certificates ? null : (
+        average === null && !loaderData.certificates ? null : (
           <div className="flex items-center gap-4">
-            {loaderData.average === null ? null : (
+            {average === null ? null : (
               <p className="text-xl font-semibold tabular-nums">
-                {loaderData.average}
+                {average}
                 <span className="text-sm font-normal text-muted-foreground">
                   {" "}
                   / 100
@@ -80,7 +81,7 @@ export function PortalPresentationEvaluationView({
         )
       }
     >
-      {loaderData.disqualified ? (
+      {disqualified ? (
         <Alert variant="warning">
           <TriangleAlert aria-hidden="true" />
           <AlertTitle>Presentación descalificada</AlertTitle>
@@ -94,7 +95,7 @@ export function PortalPresentationEvaluationView({
 
       <JudgeCards
         criteria={loaderData.criteria}
-        disqualified={loaderData.disqualified}
+        disqualified={disqualified}
         judges={loaderData.judges}
       />
     </PortalListPage>

@@ -190,52 +190,21 @@ describe("loadIndividualChoreographies", () => {
       [
         "Publicada",
         {
-          average: academyReads.average,
-          award: academyReads.award,
-          disqualified: false,
-          scores: academyReads.judges.map((judge) => ({
+          judges: academyReads.judges.map((judge) => ({
             judgeId: judge.judgeId,
             judgeName: judge.judgeName,
             value: judge.value,
           })),
+          result: academyReads.result,
         },
       ],
       ["Tardía", null],
     ]);
-    expect(loaderData.choreographies[0]?.result).toMatchObject({
+    expect(loaderData.choreographies[0]?.result?.result).toEqual({
       average: 92.5,
       award: "gold",
+      kind: "scored",
     });
-  });
-
-  test("shows a published disqualification with no figures", async () => {
-    const fixture = await seedJudgingFixture();
-    const presentation = await fixture.addPresentation({
-      name: "Descalificada",
-      orderNumber: 1,
-    });
-    await inscribeDancer(
-      fixture.academy.academy.id,
-      presentation.choreographyId,
-    );
-    await score(fixture, presentation.presentationId, ["95"]);
-    await db
-      .update(presentations)
-      .set({ disqualifiedAt: new Date() })
-      .where(eq(presentations.id, presentation.presentationId));
-    await publishResults(fixture.event.id);
-    const individual = await seedLinkedIndividual();
-
-    const loaderData = await load(individual.cookie);
-
-    expect(loaderData.choreographies.map((row) => row.result)).toEqual([
-      {
-        average: null,
-        award: null,
-        disqualified: true,
-        scores: [],
-      },
-    ]);
   });
 
   test("offers a certificate only where it danced in a published choreography that took an award", async () => {

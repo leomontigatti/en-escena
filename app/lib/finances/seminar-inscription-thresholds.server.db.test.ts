@@ -14,7 +14,10 @@ import {
 import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { readSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-thresholds.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
-import { hasCoveredSeminarInscription } from "@/lib/seminars/covered-inscriptions.server";
+import {
+  hasCoveredSeminarInscription,
+  readSeminarRowsCoverage,
+} from "@/lib/seminars/seminar-places.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { createSavedEvent } from "@/lib/test-support/events";
@@ -222,6 +225,27 @@ describe("seminar inscription thresholds", () => {
     });
   });
 
+  /**
+   * The finance figures and the quota read covered through two derivations
+   * (`resolveSeminarInscriptions`, which holds the rows for the figures anyway,
+   * and the place module's own query); both must answer alike for the row and
+   * for its seminar.
+   */
+  async function expectCovered(
+    fixture: Awaited<ReturnType<typeof seedSeminarPricingFixture>>,
+    covered: boolean,
+  ) {
+    const inscriptionId = fixture.participantInscriptionId;
+
+    expect({
+      figures: (await readThresholds(fixture)).get(inscriptionId)?.covered,
+      place: (await readSeminarRowsCoverage(db, [inscriptionId])).get(
+        inscriptionId,
+      )?.covered,
+      seminar: await hasCoveredSeminarInscription(db, fixture.seminarId),
+    }).toEqual({ figures: covered, place: covered, seminar: covered });
+  }
+
   test("covers the inscription only once its stored row's deposit is reached", async () => {
     const fixture = await seedSeminarPricingFixture();
     await db
@@ -237,13 +261,7 @@ describe("seminar inscription thresholds", () => {
       paymentNumber: 1,
     });
 
-    expect(
-      (await readThresholds(fixture)).get(fixture.participantInscriptionId)
-        ?.covered,
-    ).toBe(false);
-    await expect(hasCoveredSeminarInscription(fixture.seminarId)).resolves.toBe(
-      false,
-    );
+    await expectCovered(fixture, false);
 
     await allocate({
       academyId: fixture.dancingAcademyId,
@@ -253,13 +271,7 @@ describe("seminar inscription thresholds", () => {
       paymentNumber: 2,
     });
 
-    expect(
-      (await readThresholds(fixture)).get(fixture.participantInscriptionId)
-        ?.covered,
-    ).toBe(true);
-    await expect(hasCoveredSeminarInscription(fixture.seminarId)).resolves.toBe(
-      true,
-    );
+    await expectCovered(fixture, true);
 
     // Withdrawal keeps the money and gives the place back, so the same money
     // covers nothing.
@@ -268,13 +280,7 @@ describe("seminar inscription thresholds", () => {
       .set({ withdrawnAt: new Date("2030-05-01T12:00:00Z") })
       .where(eq(seminarInscriptions.id, fixture.participantInscriptionId));
 
-    expect(
-      (await readThresholds(fixture)).get(fixture.participantInscriptionId)
-        ?.covered,
-    ).toBe(false);
-    await expect(hasCoveredSeminarInscription(fixture.seminarId)).resolves.toBe(
-      false,
-    );
+    await expectCovered(fixture, false);
   });
 });
 

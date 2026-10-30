@@ -50,7 +50,7 @@ what runs today.
   refuses with, so the refusal is read on sight and not after the save; the
   server refuses all the same, for the race. An inscription is covered once its
   allocations reach that deposit
-  (`app/lib/seminars/covered-inscriptions.server.ts`).
+  (`app/lib/seminars/seminar-places.server.ts`).
 - The instructor's picture is optional at creation and uploaded from the
   seminar's detail, like an `eventDocument`. Until then the portal shows a
   placeholder. It is a private `uploadedAsset` of kind `seminarInstructorPicture`,
@@ -279,6 +279,10 @@ withdrawal** that choreographies do not have.
 ## The place
 
 **A place is held by a covered inscription, or for a while by a reserved one.**
+`app/lib/seminars/seminar-places.server.ts` owns this section: who holds each
+place at an instant (the seminar's ledger), the guard every crossing goes
+through, the reservation a registration is given and the quota's floor. Every
+reading is taken at an instant its caller passes in.
 "Covered" is `Σ allocations ≥ deposit of the stored row` with `Σ > 0`, on a
 non-withdrawn row: the same predicate that fixes the price. One threshold, both
 directions, nothing persisted — covering the deposit fixes the row and takes the
@@ -324,12 +328,14 @@ place for good, de-allocating below it releases both.
   lose their place. `Quitar dinero` stays silent about the place. Afterwards the
   row reads `Seña pendiente` like any uncovered row, with no memory of the place.
 - **Counts.** `availablePlaces = quota − coveredCount − reservedCount`, which is
-  the `Cupo` suffix on the admin list and the figure the detail reads;
+  the `Cupo` suffix on the admin list and the figure the detail reads, and the
+  seminar is full (`isFull`) exactly when it is zero;
   `registeredCount` (all non-withdrawn rows) is a separate figure. Withdrawn rows
   are in none. `coveredCount ≤ quota` always holds.
 - **When covered and reserved rows fill the quota**, the admin
-  `(seminar, academy)` financial detail, the portal seminar detail and the
-  portal `(seminar, academy)` financial detail each carry a non-blocking notice:
+  `(seminar, academy)` financial detail, the portal seminar detail, the
+  portal `(seminar, academy)` financial detail and the individual's
+  `Seminarios` each carry a non-blocking notice:
   new inscriptions are accepted, but a new inscription reserves nothing and its
   deposit cannot be covered until a place frees up. The portal's wording is
   `podés inscribir igual, pero la seña de una nueva inscripción no se cubre hasta que se libere un lugar`.

@@ -1,7 +1,3 @@
-import { and, eq } from "drizzle-orm";
-
-import { db } from "@/db";
-import { choreographies, presentations, schedules } from "@/db/schema";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   readChoreographyCertificates,
@@ -11,9 +7,11 @@ import {
   experienceLevelDisplayLabel,
   type ExperienceLevelRequirement,
 } from "@/lib/choreographies/experience-level-requirement";
-import type { Award } from "@/lib/judging/award";
-import { readPresentationScores } from "@/lib/judging/presentation-scores.server";
-import { isPresentationResultPublished } from "@/lib/judging/results.server";
+import type { PresentationResult } from "@/lib/judging/award";
+import {
+  readPresentationEvaluation,
+  type AcademyEvaluationJudge,
+} from "@/lib/judging/presentation-evaluation.server";
 import type { SheetCriterion } from "@/lib/judging/sheet-total";
 import {
   formatGroupTypeLabel,
@@ -28,32 +26,20 @@ import type { FeedbackAudioStorage } from "@/lib/storage/feedback-audio.server";
  * are out: the award, the average and what each judge gave and said. See
  * docs/domain/judging.md, "Program And Results".
  *
- * This loader is the whole access control of the academy's results. Three
- * things have to hold for it to answer at all — the presentation is in the
- * academy's active event, the choreography is the academy's own, and the result
- * is published — and it is the only place a `Devolución` is ever signed for an
- * academy, so a presentation that fails any of them leaks nothing, not even
- * that it exists.
+ * Whether the academy reads it at all — its own presentation, inside a
+ * published snapshot — and what of the panel it keeps is the academy audience
+ * of `presentation-evaluation.server.ts`. This loader adds the active event,
+ * and the one answer for everything it may not read: "not found", which leaks
+ * nothing, not even that the presentation exists. It is the only place a
+ * `Devolución` is ever signed for an academy.
  *
- * What must not reach the browser is dropped here rather than hidden in the
- * view: a judge who never scored, on a disqualified presentation every
- * number, leaving the audio, and the order number while the program of the
- * presentation's day is not published, as on the academy's list.
+ * The order number stays withheld while the program of the presentation's day
+ * is not published, as on the academy's list.
  */
 
-export type PortalEvaluationJudge = {
-  /** The judge's sheet by criterion; empty without a sheet or when disqualified. */
-  criteriaValues: Record<string, string>;
-  feedbackAudioUrl: string | null;
-  judgeId: string;
-  judgeName: string;
-  /** The judge's score as the numeric column reads it; null when disqualified. */
-  value: string | null;
-};
+export type PortalEvaluationJudge = AcademyEvaluationJudge;
 
 export type PortalPresentationEvaluationLoaderData = {
-  /** Null for a disqualified presentation and when nothing counts. */
-  average: number | null;
   /** What `Descargar certificados` offers; null when it is not offered. */
   certificates: {
     choreographyId: string;
@@ -65,9 +51,8 @@ export type PortalPresentationEvaluationLoaderData = {
   criteria: SheetCriterion[];
   /** The subtitle: category, group type, level, modality and submodality. */
   details: string;
-  disqualified: boolean;
   judges: PortalEvaluationJudge[];
-  award: Award | null;
+  result: PresentationResult;
   /**
    * The heading: the choreography's name and its order number, or the name
    * alone while its day's program is not published.
@@ -87,79 +72,37 @@ export async function loadPortalPresentationEvaluation(input: {
     input.request,
   );
   const choreographyId = input.params.choreographyId ?? "";
+  const audience = { academyId: academy.id, kind: "academy" } as const;
+  const view = activeEvent
+    ? await readPresentationEvaluation(
+        audience,
+        { choreographyId },
+        { storage: input.storage },
+      )
+    : null;
 
-  if (!activeEvent) {
+  if (!activeEvent || !view || view.eventId !== activeEvent.id) {
     throw new Response(evaluationNotFoundMessage, { status: 404 });
   }
 
-  const [presentation] = await db
-    .select({
-      groupType: choreographies.groupType,
-      presentationId: presentations.id,
-      scheduledDate: schedules.scheduledDate,
-    })
-    .from(presentations)
-    .innerJoin(
-      choreographies,
-      eq(choreographies.id, presentations.choreographyId),
-    )
-    .innerJoin(schedules, eq(schedules.id, choreographies.scheduleId))
-    .where(
-      and(
-        eq(presentations.choreographyId, choreographyId),
-        eq(presentations.eventId, activeEvent.id),
-        eq(choreographies.academyId, academy.id),
-      ),
-    );
-
-  if (!presentation || !(await isPresentationResultPublished(choreographyId))) {
-    throw new Response(evaluationNotFoundMessage, { status: 404 });
-  }
-
-  const visibleDays = await readVisibleProgramDays(activeEvent.id);
-  const isDayPublished = visibleDays.includes(presentation.scheduledDate);
-  const view = await readPresentationScores({
-    presentationId: presentation.presentationId,
-    storage: input.storage,
-  });
-
-  if (!view) {
-    throw new Response(evaluationNotFoundMessage, { status: 404 });
-  }
-
-  const certificates = await readChoreographyCertificates(choreographyId);
+  const [visibleDays, certificates] = await Promise.all([
+    readVisibleProgramDays(activeEvent.id),
+    readChoreographyCertificates(audience, choreographyId),
+  ]);
 
   return {
-    average: view.average,
     certificates: certificates && {
       choreographyId,
       choreographyName: certificates.choreographyName,
       recipients: certificates.recipients,
     },
-    criteria: view.disqualified ? [] : view.criteria,
-    details: formatEvaluationDetails({
-      categoryName: view.categoryName,
-      experienceLevel: view.experienceLevel,
-      experienceLevelRequirement: view.experienceLevelRequirement,
-      groupType: presentation.groupType as ChoreographyGroupType,
-      modalityName: view.modalityName,
-      submodalityName: view.submodalityName,
-    }),
-    disqualified: view.disqualified,
-    judges: view.judges
-      // A judge who saved nothing is nobody's result.
-      .filter((judge) => judge.scoreId !== null)
-      .map((judge) => ({
-        criteriaValues: view.disqualified ? {} : judge.criteriaValues,
-        feedbackAudioUrl: judge.feedbackAudioUrl,
-        judgeId: judge.judgeId,
-        judgeName: judge.judgeName,
-        value: view.disqualified ? null : judge.value,
-      })),
-    award: view.award,
+    criteria: view.criteria,
+    details: formatEvaluationDetails(view),
+    judges: view.judges,
+    result: view.result,
     // A published result does not publish its day's order: the number stays
     // with the program, which the day may still be reordered under.
-    title: isDayPublished
+    title: visibleDays.includes(view.scheduledDate)
       ? `${view.name} · N.º ${view.orderNumber}`
       : view.name,
   };

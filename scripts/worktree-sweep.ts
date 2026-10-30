@@ -699,7 +699,7 @@ function sweep({
     branches.filter(({ verdict }) => !verdict.remove),
   );
   console.log(
-    `\nLeft to T3's storage cleanup ${leftToT3.length} (Settings → Storage → Last run says why one stays):`,
+    `\nLeft to T3's storage cleanup ${leftToT3.length} (Settings → Maintenance → Last run says why one stays):`,
   );
   for (const { path: p, branch } of leftToT3)
     console.log(`  ${p}  ${branch ?? ""}`);

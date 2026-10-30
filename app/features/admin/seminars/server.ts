@@ -1,5 +1,6 @@
 import { redirect } from "react-router";
 
+import { db } from "@/db";
 import { listExportableSeminarIds } from "@/features/admin/seminars/export/server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import {
@@ -8,7 +9,7 @@ import {
 } from "@/lib/auth/internal-access.server";
 import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import { seminarHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
-import { hasCoveredSeminarInscription } from "@/lib/seminars/covered-inscriptions.server";
+import { hasCoveredSeminarInscription } from "@/lib/seminars/seminar-places.server";
 import { listSeminarInscriptions } from "@/lib/seminars/inscription-rosters.server";
 import { getSeminar, listSeminars } from "@/lib/seminars/repository.server";
 import {
@@ -59,7 +60,9 @@ export async function loadSeminarsListData(
         ? []
         : [...(await listExportableSeminarIds(selectedEventId))],
     selectedEventId,
-    seminars: selectedEventId ? await listSeminars(selectedEventId) : [],
+    seminars: selectedEventId
+      ? await listSeminars(selectedEventId, new Date())
+      : [],
   };
 }
 
@@ -79,7 +82,7 @@ export async function loadSeminarDetailData(
   seminarId: string,
 ): Promise<SeminarDetailLoaderData> {
   const { selectedEventId } = await loadSeminarContext(request);
-  const seminar = await getSeminar(seminarId);
+  const seminar = await getSeminar(seminarId, new Date());
 
   // A seminar belongs to one event, so reading it from another event's context
   // is the same miss as reading one that no longer exists.
@@ -89,7 +92,7 @@ export async function loadSeminarDetailData(
 
   return {
     hasComprobantes: await seminarHasComprobantes(seminar.id),
-    hasCoveredInscription: await hasCoveredSeminarInscription(seminar.id),
+    hasCoveredInscription: await hasCoveredSeminarInscription(db, seminar.id),
     inscriptions: await listSeminarInscriptions(seminar.id),
     instructorPictureUrl: await loadSeminarInstructorPictureUrl({
       instructorPictureStorageKey: seminar.instructorPictureStorageKey,

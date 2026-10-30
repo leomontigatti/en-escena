@@ -13,6 +13,7 @@ import { renderToPipeableStream } from "react-dom/server";
 
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { sendOpsAlert } from "@/lib/shared/ops-alert.server";
+import { servedRequests } from "@/lib/shared/served-requests.server";
 import {
   reportUnexpectedServerError,
   routePatternInstrumentation,
@@ -21,8 +22,12 @@ import { recordUnexpectedError } from "@/lib/shared/unexpected-error-store.serve
 
 export const streamTimeout = 5_000;
 
-// Records each request's route pattern for `handleError`, which is not given it.
-export const instrumentations = [routePatternInstrumentation];
+// Records each request's route pattern for `handleError`, which is not given
+// it, and counts the requests served for the client error intake.
+export const instrumentations = [
+  routePatternInstrumentation,
+  servedRequests.instrumentation,
+];
 
 export const handleError: HandleErrorFunction = (
   error,

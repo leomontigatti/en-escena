@@ -125,6 +125,7 @@ export async function loadAcademyFinances(input: {
           readSeminarCobroPreviews({
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
+            now: new Date(),
           }),
           readOwnerMovements({
             academyId: academy.id,
@@ -262,6 +263,7 @@ export async function handleAcademyFinancesAction(input: {
   const result =
     target === "seminars"
       ? await paySeminarsPreset({
+          now: new Date(),
           academyId,
           eventId: eventContext.selectedEventId,
           seminarIds: readIds(formData, seminarIdFieldName),

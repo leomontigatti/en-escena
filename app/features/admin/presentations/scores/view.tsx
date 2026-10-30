@@ -44,7 +44,7 @@ import {
 import { SheetParts } from "@/features/judging/score/sheet-parts";
 import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
 import { awardLabels } from "@/lib/judging/award";
-import type { PresentationJudgeScore } from "@/lib/judging/presentation-scores.server";
+import type { PresentationJudgeScore } from "@/lib/judging/presentation-evaluation.server";
 import {
   formatScoreFieldValue,
   singleScoreMaximum,
@@ -113,7 +113,7 @@ export function PresentationScoresView({
             </AlertDescription>
           </Alert>
         ) : null}
-        {presentation.disqualified ? (
+        {presentation.result.kind === "disqualified" ? (
           <Alert variant="info">
             <Info aria-hidden="true" />
             <AlertTitle>Presentación descalificada</AlertTitle>
@@ -138,24 +138,20 @@ type Presentation = PresentationScoresLoaderData["presentation"];
  * A disqualified presentation has no result to give, so its average and award
  * do not apply; one no judge has scored yet simply has none so far.
  */
-function averageText(presentation: Presentation) {
-  if (presentation.disqualified || presentation.withdrawn) {
+function averageText({ result, withdrawn }: Presentation) {
+  if (result.kind === "disqualified" || withdrawn) {
     return notApplicableText;
   }
 
-  return presentation.average === null
-    ? noScoresText
-    : String(presentation.average);
+  return result.kind === "scored" ? String(result.average) : noScoresText;
 }
 
-function awardText(presentation: Presentation) {
-  if (presentation.disqualified || presentation.withdrawn) {
+function awardText({ result, withdrawn }: Presentation) {
+  if (result.kind === "disqualified" || withdrawn) {
     return notApplicableText;
   }
 
-  return presentation.award === null
-    ? noScoresText
-    : awardLabels[presentation.award];
+  return result.kind === "scored" ? awardLabels[result.award] : noScoresText;
 }
 
 /**

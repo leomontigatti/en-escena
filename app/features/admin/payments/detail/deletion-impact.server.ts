@@ -21,7 +21,7 @@
  *   unchanged one would read as a consequence of the deletion.
  */
 
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-target.server";
@@ -30,7 +30,6 @@ import {
   choreographyDancers,
   paymentAllocations,
   seminarInscriptions,
-  seminarPrices,
   seminars,
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
@@ -41,8 +40,10 @@ import {
   type ChoreographyFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
-import { deriveSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-price";
-import { isSeminarInscriptionCovered } from "@/lib/finances/seminar-inscription-thresholds.server";
+import {
+  losesSeminarPlace,
+  readSeminarRowsCoverage,
+} from "@/lib/seminars/seminar-places.server";
 
 /** What this payment has allocated to one unit, and takes with it. */
 type PaymentDeletionImpactBase = {
@@ -84,26 +85,23 @@ export async function readPaymentDeletionImpact(input: {
 
 /**
  * The seminar half of the list. Only the inscriptions this payment funds can
- * lose a place, so those are the rows read, each with what it holds in total and
- * the deposit of the row it **stored** — the same threshold the crossing was
- * judged by. A withdrawn row holds money but no place, so it is out.
+ * lose a place, so those are the rows read, each judged by the same coverage
+ * the quota counts (`readSeminarRowsCoverage`). A withdrawn row holds money but
+ * no place, so it loses none.
  */
 async function readSeminarImpacts(
   paymentId: string,
 ): Promise<PaymentDeletionImpact[]> {
+  // Every row the payment funds, withdrawn ones included: the money leaves a
+  // withdrawn row exactly as it leaves an active one, so hiding it here would
+  // delete money the impact list never named. Only the place is active-only,
+  // which `losesSeminarPlace` reads off the row.
   const affected = await db
     .select({
-      allocatedAmount: sql<number>`coalesce((
-        select sum(${paymentAllocations.amount})
-        from ${paymentAllocations}
-        where ${paymentAllocations.seminarInscriptionId} = ${seminarInscriptions.id}
-      ), 0)`,
+      inscriptionId: seminarInscriptions.id,
       instructorName: seminars.instructorName,
       releasedAmount: paymentAllocations.amount,
-      requiredDepositPercentage: seminars.requiredDepositPercentage,
       seminarId: seminars.id,
-      storedPriceAmount: seminarPrices.amount,
-      withdrawnAt: seminarInscriptions.withdrawnAt,
     })
     .from(paymentAllocations)
     .innerJoin(
@@ -111,38 +109,20 @@ async function readSeminarImpacts(
       eq(paymentAllocations.seminarInscriptionId, seminarInscriptions.id),
     )
     .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
-    .leftJoin(
-      seminarPrices,
-      eq(seminarPrices.id, seminarInscriptions.selectedPriceId),
-    )
-    // Every row the payment funds, withdrawn ones included: the money leaves a
-    // withdrawn row exactly as it leaves an active one, so hiding it here would
-    // delete money the impact list never named. Only the place is active-only,
-    // which the predicate below reads off `withdrawnAt`.
     .where(eq(paymentAllocations.paymentId, paymentId));
-
+  const coverage = await readSeminarRowsCoverage(
+    db,
+    affected.map((row) => row.inscriptionId),
+  );
   const impacts = new Map<string, SeminarUnitImpact>();
 
   for (const row of affected) {
-    const storedDepositAmount = deriveSeminarInscriptionThresholds({
-      priceAmount: row.storedPriceAmount,
-      requiredDepositPercentage: row.requiredDepositPercentage,
-    }).depositAmount;
-    const allocatedAmount = Number(row.allocatedAmount);
-    const withdrawn = row.withdrawnAt !== null;
-    // A withdrawn row holds no place, so it has none to lose: the predicate
-    // answers `false` on both sides of the subtraction and the row contributes
-    // its money to the entry without inflating the count.
+    const rowCoverage = coverage.get(row.inscriptionId);
     const losesPlace =
-      isSeminarInscriptionCovered({
-        allocatedAmount,
-        storedDepositAmount,
-        withdrawn,
-      }) &&
-      !isSeminarInscriptionCovered({
-        allocatedAmount: allocatedAmount - row.releasedAmount,
-        storedDepositAmount,
-        withdrawn,
+      rowCoverage !== undefined &&
+      losesSeminarPlace({
+        coverage: rowCoverage,
+        releasedAmount: row.releasedAmount,
       });
     const impact = impacts.get(row.seminarId) ?? {
       allocatedAmount: 0,

@@ -57,8 +57,8 @@ export async function loadSeminarsExport(request: Request): Promise<Response> {
     readRequestedUrl(request).searchParams.get(exportSeminarParam) ??
     exportAllSeminars;
   const exportable = await listExportableSeminarIds(eventId);
-  const eventSeminars = (await listSeminars(eventId)).filter(({ id }) =>
-    exportable.has(id),
+  const eventSeminars = (await listSeminars(eventId, new Date())).filter(
+    ({ id }) => exportable.has(id),
   );
   // Named against every seminar the dialog offers, so one seminar's sheet and
   // file are named as it is in the dialog and in the whole workbook.

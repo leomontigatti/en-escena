@@ -1,19 +1,22 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   chmodSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  assertOwnDatabase,
   copyUploads,
   choosePort,
   databaseUrlFor,
@@ -25,6 +28,100 @@ import {
   worktreeDatabaseName,
   worktreeStorageDir,
 } from "./worktree-db";
+
+describe("assertOwnDatabase", () => {
+  it("refuses a worktree with no database of its own, naming the way out", () => {
+    expect(() =>
+      assertOwnDatabase({ mainCheckout: false, hasOwnDatabase: false }),
+    ).toThrow(/pnpm db:worktree[\s\S]*ln -s .*\.env/);
+  });
+});
+
+describe("worktree-db.ts guard", () => {
+  const script = fileURLToPath(new URL("worktree-db.ts", import.meta.url));
+  const tsx = fileURLToPath(new URL("../node_modules/tsx", import.meta.url));
+  let scratch: string;
+
+  afterEach(() => {
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  function checkouts() {
+    scratch = realpathSync(mkdtempSync(path.join(tmpdir(), "db-guard-")));
+    const main = path.join(scratch, "main");
+    const worktree = path.join(scratch, "worktree");
+    const git = (cwd: string, ...args: string[]) =>
+      execFileSync("git", args, { cwd, stdio: "ignore" });
+
+    mkdirSync(main);
+    git(main, "init", "-q");
+    git(
+      main,
+      "-c",
+      "user.name=t",
+      "-c",
+      "user.email=t@t",
+      "commit",
+      "-q",
+      "--allow-empty",
+      "-m",
+      "x",
+    );
+    git(main, "worktree", "add", "-q", "--detach", worktree);
+    return { main, worktree };
+  }
+
+  function guard(cwd: string) {
+    return spawnSync(
+      process.execPath,
+      ["--import", path.join(tsx, "dist/loader.mjs"), script, "guard"],
+      { cwd, encoding: "utf8" },
+    );
+  }
+
+  it("stops the chain in a worktree whose only database is the main checkout's", () => {
+    const { worktree } = checkouts();
+    writeFileSync(
+      path.join(worktree, ".env"),
+      'DATABASE_URL="postgres://localhost:5433/en-escena"\n',
+    );
+
+    const result = guard(worktree);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("pnpm db:worktree");
+  });
+
+  it.each([
+    ["no DATABASE_URL", 'PORT="5321"\n'],
+    ["an empty DATABASE_URL", 'DATABASE_URL=""\n'],
+    [
+      "the main checkout's",
+      'DATABASE_URL="postgres://localhost:5433/en-escena"\n',
+    ],
+  ])("stops the chain when .env.local holds %s", (_, content) => {
+    const { worktree } = checkouts();
+    writeFileSync(path.join(worktree, ".env.local"), content);
+
+    expect(guard(worktree).status).toBe(1);
+  });
+
+  it("lets a worktree whose .env.local names its own database through", () => {
+    const { worktree } = checkouts();
+    writeFileSync(
+      path.join(worktree, ".env.local"),
+      'DATABASE_URL="postgres://localhost:5433/en-escena-wt-worktree"\n',
+    );
+
+    expect(guard(worktree).status).toBe(0);
+  });
+
+  it("lets the main checkout through", () => {
+    const { main } = checkouts();
+
+    expect(guard(main).status).toBe(0);
+  });
+});
 
 describe("worktreeDatabaseName", () => {
   it("names the database after the worktree directory", () => {

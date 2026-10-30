@@ -26,7 +26,7 @@ export async function loadPortalSeminarsList(
   }
 
   const [seminars, inscriptions] = await Promise.all([
-    listSeminars(activeEvent.id),
+    listSeminars(activeEvent.id, new Date()),
     listSeminarInscriptionsForAcademy({
       academyId: academy.id,
       eventId: activeEvent.id,

@@ -19,12 +19,10 @@ import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.serve
 import { formatAmount, formatDate } from "@/lib/finances/formatters";
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 import type { SeminarCobroPreview } from "@/lib/finances/seminar-cobro-presets.server";
-import { seminarOverAllocatedMessage } from "@/lib/finances/seminar-cobro-refusals";
 import {
-  countSeminarPlacesLeft,
-  countSeminarPlacesShort,
+  seminarOverAllocatedMessage,
   seminarPlacesShortMessage,
-} from "@/lib/seminars/seminar-places";
+} from "@/lib/finances/seminar-cobro-refusals";
 import { useOptionalFormAction } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -215,10 +213,7 @@ export function SeminarPresetDialog({
 }
 
 type SeminarPresetSummaryRow = SeminarCobroPreview["stages"][CobroStage] &
-  Pick<
-    SeminarCobroPreview,
-    "instructorName" | "scheduledDate" | "seminarId"
-  > & { placesLeft: number; shortBy: number };
+  Pick<SeminarCobroPreview, "instructorName" | "scheduledDate" | "seminarId">;
 
 /**
  * One seminar of the selection: who the charge reaches, at which price and for
@@ -278,8 +273,8 @@ function SeminarPresetSummary({
  * selection, the owed figure summed from the people it reaches, the seminars
  * short of places, and whether `Saldo disponible` falls short of the owed
  * figure, and the people the write would refuse for holding more than the
- * price it would store. The place count is the write's own
- * (`countSeminarPlacesShort`).
+ * price it would store. The place figures are the write's own, read off the
+ * seminar's ledger on the server.
  */
 function summarizeSeminarPreset(input: {
   availableBalanceAmount: number;
@@ -296,19 +291,8 @@ function summarizeSeminarPreset(input: {
             {
               ...preview.stages[input.stage],
               instructorName: preview.instructorName,
-              placesLeft: countSeminarPlacesLeft({
-                coveredCount: preview.coveredCount,
-                quota: preview.quota,
-                reservedCount: preview.stages[input.stage].reservedCount,
-              }),
               scheduledDate: preview.scheduledDate,
               seminarId,
-              shortBy: countSeminarPlacesShort({
-                coveredCount: preview.coveredCount,
-                neededCount: preview.stages[input.stage].neededCount,
-                quota: preview.quota,
-                reservedCount: preview.stages[input.stage].reservedCount,
-              }),
             },
           ]
         : [];

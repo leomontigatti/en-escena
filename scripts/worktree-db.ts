@@ -13,6 +13,7 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { parseEnv } from "node:util";
 
 // A worktree's own database, storage folder and dev server port, so concurrent
 // sessions stop re-seeding, refreshing and screenshotting each other's data. All
@@ -27,6 +28,8 @@ import { fileURLToPath } from "node:url";
 // first use, so a thread that never needs data never gets a database; with no
 // argument (`pnpm db:worktree`) it re-runs the setup. `pnpm worktree:sweep`
 // calls `prune` for the databases and storage folders of removed worktrees.
+// `guard` runs ahead of the scripts that reach a database but must not set one
+// up, and stops them in a worktree without one of its own.
 // Runbook: docs/local-auth.md, "One database per worktree".
 
 const CONTAINER = "en-escena-postgres";
@@ -34,6 +37,9 @@ const PREFIX = "en-escena-wt-";
 const PORT_MIN = 5200;
 const PORT_SPAN = 800;
 const ENV_LOCAL = ".env.local";
+// T3 recreates a resumed thread's worktree without its setup script, so `.env`
+// can be missing too, and `pnpm db:worktree` needs it for the server's URL.
+const LINK_ENV = `ln -s "$(git rev-parse --path-format=absolute --git-common-dir)/../.env" .env`;
 
 export function worktreeDatabaseName(worktreePath: string): string {
   const slug = path
@@ -212,14 +218,55 @@ function isMainCheckout(root: string): boolean {
   );
 }
 
+export type Checkout = { mainCheckout: boolean; hasOwnDatabase: boolean };
+
+export function readCheckout(): Checkout {
+  const root = git(["rev-parse", "--show-toplevel"]);
+  const envLocalPath = path.join(root, ENV_LOCAL);
+
+  return {
+    mainCheckout: isMainCheckout(root),
+    hasOwnDatabase:
+      existsSync(envLocalPath) &&
+      namesOwnDatabase(readFileSync(envLocalPath, "utf8"), root),
+  };
+}
+
+function namesOwnDatabase(envLocal: string, root: string): boolean {
+  const url = parseEnv(envLocal).DATABASE_URL;
+
+  return (
+    url !== undefined &&
+    URL.canParse(url) &&
+    new URL(url).pathname === `/${worktreeDatabaseName(root)}`
+  );
+}
+
+/**
+ * Stops a worktree whose `.env.local` does not name its own database: whatever
+ * it would reach, from `.env` or a default, is the main checkout's.
+ */
+export function assertOwnDatabase({ mainCheckout, hasOwnDatabase }: Checkout) {
+  if (mainCheckout || hasOwnDatabase) return;
+
+  throw new Error(
+    [
+      "This worktree has no database of its own yet, and .env alone points at the main checkout's. Run `pnpm db:worktree` first.",
+      "If .env is missing here too, link it before that:",
+      `  ${LINK_ENV}`,
+    ].join("\n"),
+  );
+}
+
 function ensure() {
   const root = git(["rev-parse", "--show-toplevel"]);
+  const { mainCheckout, hasOwnDatabase } = readCheckout();
 
-  if (isMainCheckout(root)) return;
+  if (mainCheckout) return;
 
   const envLocalPath = path.join(root, ENV_LOCAL);
 
-  if (!existsSync(envLocalPath)) {
+  if (!hasOwnDatabase) {
     console.log("First use of the database here: setting up this worktree's.");
     setUp(root);
     return;
@@ -329,7 +376,9 @@ function migrateAndSeed(options: {
   created: boolean;
 }) {
   const { envLocalPath, databaseUrl, port, database, created } = options;
-  const hadEnvLocal = existsSync(envLocalPath);
+  const previousEnvLocal = existsSync(envLocalPath)
+    ? readFileSync(envLocalPath, "utf8")
+    : undefined;
   const storageDir = worktreeStorageDir(database);
 
   writeFileSync(
@@ -350,7 +399,11 @@ function migrateAndSeed(options: {
   } catch (error) {
     // A half-set-up worktree must not look set up: `ensure` skips a worktree
     // that has `.env.local`, so leave nothing behind for the next run to trust.
-    if (!hadEnvLocal) rmSync(envLocalPath, { force: true });
+    if (previousEnvLocal === undefined) {
+      rmSync(envLocalPath, { force: true });
+    } else {
+      writeFileSync(envLocalPath, previousEnvLocal);
+    }
     if (created) {
       // The seed's uploads belong to the database it is about to drop; a
       // folder that will not go must not keep the database from going too.
@@ -387,7 +440,9 @@ function setUp(root: string) {
   const baseUrl = process.env.DATABASE_URL;
 
   if (!baseUrl) {
-    throw new Error("DATABASE_URL is required; is .env linked?");
+    throw new Error(
+      `DATABASE_URL is required. Link the main checkout's .env here and run this again:\n  ${LINK_ENV}`,
+    );
   }
 
   const database = worktreeDatabaseName(root);
@@ -472,6 +527,8 @@ if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1] ?? "")) {
   try {
     if (process.argv.includes("ensure")) {
       ensure();
+    } else if (process.argv.includes("guard")) {
+      assertOwnDatabase(readCheckout());
     } else {
       setUp(git(["rev-parse", "--show-toplevel"]));
     }
