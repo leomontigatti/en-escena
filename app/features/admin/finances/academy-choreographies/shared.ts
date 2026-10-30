@@ -45,6 +45,7 @@ export const registerPaymentSchema = z.object({
   amount: z
     .string()
     .trim()
+    .min(1, { abort: true, message: "Este campo es obligatorio." })
     .refine((value) => /^\d+$/.test(value), {
       message: "Ingresá un monto entero en pesos, sin centavos.",
     })

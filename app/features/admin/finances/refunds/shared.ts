@@ -21,7 +21,7 @@ const refundFieldsSchema = z.object({
       if (!value) {
         context.addIssue({
           code: "custom",
-          message: "Ingresá la fecha del reembolso.",
+          message: "Este campo es obligatorio.",
         });
         return;
       }
