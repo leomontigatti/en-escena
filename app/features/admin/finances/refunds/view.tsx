@@ -136,7 +136,9 @@ function EditableRefundForm({
   const submit = useSubmit();
   const { isDirty } = useFormState({ control: form.control });
   const refused =
-    actionData?.status === "error" && actionData.intent === updateRefundIntent
+    actionData?.status === "error" &&
+    actionData.intent === updateRefundIntent &&
+    actionData.version === loaderData.version
       ? actionData.values
       : undefined;
 

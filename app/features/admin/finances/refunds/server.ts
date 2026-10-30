@@ -103,6 +103,7 @@ async function updateRefundFromForm(input: {
   refundId: string;
 }): Promise<RefundDetailActionData> {
   const values = readCreatePaymentValues(input.formData);
+  const version = String(input.formData.get("version") ?? "");
   const parsed = createPaymentSchema.safeParse(values);
 
   if (!parsed.success) {
@@ -112,6 +113,7 @@ async function updateRefundFromForm(input: {
       message: "Revisá los datos del reembolso.",
       status: "error",
       values,
+      version,
     };
   }
 
@@ -122,7 +124,7 @@ async function updateRefundFromForm(input: {
     refundDate: parsed.data.paymentDate,
     refundId: input.refundId,
     refundMethod: parsed.data.paymentMethod,
-    version: String(input.formData.get("version") ?? ""),
+    version,
   });
 
   if (result.ok) {
@@ -142,7 +144,7 @@ async function updateRefundFromForm(input: {
         `El reembolso no puede superar ${formatAmount(capAmount)}, el saldo disponible más su monto actual.`,
     ),
     status: "error",
-    ...(isChangedMeanwhile(result) ? {} : { values }),
+    ...(isChangedMeanwhile(result) ? {} : { values, version }),
   };
 }
 

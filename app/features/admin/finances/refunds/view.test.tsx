@@ -125,6 +125,7 @@ const overCapRefusal = (amount: string): RefundDetailActionData => ({
   message: "El reembolso no puede superar $ 3.000.",
   status: "error",
   values: { ...loaderDataFixture().values, amount },
+  version: loaderDataFixture().version,
 });
 
 const changedMeanwhile: RefundDetailActionData = {
@@ -211,6 +212,21 @@ describe("the refund form", () => {
     expect(
       document.querySelector<HTMLInputElement>('input[name="version"]')?.value,
     ).toBe(newerVersion);
+  });
+
+  test("drops a refused draft when another write lands before the page revalidates", async () => {
+    const page = await renderPage();
+
+    await typeAmount("9000");
+    await page.serverAnswers({
+      actionData: overCapRefusal("9000"),
+      loaderData: loaderDataFixture({
+        values: { ...loaderDataFixture().values, amount: "900" },
+        version: newerVersion,
+      }),
+    });
+
+    expect(readAmount().value).toBe("900");
   });
 
   test("drops what was typed even when the refund changed in nothing the form shows", async () => {
