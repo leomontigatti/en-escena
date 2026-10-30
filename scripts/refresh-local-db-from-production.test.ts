@@ -134,27 +134,53 @@ describe("BACKUP_ON validation", () => {
 });
 
 describe("target database", () => {
+  const mainCheckout = { mainCheckout: true, hasOwnDatabase: false };
+  const setUpWorktree = { mainCheckout: false, hasOwnDatabase: true };
+  const bareWorktree = { mainCheckout: false, hasOwnDatabase: false };
+
   test("is the one DATABASE_URL names, so a worktree refreshes its own", () => {
     expect(
       localDatabaseName(
         "postgres://postgres:postgres@localhost:5433/en-escena-wt-t3code-1",
+        setUpWorktree,
       ),
     ).toBe("en-escena-wt-t3code-1");
   });
 
-  test("falls back to en-escena without a DATABASE_URL", () => {
-    expect(localDatabaseName(undefined)).toBe("en-escena");
+  test("falls back to en-escena without a DATABASE_URL in the main checkout", () => {
+    expect(localDatabaseName(undefined, mainCheckout)).toBe("en-escena");
+  });
+
+  test("refuses a worktree without a DATABASE_URL rather than falling back to the main checkout's", () => {
+    expect(() => localDatabaseName(undefined, bareWorktree)).toThrow(
+      /pnpm db:worktree/,
+    );
+  });
+
+  test("refuses a worktree whose DATABASE_URL came from the main checkout's .env", () => {
+    expect(() =>
+      localDatabaseName(
+        "postgres://postgres:postgres@localhost:5433/en-escena",
+        bareWorktree,
+      ),
+    ).toThrow(/pnpm db:worktree/);
   });
 
   test("refuses a database off this machine", () => {
     expect(() =>
-      localDatabaseName("postgres://u:p@db.example.com:5432/en-escena"),
+      localDatabaseName(
+        "postgres://u:p@db.example.com:5432/en-escena",
+        mainCheckout,
+      ),
     ).toThrow(/not a local database/);
   });
 
   test("refuses a name that would break out of the SQL it is quoted into", () => {
     expect(() =>
-      localDatabaseName("postgres://u:p@localhost:5433/x'%3Bdrop"),
+      localDatabaseName(
+        "postgres://u:p@localhost:5433/x'%3Bdrop",
+        mainCheckout,
+      ),
     ).toThrow(/Unexpected local database name/);
   });
 });

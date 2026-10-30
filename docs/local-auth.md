@@ -90,7 +90,13 @@ over the `.env` linked from the main checkout, so a session's seed, migrations,
 refresh and screenshots touch only its own data, and a thread that never needs
 data (grilling, research, review) never gets a database. `pnpm db:worktree`
 runs the same setup by hand; re-running it is safe: it migrates, and seeds only
-a database it just created. The dev server holds its port strictly and fails when another process
+a database it just created. `db:refresh:prod`, `db:baseline`, `db:studio` and
+`db:sql` never set one up: in a worktree whose `.env.local` does not name its own database they refuse, since
+anything they could reach is the main checkout's `en-escena`, and name
+`pnpm db:worktree`. T3 recreates a resumed thread's worktree without running the
+setup script, so `.env` can be gone too; the setup needs it, and the refusal
+prints the command that links it. The database and storage folder survive that,
+so the setup finds them and seeds nothing. The dev server holds its port strictly and fails when another process
 has it, rather than moving to a port the session did not expect.
 
 `pnpm worktree:sweep` drops the database and storage folder of every worktree that is gone, including those T3's storage cleanup removed (see

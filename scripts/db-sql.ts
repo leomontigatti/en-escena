@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -7,7 +6,7 @@ import postgres from "postgres";
 
 import { getTestDatabaseUrl } from "../tests/db/config";
 import { databaseName } from "./dev-info";
-import { git } from "./worktree-db";
+import { assertOwnDatabase, readCheckout, type Checkout } from "./worktree-db";
 
 // Runs one read-only query against this worktree's development database, or
 // the test database with `--test`, and prints it as an aligned table, so an
@@ -36,23 +35,19 @@ export type Target = { url: string; database: string };
 export type Result = { columns: string[]; rows: unknown[][] };
 export type Session = { query(text: string): Promise<Result> };
 
-export function resolveTarget(input: {
-  env: NodeJS.ProcessEnv;
-  test: boolean;
-  mainCheckout: boolean;
-  hasEnvLocal: boolean;
-}): Target {
+export function resolveTarget(
+  input: Checkout & { env: NodeJS.ProcessEnv; test: boolean },
+): Target {
+  if (!input.test) {
+    assertOwnDatabase(input);
+  }
+
   const url = input.test
     ? (input.env.TEST_DATABASE_URL ?? getTestDatabaseUrl())
     : input.env.DATABASE_URL;
 
   if (!url) {
     throw new Error("DATABASE_URL is not set; is .env linked?");
-  }
-  if (!input.test && !input.mainCheckout && !input.hasEnvLocal) {
-    throw new Error(
-      "This worktree has no database of its own yet, and .env alone points at the main checkout's. Run `pnpm db:worktree` first.",
-    );
   }
 
   const database = databaseName(url);
@@ -158,14 +153,10 @@ async function main(args: string[]) {
     throw new Error('usage: pnpm db:sql "<query>" [--test]');
   }
 
-  const root = git(["rev-parse", "--show-toplevel"]);
   const target = resolveTarget({
     env: process.env,
     test,
-    mainCheckout:
-      path.resolve(root, git(["rev-parse", "--git-dir"])) ===
-      path.resolve(root, git(["rev-parse", "--git-common-dir"])),
-    hasEnvLocal: existsSync(path.join(root, ".env.local")),
+    ...readCheckout(),
   });
   await ensureReader(target.url);
 

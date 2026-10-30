@@ -21,7 +21,7 @@ describe("resolveTarget", () => {
         env,
         test: false,
         mainCheckout: false,
-        hasEnvLocal: true,
+        hasOwnDatabase: true,
       }),
     ).toEqual({ url: env.DATABASE_URL, database: "en-escena-wt-x" });
   });
@@ -32,7 +32,7 @@ describe("resolveTarget", () => {
         env: { DATABASE_URL: "postgres://localhost:5433/en-escena" },
         test: false,
         mainCheckout: true,
-        hasEnvLocal: false,
+        hasOwnDatabase: false,
       }).database,
     ).toBe("en-escena");
   });
@@ -43,7 +43,18 @@ describe("resolveTarget", () => {
         env,
         test: false,
         mainCheckout: false,
-        hasEnvLocal: false,
+        hasOwnDatabase: false,
+      }),
+    ).toThrow(/pnpm db:worktree/);
+  });
+
+  it("refuses a bare worktree, which has no DATABASE_URL at all, the same way", () => {
+    expect(() =>
+      resolveTarget({
+        env: {},
+        test: false,
+        mainCheckout: false,
+        hasOwnDatabase: false,
       }),
     ).toThrow(/pnpm db:worktree/);
   });
@@ -54,7 +65,7 @@ describe("resolveTarget", () => {
         env,
         test: true,
         mainCheckout: false,
-        hasEnvLocal: false,
+        hasOwnDatabase: false,
       }),
     ).toEqual({ url: env.TEST_DATABASE_URL, database: "custom-test" });
   });
@@ -65,7 +76,7 @@ describe("resolveTarget", () => {
         env: {},
         test: true,
         mainCheckout: true,
-        hasEnvLocal: false,
+        hasOwnDatabase: false,
       }).database,
     ).toBe("en-escena-test");
   });
@@ -76,7 +87,7 @@ describe("resolveTarget", () => {
         env: { DATABASE_URL: "postgres://postgres:x@db.example.com/en-escena" },
         test: false,
         mainCheckout: true,
-        hasEnvLocal: false,
+        hasOwnDatabase: false,
       }),
     ).toThrow(/db\.example\.com/);
   });
@@ -87,7 +98,7 @@ describe("resolveTarget", () => {
         env: {},
         test: false,
         mainCheckout: true,
-        hasEnvLocal: false,
+        hasOwnDatabase: false,
       }),
     ).toThrow(/DATABASE_URL/);
   });
