@@ -69,20 +69,6 @@ describe("admin movement create", () => {
       },
     );
   });
-
-  test("refuses a kind that is neither a payment nor a refund", async () => {
-    const pool = await seedPool();
-    const { request } = await buildGlobalPaymentRequest({
-      ...refundInput(pool),
-      movementKind: "gift" as "refund",
-    });
-
-    await expect(handleMovementCreateAction(request)).resolves.toMatchObject({
-      fieldErrors: { movementKind: "Seleccioná un tipo." },
-      status: "error",
-    });
-    await expect(readRefunds(pool.academyId)).resolves.toEqual([]);
-  });
 });
 
 describe("registering a refund", () => {

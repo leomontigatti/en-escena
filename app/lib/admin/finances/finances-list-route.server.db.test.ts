@@ -458,7 +458,7 @@ describe("`/administracion/finanzas`", () => {
     expect(invalidResult).toMatchObject({
       status: "error",
       fieldErrors: {
-        academyId: "Seleccioná una academia.",
+        academyId: "Este campo es obligatorio.",
         amount: "Ingresá un monto mayor a cero.",
       },
     });

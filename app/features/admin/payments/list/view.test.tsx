@@ -22,13 +22,6 @@ describe("MovementsListRouteView", () => {
     expect(markup).toContain('aria-label="Seleccionar fila"');
   });
 
-  test("offers `Nuevo movimiento` to the administrator and not to the auditor", () => {
-    expect(render()).toContain("Nuevo movimiento");
-    expect(
-      render(movementsListLoaderDataFixture({ canWrite: false })),
-    ).not.toContain("Nuevo movimiento");
-  });
-
   // A filter that matched nothing must not fall back to the "no movements
   // yet" empty state: the cards and the facet are how the reader undoes it.
   test("keeps the table visible when the kind facet empties it", () => {

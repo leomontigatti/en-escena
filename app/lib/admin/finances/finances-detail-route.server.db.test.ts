@@ -595,7 +595,7 @@ describe("`/administracion/finanzas` academy", () => {
       fieldErrors: {
         amount: "Ingresá un monto entero en pesos, sin centavos.",
         paymentDate: "La fecha no puede ser futura.",
-        paymentMethod: "Seleccioná un medio.",
+        paymentMethod: "Este campo es obligatorio.",
       },
     });
     await expect(

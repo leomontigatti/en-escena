@@ -20,6 +20,7 @@ import {
 import {
   createValidatedRouteFormDataSubmitHandler,
   isRouteFormPending,
+  useLastRefusedValues,
   useOptionalNavigation,
   useSavedFormValues,
 } from "@/lib/shared/forms";
@@ -65,7 +66,11 @@ export function NewMovementRouteView({
   });
   const submit = useSubmit();
   const { isDirty } = useFormState({ control: form.control });
-  useSavedFormValues(form, loaderData.values, actionData?.values);
+  useSavedFormValues(
+    form,
+    loaderData.values,
+    useLastRefusedValues(actionData?.values),
+  );
 
   useServerActionToast(actionData);
 

@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import { act } from "react";
+import { act, useState } from "react";
 import { createMemoryRouter, redirect, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
@@ -65,6 +65,41 @@ describe("the movement creation form", () => {
     expect(submissions[0]?.get("intent")).toBe("create-movement");
   });
 
+  test("keeps the refused kind when a later save crashes, so a retyped refund is not saved as a payment", async () => {
+    const refused = {
+      fieldErrors: {},
+      message: "El reembolso no puede superar el saldo disponible de $ 3.000.",
+      status: "error" as const,
+      values: { ...emptyValues, amount: "15000", movementKind: "refund" },
+    };
+    let answer = (_: ActionData) => {};
+    function AnsweringPage() {
+      const [actionData, setActionData] = useState<ActionData>(refused);
+      answer = setActionData;
+
+      return (
+        <NewMovementRouteView actionData={actionData} loaderData={loaderData} />
+      );
+    }
+    const router = createMemoryRouter(
+      [{ element: <AnsweringPage />, path: createPath }],
+      { initialEntries: [createPath] },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+    await settle();
+
+    await act(async () => {
+      // A crash answers with a message alone (`recoverableClientAction`).
+      answer({ message: "Algo salió mal.", status: "error" } as ActionData);
+    });
+    await settle();
+
+    expect(readAmount().value).toBe("15000");
+    expect(document.querySelector('[role="combobox"]')?.textContent).toContain(
+      "Reembolso",
+    );
+  });
+
   test("lets the save redirect to the new payment without asking", async () => {
     const page = await renderPage();
 
@@ -102,11 +137,26 @@ const emptyValues = {
   reference: "",
 };
 
+type ActionData = Parameters<typeof NewMovementRouteView>[0]["actionData"];
+
+const loaderData = {
+  academies: [
+    {
+      contactName: "Ana Fork",
+      id: "academy_1",
+      kind: "academy" as const,
+      name: "Academia Fork",
+    },
+  ],
+  selectedEventId: "event_1",
+  values: emptyValues,
+};
+
 async function renderPage({
   actionData,
   submissions = [],
 }: {
-  actionData?: Parameters<typeof NewMovementRouteView>[0]["actionData"];
+  actionData?: ActionData;
   submissions?: FormData[];
 } = {}) {
   // The form posts to the URL the document says, which the memory router does
@@ -129,18 +179,7 @@ async function renderPage({
         element: (
           <NewMovementRouteView
             actionData={actionData}
-            loaderData={{
-              academies: [
-                {
-                  contactName: "Ana Fork",
-                  id: "academy_1",
-                  kind: "academy",
-                  name: "Academia Fork",
-                },
-              ],
-              selectedEventId: "event_1",
-              values: emptyValues,
-            }}
+            loaderData={loaderData}
           />
         ),
         path: createPath,

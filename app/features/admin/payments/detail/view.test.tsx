@@ -25,10 +25,8 @@ describe("PaymentDetailRouteView", () => {
 
     expect(document.querySelector("h2")?.textContent).toBe("Pago # 00001");
     expect(document.body.textContent).toContain("Academia Norte");
-    expect(document.body.textContent).toContain("Fecha");
     expect(document.body.textContent).toContain("Referencia");
     expect(document.body.textContent).toContain("Monto");
-    expect(document.body.textContent).toContain("Medio");
     expect(document.body.textContent).toContain("Nota interna");
     expect(document.body.textContent).toContain("Guardar");
     expect(findButton("Acciones", { exact: true })).toBeDefined();

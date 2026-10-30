@@ -22,7 +22,7 @@ export const registerPaymentSchema = z.object({
       if (!value) {
         context.addIssue({
           code: "custom",
-          message: "Ingresá la fecha.",
+          message: "Este campo es obligatorio.",
         });
         return;
       }
@@ -54,9 +54,10 @@ export const registerPaymentSchema = z.object({
   paymentMethod: z
     .string()
     .trim()
+    .min(1, { message: "Este campo es obligatorio." })
     .pipe(
       z.enum(paymentMethodValues, {
-        message: "Seleccioná un medio.",
+        message: "Seleccioná un medio válido.",
       }),
     ),
   reference: z.string().trim(),

@@ -19,7 +19,7 @@ export type CreatePaymentFieldName = (typeof createPaymentFieldNames)[number];
 
 export const createPaymentSchema = registerPaymentSchema.extend({
   academyId: z.string().trim().min(1, {
-    message: "Seleccioná una academia.",
+    message: "Este campo es obligatorio.",
   }),
 });
 
@@ -44,7 +44,8 @@ export const createMovementSchema = createPaymentSchema.extend({
   movementKind: z
     .string()
     .trim()
-    .pipe(z.enum(movementKinds, { message: "Seleccioná un tipo." })),
+    .min(1, { message: "Este campo es obligatorio." })
+    .pipe(z.enum(movementKinds, { message: "Seleccioná un tipo válido." })),
 });
 
 export type CreateMovementFormValues = z.input<typeof createMovementSchema>;
