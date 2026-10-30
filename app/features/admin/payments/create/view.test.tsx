@@ -72,9 +72,11 @@ describe("the movement creation form", () => {
       status: "error" as const,
       values: { ...emptyValues, amount: "15000", movementKind: "refund" },
     };
+    window.history.replaceState(null, "", createPath);
+    const submissions: FormData[] = [];
     let answer = (_: ActionData) => {};
     function AnsweringPage() {
-      const [actionData, setActionData] = useState<ActionData>(refused);
+      const [actionData, setActionData] = useState<ActionData>(undefined);
       answer = setActionData;
 
       return (
@@ -82,10 +84,25 @@ describe("the movement creation form", () => {
       );
     }
     const router = createMemoryRouter(
-      [{ element: <AnsweringPage />, path: createPath }],
+      [
+        {
+          action: async ({ request }) => {
+            submissions.push(await request.formData());
+
+            return null;
+          },
+          element: <AnsweringPage />,
+          path: createPath,
+        },
+      ],
       { initialEntries: [createPath] },
     );
     await renderer.renderAsync(<RouterProvider router={router} />);
+    await settle();
+
+    await act(async () => {
+      answer(refused);
+    });
     await settle();
 
     await act(async () => {
@@ -95,9 +112,11 @@ describe("the movement creation form", () => {
     await settle();
 
     expect(readAmount().value).toBe("15000");
-    expect(document.querySelector('[role="combobox"]')?.textContent).toContain(
-      "Reembolso",
-    );
+
+    await clickReactDomButton("Guardar", { exact: true });
+    await settle();
+
+    expect(submissions[0]?.get("movementKind")).toBe("refund");
   });
 
   test("lets the save redirect to the new payment without asking", async () => {
