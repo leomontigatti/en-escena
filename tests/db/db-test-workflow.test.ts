@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 
 import { describe, expect, test } from "vitest";
@@ -95,16 +96,33 @@ describe("DB test workflow", () => {
   });
 
   // `checks` is required by name too, and it has to cover the unit tests that
-  // moved out of it: a required context that stops needing a job stops blocking
-  // merges when that job fails.
-  test("keeps the required `checks` context as the aggregator over static checks and unit shards", async () => {
-    const ciWorkflow = await readCiWorkflow();
+  // moved out of it: a required context that stops needing a job, or stops
+  // failing with it, stops blocking merges.
+  test.each([
+    { staticChecks: "success", unitShard: "success", exitCode: 0 },
+    { staticChecks: "failure", unitShard: "success", exitCode: 1 },
+    { staticChecks: "success", unitShard: "failure", exitCode: 1 },
+    { staticChecks: "success", unitShard: "cancelled", exitCode: 1 },
+    { staticChecks: "skipped", unitShard: "success", exitCode: 1 },
+  ])(
+    "the required `checks` job exits $exitCode on static-checks $staticChecks and unit-shard $unitShard",
+    async ({ staticChecks, unitShard, exitCode }) => {
+      const ciWorkflow = await readCiWorkflow();
+      const job = /\n {2}checks:\n([\s\S]*?)(?=\n {2}[\w-]+:\n)/.exec(
+        ciWorkflow,
+      );
+      expect(job).not.toBeNull();
+      expect(job![1]).toContain("needs: [static-checks, unit-shard]");
+      expect(job![1]).toContain("if: always()");
 
-    expect(ciWorkflow).toContain("  checks:\n    name: checks\n");
-    expect(ciWorkflow).toContain("needs: [static-checks, unit-shard]");
-    expect(ciWorkflow).toContain("needs.static-checks.result");
-    expect(ciWorkflow).toContain("needs.unit-shard.result");
-  });
+      const script = job![1]
+        .slice(job![1].indexOf("run: |") + "run: |".length)
+        .replaceAll("${{ needs.static-checks.result }}", staticChecks)
+        .replaceAll("${{ needs.unit-shard.result }}", unitShard);
+
+      expect(spawnSync("bash", ["-c", script]).status).toBe(exitCode);
+    },
+  );
 
   // Branch protection on `master` requires the `db-gate` context by name, and
   // required contexts are a repo setting no file here can update. Renaming the

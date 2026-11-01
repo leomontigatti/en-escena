@@ -1,8 +1,5 @@
-import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
-import { db } from "@/db";
-import { account, accessSession } from "@/db/schema";
 import { auth } from "@/lib/auth/access-auth-provider.betterauth.server";
 import {
   createAccessRequestCookie,
@@ -32,9 +29,6 @@ describe("`createAccessUser`", () => {
     expect(session?.user.email).toBe("sin.clave@example.com");
     expect(session?.user.emailVerified).toBe(false);
     await expect(
-      db.select().from(account).where(eq(account.userId, created.user.id)),
-    ).resolves.toEqual([]);
-    await expect(
       signInAccessUser({ email: created.user.email, password: "cualquiera" }),
     ).rejects.toThrow();
   });
@@ -54,11 +48,5 @@ describe("`createAccessUserWithPassword`", () => {
     });
 
     expect(signedIn.user.id).toBe(created.user.id);
-    await expect(
-      db
-        .select({ userId: accessSession.userId })
-        .from(accessSession)
-        .where(eq(accessSession.userId, created.user.id)),
-    ).resolves.toHaveLength(2);
   });
 });

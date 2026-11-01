@@ -14,6 +14,8 @@ import path from "node:path";
 const swapsModulesOrGlobals =
   /\bvi\.(mock|doMock|hoisted|stubGlobal|stubEnv)\(/;
 
+const dbTestFiles = "**/*.db.test.ts";
+
 const withoutExtension = (file: string) =>
   file.replace(/\.[cm]?[jt]sx?$/, "").replace(/\/index$/, "");
 
@@ -50,3 +52,28 @@ export function findModuleSwappingFiles(rootDir: string, testFiles: string[]) {
 }
 
 export const asGlob = (file: string) => file.replace(/[()[\]{}*?!+@]/g, "\\$&");
+
+/** The two projects of a DB suite; the configs keep their backend's settings. */
+export function dbTestProjects(rootDir: string, exclude: string[]) {
+  const isolatedFiles = findModuleSwappingFiles(
+    rootDir,
+    globSync(dbTestFiles, { cwd: rootDir, exclude }),
+  ).map(asGlob);
+
+  return [
+    {
+      extends: true,
+      test: { name: "db-isolated", include: isolatedFiles },
+    },
+    {
+      extends: true,
+      test: {
+        name: "db-shared",
+        include: [dbTestFiles],
+        // `extends: true` appends this to the root `exclude`.
+        exclude: isolatedFiles,
+        isolate: false,
+      },
+    },
+  ];
+}
