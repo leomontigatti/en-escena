@@ -296,7 +296,6 @@ async function signUpConfirmedUser(email: string) {
   const signUp = await createAccessUser({
     email,
     name: email,
-    password: "password-segura",
   });
 
   await markAccessUserEmailVerified(signUp.user.id);

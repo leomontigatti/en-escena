@@ -3,7 +3,7 @@
 Fallow is both a commit gate and an investigation tool.
 
 **As a gate**, `pnpm check:fallow` (`fallow audit --quiet --gate-marker agent`)
-runs in the pre-commit hook and in the `checks` job of CI. This reverses the
+runs in the pre-commit hook and in the `static-checks` job of CI. This reverses the
 earlier decision that Fallow was audit-only: an audit nobody was obliged to run
 kept filing its findings as issues after the merge, when a gate would have raised
 them while the branch was still open. The audit

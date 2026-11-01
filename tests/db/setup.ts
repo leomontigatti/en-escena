@@ -1,8 +1,9 @@
 import { getTestDatabaseUrl } from "./config";
-import "./isolate-storage";
+import { isolateStorage } from "./isolate-storage";
 import "./pin-auth-base-url";
 
 process.env.DATABASE_URL = getTestDatabaseUrl();
+isolateStorage();
 process.env.TEST_ACCESS_AUTH_SECRET ??= "test-access-auth-secret";
 // Loaders and actions build their storage client at the boundary (#571), so the
 // storage environment is required wherever one is exercised; the directory comes

@@ -14,15 +14,18 @@ import { afterAll } from "vitest";
 // write, so a file that never writes, or whose tests are all skipped (and so
 // never reaches `afterAll`), leaves nothing behind.
 //
-// Imported by both DB setups (`setup.ts` and `setup-fast.ts`); the effect
-// happens on module import.
-const storageVolumeDir = join(
-  tmpdir(),
-  `en-escena-test-storage-${randomUUID()}`,
-);
+// Called from both DB setups (`setup.ts` and `setup-fast.ts`). A function, not
+// an effect of importing this module: with `isolate: false` a worker evaluates
+// the module once, while a setup file runs again for each test file.
+export function isolateStorage() {
+  const storageVolumeDir = join(
+    tmpdir(),
+    `en-escena-test-storage-${randomUUID()}`,
+  );
 
-process.env.STORAGE_VOLUME_DIR = storageVolumeDir;
+  process.env.STORAGE_VOLUME_DIR = storageVolumeDir;
 
-afterAll(() => {
-  rmSync(storageVolumeDir, { force: true, recursive: true });
-});
+  afterAll(() => {
+    rmSync(storageVolumeDir, { force: true, recursive: true });
+  });
+}

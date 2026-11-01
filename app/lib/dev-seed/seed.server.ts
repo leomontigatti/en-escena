@@ -20,7 +20,7 @@ import {
   submodalities,
   user,
 } from "@/db/schema";
-import { createAccessUser } from "@/lib/auth/access-auth.test-support";
+import { createAccessUserWithPassword } from "@/lib/auth/access-auth.test-support";
 import type { UserRole } from "@/lib/auth/user-role.shared";
 import { removeChoreography } from "@/lib/choreographies/choreography-removal.server";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
@@ -271,8 +271,8 @@ async function createVerifiedUser(input: {
   name: string;
   role: UserRole;
 }) {
-  // Real Better Auth sign-up, so the password hash is the one sign-in checks.
-  const { user: created } = await createAccessUser({
+  // A real password: these are the accounts a developer signs in with.
+  const { user: created } = await createAccessUserWithPassword({
     email: input.email,
     name: input.name,
     password: DEV_SEED_PASSWORD,

@@ -6,6 +6,8 @@ import { normalizePgliteError } from "./pglite-error-normalization";
 import { loadPgliteSchemaSnapshot } from "./pglite-snapshot";
 
 const snapshot = await loadPgliteSchemaSnapshot();
+// One per worker: `db-shared` files reuse it and reset it between tests, and the
+// worker's exit is what closes it.
 const rawClient = new PGlite({ loadDataDir: snapshot });
 
 // fallow-ignore-next-line unused-export
@@ -14,10 +16,6 @@ export const client = wrapPgliteClient(rawClient);
 export const db = drizzle(client, { schema: pgliteSchema });
 
 type PgliteMethod = (...args: unknown[]) => Promise<unknown>;
-
-export async function closeTestDatabase() {
-  await rawClient.close();
-}
 
 function wrapPgliteClient<T extends object>(clientToWrap: T): T {
   return new Proxy(clientToWrap, {

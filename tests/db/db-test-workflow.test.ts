@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 
 import { describe, expect, test } from "vitest";
@@ -73,6 +74,56 @@ describe("DB test workflow", () => {
       Array.from({ length: denominator }, (_, index) => index + 1),
     );
   });
+
+  // The same silent failure for the unit suite, which is sharded too.
+  test("runs every unit shard: the matrix size matches the --shard denominator", async () => {
+    const ciWorkflow = await readCiWorkflow();
+
+    const matrix = /\n\s*unit_shard: \[([^\]]+)\]/.exec(ciWorkflow);
+    expect(matrix).not.toBeNull();
+    const shards = matrix![1].split(",").map((entry) => Number(entry.trim()));
+
+    const shardFlag =
+      /pnpm test:unit --shard=\$\{\{ matrix\.unit_shard \}\}\/(\d+)/.exec(
+        ciWorkflow,
+      );
+    expect(shardFlag).not.toBeNull();
+    const denominator = Number(shardFlag![1]);
+
+    expect(shards).toEqual(
+      Array.from({ length: denominator }, (_, index) => index + 1),
+    );
+  });
+
+  // `checks` is required by name too, and it has to cover the unit tests that
+  // moved out of it: a required context that stops needing a job, or stops
+  // failing with it, stops blocking merges.
+  test.each([
+    { staticChecks: "success", unitShard: "success", exitCode: 0 },
+    { staticChecks: "failure", unitShard: "success", exitCode: 1 },
+    { staticChecks: "success", unitShard: "failure", exitCode: 1 },
+    { staticChecks: "success", unitShard: "cancelled", exitCode: 1 },
+    { staticChecks: "skipped", unitShard: "success", exitCode: 1 },
+  ])(
+    "the required `checks` job exits $exitCode on static-checks $staticChecks and unit-shard $unitShard",
+    async ({ staticChecks, unitShard, exitCode }) => {
+      const ciWorkflow = await readCiWorkflow();
+      const job =
+        /\n {2}checks:\n {4}name: checks\n([\s\S]*?)(?=\n {2}[\w-]+:\n)/.exec(
+          ciWorkflow,
+        );
+      expect(job).not.toBeNull();
+      expect(job![1]).toContain("needs: [static-checks, unit-shard]");
+      expect(job![1]).toContain("if: always()");
+
+      const script = job![1]
+        .slice(job![1].indexOf("run: |") + "run: |".length)
+        .replaceAll("${{ needs.static-checks.result }}", staticChecks)
+        .replaceAll("${{ needs.unit-shard.result }}", unitShard);
+
+      expect(spawnSync("bash", ["-c", script]).status).toBe(exitCode);
+    },
+  );
 
   // Branch protection on `master` requires the `db-gate` context by name, and
   // required contexts are a repo setting no file here can update. Renaming the

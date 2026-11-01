@@ -10,7 +10,7 @@ import {
   requireAdminPanelWriter,
   requireJudgePanelUser,
 } from "@/lib/auth/internal-access.server";
-import { createAccessUser } from "@/lib/auth/access-auth.test-support";
+import { createAccessUserWithPassword } from "@/lib/auth/access-auth.test-support";
 import { getLandingPathForSignedInUser } from "@/lib/auth/internal-navigation.server";
 import type { UserRole } from "@/lib/auth/user-role.shared";
 import { expectThrownResponse } from "@/lib/test-support/http";
@@ -120,7 +120,7 @@ describe("internal navigation", () => {
   });
 
   test("rejects unverified users with the generic login error", async () => {
-    await createAccessUser({
+    await createAccessUserWithPassword({
       email: "sin-verificar@example.com",
       name: "sin-verificar@example.com",
       password: "password-segura",
@@ -398,7 +398,7 @@ async function createCredentialUser(input: {
   role: UserRole;
   internalUsername?: string;
 }) {
-  const signUpResult = await createAccessUser({
+  const signUpResult = await createAccessUserWithPassword({
     email: input.email,
     name: input.email,
     password: "password-segura",

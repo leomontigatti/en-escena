@@ -1,3 +1,5 @@
+import type { AuthContext } from "better-auth";
+import { testUtils } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -9,8 +11,8 @@ import {
 } from "@/lib/auth/access-auth-provider.betterauth.server";
 
 // Test support for the DB suite: it creates users and sessions with **real
-// Better Auth** against in-process PGlite (#422). It replaces our own test
-// provider (`access-test-auth.server.ts`), keeping the same return contract
+// Better Auth** (#422). It replaces our own test provider
+// (`access-test-auth.server.ts`), keeping the same return contract
 // (`{ headers, user, response }`) to minimize churn in the tests.
 
 export const ACCESS_SESSION_EXPIRES_IN_SECONDS = SESSION_EXPIRES_IN_SECONDS;
@@ -22,7 +24,40 @@ type CreatedAccessUser = {
   user: { email: string; id: string };
 };
 
+// A signed-in user with no password, which is what nearly every test needs:
+// `signUpEmail` would spend about 200 ms on a scrypt hash nothing reads. The
+// session is a real one, signed by the same `auth`. A test that signs in or
+// changes a password uses `createAccessUserWithPassword`.
 export async function createAccessUser(input: {
+  email: string;
+  name: string;
+}): Promise<CreatedAccessUser> {
+  // `init` rather than `plugins`: a test-only helper stays out of the
+  // production `auth`, and `init` reads nothing but the context.
+  const { test } = testUtils().init(
+    (await auth.$context) as unknown as AuthContext,
+  ).context;
+  const created = await test.saveUser(
+    test.createUser({
+      id: crypto.randomUUID(),
+      email: input.email.toLowerCase(),
+      emailVerified: false,
+      name: input.name,
+    }),
+  );
+  const { cookies } = await test.login({ userId: created.id });
+  const headers = new Headers();
+
+  for (const { name, value } of cookies) {
+    headers.append("set-cookie", `${name}=${value}; Path=/`);
+  }
+
+  const user = { email: created.email, id: created.id };
+
+  return { headers, response: { user }, user };
+}
+
+export async function createAccessUserWithPassword(input: {
   email: string;
   name: string;
   password: string;

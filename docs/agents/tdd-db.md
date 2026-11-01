@@ -12,6 +12,11 @@ reads or writes the database.
 - **A DB test file** ends in `.db.test.ts`. Its fixtures are the `*.test-support.ts` beside the
   domain or the modules under `app/lib/test-support/`
   ([coding-standards.md](coding-standards.md#test-support-files)); extend one before adding one.
+- **A signed-in user is not a password.** `createAccessUser` writes the user and a real
+  session with no credential, and `createSignedInRequest` and `createAcademyUser` build on it. A
+  test that signs in or changes a password asks for one: `createAccessUserWithPassword`, or
+  `createSignedInRequest({ password })`. A real sign-up costs about 200 ms of scrypt, and most
+  tests never read the hash.
 - **What TypeScript and the schema already prove** (a return shape, a required column, a
   foreign key) needs no test. Spend tests on ordering, sums and rounding, the rows after a
   mutation, conflicts, and the edge cases of the domain rule.
