@@ -108,9 +108,10 @@ describe("DB test workflow", () => {
     "the required `checks` job exits $exitCode on static-checks $staticChecks and unit-shard $unitShard",
     async ({ staticChecks, unitShard, exitCode }) => {
       const ciWorkflow = await readCiWorkflow();
-      const job = /\n {2}checks:\n([\s\S]*?)(?=\n {2}[\w-]+:\n)/.exec(
-        ciWorkflow,
-      );
+      const job =
+        /\n {2}checks:\n {4}name: checks\n([\s\S]*?)(?=\n {2}[\w-]+:\n)/.exec(
+          ciWorkflow,
+        );
       expect(job).not.toBeNull();
       expect(job![1]).toContain("needs: [static-checks, unit-shard]");
       expect(job![1]).toContain("if: always()");
