@@ -3,7 +3,7 @@ import { testUtils } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { accessSession, user } from "@/db/schema";
+import { user } from "@/db/schema";
 import {
   auth,
   SESSION_EXPIRES_IN_SECONDS,
@@ -169,12 +169,6 @@ export async function readAccessSession(headers: Headers) {
       id: result.user.id,
     },
   };
-}
-
-export function findAccessSessionByUserId(userId: string) {
-  return db.query.accessSession.findFirst({
-    where: eq(accessSession.userId, userId),
-  });
 }
 
 export function markAccessUserEmailVerified(userId: string) {
