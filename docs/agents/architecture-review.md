@@ -15,10 +15,10 @@ GitHub Actions workflow with its own runner; why it moved is ADR-0016's amendmen
   `housekeeping` sweep.
 - **The checkout comes from the task's settings.** In T3's Settings → Scheduled tasks, the task
   creates a new worktree with Base branch `master` and Start from origin on. A task created or
-  rebound over MCP gets base `main` instead, which this repo does not have, so every run would
-  fail before the agent starts (pingdotgg/t3code#16183); set it back in the app after either.
-  T3 records such a run as succeeded (pingdotgg/t3code#17889): the run's thread, not the task's
-  status, shows whether it worked.
+  unbound over MCP resolves `origin/master` on its own (pingdotgg/t3code#27983), and an edit keeps
+  the stored base. A wrong base fails every run before the agent starts
+  (pingdotgg/t3code#16183), and T3 records such a run as succeeded (pingdotgg/t3code#17889): the
+  run's thread, not the task's status, shows whether it worked.
 - **At most one issue.** The run's one write is `gh issue create` with the labels
   `source:architecture-review` and `needs-triage`. When every candidate is already covered by a
   prior proposal, it creates nothing and ends its thread with why.
