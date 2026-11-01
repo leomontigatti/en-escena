@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { academies, accessSession, user } from "@/db/schema";
 import { auth } from "@/lib/auth/access-auth-provider.betterauth.server";
 import {
-  createAccessUser,
+  createAccessUserWithPassword,
   createSessionRequestCookie,
   readAccessSession,
   signInAccessUser,
@@ -50,7 +50,7 @@ describe("access recovery", () => {
   });
 
   test("requests a password reset only for eligible academy users", async () => {
-    const signUpResult = await createAccessUser({
+    const signUpResult = await createAccessUserWithPassword({
       email: "usuario@example.com",
       name: "Usuario",
       password: OLD_PASSWORD,
@@ -110,12 +110,12 @@ describe("access recovery", () => {
   });
 
   test("returns the generic response without triggering reset for internal, suspended or missing emails", async () => {
-    const internalUser = await createAccessUser({
+    const internalUser = await createAccessUserWithPassword({
       email: "interno@example.com",
       name: "Interno",
       password: OLD_PASSWORD,
     });
-    const suspendedUser = await createAccessUser({
+    const suspendedUser = await createAccessUserWithPassword({
       email: "suspendido@example.com",
       name: "Suspendido",
       password: OLD_PASSWORD,
@@ -295,7 +295,7 @@ describe("access recovery", () => {
 });
 
 async function createRecoverySessionState(email: string) {
-  const signUpResult = await createAccessUser({
+  const signUpResult = await createAccessUserWithPassword({
     email,
     name: email,
     password: OLD_PASSWORD,

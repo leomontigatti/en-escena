@@ -74,6 +74,38 @@ describe("DB test workflow", () => {
     );
   });
 
+  // The same silent failure for the unit suite, which is sharded too.
+  test("runs every unit shard: the matrix size matches the --shard denominator", async () => {
+    const ciWorkflow = await readCiWorkflow();
+
+    const matrix = /\n\s*unit_shard: \[([^\]]+)\]/.exec(ciWorkflow);
+    expect(matrix).not.toBeNull();
+    const shards = matrix![1].split(",").map((entry) => Number(entry.trim()));
+
+    const shardFlag =
+      /pnpm test:unit --shard=\$\{\{ matrix\.unit_shard \}\}\/(\d+)/.exec(
+        ciWorkflow,
+      );
+    expect(shardFlag).not.toBeNull();
+    const denominator = Number(shardFlag![1]);
+
+    expect(shards).toEqual(
+      Array.from({ length: denominator }, (_, index) => index + 1),
+    );
+  });
+
+  // `checks` is required by name too, and it has to cover the unit tests that
+  // moved out of it: a required context that stops needing a job stops blocking
+  // merges when that job fails.
+  test("keeps the required `checks` context as the aggregator over static checks and unit shards", async () => {
+    const ciWorkflow = await readCiWorkflow();
+
+    expect(ciWorkflow).toContain("  checks:\n    name: checks\n");
+    expect(ciWorkflow).toContain("needs: [static-checks, unit-shard]");
+    expect(ciWorkflow).toContain("needs.static-checks.result");
+    expect(ciWorkflow).toContain("needs.unit-shard.result");
+  });
+
   // Branch protection on `master` requires the `db-gate` context by name, and
   // required contexts are a repo setting no file here can update. Renaming the
   // job silently stops blocking merges instead of failing loudly.

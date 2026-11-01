@@ -23,7 +23,6 @@ async function createAcademyUser(input: {
   const signUpResult = await createAccessUser({
     email: input.email,
     name: input.name ?? input.email,
-    password: "password-segura",
   });
 
   await db

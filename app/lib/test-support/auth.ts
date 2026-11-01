@@ -5,6 +5,7 @@ import { user } from "@/db/schema";
 import {
   createAccessRequestCookie,
   createAccessUser,
+  createAccessUserWithPassword,
 } from "@/lib/auth/access-auth.test-support";
 import type { UserRole } from "@/lib/auth/user-role.shared";
 
@@ -17,14 +18,17 @@ export async function createSignedInRequest(input: {
   body?: FormData;
   name?: string;
   internalUsername?: string;
+  /** Gives the user a credential, for a test that signs in with it. */
   password?: string;
 }) {
   const name = input.name ?? input.email;
-  const signUpResult = await createAccessUser({
-    email: input.email,
-    name,
-    password: input.password ?? "password-segura",
-  });
+  const signUpResult = await (input.password
+    ? createAccessUserWithPassword({
+        email: input.email,
+        name,
+        password: input.password,
+      })
+    : createAccessUser({ email: input.email, name }));
 
   await db
     .update(user)

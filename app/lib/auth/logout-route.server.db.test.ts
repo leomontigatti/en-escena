@@ -5,7 +5,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { accessSession, user } from "@/db/schema";
 import {
-  createAccessUser,
+  createAccessUserWithPassword,
   createSessionRequestCookie,
   extractSessionCookieValue,
 } from "@/lib/auth/access-auth.test-support";
@@ -126,7 +126,7 @@ describe("logout route", () => {
 });
 
 async function createVerifiedCredentialUser(email: string) {
-  const signUpResult = await createAccessUser({
+  const signUpResult = await createAccessUserWithPassword({
     email,
     name: email,
     password: "password-segura",

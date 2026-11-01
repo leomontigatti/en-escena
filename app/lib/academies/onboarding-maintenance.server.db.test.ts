@@ -15,12 +15,10 @@ describe("academy onboarding maintenance", () => {
     const pending = await createAccessUser({
       email: "pendiente.mantenimiento@example.com",
       name: "pendiente.mantenimiento@example.com",
-      password: "password-segura",
     });
     const completed = await createAccessUser({
       email: "completa.mantenimiento@example.com",
       name: "completa.mantenimiento@example.com",
-      password: "password-segura",
     });
 
     await db
@@ -52,12 +50,10 @@ describe("academy onboarding maintenance", () => {
     const older = await createAccessUser({
       email: "antigua.mantenimiento@example.com",
       name: "antigua.mantenimiento@example.com",
-      password: "password-segura",
     });
     const recent = await createAccessUser({
       email: "reciente.mantenimiento@example.com",
       name: "reciente.mantenimiento@example.com",
-      password: "password-segura",
     });
     const cutoff = new Date("2026-06-01T00:00:00.000Z");
 

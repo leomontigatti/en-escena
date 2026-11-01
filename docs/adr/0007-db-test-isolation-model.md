@@ -166,3 +166,12 @@ de acceso, or Bases del evento, the fallback is real Postgres per worker:
 **Amendment on 2026-10-12**
 
 The suites the `Bases del evento` fidelity risk above names moved beside their resource owners with PRD #719.
+
+**Amendment on 2026-11-01**
+
+The database stays what a file shares inside a runner; the modules are now shared
+too. Files that swap no module run in a `db-shared` project with `isolate: false`,
+one PGlite per worker instead of one per file, on `pnpm test:db` and on the
+Postgres path alike. The Postgres path stays one file at a time, which is what
+this decision needs. The isolation between tests is unchanged: the reset in
+`beforeEach`.

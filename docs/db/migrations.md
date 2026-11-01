@@ -43,9 +43,19 @@ counts as applied.
 **Always rebase before generating.** `pnpm db:generate` timestamps a migration
 with the current clock, and Drizzle applies migrations by high-water mark: a
 migration whose timestamp predates one already applied is skipped permanently
-and silently. The `migration-order` step in the `checks` CI job fails a PR whose
+and silently. The `migration-order` step in the `static-checks` CI job fails a PR whose
 newest migration predates the newest on `master`; the fix is a rebase plus a
 regenerate.
+
+**A test of one migration lives until production has applied it.** A migration
+that moves data can have a test that seeds the old shape, runs it and asserts the
+new one, built on a folder truncated before its tag. Once production has applied
+it, delete that test: the migration can no longer change (below) and will never
+run on that shape again, and each such test replays the whole history at a cost of
+several seconds per case. `app/db/migrations.db.test.ts` stays: it holds for every
+future migration. Applied is a fact to read, since deploys are manual:
+`select count(*) from drizzle.__drizzle_migrations`, as in
+[Database](../operations/infrastructure.md#database).
 
 **Never edit a migration that has been applied.** Drizzle records a sha256 of
 the whole `.sql` file in `drizzle.__drizzle_migrations` and `scripts/migrate.mjs`
@@ -54,7 +64,7 @@ a word swapped by a repo-wide search and replace — makes the container refuse 
 start and the deploy roll back. That is not a bug to work around: an applied
 migration is a record of what ran, not source to keep tidy. A migration that is
 genuinely wrong is corrected by a _new_ migration. The `migration-order and
-immutability` step in the `checks` CI job fails a PR that edits, deletes or
+immutability` step in the `static-checks` CI job fails a PR that edits, deletes or
 renames a `.sql` file already on `master`, or that rewrites a journal entry
 already there; run it yourself with `pnpm check:migration-immutability`. Note
 that the file cannot carry a "do not edit" banner, because adding one would
@@ -105,7 +115,7 @@ production. Fix the drift **in the schema**, regenerate the baseline, and repeat
 
 `pnpm check:migration-safety` runs [squawk](https://squawkhq.com) over the `.sql`
 files a branch **adds** under `app/db/migrations`, against `origin/master`. It
-runs in the `checks` job of `.github/workflows/ci.yml`, alongside the ordering
+runs in the `static-checks` job of `.github/workflows/ci.yml`, alongside the ordering
 and immutability checks (same fetch), and is not in pre-commit. A branch that
 adds no migration passes without running squawk at all. It reads the working
 tree, so a migration `pnpm db:generate` has just written is already checked,
@@ -268,6 +278,6 @@ nothing reads it anymore.
 ## Notes
 
 - A CI drift-check (fails when `db:generate` produces an uncommitted migration)
-  runs in the `checks` job of `.github/workflows/ci.yml`. `db:generate` is
+  runs in the `static-checks` job of `.github/workflows/ci.yml`. `db:generate` is
   offline — it diffs `schema.ts` against `app/db/migrations/meta/` without a
   database — so it needs no Postgres service.

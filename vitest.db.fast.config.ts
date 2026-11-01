@@ -1,3 +1,4 @@
+import { globSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import type { UserConfig } from "vite";
@@ -5,7 +6,19 @@ import type { UserConfig } from "vite";
 import { mergeConfig } from "vitest/config";
 import { configDefaults, defineConfig } from "vitest/config";
 
+import {
+  asGlob,
+  findModuleSwappingFiles,
+} from "./tests/setup/module-swapping-files";
+import { testReporters } from "./tests/setup/test-reporters";
 import viteConfig from "./vite.config";
+
+const rootDir = fileURLToPath(new URL(".", import.meta.url));
+const testExclude = [...configDefaults.exclude, "**/.claude/worktrees/**"];
+const isolatedFiles = findModuleSwappingFiles(
+  rootDir,
+  globSync("**/*.db.test.ts", { cwd: rootDir, exclude: testExclude }),
+);
 
 const semanticConventionsStub = fileURLToPath(
   new URL(
@@ -40,14 +53,13 @@ export default mergeConfig(
       ],
     },
     test: {
-      exclude: [...configDefaults.exclude, "**/.claude/worktrees/**"],
+      reporters: testReporters,
+      exclude: testExclude,
       fileParallelism: true,
-      include: ["**/*.db.test.ts"],
       maxConcurrency: 1,
-      // Vitest 5 dropped `minWorkers`; this path wants the workers anyway, so
-      // there is nothing to replace it with (see `vitest.db.config.ts` for the
-      // serial path, which is the one the removal mattered to).
-      maxWorkers: "50%",
+      // Agent threads share this laptop's memory. Two workers took 186 s and
+      // 3.3 GB where four took 167 s and 5.7 GB.
+      maxWorkers: 2,
       setupFiles: ["./tests/db/setup-fast.ts"],
       sequence: {
         // As in `vitest.db.config.ts`: load-bearing since Vitest 5 removed
@@ -63,6 +75,25 @@ export default mergeConfig(
       },
       hookTimeout: 30_000,
       testTimeout: 30_000,
+      projects: [
+        {
+          extends: true,
+          test: {
+            name: "db-isolated",
+            include: isolatedFiles.map(asGlob),
+          },
+        },
+        {
+          extends: true,
+          test: {
+            name: "db-shared",
+            include: ["**/*.db.test.ts"],
+            // `extends: true` appends this to the root `exclude`.
+            exclude: isolatedFiles.map(asGlob),
+            isolate: false,
+          },
+        },
+      ],
     },
   }),
 );
