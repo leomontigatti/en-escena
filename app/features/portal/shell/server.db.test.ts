@@ -190,7 +190,6 @@ async function createInternalRequest(requestUrl: string) {
   const signUpResult = await createAccessUser({
     email: "admin@example.com",
     name: "admin@example.com",
-    password: "password-segura",
   });
 
   await db

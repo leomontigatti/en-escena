@@ -80,6 +80,7 @@ describe("internal access authorization", () => {
   test("blocks suspended users from private routes and revokes their sessions", async () => {
     const { request, userId } = await createSignedInRequest({
       email: "suspendido.privado@example.com",
+      password: "password-segura",
       role: "admin",
     });
     // A second session the request does not carry: revocation must end it too.
@@ -106,6 +107,7 @@ describe("internal access authorization", () => {
   test("blocks sessions invalidated after administrative revocation", async () => {
     const { request, userId } = await createSignedInRequest({
       email: "revocado.privado@example.com",
+      password: "password-segura",
       role: "admin",
     });
     // A second session the request does not carry: revocation must end it too.

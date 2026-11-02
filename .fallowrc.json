@@ -16,10 +16,6 @@
   "ignoreDependencies": ["shadcn", "@fontsource/montserrat"],
   "ignoreExports": [
     {
-      "file": "tests/db/fast-db.ts",
-      "exports": ["closeTestDatabase"]
-    },
-    {
       "file": "app/lib/portal/dancers.server.ts",
       "exports": ["*"]
     },

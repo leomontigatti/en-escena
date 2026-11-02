@@ -168,6 +168,10 @@ export function renderGate(steps: StepResult[]): string {
 }
 
 function run(args: string[]): { ok: boolean; output: string } {
+  // On stderr, and only while the step runs: a gate takes minutes, and silence
+  // reads as stuck.
+  console.error(`gate: ${args[0]}…`);
+
   const result = spawnSync("pnpm", args, {
     encoding: "utf8",
     maxBuffer: 256 * 1024 * 1024,

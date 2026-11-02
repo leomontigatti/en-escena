@@ -5,7 +5,12 @@ import type { UserConfig } from "vite";
 import { mergeConfig } from "vitest/config";
 import { configDefaults, defineConfig } from "vitest/config";
 
+import { dbTestProjects } from "./tests/setup/module-swapping-files";
+import { testReporters } from "./tests/setup/test-reporters";
 import viteConfig from "./vite.config";
+
+const rootDir = fileURLToPath(new URL(".", import.meta.url));
+const testExclude = [...configDefaults.exclude, "**/.claude/worktrees/**"];
 
 const semanticConventionsStub = fileURLToPath(
   new URL(
@@ -33,9 +38,9 @@ export default mergeConfig(
       ],
     },
     test: {
-      exclude: [...configDefaults.exclude, "**/.claude/worktrees/**"],
+      reporters: testReporters,
+      exclude: testExclude,
       fileParallelism: false,
-      include: ["**/*.db.test.ts"],
       maxConcurrency: 1,
       // Vitest 5 dropped `minWorkers` and `poolOptions`; `fileParallelism:
       // false` plus `maxWorkers: 1` is what keeps the suite serial within a
@@ -65,6 +70,7 @@ export default mergeConfig(
       },
       hookTimeout: 30_000,
       testTimeout: 30_000,
+      projects: dbTestProjects(rootDir, testExclude),
     },
   }),
 );

@@ -15,7 +15,7 @@ import { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { loadPortalSeminarFinanceDetail } from "@/features/portal/finances/seminar-detail/server";
 import { createAcademySession } from "@/features/portal/test-support/db";
 import { createDancer } from "@/lib/choreographies/registration.test-support";
-import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
+import { allocateToInscription } from "@/lib/finances/inscription-money.server";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { removeSeminarInscriptionFromRoster } from "@/lib/seminars/inscription-withdrawal.server";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
@@ -166,14 +166,13 @@ function createLinkedIndividual() {
 }
 
 function allocate(fixture: Fixture, inscriptionId: string, amount: number) {
-  return allocateToSeminarInscription({
+  return allocateToInscription({
     now: new Date(),
     academyId: fixture.academyId,
     amount,
     eventId: fixture.eventId,
-    inscriptionId,
+    target: { id: inscriptionId, kind: "seminar" },
     priceId: fixture.priceId,
-    seminarId: fixture.seminarId,
   });
 }
 
@@ -288,14 +287,13 @@ describe("portal seminar financial detail", () => {
       paymentMethod: "transferencia",
       paymentNumber: 2,
     });
-    const allocated = await allocateToSeminarInscription({
+    const allocated = await allocateToInscription({
       now: new Date(),
       academyId: individual.ownerId,
       amount: seminarPriceAmount / 2,
       eventId: fixture.eventId,
-      inscriptionId: inscription!.id,
+      target: { id: inscription!.id, kind: "seminar" },
       priceId: fixture.priceId,
-      seminarId: fixture.seminarId,
     });
 
     expect(allocated.ok).toBe(true);

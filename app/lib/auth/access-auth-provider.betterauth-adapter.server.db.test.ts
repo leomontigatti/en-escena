@@ -12,7 +12,7 @@ import {
 } from "@/lib/auth/access-auth-provider.shared.server";
 import {
   createAccessRequestCookie,
-  createAccessUser,
+  createAccessUserWithPassword,
 } from "@/lib/auth/access-auth.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -98,7 +98,7 @@ describe("Better Auth AccessAuthProvider adapter", () => {
   });
 
   test("recovers the password through the code exchange and revokes sessions", async () => {
-    const created = await createAccessUser({
+    const created = await createAccessUserWithPassword({
       email: "reset@example.com",
       name: "reset@example.com",
       password: "password-vieja",
@@ -174,7 +174,7 @@ describe("Better Auth AccessAuthProvider adapter", () => {
   });
 
   test("verifies a legacy `scrypt:<salt>:<hash>` credential migrated from access_credential", async () => {
-    const created = await createAccessUser({
+    const created = await createAccessUserWithPassword({
       email: "legacy@example.com",
       name: "legacy@example.com",
       password: "irrelevante-se-sobrescribe",
@@ -223,7 +223,7 @@ describe("Better Auth AccessAuthProvider adapter", () => {
   });
 
   test("refuses a recovery link used a second time", async () => {
-    const created = await createAccessUser({
+    const created = await createAccessUserWithPassword({
       email: "reuse@example.com",
       name: "reuse@example.com",
       password: "password-vieja",

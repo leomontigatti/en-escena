@@ -22,7 +22,6 @@ async function signIn(role: "auditor" | "judge") {
   const signUp = await createAccessUser({
     email: `${crypto.randomUUID()}@example.com`,
     name: "Juana Juez",
-    password: "password-segura",
   });
 
   await db

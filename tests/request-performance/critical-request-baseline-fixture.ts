@@ -225,7 +225,6 @@ async function createInternalSession(role: "admin" | "auditor") {
   const signUpResult = await createAccessUser({
     email: `${identity}@example.com`,
     name: `${identity}@example.com`,
-    password: "password-segura",
   });
 
   await db

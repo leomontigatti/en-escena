@@ -20,7 +20,7 @@ import {
   submodalities,
   user,
 } from "@/db/schema";
-import { createAccessUser } from "@/lib/auth/access-auth.test-support";
+import { createAccessUserWithPassword } from "@/lib/auth/access-auth.test-support";
 import type { UserRole } from "@/lib/auth/user-role.shared";
 import { removeChoreography } from "@/lib/choreographies/choreography-removal.server";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
@@ -45,7 +45,7 @@ import {
 } from "@/lib/dev-seed/demo-music.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
-import { allocateToInscription } from "@/lib/finances/inscription-allocation.server";
+import { allocateToInscription } from "@/lib/finances/inscription-money.server";
 import { setPresentationDisqualified } from "@/lib/judging/score-settlement.server";
 import { saveJudgeScore } from "@/lib/judging/save-score.server";
 import { assignJudges } from "@/lib/presentations/judge-assignments.server";
@@ -271,8 +271,8 @@ async function createVerifiedUser(input: {
   name: string;
   role: UserRole;
 }) {
-  // Real Better Auth sign-up, so the password hash is the one sign-in checks.
-  const { user: created } = await createAccessUser({
+  // A real password: these are the accounts a developer signs in with.
+  const { user: created } = await createAccessUserWithPassword({
     email: input.email,
     name: input.name,
     password: DEV_SEED_PASSWORD,
@@ -578,11 +578,11 @@ async function coverDeposits(input: {
   for (const inscription of inscriptions) {
     expectOk(
       await allocateToInscription({
+        now: new Date(),
         academyId: input.academyId,
         amount: perInscription,
-        choreographyId: inscription.choreographyId,
         eventId: input.eventId,
-        inscriptionId: inscription.id,
+        target: { id: inscription.id, kind: "choreography" },
         priceId: input.priceId,
       }),
       "allocate a deposit",

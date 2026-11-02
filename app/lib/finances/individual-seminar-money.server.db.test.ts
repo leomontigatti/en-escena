@@ -9,14 +9,12 @@ import {
 import { buildGlobalPaymentRequest } from "@/lib/admin/finances/finances.test-support";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import { readOwnerEventMovements } from "@/lib/finances/owner-event-movements.server";
+import { readSeminarCobroPreviews } from "@/lib/finances/seminar-cobro-presets.server";
+import { readSeminarInscriptionPriceOptions } from "@/lib/finances/seminar-inscription-price-options.server";
 import {
-  paySeminarsPreset,
-  readSeminarCobroPreviews,
-} from "@/lib/finances/seminar-cobro-presets.server";
-import {
-  allocateToSeminarInscription,
-  readSeminarInscriptionPriceOptions,
-} from "@/lib/finances/seminar-inscription-allocation.server";
+  allocateToInscription,
+  chargeThreshold,
+} from "@/lib/finances/inscription-money.server";
 import { readSeminarInscriptionFinanceRows } from "@/lib/finances/seminar-inscriptions.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSignedInRequest } from "@/lib/test-support/auth";
@@ -162,14 +160,13 @@ describe("an individual's seminar money", () => {
       depositAmount: priceAmount / 2,
     });
 
-    const allocated = await allocateToSeminarInscription({
+    const allocated = await allocateToInscription({
       now: new Date(),
       academyId: ownerId,
       amount: priceAmount / 2,
       eventId: fixture.event.id,
-      inscriptionId: first.id,
+      target: { id: first.id, kind: "seminar" },
       priceId: price?.id ?? null,
-      seminarId: first.seminarId,
     });
 
     expect(allocated).toEqual({ ok: true });
@@ -237,7 +234,8 @@ describe("an individual's seminar money", () => {
       previews[fixture.seminars[0].id]?.stages.deposit.people[0]?.personName,
     ).toContain("Pérez");
 
-    const result = await paySeminarsPreset({
+    const result = await chargeThreshold({
+      kind: "seminar",
       now: new Date(),
       academyId: ownerId,
       eventId: fixture.event.id,

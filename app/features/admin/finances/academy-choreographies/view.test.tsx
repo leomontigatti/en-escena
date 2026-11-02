@@ -801,7 +801,6 @@ describe("AcademyFinancesRouteView", () => {
           solo: [
             {
               amount: 10000,
-              depositAmount: 3000,
               id: "price_1",
               name: "Primera fecha",
               paymentDeadline: null,
@@ -809,7 +808,6 @@ describe("AcademyFinancesRouteView", () => {
             },
             {
               amount: 20000,
-              depositAmount: 6000,
               id: "price_2",
               name: "Segunda fecha",
               paymentDeadline: null,
@@ -852,7 +850,6 @@ describe("AcademyFinancesRouteView", () => {
           solo: [
             {
               amount: 10000,
-              depositAmount: 3000,
               id: "price_1",
               name: "Primera fecha",
               paymentDeadline: null,
@@ -860,7 +857,6 @@ describe("AcademyFinancesRouteView", () => {
             },
             {
               amount: 20000,
-              depositAmount: 6000,
               id: "price_2",
               name: "Segunda fecha",
               paymentDeadline: null,
@@ -926,7 +922,6 @@ describe("AcademyFinancesRouteView", () => {
           solo: [
             {
               amount: 10000,
-              depositAmount: 3000,
               id: "price_1",
               name: "Primera fecha",
               paymentDeadline: null,
@@ -934,7 +929,6 @@ describe("AcademyFinancesRouteView", () => {
             },
             {
               amount: 6000,
-              depositAmount: 1500,
               id: "price_2",
               name: "Promoción",
               paymentDeadline: null,
@@ -1059,7 +1053,6 @@ describe("AcademyFinancesRouteView", () => {
           grupal: [
             {
               amount: 20000,
-              depositAmount: 6000,
               id: "price_grupal",
               name: "Primera fecha",
               paymentDeadline: null,
@@ -1069,7 +1062,6 @@ describe("AcademyFinancesRouteView", () => {
           solo: [
             {
               amount: 10000,
-              depositAmount: 3000,
               id: "price_1",
               name: "Primera fecha",
               paymentDeadline: null,
@@ -1102,7 +1094,6 @@ describe("AcademyFinancesRouteView", () => {
           solo: [
             {
               amount: 8000,
-              depositAmount: 2400,
               id: "price_schedule_1",
               name: "Solo cronograma 1",
               paymentDeadline: null,
@@ -1110,7 +1101,6 @@ describe("AcademyFinancesRouteView", () => {
             },
             {
               amount: 12000,
-              depositAmount: 3600,
               id: "price_schedule_2",
               name: "Solo cronograma 2",
               paymentDeadline: null,
@@ -1529,7 +1519,6 @@ function academyFinancesLoaderDataFixture(
       solo: [
         {
           amount: 10000,
-          depositAmount: 3000,
           id: "price_1",
           name: "Primera fecha",
           paymentDeadline: "2026-03-01",
@@ -1542,6 +1531,7 @@ function academyFinancesLoaderDataFixture(
       choreography_2: "schedule_1",
     },
     movements: [],
+    requiredDepositPercentage: 30,
     selectedEventId: "event_1",
     seminarFinanceRows: [],
     seminarPresetPreviews: {},
@@ -1572,10 +1562,11 @@ function incompleteOwedLoaderDataFixture(availableBalanceAmount: number) {
         basePriceAmount: null,
         basePriceId: null,
         choreographyId: "choreography_2",
-        depositAmount: null,
         id: "inscription_2",
         owedBalanceAmount: null,
         owedDepositAmount: null,
+        storedDepositAmount: null,
+        storedPriceAmount: null,
       }),
     ],
     priceOptionsByGroupType: {},
@@ -1601,10 +1592,11 @@ function presetInscriptionFixture(
     financialStatus: "depositPending",
     choreographyId: "choreography_1",
     dancerDiscountAmount: 0,
-    depositAmount: 3000,
     id: "inscription",
     owedBalanceAmount: 0,
     owedDepositAmount: 3000,
+    storedDepositAmount: 3000,
+    storedPriceAmount: 10000,
     withdrawn: false,
     ...overrides,
   };

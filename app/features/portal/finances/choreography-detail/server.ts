@@ -1,7 +1,7 @@
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
-import { readInscriptionEffectivePrices } from "@/lib/finances/inscription-allocation.server";
+import { readInscriptionEffectivePrices } from "@/lib/finances/inscription-price-options.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
 

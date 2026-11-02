@@ -12,9 +12,9 @@ import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { readInscriptionAllocatedAmount } from "@/lib/finances/allocation-pool.server";
 import { readAcademyAvailableBalance } from "@/lib/finances/available-balance.server";
 import {
-  allocateToSeminarInscription,
-  releaseRetainedSeminarInscriptionDeposit,
-} from "@/lib/finances/seminar-inscription-allocation.server";
+  allocateToInscription,
+  releaseRetainedInscriptionDeposit,
+} from "@/lib/finances/inscription-money.server";
 import {
   deleteSeminarInscriptionForAcademy,
   registerSeminarInscription,
@@ -137,14 +137,13 @@ async function allocate(
   fixture: Fixture,
   input: { amount: number; inscriptionId: string },
 ) {
-  const result = await allocateToSeminarInscription({
+  const result = await allocateToInscription({
     now: new Date(),
     academyId: fixture.academyId,
     amount: input.amount,
     eventId: fixture.eventId,
-    inscriptionId: input.inscriptionId,
+    target: { id: input.inscriptionId, kind: "seminar" },
     priceId: fixture.priceId,
-    seminarId: fixture.seminarId,
   });
 
   if (!result.ok) {
@@ -351,11 +350,10 @@ describe("removing a seminar inscription", () => {
       seminarId: fixture.seminarId,
     });
     await expect(
-      releaseRetainedSeminarInscriptionDeposit({
+      releaseRetainedInscriptionDeposit({
         academyId: fixture.academyId,
         eventId: fixture.eventId,
-        inscriptionId,
-        seminarId: fixture.seminarId,
+        target: { id: inscriptionId, kind: "seminar" },
       }),
     ).resolves.toMatchObject({ ok: true });
 
@@ -542,11 +540,10 @@ describe("deleting a seminar that has withdrawn rows", () => {
       code: "has-inscriptions",
     });
 
-    await releaseRetainedSeminarInscriptionDeposit({
+    await releaseRetainedInscriptionDeposit({
       academyId: fixture.academyId,
       eventId: fixture.eventId,
-      inscriptionId,
-      seminarId: fixture.seminarId,
+      target: { id: inscriptionId, kind: "seminar" },
     });
     // De-allocating is not enough on its own: the row is still there, and it is
     // removing it that makes the seminar deletable.

@@ -24,7 +24,6 @@ async function signIn(role: "auditor" | "judge", name: string) {
   const signUp = await createAccessUser({
     email,
     name,
-    password: "password-segura",
   });
 
   await db

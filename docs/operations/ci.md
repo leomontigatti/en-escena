@@ -11,9 +11,12 @@ Six contexts are required on `master`. Required contexts are a repo setting
 outside the repo: renaming a job, or adding one, does not update branch
 protection, so making a job required is a human step in the repo settings.
 
-- `checks` (`ci.yml`): `format:check`, `lint`, gitleaks over
-  `origin/master..HEAD`, the `check:*` scripts, the migration checks,
-  `typecheck`, `test:unit` and `build`, with no database.
+- `checks` (`ci.yml`): `static-checks` (`format:check`, `lint`, gitleaks over
+  `origin/master..HEAD`, the `check:*` scripts, the migration checks, `typecheck`
+  and `build`) and the three runners of the `unit-shard` matrix, each running
+  `pnpm test:unit --shard=<i>/3`, all with no database. `checks` runs nothing
+  itself: it `needs` them and fails unless all of them succeeded, and it is named
+  exactly that because branch protection requires the name.
 - `db-gate` (`ci.yml`): the full `*.db.test.ts` suite against real Postgres 17,
   split across the four runners of the `db-shard` matrix, each with its own
   Postgres service, each running
@@ -48,7 +51,7 @@ protection, so making a job required is a human step in the repo settings.
 
 The commit gate before any of these is `.husky/pre-commit`: gitleaks on the
 staged diff, `lint-staged`, `check:comment-language`, `typecheck`,
-`check:file-tokens`, `check:fallow`, and the sub-second `checks` steps
+`check:file-tokens`, `check:fallow`, and the sub-second `static-checks` steps
 (`check:repo-styles`, `check:banned-imports`, `check:docs-tests`,
 `check:labels`, `check:migration-order` and `check:migration-safety`). `.husky/commit-msg` runs
 `docs-gate` on the staged tree, reading the trailer from the message being
@@ -57,7 +60,7 @@ session's work, and CI runs every one of them again. What joins it stays fast an
 deterministic: formatting staged files through `lint-staged` is the model.
 
 gitleaks is not a pnpm dependency: when the binary is not on `PATH`, the
-pre-commit line warns and continues, and CI's `checks` step is the blocking
+pre-commit line warns and continues, and CI's `static-checks` step is the blocking
 half. Installing it locally is optional; pin the version `GITLEAKS_VERSION`
 names in `ci.yml` (on macOS `brew install gitleaks` tracks the latest instead,
 which is close enough):

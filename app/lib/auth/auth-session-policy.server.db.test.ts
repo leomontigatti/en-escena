@@ -9,7 +9,7 @@ import {
   ACCESS_SESSION_EXPIRES_IN_SECONDS,
   ACCESS_SESSION_UPDATE_AGE_SECONDS,
   createAccessRequestCookie,
-  createAccessUser,
+  createAccessUserWithPassword,
   readAccessSession,
 } from "@/lib/auth/access-auth.test-support";
 import { createInternalUser } from "@/lib/admin/users/internal-user-create.server";
@@ -26,7 +26,7 @@ describe("access session policy", () => {
   test("creates access sessions with an 8-hour inactivity lifetime", async () => {
     const beforeSignUp = Date.now();
 
-    const signUpResult = await createAccessUser({
+    const signUpResult = await createAccessUserWithPassword({
       email: "sesion@example.com",
       name: "sesion@example.com",
       password: "password-segura",
@@ -217,7 +217,7 @@ describe("access session policy", () => {
 });
 
 async function createVerifiedCredentialUser(email: string) {
-  const signUpResult = await createAccessUser({
+  const signUpResult = await createAccessUserWithPassword({
     email,
     name: email,
     password: "password-segura",

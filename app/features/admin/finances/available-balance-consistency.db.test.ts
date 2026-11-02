@@ -25,10 +25,8 @@ import {
 import { registerRefundForTest } from "@/lib/test-support/refunds";
 import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
 import { choreographyTarget } from "@/lib/finances/allocation-target.server";
-import {
-  allocateToSeminarInscription,
-  readSeminarInscriptionPriceOptions,
-} from "@/lib/finances/seminar-inscription-allocation.server";
+import { allocateToInscription } from "@/lib/finances/inscription-money.server";
+import { readSeminarInscriptionPriceOptions } from "@/lib/finances/seminar-inscription-price-options.server";
 import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
@@ -146,14 +144,13 @@ async function seedIndividual(event: SavedEvent) {
     seminarId: created.seminar.id,
   });
   const [price] = options.get(inscription!.id) ?? [];
-  const allocated = await allocateToSeminarInscription({
+  const allocated = await allocateToInscription({
     academyId: individual.ownerId,
     amount: price!.depositAmount,
     eventId: event.id,
-    inscriptionId: inscription!.id,
     now: new Date("2026-04-05T12:00:00Z"),
     priceId: price!.id,
-    seminarId: created.seminar.id,
+    target: { id: inscription!.id, kind: "seminar" },
   });
   expect(allocated).toEqual({ ok: true });
   await registerRefundForTest({

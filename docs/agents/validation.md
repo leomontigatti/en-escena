@@ -18,7 +18,9 @@ pnpm test:db <path>...   # only the DB test files your change touches
 pnpm check:doc-map       # CI's docs-gate over the branch; commit-msg runs it per commit
 ```
 
-Run this **once, after your edits**. Do not run `pnpm test`. `pnpm gate` runs its
+Run this **once, after your edits**. Do not run `pnpm test`. Sent to a file or a
+pipe, the test scripts print dots as files finish, and `pnpm gate` names each step
+on stderr, so a long run shows it is moving. `pnpm gate` runs its
 three steps in order, every one of them even after one fails, and prints only the
 failures, each at its file and line, then one summary line. Its output is already
 short, so never pipe it into `tail` or `head`: that is what used to hide the
@@ -81,7 +83,7 @@ them yourself. `SKIP_STOP_CHECKS=1` turns it off for local work, never to get a
 red branch committed.
 
 gitleaks has no `check:*` script: it runs from `.husky/pre-commit`, where it warns
-and continues if the binary is missing, and blocking from the `checks` job. It is
+and continues if the binary is missing, and blocking from the `static-checks` job. It is
 the client-side half of the secrets gate; GitHub push protection blocks provider
 tokens at the push, so `.gitleaks.toml` covers only what this repo can leak that
 push protection does not.
@@ -144,29 +146,25 @@ ESLint cannot replace it while `typescript-eslint` refuses TypeScript 7
 
 ## Why not `pnpm test`
 
-`pnpm test` is `test:unit && test:db` — serial. Measured on this repo, pinned to
-2 cores:
+`pnpm test` is `test:unit && test:db` — serial. Measured on the 8-core laptop:
 
 | step               | wall-clock |
 | ------------------ | ---------- |
-| `pnpm test:unit`   | ~2.6 min   |
-| `pnpm test:db`     | ~10 min    |
-| `pnpm test` (both) | ~13 min    |
+| `pnpm test:unit`   | ~2.8 min   |
+| `pnpm test:db`     | ~3 min     |
+| `pnpm test` (both) | ~6 min     |
 
-A local machine is faster, but the proportion holds: the DB suite is most of the
-cost.
-
-CI never does this: `checks` runs on its own runner and the DB suite is split
-across the `db-shard` matrix behind the `db-gate` aggregator, so the whole
-pipeline finishes in the time of its slowest job. Duplicating that serially
-inside the session buys nothing.
+CI never does this: the unit suite is split across the `unit-shard` matrix behind
+the `checks` aggregator and the DB suite across the `db-shard` matrix behind
+`db-gate`, so the whole pipeline finishes in the time of its slowest job.
+Duplicating that serially inside the session buys nothing.
 
 ## Why still run the full unit suite
 
-`test:db` is ~80% of the cost, so targeting it is where the savings are. The unit
-suite is broad and cheap, and it is the thing most likely to catch a regression
-in code the change did not touch. Keeping it costs ~2.6 minutes and preserves
-almost all of the safety net.
+The two suites now cost about the same, and targeting `test:db` is still what a
+session does. The unit suite is broad, and it is the thing most likely to catch a
+regression in code the change did not touch. Keeping it costs under 3 minutes and
+preserves almost all of the safety net.
 
 ## A test that fails and then passes
 
@@ -184,15 +182,17 @@ leaves a longer one is closed or awaited by its test. A "Test timed
 out" is the exception: it says only that the test exceeded its deadline, and
 `vitest.config.ts` already allows for load. File it and investigate the timeout.
 
-`test:unit` runs as two Vitest projects. A file that calls `vi.mock`,
-`vi.doMock`, `vi.hoisted`, `vi.stubGlobal` or `vi.stubEnv`, or imports a local
-helper that does, runs in `unit-isolated` with a fresh module graph; every other
-file runs in `unit-shared` with `isolate: false`, sharing a worker and its
-imported modules with the files before it. The split is computed from file
-contents, so there is no list to keep, but a `unit-shared` test resets any
-module-level state it touches (a module's `let`, a `Set`, a cache) itself. The
-jsdom window is shared the same way, its URL included: a test whose form posts
-to the document's URL sets it (`window.history.replaceState`) before it renders.
+`test:unit`, `test:db` and `test:db:postgres` each run as two Vitest projects. A
+file that calls `vi.mock`, `vi.doMock`, `vi.hoisted`, `vi.stubGlobal` or
+`vi.stubEnv`, or imports a local helper that does, runs in `unit-isolated` or
+`db-isolated` with a fresh module graph; every other file runs in `unit-shared` or
+`db-shared` with `isolate: false`, sharing a worker and its imported modules with
+the files before it. The split is computed from file contents
+(`tests/setup/module-swapping-files.ts`), so there is no list to keep, but a shared
+test resets any module-level state it touches (a module's `let`, a `Set`, a cache)
+itself, and undoes fake timers before it ends. The jsdom window is shared the same
+way, its URL included: a test whose form posts to the document's URL sets it
+(`window.history.replaceState`) before it renders.
 
 ## Targeting DB tests
 
