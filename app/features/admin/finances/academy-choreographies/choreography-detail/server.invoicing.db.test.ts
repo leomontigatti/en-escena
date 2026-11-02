@@ -37,7 +37,7 @@ import {
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { removeInscriptionsFromRoster } from "@/lib/choreographies/inscription-withdrawal.server";
 import { readAcademyAvailableBalance } from "@/lib/finances/allocation-pool.server";
-import { releaseRetainedInscriptionDeposit } from "@/lib/finances/inscription-allocation.server";
+import { releaseRetainedInscriptionDeposit } from "@/lib/finances/inscription-money.server";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import {
   abandonReservationIntent,
@@ -1050,9 +1050,8 @@ describe("financial detail — what the documents leave pending", () => {
 
     await releaseRetainedInscriptionDeposit({
       academyId: seeded.academyId,
-      choreographyId: seeded.choreographyId,
       eventId: seeded.eventId,
-      inscriptionId: seeded.inscriptionId,
+      target: { id: seeded.inscriptionId, kind: "choreography" },
     });
 
     expect((await session.load()).billing).toMatchObject({

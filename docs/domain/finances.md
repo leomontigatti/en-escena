@@ -1029,8 +1029,9 @@ what remains allocated as its `Total` (`dancers/inscriptions.server.ts`,
 The second is queries that are not about display at all and simply do not need
 the predicate, because a withdrawn row answers their question as well as an
 active one: `readInscriptionSelectedPrices` (the price readout behind the money
-dialog) and the allocation write path's own inscription lookup
-(`inscription-allocation.server.ts`), the price-divergence guard that asks
+dialog) and the money gestures' own inscription lookup
+(`inscription-allocation.server.ts`, `inscription-money-choreography.server.ts`),
+the price-divergence guard that asks
 whether a move would reprice any money-holding inscription of a choreography
 (`choreography-price-divergence-guard.server.ts`), and the check that refuses
 to delete a price row some inscription references (`prices.server.ts`).

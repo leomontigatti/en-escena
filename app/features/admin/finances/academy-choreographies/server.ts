@@ -2,7 +2,13 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
-import { choreographies, events, scheduleCapacities } from "@/db/schema";
+import {
+  choreographies,
+  choreographyDancers,
+  events,
+  prices,
+  scheduleCapacities,
+} from "@/db/schema";
 import {
   readFinanceAcademy,
   readFinanceAcademyId,
@@ -73,7 +79,8 @@ export async function loadAcademyFinances(input: {
   const [
     financeDetail,
     linkedInscriptions,
-    priceOptionsByGroupType,
+    presetPricing,
+    storedDepositByInscription,
     pricingScheduleIdByChoreography,
     seminarPresetPreviews,
   ] =
@@ -87,7 +94,9 @@ export async function loadAcademyFinances(input: {
             summary: emptyOperationalFinanceSummary(),
           },
           [],
-          {} as Record<string, PresetPriceOption[]>,
+          // No event lists no row, so no dialog reads the percentage.
+          { priceOptionsByGroupType: {}, requiredDepositPercentage: 0 },
+          new Map<string, number>(),
           {} as Record<string, string | null>,
           {} as Record<string, SeminarCobroPreview>,
         ]
@@ -100,7 +109,11 @@ export async function loadAcademyFinances(input: {
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
           }),
-          readPresetPriceOptions(eventContext.selectedEventId),
+          readPresetPricing(eventContext.selectedEventId),
+          readStoredDepositByInscription({
+            academyId: academy.id,
+            eventId: eventContext.selectedEventId,
+          }),
           readPricingScheduleIdByChoreography({
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
@@ -148,8 +161,13 @@ export async function loadAcademyFinances(input: {
         ),
       }),
     ),
-    inscriptions: financeDetail.inscriptions.map(toPresetInscription),
-    priceOptionsByGroupType,
+    inscriptions: financeDetail.inscriptions.map((inscription) =>
+      toPresetInscription(
+        inscription,
+        storedDepositByInscription.get(inscription.id) ?? null,
+      ),
+    ),
+    ...presetPricing,
     pricingScheduleIdByChoreography,
     selectedEventId: eventContext.selectedEventId,
     // The academy's `(seminar, academy)` units, the `Seminarios` tab's rows.
@@ -345,6 +363,7 @@ function readPriceSelection(formData: FormData): Record<string, string> {
  */
 function toPresetInscription(
   inscription: ResolvedInscription,
+  storedDepositAmount: number | null,
 ): PresetInscription {
   return {
     allocatedAmount: inscription.allocatedAmount,
@@ -352,29 +371,61 @@ function toPresetInscription(
     basePriceId: inscription.basePriceId,
     choreographyId: inscription.choreographyId,
     dancerDiscountAmount: inscription.dancerDiscountAmount,
-    depositAmount: inscription.depositAmount,
     financialStatus: inscription.financialStatus,
     id: inscription.id,
     owedBalanceAmount: inscription.owedBalanceAmount,
     owedDepositAmount: inscription.owedDepositAmount,
+    storedDepositAmount,
     withdrawn: inscription.withdrawn,
   };
 }
 
 /**
- * Every price row of the event, bucketed by group type and carrying its
- * schedule. The group type is the only bucket the loader can build, because
- * which schedules matter depends on what the administrator selects; the picker
- * narrows the bucket to the rows the writer would accept for that selection
- * (`selectPresetPriceOptions`).
- *
- * The `Seña` of each row is computed here, off the event's percentage, so the
- * dialog can say what a pick would leave owing without carrying a rule of its
- * own.
+ * The deposit of the row each inscription **stores**, by inscription, leaving
+ * out the ones with none. The finance reader resolves the effective row only,
+ * and it is the stored one the writer tests a pick against.
  */
-async function readPresetPriceOptions(
-  eventId: string,
-): Promise<Record<string, PresetPriceOption[]>> {
+async function readStoredDepositByInscription(input: {
+  academyId: string;
+  eventId: string;
+}): Promise<Map<string, number>> {
+  const rows = await db
+    .select({
+      id: choreographyDancers.id,
+      priceAmount: prices.amount,
+      requiredDepositPercentage: events.requiredDepositPercentage,
+    })
+    .from(choreographyDancers)
+    .innerJoin(
+      choreographies,
+      eq(choreographyDancers.choreographyId, choreographies.id),
+    )
+    .innerJoin(prices, eq(choreographyDancers.selectedPriceId, prices.id))
+    .innerJoin(events, eq(prices.eventId, events.id))
+    .where(
+      and(
+        eq(choreographies.academyId, input.academyId),
+        eq(choreographies.eventId, input.eventId),
+      ),
+    );
+
+  return new Map(rows.map((row) => [row.id, calculateDepositAmount(row)]));
+}
+
+/**
+ * Every price row of the event, bucketed by group type and carrying its
+ * schedule, with the event's deposit percentage. The group type is the only
+ * bucket the loader can build, because which schedules matter depends on what
+ * the administrator selects; the picker narrows the bucket to the rows the writer
+ * would accept for that selection (`selectPresetPriceOptions`).
+ *
+ * The percentage travels so the dialog can say what a pick would leave owing with
+ * the writer's own plan: it belongs to the event and not to the price.
+ */
+async function readPresetPricing(eventId: string): Promise<{
+  priceOptionsByGroupType: Record<string, PresetPriceOption[]>;
+  requiredDepositPercentage: number;
+}> {
   const [event, rows] = await Promise.all([
     db.query.events.findFirst({
       columns: { requiredDepositPercentage: true },
@@ -387,19 +438,15 @@ async function readPresetPriceOptions(
     throw new Response("No encontramos ese evento.", { status: 404 });
   }
 
-  const optionsByGroupType: Record<string, PresetPriceOption[]> = {};
+  const priceOptionsByGroupType: Record<string, PresetPriceOption[]> = {};
 
   for (const row of [...rows].sort(
     (left, right) => left.amount - right.amount,
   )) {
-    const bucket = (optionsByGroupType[row.groupType] ??= []);
+    const bucket = (priceOptionsByGroupType[row.groupType] ??= []);
 
     bucket.push({
       amount: row.amount,
-      depositAmount: calculateDepositAmount({
-        priceAmount: row.amount,
-        requiredDepositPercentage: event.requiredDepositPercentage,
-      }),
       id: row.id,
       name: row.name,
       paymentDeadline: row.paymentDeadline,
@@ -407,7 +454,10 @@ async function readPresetPriceOptions(
     });
   }
 
-  return optionsByGroupType;
+  return {
+    priceOptionsByGroupType,
+    requiredDepositPercentage: event.requiredDepositPercentage,
+  };
 }
 
 /**
