@@ -481,6 +481,30 @@ describe("payChoreographiesPreset", () => {
     expect(totals.get(fixture.inscriptionIds[1])).toBe(3000);
   });
 
+  test("takes a peso at the deposit stage of a row whose deposit rounds to nothing", async () => {
+    const fixture = await seedPresetFixture([20000], 10);
+    await db
+      .update(prices)
+      .set({ amount: 4 })
+      .where(eq(prices.id, fixture.priceId));
+    const [inscriptionId] = fixture.inscriptionIds;
+
+    const result = await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds: [fixture.choreographyIds[0]],
+      eventId: fixture.eventId,
+      priceIdByGroupType: {},
+      stage: "deposit",
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(
+      sumByInscription(await readAllocations([inscriptionId])).get(
+        inscriptionId,
+      ),
+    ).toBe(1);
+  });
+
   test("refuses a price that does not belong to the choreography", async () => {
     const fixture = await seedPresetFixture([10000]);
     const [foreignPrice] = await insertTestPrices([

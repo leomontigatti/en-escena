@@ -790,6 +790,8 @@ deposit yet; anything already past that threshold keeps the price it holds. A
 picked row is the one charged, not the row that applies today: the preset covers
 its deposit first, which fixes it, and reads what is owed from there, and a pick
 below the money already on the inscription is refused.
+On either kind of inscription a deposit that rounds to zero is charged one peso,
+because only money crosses a deposit (`planThresholdCharge`).
 The dialog's owed figure follows its price pickers, and when it exceeds
 `Saldo disponible` `Asignar` is disabled with the reason stated, as on the
 seminar side. An owed figure missing a price counts only when its known part

@@ -28,17 +28,16 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { seminarInscriptions, seminars } from "@/db/schema";
 import { formatDancerName } from "@/lib/finances/formatters";
-import {
-  deriveInscriptionFinancialFigures,
-  hasCrossedDepositThreshold,
-} from "@/lib/finances/inscription-financial-status";
 import { seminarOverAllocatedMessage } from "@/lib/finances/seminar-cobro-refusals";
-import { deriveSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-price";
 import {
   resolveSeminarInscriptions,
   type ResolvedSeminarInscription,
   type SeminarFinancePriceRow,
 } from "@/lib/finances/seminar-inscription-thresholds.server";
+import {
+  planThresholdCharge,
+  type ThresholdChargePlan,
+} from "@/lib/finances/threshold-charge";
 import { lockEventSeminarPrices } from "@/lib/seminar-prices/price-locks.server";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import {
@@ -93,23 +92,15 @@ type SeminarCobroInscriptions = {
  *
  * `priceRow` is **the one row the charge prices with**: the row the inscription
  * holds once the write is done (`chargedPriceRow`) — the one it already held,
- * or the one the write stores. Its owed figures, the deposit it may cross and
- * the name the preview shows all come from it, so the charge can neither stop
- * short of the deposit it holds nor carry it past the total it holds.
+ * or the one the write stores. The plan and the name the preview shows both
+ * come from it, so the charge can neither stop short of the deposit it holds
+ * nor carry it past the total it holds.
  *
- * `owedAmount` is `null` only when no row prices it at all, which refuses the
- * charge. `owedDepositAmount` is what is left of that row's deposit.
- * `overAllocatedAmount` is what the inscription holds past that row's total,
- * which only a row cheaper than the money already on it leaves; storing such a
- * row refuses the charge.
+ * A `null` `owedAmount` refuses the charge. An `overAllocatedAmount` above zero,
+ * which only a row cheaper than the money already on it leaves, refuses it too.
  */
-type SeminarCobroLine = ActiveSeminarInscription & {
-  crossesDeposit: boolean;
-  overAllocatedAmount: number;
-  owedAmount: number | null;
-  owedDepositAmount: number | null;
-  priceRow: SeminarFinancePriceRow | null;
-};
+type SeminarCobroLine = ActiveSeminarInscription &
+  ThresholdChargePlan & { priceRow: SeminarFinancePriceRow | null };
 
 type SeminarCobroPlan = {
   /** How many active inscriptions the academy holds across the seminars,
@@ -289,38 +280,19 @@ function planLine(input: {
 }): SeminarCobroLine | null {
   const { resolution, row } = input;
   const priceRow = chargedPriceRow(resolution);
-  const thresholds = deriveSeminarInscriptionThresholds({
-    priceAmount: priceRow?.amount ?? null,
-    requiredDepositPercentage: input.requiredDepositPercentage,
-  });
-  const figures = deriveInscriptionFinancialFigures({
+  const plan = planThresholdCharge({
     allocatedAmount: resolution.allocatedAmount,
-    thresholds,
+    covered: resolution.covered,
+    priceRow,
+    requiredDepositPercentage: input.requiredDepositPercentage,
+    stage: input.stage,
   });
-  const owedAmount =
-    input.stage === "deposit"
-      ? figures.owedDepositAmount
-      : figures.owedBalanceAmount;
-  const crossesDeposit =
-    owedAmount !== null &&
-    !resolution.covered &&
-    hasCrossedDepositThreshold({
-      allocatedAmount: resolution.allocatedAmount + owedAmount,
-      depositAmount: thresholds.depositAmount,
-    });
 
-  if (owedAmount === 0 && !crossesDeposit) {
+  if (plan.owedAmount === 0 && !plan.crossesDeposit) {
     return null;
   }
 
-  return {
-    ...row,
-    crossesDeposit,
-    overAllocatedAmount: figures.overAllocatedAmount ?? 0,
-    owedAmount,
-    owedDepositAmount: figures.owedDepositAmount,
-    priceRow,
-  };
+  return { ...row, ...plan, priceRow };
 }
 
 /**
@@ -606,16 +578,7 @@ export async function paySeminarsPreset(input: {
   });
 }
 
-/**
- * Spreads each line's owed figure from the pool, oldest payment first.
- *
- * A line that crosses its deposit on the way to its balance is funded in two
- * moves, up to the deposit and then the rest. The pool's over-allocation check
- * reads the inscription's **effective** row, which below the deposit is
- * today's and may be cheaper than the row it holds; once the deposit is
- * covered it is the held row, the one the line is priced by, so the rest is
- * checked against the total the charge is aiming at.
- */
+/** Spreads each line's moves from the pool, oldest payment first. */
 async function fundPlanLines(
   tx: Executor,
   input: {
@@ -625,17 +588,7 @@ async function fundPlanLines(
   },
 ): Promise<CobroResult> {
   for (const line of input.lines) {
-    if (line.owedAmount === null) {
-      return {
-        ok: false,
-        message:
-          "No hay un precio de seminario configurado para alguna de las inscripciones.",
-      };
-    }
-
-    for (const amount of fundingMoves(line, line.owedAmount).filter(
-      (move) => move > 0,
-    )) {
+    for (const amount of line.moves) {
       const funded = await spreadFromPool(tx, {
         academyId: input.academyId,
         amount,
@@ -650,12 +603,4 @@ async function fundPlanLines(
   }
 
   return { ok: true };
-}
-
-function fundingMoves(line: SeminarCobroLine, owedAmount: number): number[] {
-  const toDeposit = line.owedDepositAmount ?? 0;
-
-  return line.crossesDeposit && toDeposit > 0 && toDeposit < owedAmount
-    ? [toDeposit, owedAmount - toDeposit]
-    : [owedAmount];
 }
