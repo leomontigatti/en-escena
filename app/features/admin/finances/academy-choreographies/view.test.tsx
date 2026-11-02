@@ -1566,6 +1566,7 @@ function incompleteOwedLoaderDataFixture(availableBalanceAmount: number) {
         owedBalanceAmount: null,
         owedDepositAmount: null,
         storedDepositAmount: null,
+        storedPriceAmount: null,
       }),
     ],
     priceOptionsByGroupType: {},
@@ -1595,6 +1596,7 @@ function presetInscriptionFixture(
     owedBalanceAmount: 0,
     owedDepositAmount: 3000,
     storedDepositAmount: 3000,
+    storedPriceAmount: 10000,
     withdrawn: false,
     ...overrides,
   };
