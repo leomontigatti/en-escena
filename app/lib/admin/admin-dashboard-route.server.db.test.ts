@@ -147,7 +147,7 @@ describe("`/administracion` index route", () => {
       "/administracion/bailarines",
       "/administracion/profesores",
       "/administracion/coreografias",
-      "/administracion/pagos",
+      "/administracion/movimientos",
       "/administracion/seminarios",
     ]);
   });

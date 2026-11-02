@@ -14,6 +14,7 @@ import {
   createAcademyFinanceChoreographyFixture,
   registerPaymentForTest,
 } from "@/lib/admin/finances/finances.test-support";
+import { registerRefundForTest } from "@/lib/test-support/refunds";
 import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -243,6 +244,33 @@ describe("the pool funding rule and its inverse", () => {
     expect(result).toMatchObject({ ok: false });
     expect(await readAllocationsByPaymentNumber(fixture.inscriptionId)).toEqual(
       [],
+    );
+  });
+
+  test("never spends refunded money: it funds only what the refunds left on each payment", async () => {
+    const fixture = await seedPoolFixture([1000, 2000, 3000]);
+    // Drawn newest first: all of payment 3 and 500 of payment 2.
+    await registerRefundForTest({
+      academyId: fixture.academyId,
+      amount: 3500,
+      eventId: fixture.eventId,
+    });
+    const spread = (amount: number) =>
+      spreadFromPool(db, {
+        academyId: fixture.academyId,
+        amount,
+        eventId: fixture.eventId,
+        target: choreographyTarget(fixture.inscriptionId),
+      });
+
+    await expect(spread(2501)).resolves.toMatchObject({ ok: false });
+    await expect(spread(2500)).resolves.toEqual({ ok: true });
+
+    expect(await readAllocationsByPaymentNumber(fixture.inscriptionId)).toEqual(
+      [
+        { amount: 1000, paymentNumber: 1 },
+        { amount: 1500, paymentNumber: 2 },
+      ],
     );
   });
 

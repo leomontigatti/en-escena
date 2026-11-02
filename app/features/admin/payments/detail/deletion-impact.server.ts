@@ -1,8 +1,9 @@
 /**
  * What deleting a payment does, computed before it is done.
  *
- * Deletion **always succeeds** — money is fungible and the allocations fall by
- * the foreign key's cascade — so this is not a guard. It is what the dialog
+ * Allocations never block a deletion — money is fungible and they fall by the
+ * foreign key's cascade — so this is not a guard (only the owner's refunds can
+ * block one, which the detail reads apart). It is what the dialog
  * says: every unit the payment reaches — choreographies and seminars in **one
  * list** — the amount it takes out of it, and what its inscriptions lose. A
  * choreography names the threshold they drop back below; a seminar names the
@@ -12,8 +13,9 @@
  * Two things the reading has to be honest about:
  *
  * - The money **leaves the pool**. `Saldo disponible` is
- *   `Σ payments − Σ allocations`, and deleting the payment removes both terms
- *   at once, so nothing comes back as available balance.
+ *   `Σ payments − Σ allocations − Σ refunds`, and deleting the payment removes
+ *   its amount and its allocations at once, so nothing comes back as available
+ *   balance.
  * - The resulting status is named **only when a threshold actually crosses**.
  *   With nothing un-crossing there is no new state to announce, and naming the
  *   unchanged one would read as a consequence of the deletion.

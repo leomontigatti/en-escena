@@ -195,8 +195,8 @@ const financeNavigationItems = [
     icon: Presentation,
   },
   {
-    label: "Pagos",
-    to: "/administracion/pagos",
+    label: "Movimientos",
+    to: "/administracion/movimientos",
     icon: HandCoins,
   },
   {
@@ -243,7 +243,7 @@ const auditorSectionPaths = new Set([
   "/administracion/bailarines",
   "/administracion/profesores",
   "/administracion/coreografias",
-  "/administracion/pagos",
+  "/administracion/movimientos",
   "/administracion/seminarios",
 ]);
 

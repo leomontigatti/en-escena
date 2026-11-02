@@ -1,10 +1,10 @@
 /** @vitest-environment jsdom */
 
-import { act } from "react";
+import { act, useState } from "react";
 import { createMemoryRouter, redirect, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { NewPaymentRouteView } from "@/features/admin/payments/create/view";
+import { NewMovementRouteView } from "@/features/admin/payments/create/view";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
@@ -17,9 +17,9 @@ const renderer = createReactDomTestRenderer();
 
 afterEach(renderer.cleanup);
 
-const createPath = "/administracion/pagos/nuevo";
+const createPath = "/administracion/movimientos/nuevo";
 
-describe("the payment creation form", () => {
+describe("the movement creation form", () => {
   test("keeps `Guardar` off until something is typed, and `Descartar cambios` empties it again", async () => {
     await renderPage();
 
@@ -42,7 +42,7 @@ describe("the payment creation form", () => {
     await clickBack();
 
     expect(findDialog()).toBeUndefined();
-    expect(page.pathname()).toBe("/administracion/pagos");
+    expect(page.pathname()).toBe("/administracion/movimientos");
 
     await page.router.navigate(createPath);
     await settle();
@@ -53,6 +53,72 @@ describe("the payment creation form", () => {
     expect(page.pathname()).toBe(createPath);
   });
 
+  test("posts the kind with the rest of the form", async () => {
+    const submissions: FormData[] = [];
+    await renderPage({ submissions });
+
+    await typeAmount("15000");
+    await clickReactDomButton("Guardar", { exact: true });
+    await settle();
+
+    expect(submissions[0]?.get("movementKind")).toBe("payment");
+    expect(submissions[0]?.get("intent")).toBe("create-movement");
+  });
+
+  test("keeps the refused kind when a later save crashes, so a retyped refund is not saved as a payment", async () => {
+    const refused = {
+      fieldErrors: {},
+      message: "El reembolso no puede superar el saldo disponible de $ 3.000.",
+      status: "error" as const,
+      values: { ...emptyValues, amount: "15000", movementKind: "refund" },
+    };
+    window.history.replaceState(null, "", createPath);
+    const submissions: FormData[] = [];
+    let answer = (_: ActionData) => {};
+    function AnsweringPage() {
+      const [actionData, setActionData] = useState<ActionData>(undefined);
+      answer = setActionData;
+
+      return (
+        <NewMovementRouteView actionData={actionData} loaderData={loaderData} />
+      );
+    }
+    const router = createMemoryRouter(
+      [
+        {
+          action: async ({ request }) => {
+            submissions.push(await request.formData());
+
+            return null;
+          },
+          element: <AnsweringPage />,
+          path: createPath,
+        },
+      ],
+      { initialEntries: [createPath] },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+    await settle();
+
+    await act(async () => {
+      answer(refused);
+    });
+    await settle();
+
+    await act(async () => {
+      // A crash answers with a message alone (`recoverableClientAction`).
+      answer({ message: "Algo salió mal.", status: "error" } as ActionData);
+    });
+    await settle();
+
+    expect(readAmount().value).toBe("15000");
+
+    await clickReactDomButton("Guardar", { exact: true });
+    await settle();
+
+    expect(submissions[0]?.get("movementKind")).toBe("refund");
+  });
+
   test("lets the save redirect to the new payment without asking", async () => {
     const page = await renderPage();
 
@@ -61,7 +127,7 @@ describe("the payment creation form", () => {
     await settle();
 
     expect(findDialog()).toBeUndefined();
-    expect(page.pathname()).toBe("/administracion/pagos/payment_1");
+    expect(page.pathname()).toBe("/administracion/movimientos/pagos/payment_1");
   });
 
   test("keeps `Guardar` on after a refused save, with what was typed still in the form", async () => {
@@ -84,15 +150,33 @@ const emptyValues = {
   academyId: "academy_1",
   amount: "",
   internalNote: "",
+  movementKind: "payment",
   paymentDate: "2026-05-10",
   paymentMethod: "transferencia",
   reference: "",
 };
 
+type ActionData = Parameters<typeof NewMovementRouteView>[0]["actionData"];
+
+const loaderData = {
+  academies: [
+    {
+      contactName: "Ana Fork",
+      id: "academy_1",
+      kind: "academy" as const,
+      name: "Academia Fork",
+    },
+  ],
+  selectedEventId: "event_1",
+  values: emptyValues,
+};
+
 async function renderPage({
   actionData,
+  submissions = [],
 }: {
-  actionData?: Parameters<typeof NewPaymentRouteView>[0]["actionData"];
+  actionData?: ActionData;
+  submissions?: FormData[];
 } = {}) {
   // The form posts to the URL the document says, which the memory router does
   // not set.
@@ -100,25 +184,21 @@ async function renderPage({
 
   const router = createMemoryRouter(
     [
-      { element: <p>Lista</p>, path: "/administracion/pagos" },
-      { element: <p>Detalle</p>, path: "/administracion/pagos/payment_1" },
+      { element: <p>Lista</p>, path: "/administracion/movimientos" },
       {
-        action: () => redirect("/administracion/pagos/payment_1"),
+        element: <p>Detalle</p>,
+        path: "/administracion/movimientos/pagos/payment_1",
+      },
+      {
+        action: async ({ request }) => {
+          submissions.push(await request.formData());
+
+          return redirect("/administracion/movimientos/pagos/payment_1");
+        },
         element: (
-          <NewPaymentRouteView
+          <NewMovementRouteView
             actionData={actionData}
-            loaderData={{
-              academies: [
-                {
-                  contactName: "Ana Fork",
-                  id: "academy_1",
-                  kind: "academy",
-                  name: "Academia Fork",
-                },
-              ],
-              selectedEventId: "event_1",
-              values: emptyValues,
-            }}
+            loaderData={loaderData}
           />
         ),
         path: createPath,
@@ -165,7 +245,7 @@ function findDialog() {
 async function clickBack() {
   await act(async () => {
     document
-      .querySelector("a[href='/administracion/pagos']")
+      .querySelector("a[href='/administracion/movimientos']")
       ?.dispatchEvent(
         new MouseEvent("click", { bubbles: true, button: 0, cancelable: true }),
       );

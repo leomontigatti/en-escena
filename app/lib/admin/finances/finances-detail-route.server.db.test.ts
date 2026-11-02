@@ -20,7 +20,7 @@ import {
   action as academyFinancesAction,
   loader as academyFinancesLoader,
 } from "@/routes/administracion.finanzas_.$academyId";
-import { action as paymentCreateAction } from "@/routes/administracion.pagos_.nuevo";
+import { action as paymentCreateAction } from "@/routes/administracion.movimientos_.nuevo";
 import {
   academyFinancesUrl,
   buildGlobalPaymentRequest,
@@ -285,14 +285,14 @@ describe("`/administracion/finanzas` academy", () => {
       ),
     ).rejects.toMatchObject({ status: 403 });
 
-    // Payments are recorded from `/administracion/pagos`, and only an admin can
+    // Payments are recorded from `/administracion/movimientos`, and only an admin can
     // do it.
     const { request: auditorPaymentRequest } = await buildGlobalPaymentRequest({
       academyId: academy.academy.id,
       amount: "25000",
       paymentDate: "2026-04-10",
       paymentMethod: "transferencia",
-      requestUrl: `http://localhost/administracion/pagos/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/movimientos/nuevo?evento=${event.id}`,
       role: "auditor",
     });
 
@@ -481,7 +481,7 @@ describe("`/administracion/finanzas` academy", () => {
       email: "academia.pagos.finanzas@example.com",
       academyName: "Academia Pagos",
     });
-    const createUrl = `http://localhost/administracion/pagos/nuevo?evento=${event.id}`;
+    const createUrl = `http://localhost/administracion/movimientos/nuevo?evento=${event.id}`;
     const { request: firstRequest } = await buildGlobalPaymentRequest({
       academyId: academy.academy.id,
       amount: "25000",
@@ -581,7 +581,7 @@ describe("`/administracion/finanzas` academy", () => {
       amount: "10.5",
       paymentDate: "2099-01-01",
       paymentMethod: "",
-      requestUrl: `http://localhost/administracion/pagos/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/movimientos/nuevo?evento=${event.id}`,
       role: "admin",
     });
 
@@ -591,11 +591,11 @@ describe("`/administracion/finanzas` academy", () => {
 
     expect(actionData).toMatchObject({
       status: "error",
-      message: "Revisá los datos del pago.",
+      message: "Revisá los datos del movimiento.",
       fieldErrors: {
         amount: "Ingresá un monto entero en pesos, sin centavos.",
-        paymentDate: "La fecha de pago no puede ser futura.",
-        paymentMethod: "Seleccioná un medio de pago.",
+        paymentDate: "La fecha no puede ser futura.",
+        paymentMethod: "Este campo es obligatorio.",
       },
     });
     await expect(

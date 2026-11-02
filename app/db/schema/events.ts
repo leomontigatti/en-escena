@@ -365,7 +365,8 @@ export const scheduleCapacities = createTable(
 ).enableRLS();
 
 // One counter per event, one row per event. It feeds the readable numbers the
-// user reads and searches by: the payment's and the choreography's. Each number
+// user reads and searches by: the payment's, the refund's and the
+// choreography's, each its own series. Each number
 // is handed out by taking this row with `FOR UPDATE` inside the same
 // transaction that inserts, so two simultaneous creations serialize instead of
 // repeating a number. The numbering leaves gaps — deleting a choreography does
@@ -379,6 +380,7 @@ export const eventSequences = createTable(
       .notNull()
       .references(() => events.id, { onDelete: "cascade" }),
     nextPaymentNumber: integer("next_payment_number").notNull().default(1),
+    nextRefundNumber: integer("next_refund_number").notNull().default(1),
     nextChoreographyNumber: integer("next_choreography_number")
       .notNull()
       .default(1),

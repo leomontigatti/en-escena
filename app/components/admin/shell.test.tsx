@@ -87,7 +87,7 @@ describe("the administration navigation", () => {
         "/administracion/academias",
         "/administracion/bailarines",
         "/administracion/coreografias",
-        "/administracion/pagos",
+        "/administracion/movimientos",
         "/administracion/particulares",
         "/administracion/profesores",
         "/administracion/seminarios",
@@ -114,7 +114,7 @@ describe("the administration navigation", () => {
         "/administracion/bailarines",
         "/administracion/profesores",
         "/administracion/coreografias",
-        "/administracion/pagos",
+        "/administracion/movimientos",
       ]),
     );
   });

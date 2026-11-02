@@ -11,6 +11,8 @@ import { kindTabParam, useUrlTab } from "@/lib/shared/url-tab";
 /** The tab the page opens on, and the one the URL does not have to name. */
 export const choreographiesTabValue = "coreografias";
 export const seminarsTabValue = "seminarios";
+/** The panel's third tab on an owner's page: its payments and refunds. */
+export const movementsTabValue = "movimientos";
 
 /** What a financial list's row has to carry for a tab to sum it. */
 type FinanceTabRow = {
@@ -33,7 +35,8 @@ type FinanceTabRow = {
  * dropped what was selected on the other one.
  *
  * The four threshold-and-owed figures follow the active tab: they are that
- * kind's debt, summed over that kind's rows. `Saldo disponible` is not here on
+ * kind's debt, summed over that kind's rows. The `Movimientos` tab lists no
+ * debt, so it keeps the choreographies' figures. `Saldo disponible` is not here on
  * purpose — it is the academy's pool, one for both kinds, and it never moves
  * with the tab.
  */
@@ -43,12 +46,16 @@ export function useFinanceTabs<
 >(input: {
   choreographyFinanceRows: TChoreographyRow[];
   seminarFinanceRows: TSeminarRow[];
+  /** Only the panel's owner page lists movements beside the two kinds. */
+  withMovementsTab?: boolean;
 }) {
   const { onValueChange: onTabChange, value: activeTab } = useUrlTab({
     defaultValue: choreographiesTabValue,
     param: kindTabParam,
     resets: [listQueryParamNames.page],
-    values: [choreographiesTabValue, seminarsTabValue],
+    values: input.withMovementsTab
+      ? [choreographiesTabValue, seminarsTabValue, movementsTabValue]
+      : [choreographiesTabValue, seminarsTabValue],
   });
   const [selectedChoreographyIds, setSelectedChoreographyIds] = useState<
     string[]

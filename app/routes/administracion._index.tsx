@@ -236,10 +236,10 @@ const auditorHomeCards = [
     to: "/administracion/coreografias",
   },
   {
-    title: "Pagos",
+    title: "Movimientos",
     description: "Revisá los pagos registrados para el evento activo.",
     icon: HandCoins,
-    to: "/administracion/pagos",
+    to: "/administracion/movimientos",
   },
   {
     title: "Seminarios",

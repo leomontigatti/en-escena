@@ -7,6 +7,14 @@ export const deletePaymentIntent = "delete-payment";
 export const updatePaymentIntent = "update-payment";
 
 /**
+ * Why a payment cannot be deleted, cut or moved: the owner's refunds would be
+ * left with less money than they handed back. The edit's field error, the
+ * deletion's refusal and the blocked deletion dialog say it alike.
+ */
+export const refundsUncoveredMessage =
+  "Los reembolsos superarían el saldo disponible. Editá o eliminá un reembolso primero.";
+
+/**
  * Whether the delete dialog has to be open after a submit came back.
  *
  * A result of the delete intent re-opens it, as it always did. The generic

@@ -14,10 +14,10 @@ import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/fi
 import { seedEventSeminarFinanceFixture } from "@/lib/admin/finances/seminar-finances.test-support";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import {
-  readAcademyAvailableBalance,
   readInscriptionAllocatedAmount,
   readTargetThresholds,
 } from "@/lib/finances/allocation-pool.server";
+import { readAcademyAvailableBalance } from "@/lib/finances/available-balance.server";
 import type { AllocationTarget } from "@/lib/finances/allocation-target.server";
 import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
 import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";

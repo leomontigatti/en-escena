@@ -16,63 +16,80 @@ import { MetricCard } from "@/components/shared/metric-card";
 import { Badge } from "@/components/ui/badge";
 import { formatAmount, formatDate } from "@/lib/finances/formatters";
 import {
+  getMovementKindBadgeVariant,
+  movementDetailPath,
+  movementKindLabels,
+} from "@/lib/finances/movement-kinds";
+import {
   formatPaymentMethodLabel,
   getPaymentMethodBadgeVariant,
   paymentMethodOptions,
   paymentMethodValues,
 } from "@/lib/finances/payment-methods";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
-import { resolveSelectedPaymentTotals } from "@/lib/finances/selected-payment-totals";
+import {
+  movementRowKey,
+  resolveSelectedMovementTotals,
+} from "@/lib/finances/selected-movement-totals";
 import { describeEmptyList } from "@/lib/list-query/list-query";
 import { collectionExportPath } from "@/features/admin/payments/export/shared";
 import { PeriodExportMenu } from "@/features/admin/period-export/menu";
 
-import type { PaymentsListRow, PaymentsListLoaderData } from "./server";
+import type { MovementsListLoaderData, MovementsListRow } from "./server";
 
-type PaymentsLoaderData = PaymentsListLoaderData;
-
-type PaymentsListRouteViewProps = {
-  loaderData: PaymentsLoaderData;
+type MovementsListRouteViewProps = {
+  loaderData: MovementsListLoaderData;
 };
 
-const paymentColumns: DataTableColumn<PaymentsListRow>[] = [
+const movementColumns: DataTableColumn<MovementsListRow>[] = [
   {
-    id: "paymentNumber",
+    id: "kind",
+    header: "Tipo",
+    cell: (row) => (
+      <Badge variant={getMovementKindBadgeVariant(row.kind)}>
+        {movementKindLabels[row.kind]}
+      </Badge>
+    ),
+  },
+  {
+    // Each kind counts in its own series, so a number is only read beside
+    // its kind.
+    id: "number",
     header: "#",
     className: "font-medium tabular-nums",
     cell: (row) => (
-      <DataTableLink recordTitle to={`/administracion/pagos/${row.id}`}>
-        {formatEventSequenceNumber(row.paymentNumber)}
+      <DataTableLink recordTitle to={movementDetailPath(row)}>
+        {formatEventSequenceNumber(row.number)}
       </DataTableLink>
     ),
   },
   {
-    id: "paymentDate",
+    id: "date",
     header: "Fecha",
-    cell: (row) => formatDate(row.paymentDate),
-    sortValue: (row) => row.paymentDate,
+    cell: (row) => formatDate(row.date),
+    sortValue: (row) => row.date,
   },
   {
     id: "academyName",
     header: "Academia",
     className: "min-w-56 text-muted-foreground",
     cell: (row) => row.academyName,
-    filterValue: (row) => `${row.academyName} ${row.paymentNumber}`,
+    filterValue: (row) => `${row.academyName} ${row.number}`,
   },
   {
-    id: "paymentMethod",
-    header: "Medio de pago",
+    id: "method",
+    header: "Medio",
     cell: (row) => (
-      <Badge variant={getPaymentMethodBadgeVariant(row.paymentMethod)}>
-        {formatPaymentMethodLabel(row.paymentMethod)}
+      <Badge variant={getPaymentMethodBadgeVariant(row.method)}>
+        {formatPaymentMethodLabel(row.method)}
       </Badge>
     ),
-    filterValue: (row) => row.paymentMethod,
+    filterValue: (row) => row.method,
   },
   {
-    // Muted, like `Total` on the finance lists: it is the context the remainder
-    // is read against —what came in— and not the figure with something left to
-    // do on it.
+    // Positive on both kinds, and muted like `Total` on the finance lists:
+    // the badge says which way the money went, and the amount is the context
+    // the remainder is read against.
     id: "amount",
     header: "Monto",
     className: "text-right tabular-nums text-muted-foreground",
@@ -80,21 +97,40 @@ const paymentColumns: DataTableColumn<PaymentsListRow>[] = [
     cell: (row) => formatAmount(row.amount),
   },
   {
-    // The row's actionable figure, emphasised by column: money received and not
-    // yet committed to any inscription. `$ 0` and not a dash on a fully applied
-    // payment — a zero here is an answer.
+    // A payment's actionable figure, emphasised by column: money received
+    // and not yet committed to any inscription. `$ 0` and not a dash on a
+    // fully applied payment — a zero there is an answer. A refund has no
+    // `Disponible`, so its cell is empty rather than a zero.
     id: "availableAmount",
     header: "Disponible",
     className: "text-right font-medium tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => formatAmount(row.availableAmount),
+    cell: (row) =>
+      row.availableAmount === null ? "" : formatAmount(row.availableAmount),
   },
 ];
 
-const paymentFacetedFilters: DataTableFacetedFilter[] = [
+const movementFacetedFilters: DataTableFacetedFilter[] = [
+  {
+    id: "tipo",
+    label: "Tipo",
+    options: [
+      { label: movementKindLabels.payment, value: "pago" },
+      { label: movementKindLabels.refund, value: "reembolso" },
+    ],
+    renderValue: (option) => (
+      <Badge
+        variant={getMovementKindBadgeVariant(
+          option.value === "reembolso" ? "refund" : "payment",
+        )}
+      >
+        {option.label}
+      </Badge>
+    ),
+  },
   {
     id: "medio",
-    label: "Medio de pago",
+    label: "Medio",
     options: [...paymentMethodOptions],
     renderValue: (option) => {
       const method = paymentMethodValues.find(
@@ -112,8 +148,9 @@ const paymentFacetedFilters: DataTableFacetedFilter[] = [
   },
   {
     // The way down from the `Disponible` card: it reads the event's uncommitted
-    // money, and this narrows the list to where that money is. `Sin disponible`
-    // is the mirror question —what is already fully applied— and comes free.
+    // money, and this narrows the list to the payments where that money is.
+    // `Sin disponible` is the mirror question —what is already fully applied—
+    // and comes free. Refunds have no `Disponible`, so either value hides them.
     id: "disponible",
     label: "Disponible",
     options: [
@@ -123,18 +160,19 @@ const paymentFacetedFilters: DataTableFacetedFilter[] = [
   },
 ];
 
-const emptyPaymentsList = describeEmptyList("pagos", "search-and-filters");
+const emptyMovementsList = describeEmptyList(
+  "movimientos",
+  "search-and-filters",
+);
 
-export function PaymentsListRouteView({
+export function MovementsListRouteView({
   loaderData,
-}: PaymentsListRouteViewProps) {
-  // Lifted out of the table because it drives more than the table: both metric
-  // cards re-scope to it. Selecting a few payments is how the administrator asks
-  // what *those* came to without adding them up by hand. The academy portal's
-  // payment list does not select: it reads its own payments and has nothing to
-  // re-scope.
-  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
-  const visibleRowIds = loaderData.rows.map((row) => row.id).join(",");
+}: MovementsListRouteViewProps) {
+  // Lifted out of the table because it drives more than the table: every
+  // metric card re-scopes to it. Selecting a few movements is how the
+  // administrator asks what *those* came to without adding them up by hand.
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const visibleRowKeys = loaderData.rows.map(movementRowKey).join(",");
 
   // The list is server-paginated, so a selection only ever reaches the page on
   // screen. Any navigation —page, search, facet, sort— sends a different set of
@@ -142,44 +180,46 @@ export function PaymentsListRouteView({
   // nobody can see. Clearing is the honest reading: the cards go back to the
   // event's whole position.
   useEffect(() => {
-    setSelectedRowIds([]);
-  }, [visibleRowIds]);
+    setSelectedRowKeys([]);
+  }, [visibleRowKeys]);
 
-  const { availableAmount, totalAmount } = resolveSelectedPaymentTotals({
-    rows: loaderData.rows,
-    selectedRowIds,
-    summary: loaderData.summary,
-  });
+  const { availableAmount, netAmount, paymentsAmount, refundsAmount } =
+    resolveSelectedMovementTotals({
+      rows: loaderData.rows,
+      selectedRowKeys,
+      summary: loaderData.summary,
+    });
   // The order and the page narrow nothing: a sort reorders the same rows, and
   // a page past the last one is clamped.
   const shouldShowTable =
     loaderData.rows.length > 0 ||
-    loaderData.hasAnyPayment ||
+    loaderData.hasAnyMovement ||
     loaderData.filters.query.length > 0 ||
     loaderData.filters.availability !== null ||
+    loaderData.filters.kind !== null ||
     loaderData.filters.method !== null;
 
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title="Pagos"
-      description="Registrá y consultá los distintos pagos recibidos."
+      title="Movimientos"
+      description="Registrá pagos y consultá el dinero que entró y salió del evento."
       eventRequiredEmptyState={{
-        title: "No hay un evento activo para revisar pagos",
-        description: "Activá un evento para ver y registrar pagos.",
+        title: "No hay un evento activo para revisar movimientos",
+        description: "Activá un evento para ver y registrar movimientos.",
       }}
       action={
         loaderData.canWrite
           ? {
-              label: "Nuevo pago",
-              to: getCreatePaymentUrl(loaderData.selectedEventId),
+              label: "Nuevo movimiento",
+              to: getCreateMovementUrl(loaderData.selectedEventId),
             }
           : undefined
       }
       headerAction={
         loaderData.canWrite ? undefined : (
           <PeriodExportMenu
-            description="La recaudación del evento activo en el período, por fecha de pago: cada pago, y el mismo dinero por provincia y por modalidad. Dejá una fecha vacía para no acotar ese extremo."
+            description="La recaudación del evento activo en el período, por fecha: cada pago y cada reembolso, y los pagos por provincia y por modalidad. Dejá una fecha vacía para no acotar ese extremo."
             path={collectionExportPath}
             title="Exportar recaudación"
           />
@@ -188,21 +228,24 @@ export function PaymentsListRouteView({
     >
       <div className="flex flex-col gap-6">
         {/* The event's whole position, never the page's and never the filtered
-            set: `Disponible` is read first and filtered on second, through the
-            facet of the same name.
+            set: `Pagos`, `Reembolsos` and `Neto` are the workbook's three
+            figures, and `Disponible` is read first and filtered on second,
+            through the facet of the same name.
 
             A selection is the one thing that narrows them, and it narrows them
-            on purpose: ticking rows is an explicit ask about *those* payments,
+            on purpose: ticking rows is an explicit ask about *those* movements,
             unlike a filter, which is an ask about which rows to show. Untick
             everything and the event's position comes back.
 
             Outside the table's own emptiness on purpose. An event with no
-            payments yet reads `$ 0` twice, which is the answer to what has been
-            collected — a card that disappears is one the administrator has to
-            guess the value of. They go away only with the event, where there is
-            no position to state. */}
-        <section className="grid gap-4 sm:grid-cols-2">
-          <MetricCard title="Total cobrado" value={formatAmount(totalAmount)} />
+            movements yet reads `$ 0` on every card, which is the answer to what
+            has been collected — a card that disappears is one the administrator
+            has to guess the value of. They go away only with the event, where
+            there is no position to state. */}
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricCard title="Pagos" value={formatAmount(paymentsAmount)} />
+          <MetricCard title="Reembolsos" value={formatAmount(refundsAmount)} />
+          <MetricCard title="Neto" value={formatAmount(netAmount)} />
           <MetricCard
             title="Disponible"
             value={formatAmount(availableAmount)}
@@ -212,19 +255,19 @@ export function PaymentsListRouteView({
         {shouldShowTable ? (
           <ServerDataTable
             rows={loaderData.rows}
-            columns={paymentColumns}
-            facetedFilters={paymentFacetedFilters}
+            columns={movementColumns}
+            facetedFilters={movementFacetedFilters}
             initialFacetedFilterValues={buildInitialFacetedFilterValues(
               loaderData,
             )}
             initialSearchValue={loaderData.filters.query}
-            getRowKey={(row) => row.id}
+            getRowKey={movementRowKey}
             selectableRows
-            selectedRowIds={selectedRowIds}
-            onSelectedRowIdsChange={setSelectedRowIds}
+            selectedRowIds={selectedRowKeys}
+            onSelectedRowIdsChange={setSelectedRowKeys}
             searchPlaceholder="Buscar por academia o número"
             initialSort={loaderData.filters.order}
-            emptyMessage={emptyPaymentsList.nothingMatched}
+            emptyMessage={emptyMovementsList.nothingMatched}
             currentPage={loaderData.filters.page}
             totalPages={loaderData.totalPages}
             totalRows={loaderData.totalCount}
@@ -232,8 +275,8 @@ export function PaymentsListRouteView({
         ) : (
           <AdminEmptyState
             icon={HandCoins}
-            title={emptyPaymentsList.nothingYet}
-            description="Cuando registres un pago lo vas a poder revisar acá."
+            title={emptyMovementsList.nothingYet}
+            description="Cuando registres un pago o un reembolso lo vas a poder revisar acá."
           />
         )}
       </div>
@@ -241,16 +284,20 @@ export function PaymentsListRouteView({
   );
 }
 
-function getCreatePaymentUrl(selectedEventId: string | null) {
+function getCreateMovementUrl(selectedEventId: string | null) {
   return selectedEventId
-    ? `/administracion/pagos/nuevo?evento=${selectedEventId}`
-    : "/administracion/pagos/nuevo";
+    ? `/administracion/movimientos/nuevo?evento=${selectedEventId}`
+    : "/administracion/movimientos/nuevo";
 }
 
 function buildInitialFacetedFilterValues(
-  loaderData: PaymentsLoaderData,
+  loaderData: MovementsListLoaderData,
 ): Record<string, DataTableFacetedFilterValue> {
   const filters: DataTableFacetedFilterValue = {};
+
+  if (loaderData.filters.kind !== null) {
+    filters.tipo = loaderData.filters.kind === "refund" ? "reembolso" : "pago";
+  }
 
   if (loaderData.filters.method !== null) {
     filters.medio = loaderData.filters.method;
