@@ -1,13 +1,11 @@
 import {
-  runSeminarInscriptionMoneyIntent,
-  type SeminarMoneyAnswer,
-} from "@/features/admin/finances/inscription-money/seminar-money-action.server";
+  runInscriptionMoneyIntent,
+  type InscriptionMoneyAnswer,
+} from "@/features/admin/finances/inscription-money/money-action.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
-import {
-  readSeminarInscriptionPriceOptions,
-  type SeminarInscriptionPriceOption,
-} from "@/lib/finances/seminar-inscription-allocation.server";
+import { readSeminarInscriptionPriceOptions } from "@/lib/finances/seminar-inscription-price-options.server";
+import type { InscriptionPriceOption } from "@/lib/finances/inscription-price";
 import {
   readSeminarInscriptionFinanceRows,
   type SeminarInscriptionFinanceDetailRow,
@@ -32,10 +30,7 @@ export async function loadSeminarInscriptionFinances(request: Request) {
   if (eventId === null) {
     return {
       inscriptions: [] as SeminarInscriptionFinanceDetailRow[],
-      priceOptionsByInscription: {} as Record<
-        string,
-        SeminarInscriptionPriceOption[]
-      >,
+      priceOptionsByInscription: {} as Record<string, InscriptionPriceOption[]>,
       selectedEventId: null,
     };
   }
@@ -63,14 +58,14 @@ export async function loadSeminarInscriptionFinances(request: Request) {
 }
 
 /**
- * The money dialog's three gestures, posted from the list. A write that went
+ * The money dialog's four gestures, posted from the list. A write that went
  * through stays on the list (form-feedback: a dialog over a list does not
  * redirect): the loader revalidates, the row shows its new figures and the
  * success is toasted.
  */
 export async function handleSeminarInscriptionFinancesAction(
   request: Request,
-): Promise<SeminarMoneyAnswer> {
+): Promise<InscriptionMoneyAnswer> {
   await requireAdminPanelWriter(request);
   const eventContext = await loadEventContext(request);
 
@@ -81,8 +76,9 @@ export async function handleSeminarInscriptionFinancesAction(
     };
   }
 
-  return await runSeminarInscriptionMoneyIntent({
+  return await runInscriptionMoneyIntent({
     eventId: eventContext.selectedEventId,
     formData: await readFormData(request),
+    kind: "seminar",
   });
 }

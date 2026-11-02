@@ -3,9 +3,9 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import {
-  allocateToSeminarInscription,
-  releaseRetainedSeminarInscriptionDeposit,
-} from "@/lib/finances/seminar-inscription-allocation.server";
+  allocateToInscription,
+  releaseRetainedInscriptionDeposit,
+} from "@/lib/finances/inscription-money.server";
 import { removeSeminarInscriptionFromRoster } from "@/lib/seminars/inscription-withdrawal.server";
 import { loader } from "@/routes/administracion.finanzas_.seminarios";
 import {
@@ -62,19 +62,14 @@ describe("`/administracion/finanzas/seminarios`", () => {
 
   test("keeps a withdrawn inscription while it holds money and drops it once it holds none", async () => {
     const fixture = await seedEventSeminarFinanceFixture();
-    await allocate(fixture, fixture.anaInscriptionId, fixture.abrilSeminarId);
-    await allocate(
-      fixture,
-      fixture.nicolasInscriptionId,
-      fixture.brunoSeminarId,
-    );
+    await allocate(fixture, fixture.anaInscriptionId);
+    await allocate(fixture, fixture.nicolasInscriptionId);
     await removeSeminarInscriptionFromRoster(db, fixture.anaInscriptionId);
     await removeSeminarInscriptionFromRoster(db, fixture.nicolasInscriptionId);
-    await releaseRetainedSeminarInscriptionDeposit({
+    await releaseRetainedInscriptionDeposit({
       academyId: fixture.northAcademyId,
       eventId: fixture.eventId,
-      inscriptionId: fixture.nicolasInscriptionId,
-      seminarId: fixture.brunoSeminarId,
+      target: { id: fixture.nicolasInscriptionId, kind: "seminar" },
     });
 
     const loaderData = await load(fixture);
@@ -117,16 +112,14 @@ async function load(fixture: EventSeminarFinanceFixture) {
 async function allocate(
   fixture: EventSeminarFinanceFixture,
   inscriptionId: string,
-  seminarId: string,
 ) {
-  const result = await allocateToSeminarInscription({
+  const result = await allocateToInscription({
     now: new Date(),
     academyId: fixture.northAcademyId,
     amount: 5000,
     eventId: fixture.eventId,
-    inscriptionId,
+    target: { id: inscriptionId, kind: "seminar" },
     priceId: fixture.priceId,
-    seminarId,
   });
 
   if (!result.ok) {

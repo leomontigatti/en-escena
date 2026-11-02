@@ -18,7 +18,7 @@ import {
   type SeminarPresetFixture,
 } from "@/lib/admin/finances/seminar-finances.test-support";
 import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
-import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
+import { allocateToInscription } from "@/lib/finances/inscription-money.server";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { readSeminarPlaceLedgers } from "@/lib/seminars/seminar-places.server";
 import { reserveForHours } from "@/lib/seminars/seminars.test-support";
@@ -190,14 +190,13 @@ describe("the seminar presets on the academy's finance page", () => {
     const chosen = fixture.priceId("special", false);
 
     expect(
-      await allocateToSeminarInscription({
+      await allocateToInscription({
         now: new Date(),
         academyId: fixture.academyId,
         amount: 25000,
         eventId: fixture.eventId,
-        inscriptionId: inscriptions.specialOutsider.id,
+        target: { id: inscriptions.specialOutsider.id, kind: "seminar" },
         priceId: chosen,
-        seminarId: fixture.special.id,
       }),
     ).toEqual({ ok: true });
 
@@ -243,14 +242,16 @@ describe("the seminar presets on the academy's finance page", () => {
 
     // One place of the `Exclusivo` seminar is already taken.
     expect(
-      await allocateToSeminarInscription({
+      await allocateToInscription({
         now: new Date(),
         academyId: fixture.academyId,
         amount: 20000,
         eventId: fixture.eventId,
-        inscriptionId: fixture.inscriptions.specialParticipant.id,
+        target: {
+          id: fixture.inscriptions.specialParticipant.id,
+          kind: "seminar",
+        },
         priceId: fixture.priceId("special", true),
-        seminarId: fixture.special.id,
       }),
     ).toEqual({ ok: true });
     await db
@@ -338,14 +339,13 @@ describe("an inscription holding a price that is not today's, below its deposit"
     const held = fixture.priceId("special", false);
 
     expect(
-      await allocateToSeminarInscription({
+      await allocateToInscription({
         now: new Date(),
         academyId: fixture.academyId,
         amount: 10000,
         eventId: fixture.eventId,
-        inscriptionId: inscriptions.specialOutsider.id,
+        target: { id: inscriptions.specialOutsider.id, kind: "seminar" },
         priceId: held,
-        seminarId: fixture.special.id,
       }),
     ).toEqual({ ok: true });
 
@@ -384,19 +384,18 @@ describe("an inscription holding a price that is not today's, below its deposit"
     // Cheaper than today's 30.000: the expired row, picked on purpose.
     const cheaper = fixture.expiredPriceId;
 
-    for (const [inscriptionId, seminarId, priceId, amount] of [
-      [inscriptions.specialOutsider.id, fixture.special.id, dearer, 10000],
-      [inscriptions.regularOutsider.id, fixture.regular.id, cheaper, 500],
+    for (const [inscriptionId, priceId, amount] of [
+      [inscriptions.specialOutsider.id, dearer, 10000],
+      [inscriptions.regularOutsider.id, cheaper, 500],
     ] as const) {
       expect(
-        await allocateToSeminarInscription({
+        await allocateToInscription({
           now: new Date(),
           academyId: fixture.academyId,
           amount,
           eventId: fixture.eventId,
-          inscriptionId,
+          target: { id: inscriptionId, kind: "seminar" },
           priceId,
-          seminarId,
         }),
       ).toEqual({ ok: true });
     }
@@ -452,15 +451,14 @@ describe("an inscription priced from the other participant cell, below its depos
     const { specialOutsider } = fixture.inscriptions;
 
     expect(
-      await allocateToSeminarInscription({
+      await allocateToInscription({
         now: new Date(),
         academyId: fixture.academyId,
         amount,
         eventId: fixture.eventId,
-        inscriptionId: specialOutsider.id,
+        target: { id: specialOutsider.id, kind: "seminar" },
         // 50.000, deposit 25.000.
         priceId: fixture.priceId("special", false),
-        seminarId: fixture.special.id,
       }),
     ).toEqual({ ok: true });
     await startDancing(fixture, specialOutsider.dancerId!);
@@ -655,14 +653,13 @@ describe("the seminar preset preview in the academy's finance loader", () => {
     const chosen = fixture.priceId("special", false);
 
     expect(
-      await allocateToSeminarInscription({
+      await allocateToInscription({
         now: new Date(),
         academyId: fixture.academyId,
         amount: 25000,
         eventId: fixture.eventId,
-        inscriptionId: inscriptions.specialOutsider.id,
+        target: { id: inscriptions.specialOutsider.id, kind: "seminar" },
         priceId: chosen,
-        seminarId: fixture.special.id,
       }),
     ).toEqual({ ok: true });
 

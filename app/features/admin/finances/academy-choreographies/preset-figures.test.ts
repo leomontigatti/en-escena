@@ -10,6 +10,16 @@ import type { PresetPriceOption } from "./presets";
 
 const groupTypeByChoreography = { choreography_1: "solo" };
 
+/** Holds a row of deposit 3000 under today's cheaper row of deposit 2400. */
+const belowStoredDeposit = inscriptionFixture({
+  allocatedAmount: 2500,
+  basePriceAmount: 8000,
+  basePriceId: "price_today",
+  id: "inscription_1",
+  owedBalanceAmount: 5500,
+  owedDepositAmount: 0,
+});
+
 describe("sumPresetOwedAmount", () => {
   test("sums what the loader already derived when nothing is picked", () => {
     expect(
@@ -20,9 +30,48 @@ describe("sumPresetOwedAmount", () => {
           inscriptionFixture({ id: "inscription_2" }),
         ],
         pickedPriceByGroupType: {},
+        requiredDepositPercentage: 30,
         stage: "deposit",
       }),
     ).toEqual({ amount: 6000, status: "complete" });
+  });
+
+  test("names the peso the write takes when nothing is picked and the deposit rounds to zero", () => {
+    expect(
+      sumPresetOwedAmount({
+        groupTypeByChoreography,
+        inscriptions: [
+          inscriptionFixture({
+            basePriceAmount: 4,
+            id: "inscription_1",
+            owedBalanceAmount: 4,
+            owedDepositAmount: 0,
+          }),
+        ],
+        pickedPriceByGroupType: {},
+        requiredDepositPercentage: 1,
+        stage: "deposit",
+      }),
+    ).toEqual({ amount: 1, status: "complete" });
+  });
+
+  test("keeps the loader's figure for a withdrawn inscription", () => {
+    expect(
+      sumPresetOwedAmount({
+        groupTypeByChoreography,
+        inscriptions: [
+          inscriptionFixture({
+            id: "inscription_1",
+            owedBalanceAmount: 0,
+            owedDepositAmount: 0,
+            withdrawn: true,
+          }),
+        ],
+        pickedPriceByGroupType: {},
+        requiredDepositPercentage: 30,
+        stage: "deposit",
+      }),
+    ).toEqual({ amount: 0, status: "complete" });
   });
 
   test("re-prices the inscriptions the pick reaches", () => {
@@ -31,6 +80,7 @@ describe("sumPresetOwedAmount", () => {
         groupTypeByChoreography,
         inscriptions: [inscriptionFixture({ id: "inscription_1" })],
         pickedPriceByGroupType: { solo: priceFixture() },
+        requiredDepositPercentage: 30,
         stage: "deposit",
       }),
     ).toEqual({ amount: 6000, status: "complete" });
@@ -50,6 +100,7 @@ describe("sumPresetOwedAmount", () => {
           }),
         ],
         pickedPriceByGroupType: { solo: priceFixture() },
+        requiredDepositPercentage: 30,
         stage: "deposit",
       }),
     ).toEqual({ amount: 5000, status: "complete" });
@@ -73,9 +124,63 @@ describe("sumPresetOwedAmount", () => {
           }),
         ],
         pickedPriceByGroupType: { solo: priceFixture() },
+        requiredDepositPercentage: 30,
         stage: "balance",
       }),
     ).toEqual({ amount: 7000, status: "complete" });
+  });
+
+  /**
+   * The list moved down under money: 2500 passes today's deposit of 2400 and
+   * not the 3000 of the row it stores, and the stored one is what fixes a price.
+   */
+  test.each([
+    { expected: 3500, stage: "deposit" as const },
+    { expected: 17500, stage: "balance" as const },
+  ])(
+    "re-prices below the stored deposit what passes today's, on $stage",
+    ({ expected, stage }) => {
+      expect(
+        sumPresetOwedAmount({
+          groupTypeByChoreography,
+          inscriptions: [belowStoredDeposit],
+          pickedPriceByGroupType: { solo: priceFixture() },
+          requiredDepositPercentage: 30,
+          stage,
+        }),
+      ).toEqual({ amount: expected, status: "complete" });
+    },
+  );
+
+  test("charges the live discount off the picked total", () => {
+    expect(
+      sumPresetOwedAmount({
+        groupTypeByChoreography,
+        inscriptions: [
+          inscriptionFixture({
+            dancerDiscountAmount: 1000,
+            id: "inscription_1",
+          }),
+        ],
+        pickedPriceByGroupType: { solo: priceFixture() },
+        requiredDepositPercentage: 30,
+        stage: "balance",
+      }),
+    ).toEqual({ amount: 19000, status: "complete" });
+  });
+
+  // Only money crosses a deposit, so the write still moves a peso on one that
+  // rounds to zero, and the figure has to name it.
+  test("owes the peso that crosses a deposit rounding to zero", () => {
+    expect(
+      sumPresetOwedAmount({
+        groupTypeByChoreography,
+        inscriptions: [inscriptionFixture({ id: "inscription_1" })],
+        pickedPriceByGroupType: { solo: priceFixture({ amount: 4 }) },
+        requiredDepositPercentage: 10,
+        stage: "deposit",
+      }),
+    ).toEqual({ amount: 1, status: "complete" });
   });
 
   test("leaves a withdrawn inscription out of the re-pricing", () => {
@@ -91,6 +196,7 @@ describe("sumPresetOwedAmount", () => {
           }),
         ],
         pickedPriceByGroupType: { solo: priceFixture() },
+        requiredDepositPercentage: 30,
         stage: "deposit",
       }),
     ).toEqual({ amount: 0, status: "complete" });
@@ -102,7 +208,6 @@ describe("sumPresetOwedAmount", () => {
         groupTypeByChoreography,
         inscriptions: [
           inscriptionFixture({
-            depositAmount: 0,
             financialStatus: "waived",
             id: "inscription_1",
             owedBalanceAmount: 0,
@@ -110,6 +215,7 @@ describe("sumPresetOwedAmount", () => {
           }),
         ],
         pickedPriceByGroupType: { solo: priceFixture() },
+        requiredDepositPercentage: 30,
         stage: "deposit",
       }),
     ).toEqual({ amount: 0, status: "complete" });
@@ -124,10 +230,10 @@ describe("sumPresetOwedAmount", () => {
     const unpriced = inscriptionFixture({
       basePriceAmount: null,
       basePriceId: null,
-      depositAmount: null,
       id: "inscription_1",
       owedBalanceAmount: null,
       owedDepositAmount: null,
+      storedDepositAmount: null,
     });
 
     expect(
@@ -135,6 +241,7 @@ describe("sumPresetOwedAmount", () => {
         groupTypeByChoreography,
         inscriptions: [unpriced],
         pickedPriceByGroupType: {},
+        requiredDepositPercentage: 30,
         stage: "deposit",
       }),
     ).toEqual({ amount: 0, missingPriceCount: 1, status: "incomplete" });
@@ -144,6 +251,7 @@ describe("sumPresetOwedAmount", () => {
         groupTypeByChoreography,
         inscriptions: [unpriced],
         pickedPriceByGroupType: { solo: priceFixture() },
+        requiredDepositPercentage: 30,
         stage: "deposit",
       }),
     ).toEqual({ amount: 6000, status: "complete" });
@@ -164,6 +272,7 @@ describe("sumPresetOwedAmount", () => {
           }),
         ],
         pickedPriceByGroupType: { solo: priceFixture() },
+        requiredDepositPercentage: 30,
         stage: "deposit",
       }),
     ).toEqual({ amount: 9000, status: "complete" });
@@ -191,6 +300,22 @@ describe("hasRePriceableInscription", () => {
     ).toBe(false);
   });
 
+  test("is true below the stored deposit, past today's as it may be", () => {
+    expect(hasRePriceableInscription([belowStoredDeposit])).toBe(true);
+  });
+
+  test("is true with money on a row that stores no price", () => {
+    expect(
+      hasRePriceableInscription([
+        inscriptionFixture({
+          allocatedAmount: 9000,
+          id: "unstored",
+          storedDepositAmount: null,
+        }),
+      ]),
+    ).toBe(true);
+  });
+
   test("is false for a roster of withdrawn inscriptions, unpaid as they are", () => {
     expect(
       hasRePriceableInscription([
@@ -207,7 +332,6 @@ describe("hasRePriceableInscription", () => {
 describe("resolveCurrentPriceId", () => {
   const currentPrice = priceFixture({
     amount: 10000,
-    depositAmount: 3000,
     id: "price_1",
     name: "Primera fecha",
   });
@@ -242,6 +366,15 @@ describe("resolveCurrentPriceId", () => {
         options: [currentPrice],
       }),
     ).toBe("price_1");
+  });
+
+  test("opens on today's row for money below the stored deposit", () => {
+    expect(
+      resolveCurrentPriceId({
+        inscriptions: [belowStoredDeposit],
+        options: [priceFixture({ amount: 8000, id: "price_today" })],
+      }),
+    ).toBe("price_today");
   });
 
   test("opens empty when they are on different rows", () => {
@@ -303,9 +436,9 @@ function inscriptionFixture(
     financialStatus: "depositPending",
     choreographyId: "choreography_1",
     dancerDiscountAmount: 0,
-    depositAmount: 3000,
     owedBalanceAmount: 10000,
     owedDepositAmount: 3000,
+    storedDepositAmount: 3000,
     withdrawn: false,
     ...overrides,
   };
@@ -316,7 +449,6 @@ function priceFixture(
 ): PresetPriceOption {
   return {
     amount: 20000,
-    depositAmount: 6000,
     id: "price_2",
     name: "Segunda fecha",
     paymentDeadline: null,

@@ -2,10 +2,8 @@ import { db } from "@/db";
 import { eq } from "drizzle-orm";
 
 import { payments, seminarInscriptions } from "@/db/schema";
-import {
-  allocateToSeminarInscription,
-  readSeminarInscriptionPriceOptions,
-} from "@/lib/finances/seminar-inscription-allocation.server";
+import { readSeminarInscriptionPriceOptions } from "@/lib/finances/seminar-inscription-price-options.server";
+import { allocateToInscription } from "@/lib/finances/inscription-money.server";
 import { readSeminarPlaceLedgers } from "@/lib/seminars/seminar-places.server";
 
 let fixturePaymentNumber = 0;
@@ -52,14 +50,13 @@ export async function coverSeminarInscriptionDeposit(input: {
 
   // Exactly the deposit: the crossing is what takes the place, and stopping at
   // it keeps the row `Seña cubierta` rather than fully paid.
-  const allocated = await allocateToSeminarInscription({
+  const allocated = await allocateToInscription({
     now: new Date(),
     academyId: input.academyId,
     amount: price.depositAmount,
     eventId: input.eventId,
-    inscriptionId: input.inscriptionId,
+    target: { id: input.inscriptionId, kind: "seminar" },
     priceId: price.id,
-    seminarId: input.seminarId,
   });
 
   if (!allocated.ok) {

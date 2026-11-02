@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -10,13 +10,13 @@ import {
   seminars,
 } from "@/db/schema";
 import { createDancer } from "@/lib/choreographies/registration.test-support";
+import { readSeminarInscriptionPriceOptions } from "@/lib/finances/seminar-inscription-price-options.server";
 import {
-  allocateToSeminarInscription,
-  readSeminarInscriptionPriceOptions,
-  releaseSeminarInscriptionExcess,
-  removeFromSeminarInscription,
-} from "@/lib/finances/seminar-inscription-allocation.server";
-import { readSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-thresholds.server";
+  readAcademyAvailableBalance,
+  readInscriptionAllocatedAmount,
+} from "@/lib/finances/allocation-pool.server";
+import { allocateToInscription } from "@/lib/finances/inscription-money.server";
+import { seminarNoPlacesForDepositMessage } from "@/lib/seminars/registration-refusals";
 import { hasCoveredSeminarInscription } from "@/lib/seminars/seminar-places.server";
 import { updateSeminar } from "@/lib/seminars/repository.server";
 import {
@@ -158,14 +158,16 @@ function allocate(
   fixture: Fixture,
   input: { amount: number; inscriptionId?: string; priceId: string | null },
 ) {
-  return allocateToSeminarInscription({
+  return allocateToInscription({
     now: new Date(),
     academyId: fixture.academyId,
     amount: input.amount,
     eventId: fixture.eventId,
-    inscriptionId: input.inscriptionId ?? fixture.inscriptionId,
+    target: {
+      id: input.inscriptionId ?? fixture.inscriptionId,
+      kind: "seminar",
+    },
     priceId: input.priceId,
-    seminarId: fixture.seminarId,
   });
 }
 
@@ -189,18 +191,27 @@ function setQuota(fixture: Fixture, quota: number) {
     .where(eq(seminars.id, fixture.seminarId));
 }
 
+/** Leaves a row of the other participant cell stored, as a person who started
+ * or stopped dancing after it was charged would. */
+function storeStaleRow(inscriptionId: string, priceId: string) {
+  return db
+    .update(seminarInscriptions)
+    .set({ selectedPriceId: priceId })
+    .where(eq(seminarInscriptions.id, inscriptionId));
+}
+
+async function readSelectedPriceId(inscriptionId: string) {
+  const [row] = await db
+    .select({ selectedPriceId: seminarInscriptions.selectedPriceId })
+    .from(seminarInscriptions)
+    .where(eq(seminarInscriptions.id, inscriptionId));
+
+  return row?.selectedPriceId ?? null;
+}
+
 /** The deposit of a non-participant row, which is what the second and third
  * inscriptions cross at. */
 const outsiderDeposit = amounts.specialOutsider / 2;
-
-async function readSelectedPriceId(inscriptionId: string) {
-  const thresholds = await db.query.seminarInscriptions.findFirst({
-    columns: { selectedPriceId: true },
-    where: eq(seminarInscriptions.id, inscriptionId),
-  });
-
-  return thresholds?.selectedPriceId ?? null;
-}
 
 describe("seminar inscription allocation", () => {
   test("offers each person only their own cell of the seminar's kind", async () => {
@@ -253,66 +264,10 @@ describe("seminar inscription allocation", () => {
     ]);
   });
 
-  test("writes the chosen price and funds the row out of the academy's pool", async () => {
+  test("a covered row freezes the seminar's kind and its own deposit rate", async () => {
     const fixture = await seedFixture();
+    await coverFirstPlace(fixture);
 
-    const result = await allocate(fixture, {
-      amount: 5000,
-      priceId: fixture.priceIds.get("specialParticipant")!,
-    });
-
-    expect(result).toEqual({ ok: true });
-    expect(await readSelectedPriceId(fixture.inscriptionId)).toBe(
-      fixture.priceIds.get("specialParticipant"),
-    );
-    // Below the deposit the row holds its money and no place.
-    expect(await hasCoveredSeminarInscription(db, fixture.seminarId)).toBe(
-      false,
-    );
-  });
-
-  test("refuses a price row of another cell", async () => {
-    const fixture = await seedFixture();
-
-    const result = await allocate(fixture, {
-      amount: 5000,
-      priceId: fixture.priceIds.get("specialOutsider")!,
-    });
-
-    expect(result).toEqual({
-      ok: false,
-      message: "No encontramos esa fila de precio.",
-    });
-    expect(await readSelectedPriceId(fixture.inscriptionId)).toBeNull();
-  });
-
-  test("locks the price once the deposit is covered and opens it again when money leaves", async () => {
-    const fixture = await seedFixture();
-    // A second row of the same cell, which is what there has to be for a switch
-    // to be refusable at all.
-    const [lateRow] = await db
-      .insert(seminarPrices)
-      .values({
-        amount: amounts.specialParticipant + 5000,
-        eventId: fixture.eventId,
-        forParticipants: true,
-        kind: "special",
-        name: "Precio tardío",
-        paymentDeadline: "2030-09-01",
-      })
-      .returning();
-
-    await allocate(fixture, {
-      amount: amounts.specialParticipant / 2,
-      priceId: fixture.priceIds.get("specialParticipant")!,
-    });
-
-    expect(await hasCoveredSeminarInscription(db, fixture.seminarId)).toBe(
-      true,
-    );
-
-    // A covered row freezes the seminar's kind and its own deposit rate, which
-    // is the guard slice 1 left behind this predicate.
     await expect(
       updateSeminar(fixture.seminarId, {
         instructorName: "Abril Sosa",
@@ -323,53 +278,6 @@ describe("seminar inscription allocation", () => {
         startTime: "18:30",
       }),
     ).resolves.toMatchObject({ ok: false, code: "covered-inscriptions" });
-
-    const refused = await allocate(fixture, {
-      amount: 1000,
-      priceId: lateRow.id,
-    });
-
-    expect(refused.ok).toBe(false);
-    expect(await readSelectedPriceId(fixture.inscriptionId)).toBe(
-      fixture.priceIds.get("specialParticipant"),
-    );
-
-    // Taking money off until the row falls back below its deposit is what opens
-    // the picker again.
-    await removeFromSeminarInscription({
-      academyId: fixture.academyId,
-      amount: 1,
-      eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
-      seminarId: fixture.seminarId,
-    });
-
-    const accepted = await allocate(fixture, {
-      amount: 1,
-      priceId: lateRow.id,
-    });
-
-    expect(accepted).toEqual({ ok: true });
-    expect(await readSelectedPriceId(fixture.inscriptionId)).toBe(lateRow.id);
-  });
-
-  test("refuses to move money onto an inscription of another academy", async () => {
-    const fixture = await seedFixture();
-
-    const result = await allocateToSeminarInscription({
-      now: new Date(),
-      academyId: fixture.academyId,
-      amount: 1000,
-      eventId: fixture.eventId,
-      inscriptionId: fixture.outsiderInscriptionId,
-      priceId: fixture.priceIds.get("specialOutsider")!,
-      seminarId: fixture.seminarId,
-    });
-
-    expect(result).toEqual({
-      ok: false,
-      message: "No encontramos esa inscripción.",
-    });
   });
 
   test("refuses the crossing that would take a place a full seminar has none of, and lets a partial allocation through", async () => {
@@ -481,6 +389,80 @@ describe("seminar inscription allocation", () => {
     });
   });
 
+  test("with no pick, refuses a row of the other cell when no row of its own is in effect, and moves nothing", async () => {
+    const fixture = await seedFixture();
+    const stale = fixture.priceIds.get("specialOutsider")!;
+    await storeStaleRow(fixture.inscriptionId, stale);
+    await db
+      .delete(seminarPrices)
+      .where(
+        inArray(seminarPrices.id, [
+          fixture.priceIds.get("regularParticipant")!,
+          fixture.priceIds.get("specialParticipant")!,
+        ]),
+      );
+    const target = { id: fixture.inscriptionId, kind: "seminar" as const };
+    const poolBefore = await readAcademyAvailableBalance(db, fixture);
+
+    await expect(
+      allocate(fixture, { amount: 1000, priceId: null }),
+    ).resolves.toMatchObject({ ok: false });
+
+    expect(await readSelectedPriceId(fixture.inscriptionId)).toBe(stale);
+    expect(await readInscriptionAllocatedAmount(db, target)).toBe(0);
+    expect(await readAcademyAvailableBalance(db, fixture)).toBe(poolBefore);
+  });
+
+  test("with no pick, money that only reaches a stale row's deposit takes no place in a full seminar", async () => {
+    const fixture = await seedFixture();
+    await coverFirstPlace(fixture);
+    await setQuota(fixture, 1);
+    await storeStaleRow(
+      fixture.secondInscriptionId,
+      fixture.priceIds.get("specialParticipant")!,
+    );
+
+    // 20000 covers the stale row's deposit, but the row in effect asks 25000.
+    await expect(
+      allocate(fixture, {
+        amount: amounts.specialParticipant / 2,
+        inscriptionId: fixture.secondInscriptionId,
+        priceId: null,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    expect(await readSelectedPriceId(fixture.secondInscriptionId)).toBe(
+      fixture.priceIds.get("specialOutsider")!,
+    );
+  });
+
+  test("with no pick, judges the quota against the deposit of the row in effect, which the stale row would have left uncovered", async () => {
+    const fixture = await seedFixture();
+    const stale = fixture.priceIds.get("specialOutsider")!;
+    await expect(
+      allocate(fixture, {
+        amount: outsiderDeposit,
+        inscriptionId: fixture.secondInscriptionId,
+        priceId: stale,
+      }),
+    ).resolves.toEqual({ ok: true });
+    await setQuota(fixture, 1);
+    await storeStaleRow(fixture.inscriptionId, stale);
+
+    // 20000 is the row in effect's deposit, and short of the stale row's 25000.
+    await expect(
+      allocate(fixture, {
+        amount: amounts.specialParticipant / 2,
+        priceId: null,
+      }),
+    ).resolves.toEqual({
+      message: seminarNoPlacesForDepositMessage,
+      ok: false,
+    });
+
+    expect(await readSelectedPriceId(fixture.inscriptionId)).toBe(stale);
+  });
+
   test("lets a reserved registration cover its own deposit in a seminar its reservation fills", async () => {
     const fixture = await seedFixture();
     await setQuota(fixture, 1);
@@ -532,7 +514,7 @@ describe("seminar inscription allocation", () => {
   });
 
   /**
-   * `loadSeminarMoneyContext` takes the seminar row `FOR UPDATE` before it
+   * `seminarMoney` takes the seminar row `FOR UPDATE` before it
    * counts the covered inscriptions, so two crossings racing for the last place
    * are serialised: the second counts after the first has committed, finds the
    * quota full, and is refused.
@@ -586,36 +568,5 @@ describe("seminar inscription allocation", () => {
     expect(await hasCoveredSeminarInscription(db, fixture.seminarId)).toBe(
       true,
     );
-  });
-
-  test("releases exactly what the row holds above its total", async () => {
-    const fixture = await seedFixture();
-    await allocate(fixture, {
-      amount: amounts.specialParticipant,
-      priceId: fixture.priceIds.get("specialParticipant")!,
-    });
-    // Past the total, which the pool refuses to grow into: the excess is written
-    // directly so the release has something to take off.
-    await db
-      .update(seminarPrices)
-      .set({ amount: 30000 })
-      .where(eq(seminarPrices.id, fixture.priceIds.get("specialParticipant")!));
-
-    const released = await releaseSeminarInscriptionExcess({
-      academyId: fixture.academyId,
-      eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
-      seminarId: fixture.seminarId,
-    });
-
-    expect(released).toEqual({ ok: true });
-
-    const thresholds = await readSeminarInscriptionThresholds(db, {
-      academyId: fixture.academyId,
-      eventId: fixture.eventId,
-      inscriptionIds: [fixture.inscriptionId],
-    });
-
-    expect(thresholds.get(fixture.inscriptionId)?.totalAmount).toBe(30000);
   });
 });

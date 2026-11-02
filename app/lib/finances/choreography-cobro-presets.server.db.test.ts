@@ -7,6 +7,7 @@ import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-t
 import {
   choreographies,
   choreographyDancers,
+  dancers,
   paymentAllocations,
   payments,
   prices,
@@ -15,8 +16,8 @@ import {
   createChoreographyRecord,
   createDancer,
 } from "@/features/portal/choreographies/test-support/db";
-import { payChoreographiesPreset } from "@/lib/finances/choreography-cobro-presets.server";
-import { allocateToInscription } from "@/lib/finances/inscription-allocation.server";
+import { chargeThreshold } from "@/lib/finances/inscription-money.server";
+import { allocateToInscription } from "@/lib/finances/inscription-money.server";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import {
   createAcademyFinanceChoreographyFixture,
@@ -178,7 +179,7 @@ function sumByInscription(
   return totals;
 }
 
-describe("payChoreographiesPreset with a picked price that is not today's", () => {
+describe("chargeThreshold on choreographies with a picked price that is not today's", () => {
   test.each([
     { allocated: 8000, amount: 8000, stage: "balance" },
     { allocated: 2400, amount: 8000, stage: "deposit" },
@@ -199,7 +200,8 @@ describe("payChoreographiesPreset with a picked price that is not today's", () =
       ]);
       const [inscriptionId] = fixture.inscriptionIds;
 
-      const result = await payChoreographiesPreset({
+      const result = await chargeThreshold({
+        kind: "choreography",
         academyId: fixture.academyId,
         choreographyIds: [fixture.choreographyIds[0]],
         eventId: fixture.eventId,
@@ -229,7 +231,8 @@ describe("payChoreographiesPreset with a picked price that is not today's", () =
     ]);
     const [inscriptionId] = fixture.inscriptionIds;
 
-    const result = await payChoreographiesPreset({
+    const result = await chargeThreshold({
+      kind: "choreography",
       academyId: fixture.academyId,
       choreographyIds: [fixture.choreographyIds[0]],
       eventId: fixture.eventId,
@@ -259,7 +262,8 @@ describe("payChoreographiesPreset with a picked price that is not today's", () =
     const { choreographyIds, inscriptionIds } =
       await addThirdInscriptionOfFirstDancer(fixture);
 
-    const result = await payChoreographiesPreset({
+    const result = await chargeThreshold({
+      kind: "choreography",
       academyId: fixture.academyId,
       choreographyIds,
       eventId: fixture.eventId,
@@ -278,7 +282,8 @@ describe("payChoreographiesPreset with a picked price that is not today's", () =
     const { choreographyIds, inscriptionIds } =
       await addThirdInscriptionOfFirstDancer(fixture);
 
-    const result = await payChoreographiesPreset({
+    const result = await chargeThreshold({
+      kind: "choreography",
       academyId: fixture.academyId,
       choreographyIds,
       eventId: fixture.eventId,
@@ -316,7 +321,8 @@ describe("payChoreographiesPreset with a picked price that is not today's", () =
       paymentId: payment.id,
     });
 
-    const result = await payChoreographiesPreset({
+    const result = await chargeThreshold({
+      kind: "choreography",
       academyId: fixture.academyId,
       choreographyIds: [fixture.choreographyIds[0]],
       eventId: fixture.eventId,
@@ -342,11 +348,186 @@ describe("payChoreographiesPreset with a picked price that is not today's", () =
   });
 });
 
-describe("payChoreographiesPreset", () => {
+describe("chargeThreshold on choreographies with a pick whose deposit cannot fit", () => {
+  const refusalOf = (price: string) =>
+    `No se puede aplicar el precio de ${price} a Bailarín 0 Preset: la seña de ese precio supera lo que la inscripción adeuda.`;
+
+  async function expectNothingMoved(inscriptionIds: string[]) {
+    await expect(readAllocations(inscriptionIds)).resolves.toEqual([]);
+    const rows = await db
+      .select({ selectedPriceId: choreographyDancers.selectedPriceId })
+      .from(choreographyDancers)
+      .where(inArray(choreographyDancers.id, inscriptionIds));
+    expect(rows.map((row) => row.selectedPriceId)).toEqual(
+      inscriptionIds.map(() => null),
+    );
+  }
+
+  test.each(["deposit", "balance"] as const)(
+    "refuses a %s pick whose deposit is above what the row owes today",
+    async (stage) => {
+      const fixture = await seedPresetFixture([20000]);
+      const [picked] = await insertTestPrices([
+        {
+          amount: 40000,
+          eventId: fixture.eventId,
+          groupType: "solo",
+          name: "Precio Solo vencido",
+          paymentDeadline: "2026-02-28",
+        },
+      ]);
+
+      const result = await chargeThreshold({
+        kind: "choreography",
+        academyId: fixture.academyId,
+        choreographyIds: [fixture.choreographyIds[0]],
+        eventId: fixture.eventId,
+        priceIdByGroupType: { solo: picked.id },
+        stage,
+      });
+
+      expect(result).toEqual({ ok: false, message: refusalOf("$ 40.000") });
+      await expectNothingMoved([fixture.inscriptionIds[0]]);
+    },
+  );
+
+  test.each(["deposit", "balance"] as const)(
+    "refuses a %s pick whose deposit is above its own discounted total",
+    async (stage) => {
+      const fixture = await seedPresetFixture([40000], 95);
+      const [picked] = await insertTestPrices([
+        {
+          amount: 9000,
+          eventId: fixture.eventId,
+          groupType: "solo",
+          name: "Precio Solo vencido",
+          paymentDeadline: "2026-02-28",
+        },
+      ]);
+      const { choreographyIds, inscriptionIds } =
+        await addThirdInscriptionOfFirstDancer(fixture);
+
+      const result = await chargeThreshold({
+        kind: "choreography",
+        academyId: fixture.academyId,
+        choreographyIds,
+        eventId: fixture.eventId,
+        priceIdByGroupType: { solo: picked.id },
+        stage,
+      });
+
+      expect(result).toEqual({ ok: false, message: refusalOf("$ 9.000") });
+      await expectNothingMoved(inscriptionIds);
+    },
+  );
+
+  test("refuses a deposit charge on today's row picked at a deposit above its discounted total", async () => {
+    const fixture = await seedPresetFixture([40000], 100);
+    const { choreographyIds, inscriptionIds } =
+      await addThirdInscriptionOfFirstDancer(fixture);
+
+    const result = await chargeThreshold({
+      kind: "choreography",
+      academyId: fixture.academyId,
+      choreographyIds,
+      eventId: fixture.eventId,
+      priceIdByGroupType: { solo: fixture.priceId },
+      stage: "deposit",
+    });
+
+    expect(result).toEqual({ ok: false, message: refusalOf("$ 10.000") });
+    await expectNothingMoved(inscriptionIds);
+  });
+
+  test("refuses a pick whose deposit fits today's price but not today's discounted total", async () => {
+    const fixture = await seedPresetFixture([40000], 80);
+    const [picked] = await insertTestPrices([
+      {
+        amount: 12000,
+        eventId: fixture.eventId,
+        groupType: "solo",
+        name: "Precio Solo vencido",
+        paymentDeadline: "2026-02-28",
+      },
+    ]);
+    const { choreographyIds, inscriptionIds } =
+      await addThirdInscriptionOfFirstDancer(fixture);
+
+    const result = await chargeThreshold({
+      kind: "choreography",
+      academyId: fixture.academyId,
+      choreographyIds,
+      eventId: fixture.eventId,
+      priceIdByGroupType: { solo: picked.id },
+      stage: "deposit",
+    });
+
+    expect(result).toEqual({ ok: false, message: refusalOf("$ 12.000") });
+    await expectNothingMoved(inscriptionIds);
+  });
+
+  test("rolls back the inscription the run already funded", async () => {
+    const fixture = await seedPresetFixture([20000]);
+    // The funded inscription is the one that sorts first: the run walks them
+    // in id order, so it reaches the refused one with money already moved.
+    const [funded, refused] = [
+      {
+        choreographyId: fixture.choreographyIds[0],
+        id: fixture.inscriptionIds[0],
+      },
+      {
+        choreographyId: fixture.choreographyIds[1],
+        id: fixture.inscriptionIds[1],
+      },
+    ].sort((a, b) => a.id.localeCompare(b.id));
+    await db
+      .update(choreographies)
+      .set({ groupType: "duo" })
+      .where(eq(choreographies.id, funded.choreographyId));
+    const [fittingPick, unfittingPick] = await insertTestPrices([
+      {
+        amount: 8000,
+        eventId: fixture.eventId,
+        groupType: "duo",
+        name: "Precio Dúo",
+      },
+      {
+        amount: 40000,
+        eventId: fixture.eventId,
+        groupType: "solo",
+        name: "Precio Solo vencido",
+        paymentDeadline: "2026-02-28",
+      },
+    ]);
+    const [dancer] = await db
+      .select({ firstName: dancers.firstName })
+      .from(choreographyDancers)
+      .innerJoin(dancers, eq(dancers.id, choreographyDancers.dancerId))
+      .where(eq(choreographyDancers.id, refused.id));
+
+    const result = await chargeThreshold({
+      kind: "choreography",
+      academyId: fixture.academyId,
+      choreographyIds: fixture.choreographyIds,
+      eventId: fixture.eventId,
+      priceIdByGroupType: { duo: fittingPick.id, solo: unfittingPick.id },
+      stage: "deposit",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      message: refusalOf("$ 40.000").replace("Bailarín 0", dancer.firstName),
+    });
+    await expectNothingMoved(fixture.inscriptionIds);
+  });
+});
+
+describe("chargeThreshold on choreographies", () => {
   test("funds the owed deposit of every selected choreography with plain allocations", async () => {
     const fixture = await seedPresetFixture([10000]);
 
-    const result = await payChoreographiesPreset({
+    const result = await chargeThreshold({
+      kind: "choreography",
       academyId: fixture.academyId,
       choreographyIds: fixture.choreographyIds,
       eventId: fixture.eventId,
@@ -379,7 +560,8 @@ describe("payChoreographiesPreset", () => {
   test("settles the balance on top of a deposit already allocated", async () => {
     const fixture = await seedPresetFixture([20000]);
 
-    await payChoreographiesPreset({
+    await chargeThreshold({
+      kind: "choreography",
       academyId: fixture.academyId,
       choreographyIds: fixture.choreographyIds,
       eventId: fixture.eventId,
@@ -387,7 +569,8 @@ describe("payChoreographiesPreset", () => {
       stage: "deposit",
     });
 
-    const result = await payChoreographiesPreset({
+    const result = await chargeThreshold({
+      kind: "choreography",
       academyId: fixture.academyId,
       choreographyIds: fixture.choreographyIds,
       eventId: fixture.eventId,
@@ -403,33 +586,6 @@ describe("payChoreographiesPreset", () => {
 
     expect(totals.get(fixture.inscriptionIds[0])).toBe(10000);
     expect(totals.get(fixture.inscriptionIds[1])).toBe(10000);
-  });
-
-  test("rolls the whole preset back when the pool runs dry partway through", async () => {
-    const fixture = await seedPresetFixture([4000]);
-
-    const result = await payChoreographiesPreset({
-      academyId: fixture.academyId,
-      choreographyIds: fixture.choreographyIds,
-      eventId: fixture.eventId,
-      priceIdByGroupType: { solo: fixture.priceId },
-      stage: "deposit",
-    });
-
-    expect(result.ok).toBe(false);
-    expect(await readAllocations(fixture.inscriptionIds)).toEqual([]);
-
-    // The price is the other half of the transaction: if it survived the
-    // rejection, the choreography would be left with a price set by a preset that
-    // did not move a peso.
-    const inscriptionRows = await db
-      .select({ selectedPriceId: choreographyDancers.selectedPriceId })
-      .from(choreographyDancers)
-      .where(inArray(choreographyDancers.id, fixture.inscriptionIds));
-
-    for (const row of inscriptionRows) {
-      expect(row.selectedPriceId).toBeNull();
-    }
   });
 
   // With no pick, the writer touches no price: each inscription is financed
@@ -452,7 +608,8 @@ describe("payChoreographiesPreset", () => {
       .set({ selectedPriceId: fixture.priceId })
       .where(inArray(choreographyDancers.id, fixture.inscriptionIds));
 
-    const result = await payChoreographiesPreset({
+    const result = await chargeThreshold({
+      kind: "choreography",
       academyId: fixture.academyId,
       choreographyIds: fixture.choreographyIds,
       eventId: fixture.eventId,
@@ -481,6 +638,31 @@ describe("payChoreographiesPreset", () => {
     expect(totals.get(fixture.inscriptionIds[1])).toBe(3000);
   });
 
+  test("takes a peso at the deposit stage of a row whose deposit rounds to nothing", async () => {
+    const fixture = await seedPresetFixture([20000], 10);
+    await db
+      .update(prices)
+      .set({ amount: 4 })
+      .where(eq(prices.id, fixture.priceId));
+    const [inscriptionId] = fixture.inscriptionIds;
+
+    const result = await chargeThreshold({
+      kind: "choreography",
+      academyId: fixture.academyId,
+      choreographyIds: [fixture.choreographyIds[0]],
+      eventId: fixture.eventId,
+      priceIdByGroupType: {},
+      stage: "deposit",
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(
+      sumByInscription(await readAllocations([inscriptionId])).get(
+        inscriptionId,
+      ),
+    ).toBe(1);
+  });
+
   test("refuses a price that does not belong to the choreography", async () => {
     const fixture = await seedPresetFixture([10000]);
     const [foreignPrice] = await insertTestPrices([
@@ -493,7 +675,8 @@ describe("payChoreographiesPreset", () => {
       },
     ]);
 
-    const result = await payChoreographiesPreset({
+    const result = await chargeThreshold({
+      kind: "choreography",
       academyId: fixture.academyId,
       choreographyIds: fixture.choreographyIds,
       eventId: fixture.eventId,
@@ -536,7 +719,8 @@ describe("payChoreographiesPreset", () => {
       paymentId: payment.id,
     });
 
-    const result = await payChoreographiesPreset({
+    const result = await chargeThreshold({
+      kind: "choreography",
       academyId: fixture.academyId,
       choreographyIds: fixture.choreographyIds,
       eventId: fixture.eventId,
@@ -569,7 +753,8 @@ describe("payChoreographiesPreset", () => {
       .set({ selectedPriceId: fixture.priceId, waivedAt: new Date() })
       .where(eq(choreographyDancers.id, inscriptionId));
 
-    const result = await payChoreographiesPreset({
+    const result = await chargeThreshold({
+      kind: "choreography",
       academyId: fixture.academyId,
       choreographyIds: fixture.choreographyIds,
       eventId: fixture.eventId,
@@ -598,7 +783,8 @@ describe("payChoreographiesPreset", () => {
       },
     ]);
 
-    await payChoreographiesPreset({
+    await chargeThreshold({
+      kind: "choreography",
       academyId: fixture.academyId,
       choreographyIds: fixture.choreographyIds,
       eventId: fixture.eventId,
@@ -606,7 +792,8 @@ describe("payChoreographiesPreset", () => {
       stage: "deposit",
     });
 
-    await payChoreographiesPreset({
+    await chargeThreshold({
+      kind: "choreography",
       academyId: fixture.academyId,
       choreographyIds: fixture.choreographyIds,
       eventId: fixture.eventId,
@@ -625,7 +812,7 @@ describe("payChoreographiesPreset", () => {
   });
 });
 
-describe("payChoreographiesPreset on a choreography whose group type moved", () => {
+describe("chargeThreshold on choreographies on a choreography whose group type moved", () => {
   // #660: a roster save below the deposit leaves the stored solo row behind;
   // funding without a pick for the new group type would freeze it there.
   test("refuses to fund an inscription storing a row of another group type when no price is picked for its own", async () => {
@@ -640,7 +827,8 @@ describe("payChoreographiesPreset on a choreography whose group type moved", () 
       .set({ groupType: "duo" })
       .where(eq(choreographies.id, choreographyId!));
 
-    const result = await payChoreographiesPreset({
+    const result = await chargeThreshold({
+      kind: "choreography",
       academyId: fixture.academyId,
       choreographyIds: [choreographyId!],
       eventId: fixture.eventId,
@@ -662,11 +850,11 @@ describe("payChoreographiesPreset on a choreography whose group type moved", () 
     const inscriptionId = fixture.inscriptionIds[0]!;
     const allocate = (amount: number, priceId: string | null) =>
       allocateToInscription({
+        now: new Date(),
         academyId: fixture.academyId,
         amount,
-        choreographyId: choreographyId!,
         eventId: fixture.eventId,
-        inscriptionId,
+        target: { id: inscriptionId, kind: "choreography" },
         priceId,
       });
     // 2000 against the solo row's 3000 deposit.
@@ -701,7 +889,8 @@ describe("payChoreographiesPreset on a choreography whose group type moved", () 
   test("still funds the balance of an inscription already frozen on a row of another group type", async () => {
     const fixture = await seedPresetFixture([10000]);
     const [choreographyId] = fixture.choreographyIds;
-    await payChoreographiesPreset({
+    await chargeThreshold({
+      kind: "choreography",
       academyId: fixture.academyId,
       choreographyIds: [choreographyId!],
       eventId: fixture.eventId,
@@ -715,7 +904,8 @@ describe("payChoreographiesPreset on a choreography whose group type moved", () 
 
     // A row frozen before #660 guarded the roster: the preset offers no picker
     // for it, and refusing would leave it with no way to be paid.
-    const result = await payChoreographiesPreset({
+    const result = await chargeThreshold({
+      kind: "choreography",
       academyId: fixture.academyId,
       choreographyIds: [choreographyId!],
       eventId: fixture.eventId,
@@ -728,7 +918,7 @@ describe("payChoreographiesPreset on a choreography whose group type moved", () 
 });
 
 describe.skipIf(isPgliteTestBackend())(
-  "payChoreographiesPreset racing a draft save",
+  "chargeThreshold on choreographies racing a draft save",
   () => {
     // #660: the draft save moves the group type under the choreography's row
     // lock, so a preset that read it unlocked would freeze the old one's price.
@@ -760,7 +950,8 @@ describe.skipIf(isPgliteTestBackend())(
             .where(eq(choreographies.id, choreographyId!));
         },
         contender: () =>
-          payChoreographiesPreset({
+          chargeThreshold({
+            kind: "choreography",
             academyId: fixture.academyId,
             choreographyIds: [choreographyId!],
             eventId: fixture.eventId,

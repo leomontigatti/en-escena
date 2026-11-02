@@ -10,6 +10,21 @@ export const removeInscriptionMoneyIntent = "remove-inscription-money";
 export const releaseInscriptionExcessIntent = "release-inscription-excess";
 export const releaseRetainedDepositIntent = "release-retained-deposit";
 
+const inscriptionMoneyIntents = [
+  allocateInscriptionIntent,
+  removeInscriptionMoneyIntent,
+  releaseInscriptionExcessIntent,
+  releaseRetainedDepositIntent,
+] as const;
+
+export type InscriptionMoneyIntent = (typeof inscriptionMoneyIntents)[number];
+
+export function isInscriptionMoneyIntent(
+  intent: string,
+): intent is InscriptionMoneyIntent {
+  return (inscriptionMoneyIntents as readonly string[]).includes(intent);
+}
+
 /**
  * The field that says which kind of inscription the dialog is about. It travels
  * in the form rather than being inferred from the route so that the one dialog

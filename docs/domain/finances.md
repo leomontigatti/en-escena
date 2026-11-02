@@ -394,8 +394,8 @@ type)` among the special ones, enforced by `price_general_unique` and
 
 **A seminar inscription is priced the same way**
 `seminarInscription.selectedPriceId` is nullable, references a
-`seminarPrice` row, is written only by the allocation dialog, and the effective
-row is `crossed ? stored : (current ?? stored)` through the same owner,
+`seminarPrice` row, is written by the allocation dialog and the seminar presets,
+and the effective row is `crossed ? stored : (current ?? stored)` through the same owner,
 `resolveEffectiveBasePriceRow`, fed the seminar's own
 `requiredDepositPercentage` and a candidate set with **no schedule or group-type
 axis**: the event's `seminarPrice` rows of the seminar's `seminarKind` for the
@@ -405,7 +405,9 @@ among them through `selectApplicablePriceCandidate`, one call into the owner. Th
 stored row carries its own `forParticipants` flag, so the crossing freezes the
 tier and the participant fact in one column and nothing else is persisted. The
 picker offers the same candidate set with no date filter, as the choreography
-picker does. A price row referenced by any seminar inscription cannot be deleted
+picker does. A stored row of the other participant cell is replaced below the
+deposit as a stored row of another group type is (#660): with none submitted the
+server stores the row in effect, and refuses when the cell has none. A price row referenced by any seminar inscription cannot be deleted
 or restructured, and a seminar's kind cannot flip while any of its inscriptions
 is covered — which closes, for seminars, the known divergence below. The
 `Señada`-without-a-place band this creates for the seminar quota is named in
@@ -763,13 +765,19 @@ but the option list is not filtered by `paymentDeadline` while
 an expired deadline therefore offers options, applies none, and leaves the picker
 on its placeholder — so a row storing nothing can still be submitted without a
 price, and the refusal is what catches it. It is the only path there:
-`applySelectedPrice` is reached from `allocateToInscription` alone, which this
-dialog is the only caller of. The presets have their own `applySelectedPrices`.
+`applySelectedPrice` is reached from `allocateToInscription` alone, which on the
+admin path only this dialog calls. The presets have their own
+`applySelectedPrices`.
 
 **A seminar inscription opens the same dialog**, with its three shapes and its
 overlay, from the `(seminar, academy)` financial detail. It is the one dialog
 told which kind of target it is about, not a twin: the kind travels in the form,
-and each detail's action owns one of the two writers. Options and the locked
+and one runner (`runInscriptionMoneyIntent`) serves every screen that mounts the
+dialog. Each route says which kind it owns and refuses the other; a screen about
+one unit also passes `expectedScope`, the event-wide seminar list passes nothing,
+and the redirect after a write stays with each detail. The runner resolves the
+scope through the kind's adapter and dispatches to the one writer of
+`inscription-money.server.ts`. Options and the locked
 readout read `{name} · {amount} · seña {deposit}` through the same formatter; the
 picker offers only the `seminarPrice` rows already filtered to the seminar's kind
 (then `regular`) and to the person's participant cell, with no date filter and no
@@ -789,7 +797,12 @@ selects and stores a price row only for inscriptions that have not covered their
 deposit yet; anything already past that threshold keeps the price it holds. A
 picked row is the one charged, not the row that applies today: the preset covers
 its deposit first, which fixes it, and reads what is owed from there, and a pick
-below the money already on the inscription is refused.
+below the money already on the inscription is refused. So is a pick whose deposit
+cannot fit, above what the inscription owes today or above the pick's own
+discounted total, with a sentence naming the dancer and the price: moving it would
+break the pool's over-allocation check.
+On either kind of inscription a deposit that rounds to zero is charged one peso,
+because only money crosses a deposit (`planThresholdCharge`).
 The dialog's owed figure follows its price pickers, and when it exceeds
 `Saldo disponible` `Asignar` is disabled with the reason stated, as on the
 seminar side. An owed figure missing a price counts only when its known part
@@ -1024,8 +1037,9 @@ what remains allocated as its `Total` (`dancers/inscriptions.server.ts`,
 The second is queries that are not about display at all and simply do not need
 the predicate, because a withdrawn row answers their question as well as an
 active one: `readInscriptionSelectedPrices` (the price readout behind the money
-dialog) and the allocation write path's own inscription lookup
-(`inscription-allocation.server.ts`), the price-divergence guard that asks
+dialog) and the money gestures' own inscription lookup
+(`inscription-price-options.server.ts`, `inscription-money-choreography.server.ts`),
+the price-divergence guard that asks
 whether a move would reprice any money-holding inscription of a choreography
 (`choreography-price-divergence-guard.server.ts`), and the check that refuses
 to delete a price row some inscription references (`prices.server.ts`).

@@ -1,11 +1,10 @@
 /**
- * `Pagar seña` and `Pagar saldo` over the `(seminar, academy)` rows selected on
- * an academy's `Seminarios` tab: every active seminar inscription the academy
+ * The seminar steps of `chargeThreshold`: `Pagar seña` and `Pagar saldo` over the
+ * `(seminar, academy)` rows selected on an academy's `Seminarios` tab: every active seminar inscription the academy
  * holds in each selected seminar is charged what it owes for the stage, out of
  * the academy's pool, in one all-or-nothing write.
  *
- * The seminar twin of `choreography-cobro-presets.server.ts`, with two
- * differences the seminar side forces:
+ * It differs from the choreography steps in two ways the seminar side forces:
  *
  * - **There is no price picker.** An inscription that holds no price is stored
  *   the row that applies to the person today; one that holds a price of the
@@ -21,6 +20,9 @@
  * derives one stage's charge from them. The write runs both under its locks and
  * a preview runs them outside, so the two cannot disagree on who is charged, at
  * which price, or how many places it takes.
+ *
+ * Lock order: the selected seminars, the academy's active inscriptions in them
+ * in id order, then the event's price list (`lockEventSeminarPrices`).
  */
 
 import { and, asc, eq, inArray } from "drizzle-orm";
@@ -29,16 +31,14 @@ import { db } from "@/db";
 import { seminarInscriptions, seminars } from "@/db/schema";
 import { formatDancerName } from "@/lib/finances/formatters";
 import {
-  deriveInscriptionFinancialFigures,
-  hasCrossedDepositThreshold,
-} from "@/lib/finances/inscription-financial-status";
-import { seminarOverAllocatedMessage } from "@/lib/finances/seminar-cobro-refusals";
-import { deriveSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-price";
-import {
   resolveSeminarInscriptions,
   type ResolvedSeminarInscription,
   type SeminarFinancePriceRow,
 } from "@/lib/finances/seminar-inscription-thresholds.server";
+import {
+  planThresholdCharge,
+  type ThresholdChargePlan,
+} from "@/lib/finances/threshold-charge";
 import { lockEventSeminarPrices } from "@/lib/seminar-prices/price-locks.server";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import {
@@ -50,13 +50,15 @@ import {
   seminarInscriptionPerson,
 } from "@/lib/seminars/inscription-person.server";
 
+import { overAllocatedChargeMessage } from "@/lib/finances/inscription-money-refusals";
+
 import { spreadFromPool } from "./allocation-pool.server";
 import type { CobroStage } from "./choreography-cobro-presets.server";
-import {
-  runCobro,
-  type CobroResult,
-  type Executor,
+import type {
+  CobroResult,
+  Executor,
 } from "./choreography-cobro-support.server";
+import type { ThresholdChargeKind } from "./inscription-money.server";
 import {
   assertSeminarPlacesForCrossings,
   lockSeminars,
@@ -93,23 +95,15 @@ type SeminarCobroInscriptions = {
  *
  * `priceRow` is **the one row the charge prices with**: the row the inscription
  * holds once the write is done (`chargedPriceRow`) — the one it already held,
- * or the one the write stores. Its owed figures, the deposit it may cross and
- * the name the preview shows all come from it, so the charge can neither stop
- * short of the deposit it holds nor carry it past the total it holds.
+ * or the one the write stores. The plan and the name the preview shows both
+ * come from it, so the charge can neither stop short of the deposit it holds
+ * nor carry it past the total it holds.
  *
- * `owedAmount` is `null` only when no row prices it at all, which refuses the
- * charge. `owedDepositAmount` is what is left of that row's deposit.
- * `overAllocatedAmount` is what the inscription holds past that row's total,
- * which only a row cheaper than the money already on it leaves; storing such a
- * row refuses the charge.
+ * A `null` `owedAmount` refuses the charge. An `overAllocatedAmount` above zero,
+ * which only a row cheaper than the money already on it leaves, refuses it too.
  */
-type SeminarCobroLine = ActiveSeminarInscription & {
-  crossesDeposit: boolean;
-  overAllocatedAmount: number;
-  owedAmount: number | null;
-  owedDepositAmount: number | null;
-  priceRow: SeminarFinancePriceRow | null;
-};
+type SeminarCobroLine = ActiveSeminarInscription &
+  ThresholdChargePlan & { priceRow: SeminarFinancePriceRow | null };
 
 type SeminarCobroPlan = {
   /** How many active inscriptions the academy holds across the seminars,
@@ -289,38 +283,19 @@ function planLine(input: {
 }): SeminarCobroLine | null {
   const { resolution, row } = input;
   const priceRow = chargedPriceRow(resolution);
-  const thresholds = deriveSeminarInscriptionThresholds({
-    priceAmount: priceRow?.amount ?? null,
-    requiredDepositPercentage: input.requiredDepositPercentage,
-  });
-  const figures = deriveInscriptionFinancialFigures({
+  const plan = planThresholdCharge({
     allocatedAmount: resolution.allocatedAmount,
-    thresholds,
+    covered: resolution.covered,
+    priceRow,
+    requiredDepositPercentage: input.requiredDepositPercentage,
+    stage: input.stage,
   });
-  const owedAmount =
-    input.stage === "deposit"
-      ? figures.owedDepositAmount
-      : figures.owedBalanceAmount;
-  const crossesDeposit =
-    owedAmount !== null &&
-    !resolution.covered &&
-    hasCrossedDepositThreshold({
-      allocatedAmount: resolution.allocatedAmount + owedAmount,
-      depositAmount: thresholds.depositAmount,
-    });
 
-  if (owedAmount === 0 && !crossesDeposit) {
+  if (plan.owedAmount === 0 && !plan.crossesDeposit) {
     return null;
   }
 
-  return {
-    ...row,
-    crossesDeposit,
-    overAllocatedAmount: figures.overAllocatedAmount ?? 0,
-    owedAmount,
-    owedDepositAmount: figures.owedDepositAmount,
-    priceRow,
-  };
+  return { ...row, ...plan, priceRow };
 }
 
 /**
@@ -372,10 +347,10 @@ async function storeChargedPrices(
     if (line.overAllocatedAmount > 0) {
       return {
         ok: false,
-        message: `${seminarOverAllocatedMessage({
+        message: overAllocatedChargeMessage({
           overAllocatedAmount: line.overAllocatedAmount,
           personName: formatDancerName(line),
-        })} Quitale la diferencia desde su detalle antes de asignar.`,
+        }),
       };
     }
 
@@ -531,31 +506,36 @@ function previewStage(
   };
 }
 
-/**
- * Charges the stage over the selected seminars. The client names the seminars
- * and nothing else: who is charged, at which price and how much is recomputed
- * here, under the seminars' locks and the inscriptions'.
- *
- * The refusals, in the order they are checked: a seminar that is not the
- * event's, a selection with no active inscription, a seminar short of places,
- * an inscription nothing prices, and a pool that cannot cover the charge. Any
- * of them rolls the whole charge back.
- */
-export async function paySeminarsPreset(input: {
+export type SeminarChargeInput = {
   academyId: string;
   eventId: string;
+  kind: "seminar";
   /** The instant the places are judged at; a live reservation depends on it. */
   now: Date;
   seminarIds: string[];
   stage: CobroStage;
-}): Promise<CobroResult> {
-  const seminarIds = [...new Set(input.seminarIds)];
+};
 
-  if (seminarIds.length === 0) {
-    return { ok: false, message: "Elegí al menos un seminario." };
-  }
+/**
+ * The client names the seminars and nothing else: who is charged, at which price
+ * and how much is recomputed here, under the seminars' locks and the
+ * inscriptions'.
+ *
+ * The refusals, in the order they are checked: a seminar that is not the
+ * event's, a selection with no active inscription, a seminar short of places,
+ * an inscription nothing prices, and a pool that cannot cover the charge.
+ */
+export const seminarCharge: ThresholdChargeKind<
+  SeminarChargeInput,
+  { activeCount: number; locked: LockedSeminar[]; plan: SeminarCobroPlan },
+  { lines: SeminarCobroLine[] }
+> = {
+  emptySelection: "Elegí al menos un seminario.",
+  noActiveInscriptions:
+    "Los seminarios elegidos no tienen inscripciones activas.",
+  selectedIds: (input) => input.seminarIds,
 
-  return await runCobro(async (tx) => {
+  async load(tx, input, seminarIds) {
     const locked = await lockSeminars(tx, seminarIds);
 
     if (
@@ -575,13 +555,10 @@ export async function paySeminarsPreset(input: {
       input.stage,
     );
 
-    if (plan.activeCount === 0) {
-      return {
-        ok: false,
-        message: "Los seminarios elegidos no tienen inscripciones activas.",
-      };
-    }
+    return { activeCount: plan.activeCount, locked, ok: true, plan };
+  },
 
+  async price(tx, input, { locked, plan }) {
     const places = await assertSeminarPlacesForCrossings(tx, {
       crossingIdsBySeminarId: plan.crossingIdsBySeminarId,
       now: input.now,
@@ -594,28 +571,19 @@ export async function paySeminarsPreset(input: {
 
     const priced = await storeChargedPrices(tx, plan.lines);
 
-    if (!priced.ok) {
-      return priced;
-    }
+    return priced.ok ? { lines: plan.lines, ok: true } : priced;
+  },
 
+  async fund(tx, input, { lines }) {
     return await fundPlanLines(tx, {
       academyId: input.academyId,
       eventId: input.eventId,
-      lines: plan.lines,
+      lines,
     });
-  });
-}
+  },
+};
 
-/**
- * Spreads each line's owed figure from the pool, oldest payment first.
- *
- * A line that crosses its deposit on the way to its balance is funded in two
- * moves, up to the deposit and then the rest. The pool's over-allocation check
- * reads the inscription's **effective** row, which below the deposit is
- * today's and may be cheaper than the row it holds; once the deposit is
- * covered it is the held row, the one the line is priced by, so the rest is
- * checked against the total the charge is aiming at.
- */
+/** Spreads each line's moves from the pool, oldest payment first. */
 async function fundPlanLines(
   tx: Executor,
   input: {
@@ -625,17 +593,7 @@ async function fundPlanLines(
   },
 ): Promise<CobroResult> {
   for (const line of input.lines) {
-    if (line.owedAmount === null) {
-      return {
-        ok: false,
-        message:
-          "No hay un precio de seminario configurado para alguna de las inscripciones.",
-      };
-    }
-
-    for (const amount of fundingMoves(line, line.owedAmount).filter(
-      (move) => move > 0,
-    )) {
+    for (const amount of line.moves) {
       const funded = await spreadFromPool(tx, {
         academyId: input.academyId,
         amount,
@@ -650,12 +608,4 @@ async function fundPlanLines(
   }
 
   return { ok: true };
-}
-
-function fundingMoves(line: SeminarCobroLine, owedAmount: number): number[] {
-  const toDeposit = line.owedDepositAmount ?? 0;
-
-  return line.crossesDeposit && toDeposit > 0 && toDeposit < owedAmount
-    ? [toDeposit, owedAmount - toDeposit]
-    : [owedAmount];
 }

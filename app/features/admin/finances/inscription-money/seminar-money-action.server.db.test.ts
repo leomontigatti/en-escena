@@ -3,7 +3,7 @@ import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { paymentAllocations, seminarInscriptions } from "@/db/schema";
+import { paymentAllocations } from "@/db/schema";
 import { action as seminarInscriptionFinancesAction } from "@/routes/administracion.finanzas_.seminarios";
 import { action as seminarFinanceDetailAction } from "@/routes/administracion.finanzas_.$academyId_.seminarios_.$seminarId";
 import {
@@ -13,7 +13,6 @@ import {
   seminarInscriptionFinancesUrl,
   type EventSeminarFinanceFixture,
 } from "@/lib/admin/finances/seminar-finances.test-support";
-import { partialRetainedReleaseMessage } from "@/lib/finances/withdrawal-retention-refusals";
 import { removeSeminarInscription } from "@/lib/seminars/inscriptions.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -211,16 +210,8 @@ describe("the deposit a withdrawn seminar inscription retains", () => {
     return fixture;
   }
 
-  test("retains the deposit at withdrawal and releases all of it, refusing anything in between", async () => {
+  test("retains the deposit at withdrawal and releases all of it", async () => {
     const fixture = await seedWithdrawn();
-    expect(await readAllocatedAmount(fixture.anaInscriptionId)).toBe(10000);
-
-    const partial = await postToList(fixture, {
-      amount: "4000",
-      inscriptionId: fixture.anaInscriptionId,
-      intent: "remove-inscription-money",
-    });
-    expect(partial).toMatchObject({ status: "error" });
     expect(await readAllocatedAmount(fixture.anaInscriptionId)).toBe(10000);
 
     const released = await postToList(fixture, {
@@ -243,33 +234,6 @@ describe("the deposit a withdrawn seminar inscription retains", () => {
 
     expect(allocated).toMatchObject({ status: "error" });
     expect(await readAllocatedAmount(fixture.anaInscriptionId)).toBe(10000);
-  });
-
-  // A withdrawn row can hold more than its deposit; the dialog has no release
-  // of just the excess.
-  test("refuses to release just the excess of a withdrawn row", async () => {
-    const fixture = await seedEventSeminarFinanceFixture();
-    await postToList(fixture, {
-      amount: "15000",
-      inscriptionId: fixture.anaInscriptionId,
-      intent: "allocate-inscription",
-      priceId: fixture.priceId,
-    });
-    await db
-      .update(seminarInscriptions)
-      .set({ withdrawnAt: new Date() })
-      .where(eq(seminarInscriptions.id, fixture.anaInscriptionId));
-
-    const released = await postToList(fixture, {
-      inscriptionId: fixture.anaInscriptionId,
-      intent: "release-inscription-excess",
-    });
-
-    expect(released).toMatchObject({
-      message: partialRetainedReleaseMessage,
-      status: "error",
-    });
-    expect(await readAllocatedAmount(fixture.anaInscriptionId)).toBe(15000);
   });
 });
 

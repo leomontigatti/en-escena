@@ -9,6 +9,18 @@ import {
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 /**
+ * A price row as the money dialog reads it, of either kind: on offer, or the one
+ * the inscription is charged at. It carries its `Seña` so that, locked or not,
+ * the control reads the same three figures.
+ */
+export type InscriptionPriceOption = {
+  amount: number;
+  depositAmount: number;
+  id: string;
+  name: string;
+};
+
+/**
  * What the price rules need of a row to choose among rows and to fix one: an
  * identity, an amount and a deadline. A choreography's `price` row has more —
  * group type, schedule — and a seminar's tier has a different amount per

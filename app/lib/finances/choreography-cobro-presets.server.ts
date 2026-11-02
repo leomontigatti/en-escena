@@ -1,6 +1,6 @@
 /**
- * `Pagar seña` and `Pagar saldo` as **list actions** over several selected
- * choreographies at once.
+ * The choreography steps of `chargeThreshold`: `Pagar seña` and `Pagar saldo` as
+ * **list actions** over several selected choreographies at once.
  *
  * A preset is nothing but a pre-filled figure. It reads each active
  * inscription's shortfall against the requested threshold and funds exactly
@@ -16,6 +16,9 @@
  * The whole run is one transaction: a pool that dries up on the last
  * choreography rolls the first one back, so an administrator who sees a refusal
  * can trust that nothing moved.
+ *
+ * Lock order: the selection's active inscriptions in id order, then the picked
+ * price rows in order, as `lockPriceRows` takes them.
  */
 
 import { and, asc, eq, inArray } from "drizzle-orm";
@@ -30,15 +33,20 @@ import {
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
+import { pickDepositDoesNotFitMessage } from "@/lib/finances/choreography-cobro-refusals";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import { formatDancerName } from "@/lib/finances/formatters";
+import { hasCrossedDepositThreshold } from "@/lib/finances/inscription-financial-status";
 import {
-  calculateDepositAmount,
-  deriveInscriptionFinancialFigures,
-} from "@/lib/finances/inscription-financial-status";
-import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
-import { seminarOverAllocatedMessage } from "@/lib/finances/seminar-cobro-refusals";
+  readInscriptionThresholds,
+  type InscriptionThresholdResolution,
+} from "@/lib/finances/inscription-thresholds.server";
+import { planThresholdCharge } from "@/lib/finances/threshold-charge";
 import { lockPriceRows } from "@/lib/prices/rows.server";
+import {
+  inscriptionMoneyRefusals,
+  overAllocatedChargeMessage,
+} from "@/lib/finances/inscription-money-refusals";
 
 import { choreographyTarget } from "./allocation-target.server";
 import {
@@ -46,12 +54,12 @@ import {
   spreadFromPool,
 } from "./allocation-pool.server";
 import {
-  hasCrossedStoredDepositThreshold,
   loadCandidatePriceRow,
-  runCobro,
   type CobroResult,
   type Transaction,
 } from "./choreography-cobro-support.server";
+import { choreographyMoney } from "./inscription-money-choreography.server";
+import type { ThresholdChargeKind } from "./inscription-money.server";
 
 /**
  * The threshold a cobro preset settles against: `deposit` allocates up to the
@@ -78,20 +86,39 @@ type PresetChoreography = {
   scheduleId: string;
 };
 
-export async function payChoreographiesPreset(input: {
+export type ChoreographyChargeInput = {
   academyId: string;
   choreographyIds: string[];
   eventId: string;
+  kind: "choreography";
   priceIdByGroupType: PresetPriceSelection;
   stage: CobroStage;
-}): Promise<CobroResult> {
-  const choreographyIds = [...new Set(input.choreographyIds)];
+};
 
-  if (choreographyIds.length === 0) {
-    return { ok: false, message: "Elegí al menos una coreografía." };
-  }
+type PresetInscription = {
+  choreographyId: string;
+  id: string;
+  selectedPriceId: string | null;
+  waivedAt: Date | null;
+};
 
-  return await runCobro(async (tx) => {
+type ChoreographySelection = {
+  activeCount: number;
+  choreographies: PresetChoreography[];
+  inscriptions: PresetInscription[];
+};
+
+export const choreographyCharge: ThresholdChargeKind<
+  ChoreographyChargeInput,
+  ChoreographySelection,
+  { inscriptions: PresetInscription[]; pickedAmounts: Map<string, number> }
+> = {
+  emptySelection: "Elegí al menos una coreografía.",
+  noActiveInscriptions:
+    "Las coreografías elegidas no tienen inscripciones activas.",
+  selectedIds: (input) => input.choreographyIds,
+
+  async load(tx, input, choreographyIds) {
     const inscriptions = await tx
       .select({
         choreographyId: choreographyDancers.choreographyId,
@@ -126,28 +153,43 @@ export async function payChoreographiesPreset(input: {
       return { ok: false, message: choreographyNotFoundMessage };
     }
 
-    if (inscriptions.length === 0) {
-      return {
-        ok: false,
-        message: "Las coreografías elegidas no tienen inscripciones activas.",
-      };
-    }
-
-    const priced = await applySelectedPrices(tx, {
+    return {
+      activeCount: inscriptions.length,
       choreographies: selected,
-      eventId: input.eventId,
       inscriptions,
+      ok: true,
+    };
+  },
+
+  async price(tx, input, selection) {
+    const priced = await applySelectedPrices(tx, {
+      choreographies: selection.choreographies,
+      eventId: input.eventId,
+      inscriptions: selection.inscriptions,
       priceIdByGroupType: input.priceIdByGroupType,
     });
 
-    if (!priced.ok) {
-      return priced;
+    return priced.ok
+      ? { ...priced, inscriptions: selection.inscriptions }
+      : priced;
+  },
+
+  async fund(tx, input, priced) {
+    const event = await tx.query.events.findFirst({
+      columns: { requiredDepositPercentage: true },
+      where: eq(events.id, input.eventId),
+    });
+
+    if (!event) {
+      return { ok: false, message: "No encontramos ese evento." };
     }
 
+    const { requiredDepositPercentage } = event;
     const crossed = await coverPickedDeposits(tx, {
       academyId: input.academyId,
       eventId: input.eventId,
       pickedAmounts: priced.pickedAmounts,
+      requiredDepositPercentage,
     });
 
     if (!crossed.ok) {
@@ -157,12 +199,13 @@ export async function payChoreographiesPreset(input: {
     return await fundOwedThreshold(tx, {
       academyId: input.academyId,
       eventId: input.eventId,
-      inscriptionIds: inscriptions.map((inscription) => inscription.id),
+      inscriptionIds: priced.inscriptions.map((inscription) => inscription.id),
       pickedInscriptionIds: new Set(priced.pickedAmounts.keys()),
+      requiredDepositPercentage,
       stage: input.stage,
     });
-  });
-}
+  },
+};
 
 /**
  * Funds each picked inscription up to the deposit of the row it was just given.
@@ -171,6 +214,10 @@ export async function payChoreographiesPreset(input: {
  * price and lets the read reach the live `Descuento por bailarín` on that row.
  * A pick at today's amount owes the same either way and is left to that read:
  * its deposit can sit above its discounted total, which the pool would refuse.
+ *
+ * A deposit past what today's row owes is refused here with the reason. One past
+ * the pick's own discounted total shows only once the money crossed, in
+ * `fundOwedThreshold`: the discount on the pick needs the row fixed first.
  */
 async function coverPickedDeposits(
   tx: Transaction,
@@ -178,17 +225,9 @@ async function coverPickedDeposits(
     academyId: string;
     eventId: string;
     pickedAmounts: ReadonlyMap<string, number>;
+    requiredDepositPercentage: number;
   },
 ): Promise<CobroResult> {
-  const event = await tx.query.events.findFirst({
-    columns: { requiredDepositPercentage: true },
-    where: eq(events.id, input.eventId),
-  });
-
-  if (!event) {
-    return { ok: false, message: "No encontramos ese evento." };
-  }
-
   const thresholds = await readInscriptionThresholds(tx, {
     academyId: input.academyId,
     eventId: input.eventId,
@@ -196,33 +235,48 @@ async function coverPickedDeposits(
   });
 
   for (const [inscriptionId, priceAmount] of input.pickedAmounts) {
-    if (thresholds.get(inscriptionId)?.priceAmount === priceAmount) {
+    const resolution = thresholds.get(inscriptionId);
+
+    if (!resolution) {
+      return {
+        ok: false,
+        message: inscriptionMoneyRefusals.inscriptionNotFound,
+      };
+    }
+
+    if (resolution.priceAmount === priceAmount) {
       continue;
     }
 
-    const target = choreographyTarget(inscriptionId);
-    const depositAmount = calculateDepositAmount({
-      priceAmount,
-      requiredDepositPercentage: event.requiredDepositPercentage,
-    });
-    // Only money crosses a deposit, so one that rounds to zero still takes a peso.
-    const shortfall =
-      Math.max(depositAmount, 1) -
-      (await readInscriptionAllocatedAmount(tx, target));
-
-    if (shortfall <= 0) {
-      continue;
-    }
-
-    const result = await spreadFromPool(tx, {
-      academyId: input.academyId,
-      amount: shortfall,
-      eventId: input.eventId,
-      target,
+    const { allocatedAmount, totalAmount } = resolution;
+    // Below the deposit by construction: a pick reaches no row past it. The
+    // discount stays out, since it moves the total and never the deposit.
+    const { moves } = planThresholdCharge({
+      allocatedAmount,
+      covered: false,
+      priceRow: { amount: priceAmount },
+      requiredDepositPercentage: input.requiredDepositPercentage,
+      stage: "deposit",
     });
 
-    if (!result.ok) {
-      return result;
+    for (const amount of moves) {
+      if (totalAmount !== null && allocatedAmount + amount > totalAmount) {
+        return {
+          ok: false,
+          message: await pickDepositRefusal(tx, inscriptionId, priceAmount),
+        };
+      }
+
+      const result = await spreadFromPool(tx, {
+        academyId: input.academyId,
+        amount,
+        eventId: input.eventId,
+        target: choreographyTarget(inscriptionId),
+      });
+
+      if (!result.ok) {
+        return result;
+      }
     }
   }
 
@@ -232,9 +286,10 @@ async function coverPickedDeposits(
 /**
  * The heart of the cobro presets: allocates each inscription **exactly what it
  * owes** against the requested stage, out of the academy's pool. Owed is
- * computed here, on the write path, through the same owner the read path uses,
- * so a preset cannot over-allocate. An inscription that already covered the
- * threshold is skipped rather than failing: the preset is idempotent.
+ * planned here, on the write path, from the row and the live discount the read
+ * path resolves, so a preset cannot over-allocate. An inscription that already
+ * covered the threshold is skipped rather than failing: the preset is
+ * idempotent.
  */
 async function fundOwedThreshold(
   tx: Transaction,
@@ -243,6 +298,7 @@ async function fundOwedThreshold(
     eventId: string;
     inscriptionIds: string[];
     pickedInscriptionIds: ReadonlySet<string>;
+    requiredDepositPercentage: number;
     stage: CobroStage;
   },
 ): Promise<CobroResult> {
@@ -256,35 +312,39 @@ async function fundOwedThreshold(
     const resolution = thresholds.get(inscriptionId);
 
     if (!resolution) {
-      return { ok: false, message: "No encontramos esa inscripción." };
-    }
-
-    const figures = deriveInscriptionFinancialFigures({
-      allocatedAmount: await readInscriptionAllocatedAmount(
-        tx,
-        choreographyTarget(inscriptionId),
-      ),
-      thresholds: resolution,
-    });
-
-    if (
-      figures.overAllocatedAmount &&
-      input.pickedInscriptionIds.has(inscriptionId)
-    ) {
       return {
         ok: false,
-        message: await overAllocatedPickMessage(
-          tx,
-          inscriptionId,
-          figures.overAllocatedAmount,
-        ),
+        message: inscriptionMoneyRefusals.inscriptionNotFound,
       };
     }
 
-    const owedAmount =
-      input.stage === "deposit"
-        ? figures.owedDepositAmount
-        : figures.owedBalanceAmount;
+    // A waived inscription owes nothing whatever its price.
+    if (resolution.waived) {
+      continue;
+    }
+
+    const allocatedAmount = await readInscriptionAllocatedAmount(
+      tx,
+      choreographyTarget(inscriptionId),
+    );
+    const { overAllocatedAmount, owedAmount } = planResolvedCharge({
+      allocatedAmount,
+      requiredDepositPercentage: input.requiredDepositPercentage,
+      resolution,
+      stage: input.stage,
+    });
+    const refusal = await refusePick(tx, {
+      allocatedAmount,
+      inscriptionId,
+      overAllocatedAmount,
+      owedAmount,
+      picked: input.pickedInscriptionIds.has(inscriptionId),
+      resolution,
+    });
+
+    if (refusal) {
+      return { ok: false, message: refusal };
+    }
 
     if (owedAmount === null) {
       return {
@@ -313,11 +373,100 @@ async function fundOwedThreshold(
   return { ok: true };
 }
 
+/**
+ * The charge against the row the read path resolves, with its live discount:
+ * past the crossing that is the stored row, so its deposit answers `covered`.
+ */
+function planResolvedCharge(input: {
+  allocatedAmount: number;
+  requiredDepositPercentage: number;
+  resolution: InscriptionThresholdResolution;
+  stage: CobroStage;
+}) {
+  const { allocatedAmount, resolution } = input;
+
+  return planThresholdCharge({
+    allocatedAmount,
+    covered: hasCrossedDepositThreshold({
+      allocatedAmount,
+      depositAmount: resolution.depositAmount,
+    }),
+    dancerDiscountAmount: resolution.dancerDiscountAmount,
+    priceRow:
+      resolution.priceAmount === null
+        ? null
+        : { amount: resolution.priceAmount },
+    requiredDepositPercentage: input.requiredDepositPercentage,
+    stage: input.stage,
+  });
+}
+
+/**
+ * Why a picked row cannot be charged, if it cannot. At
+ * `Pagar saldo` a row whose deposit tops its total charges that total and never
+ * reaches the deposit, so only money landing past the total is refused.
+ */
+async function refusePick(
+  tx: Transaction,
+  input: {
+    allocatedAmount: number;
+    inscriptionId: string;
+    overAllocatedAmount: number;
+    owedAmount: number | null;
+    picked: boolean;
+    resolution: InscriptionThresholdResolution;
+  },
+): Promise<string | null> {
+  const { inscriptionId, overAllocatedAmount, resolution } = input;
+  const { depositAmount, priceAmount, totalAmount } = resolution;
+
+  if (
+    !input.picked ||
+    priceAmount === null ||
+    depositAmount === null ||
+    totalAmount === null
+  ) {
+    return null;
+  }
+
+  if (
+    depositAmount > totalAmount &&
+    input.allocatedAmount + (input.owedAmount ?? 0) > totalAmount
+  ) {
+    return await pickDepositRefusal(tx, inscriptionId, priceAmount);
+  }
+
+  return overAllocatedAmount
+    ? await overAllocatedPickMessage(tx, inscriptionId, overAllocatedAmount)
+    : null;
+}
+
+async function pickDepositRefusal(
+  tx: Transaction,
+  inscriptionId: string,
+  priceAmount: number,
+): Promise<string> {
+  return pickDepositDoesNotFitMessage({
+    personName: await readDancerName(tx, inscriptionId),
+    priceAmount,
+  });
+}
+
 /** A pick below the money on the row would fix a price it already exceeds. */
 async function overAllocatedPickMessage(
   tx: Transaction,
   inscriptionId: string,
   overAllocatedAmount: number,
+): Promise<string> {
+  return overAllocatedChargeMessage({
+    overAllocatedAmount,
+    personName: await readDancerName(tx, inscriptionId),
+  });
+}
+
+async function readDancerName(
+  tx: Transaction,
+  inscriptionId: string,
 ): Promise<string> {
   const [person] = await tx
     .select({ firstName: dancers.firstName, lastName: dancers.lastName })
@@ -329,10 +478,7 @@ async function overAllocatedPickMessage(
     throw new Error(`Expected a dancer on inscription ${inscriptionId}.`);
   }
 
-  return `${seminarOverAllocatedMessage({
-    overAllocatedAmount,
-    personName: formatDancerName(person),
-  })} Quitale la diferencia desde su detalle antes de asignar.`;
+  return formatDancerName(person);
 }
 
 /**
@@ -436,12 +582,7 @@ async function applySelectedPrices(
   input: {
     choreographies: PresetChoreography[];
     eventId: string;
-    inscriptions: Array<{
-      choreographyId: string;
-      id: string;
-      selectedPriceId: string | null;
-      waivedAt: Date | null;
-    }>;
+    inscriptions: PresetInscription[];
     priceIdByGroupType: PresetPriceSelection;
   },
 ): Promise<
@@ -472,13 +613,14 @@ async function applySelectedPrices(
       continue;
     }
 
-    const crossed = await hasCrossedStoredDepositThreshold(tx, {
-      allocatedAmount: await readInscriptionAllocatedAmount(
+    const crossed = await choreographyMoney.hasCrossedStored(
+      tx,
+      inscription,
+      await readInscriptionAllocatedAmount(
         tx,
         choreographyTarget(inscription.id),
       ),
-      selectedPriceId: inscription.selectedPriceId,
-    });
+    );
 
     if (crossed) {
       continue;
@@ -506,10 +648,7 @@ async function applySelectedPrices(
     });
 
     if (!price) {
-      return {
-        ok: false,
-        message: "Esa fila de precio no corresponde a la coreografía elegida.",
-      };
+      return { ok: false, message: inscriptionMoneyRefusals.unknownPriceRow };
     }
 
     await tx
