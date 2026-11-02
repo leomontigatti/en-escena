@@ -49,8 +49,9 @@ export type PresetInscription = {
 
 /**
  * What the selection owes against the stage, projected through the prices picked
- * right now. With nothing picked it is the loader's own figures summed, which is
- * the same number the choreography rows carry.
+ * right now. With nothing picked it is what the write charges at the price in
+ * effect, which is the number the choreography rows carry except on a deposit
+ * that rounds to zero.
  *
  * It sums the inscriptions rather than the choreography rows because a pick does
  * not reach all of them — it stops at the ones that have covered their deposit —
@@ -87,11 +88,11 @@ export function sumPresetOwedAmount(input: {
 }
 
 /**
- * One inscription's shortfall against the stage, re-derived when the pick would
- * actually reach it and read off the loader when it would not. The three cases
- * that keep the loader's figure are the writer's own (`applySelectedPrices`): no
- * pick for that group type, a row off the roster, and an inscription that has
- * covered its deposit — which is the crossing that fixes the price.
+ * One inscription's shortfall against the stage, planned as the writer plans it:
+ * at the picked row when the pick reaches it, and at the price in effect when it
+ * does not, which is no pick for that group type or a deposit already covered.
+ * What the write skips keeps the loader's figure: a row off the roster and a
+ * waived one.
  *
  * One deliberate approximation: the `Descuento por bailarín` is the row's own.
  * It is derived from the roster's prices, so a pick moves it, but the projection
@@ -106,7 +107,7 @@ function resolvePresetOwedAmount(input: {
 }): number | null {
   const { inscription, price } = input;
 
-  if (price === null || !canBeRePriced(inscription)) {
+  if (!takesCharges(inscription)) {
     return input.stage === "deposit"
       ? inscription.owedDepositAmount
       : inscription.owedBalanceAmount;
@@ -114,13 +115,22 @@ function resolvePresetOwedAmount(input: {
 
   return planThresholdCharge({
     allocatedAmount: inscription.allocatedAmount,
-    // Below its stored deposit, which is what `canBeRePriced` just said.
+    // Decides the crossing and its moves, which this figure does not read.
     covered: false,
     dancerDiscountAmount: inscription.dancerDiscountAmount,
-    priceRow: price,
+    priceRow:
+      price !== null && canBeRePriced(inscription)
+        ? price
+        : priceInEffect(inscription),
     requiredDepositPercentage: input.requiredDepositPercentage,
     stage: input.stage,
   }).owedAmount;
+}
+
+function priceInEffect(inscription: PresetInscription) {
+  return inscription.basePriceAmount === null
+    ? null
+    : { amount: inscription.basePriceAmount };
 }
 
 /**
@@ -171,16 +181,20 @@ export function hasRePriceableInscription(
   return inscriptions.some(canBeRePriced);
 }
 
+/** Off the roster a row is not touched, and a waived one owes nothing whatever
+ * its price. */
+function takesCharges(inscription: PresetInscription): boolean {
+  return !inscription.withdrawn && inscription.financialStatus !== "waived";
+}
+
 /**
  * Whether a pick reaches an inscription at all, which is the writer's own rule:
- * off the roster it is not touched, a waived one owes nothing whatever its
- * price, and once the deposit of the row it stores is covered its price is fixed
- * — money on the row does not fix it, only the crossing does.
+ * once the deposit of the row it stores is covered its price is fixed — money on
+ * the row does not fix it, only the crossing does.
  */
 function canBeRePriced(inscription: PresetInscription): boolean {
   return (
-    !inscription.withdrawn &&
-    inscription.financialStatus !== "waived" &&
+    takesCharges(inscription) &&
     !hasCrossedDepositThreshold({
       allocatedAmount: inscription.allocatedAmount,
       depositAmount: inscription.storedDepositAmount,

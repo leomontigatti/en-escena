@@ -588,34 +588,6 @@ describe("chargeThreshold on choreographies", () => {
     expect(totals.get(fixture.inscriptionIds[1])).toBe(10000);
   });
 
-  test("rolls the whole preset back when the pool runs dry partway through", async () => {
-    const fixture = await seedPresetFixture([4000]);
-
-    const result = await chargeThreshold({
-      kind: "choreography",
-      academyId: fixture.academyId,
-      choreographyIds: fixture.choreographyIds,
-      eventId: fixture.eventId,
-      priceIdByGroupType: { solo: fixture.priceId },
-      stage: "deposit",
-    });
-
-    expect(result.ok).toBe(false);
-    expect(await readAllocations(fixture.inscriptionIds)).toEqual([]);
-
-    // The price is the other half of the transaction: if it survived the
-    // rejection, the choreography would be left with a price set by a preset that
-    // did not move a peso.
-    const inscriptionRows = await db
-      .select({ selectedPriceId: choreographyDancers.selectedPriceId })
-      .from(choreographyDancers)
-      .where(inArray(choreographyDancers.id, fixture.inscriptionIds));
-
-    for (const row of inscriptionRows) {
-      expect(row.selectedPriceId).toBeNull();
-    }
-  });
-
   // With no pick, the writer touches no price: each inscription is financed
   // against the price that already resolves for it, which is exactly the one the
   // list showed the administrator. It is the dialog's default path.

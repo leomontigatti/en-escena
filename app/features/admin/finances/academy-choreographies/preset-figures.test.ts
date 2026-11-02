@@ -36,6 +36,44 @@ describe("sumPresetOwedAmount", () => {
     ).toEqual({ amount: 6000, status: "complete" });
   });
 
+  test("names the peso the write takes when nothing is picked and the deposit rounds to zero", () => {
+    expect(
+      sumPresetOwedAmount({
+        groupTypeByChoreography,
+        inscriptions: [
+          inscriptionFixture({
+            basePriceAmount: 4,
+            id: "inscription_1",
+            owedBalanceAmount: 4,
+            owedDepositAmount: 0,
+          }),
+        ],
+        pickedPriceByGroupType: {},
+        requiredDepositPercentage: 1,
+        stage: "deposit",
+      }),
+    ).toEqual({ amount: 1, status: "complete" });
+  });
+
+  test("keeps the loader's figure for a withdrawn inscription", () => {
+    expect(
+      sumPresetOwedAmount({
+        groupTypeByChoreography,
+        inscriptions: [
+          inscriptionFixture({
+            id: "inscription_1",
+            owedBalanceAmount: 0,
+            owedDepositAmount: 0,
+            withdrawn: true,
+          }),
+        ],
+        pickedPriceByGroupType: {},
+        requiredDepositPercentage: 30,
+        stage: "deposit",
+      }),
+    ).toEqual({ amount: 0, status: "complete" });
+  });
+
   test("re-prices the inscriptions the pick reaches", () => {
     expect(
       sumPresetOwedAmount({
