@@ -21,6 +21,7 @@ import {
   type RegisterRefundInput,
 } from "@/lib/finances/refunds.server";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
+import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSavedEvent } from "@/lib/test-support/events";
 
 import {
@@ -227,7 +228,7 @@ async function seedRefundedPool() {
   const pool = { academyId, eventId: event.id };
   const { refundId } = await registerRefundForTest({ ...pool, amount: 1000 });
 
-  return { event, pool, refund: await readRefund(refundId) };
+  return { pool, refund: await readRefund(refundId) };
 }
 
 function editOf(
@@ -403,12 +404,10 @@ describe.skipIf(isPgliteTestBackend())("a refund under real contention", () => {
   });
 
   test("an edit that waited on the pool while the refund moved to another pool is refused", async () => {
-    const { event, refund } = await seedRefundedPool();
-    const other = await seedOwnerPoolForTest({
+    const { refund } = await seedRefundedPool();
+    const other = await createAcademyUser({
       academyName: "Academia Destino",
-      event,
-      fundedAmount: 0,
-      paymentAmounts: [3000],
+      email: `${crypto.randomUUID()}@example.com`,
     });
 
     const result = await runBehindAHolder({
@@ -420,7 +419,7 @@ describe.skipIf(isPgliteTestBackend())("a refund under real contention", () => {
         // A move that keeps the version: only the pool check can catch it.
         await tx
           .update(refunds)
-          .set({ academyId: other.academyId })
+          .set({ academyId: other.academy.id })
           .where(eq(refunds.id, refund.id));
       },
       contender: () => updateRefund(editOf(refund, { amount: 900 })),
@@ -428,7 +427,7 @@ describe.skipIf(isPgliteTestBackend())("a refund under real contention", () => {
 
     expect(result).toEqual({ ok: false, reason: "moved" });
     await expect(readRefund(refund.id)).resolves.toMatchObject({
-      academyId: other.academyId,
+      academyId: other.academy.id,
       amount: 1000,
     });
   });
