@@ -4,10 +4,8 @@ import {
 } from "@/features/admin/finances/inscription-money/seminar-money-action.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
-import {
-  readSeminarInscriptionPriceOptions,
-  type SeminarInscriptionPriceOption,
-} from "@/lib/finances/seminar-inscription-allocation.server";
+import { readSeminarInscriptionPriceOptions } from "@/lib/finances/seminar-inscription-price-options.server";
+import type { InscriptionPriceOption } from "@/lib/finances/inscription-price";
 import {
   readSeminarInscriptionFinanceRows,
   type SeminarInscriptionFinanceDetailRow,
@@ -32,10 +30,7 @@ export async function loadSeminarInscriptionFinances(request: Request) {
   if (eventId === null) {
     return {
       inscriptions: [] as SeminarInscriptionFinanceDetailRow[],
-      priceOptionsByInscription: {} as Record<
-        string,
-        SeminarInscriptionPriceOption[]
-      >,
+      priceOptionsByInscription: {} as Record<string, InscriptionPriceOption[]>,
       selectedEventId: null,
     };
   }

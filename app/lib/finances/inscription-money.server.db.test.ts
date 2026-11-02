@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -19,15 +19,15 @@ import {
   readTargetThresholds,
 } from "@/lib/finances/allocation-pool.server";
 import type { AllocationTarget } from "@/lib/finances/allocation-target.server";
-import { allocateToInscription } from "@/lib/finances/inscription-allocation.server";
 import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
 import {
+  allocateToInscription,
   releaseInscriptionExcess,
   releaseRetainedInscriptionDeposit,
   removeFromInscription,
 } from "@/lib/finances/inscription-money.server";
 import { inscriptionMoneyRefusals } from "@/lib/finances/inscription-money-refusals";
-import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { createSavedEvent } from "@/lib/test-support/events";
 
@@ -44,8 +44,18 @@ beforeEach(() => {
 type SeededInscription = {
   academyId: string;
   eventId: string;
-  /** Puts money on the row through the kind's own allocation. */
-  fund: (amount: number) => Promise<void>;
+  /** A row of the list this inscription is not priced by. */
+  foreignPriceId: string;
+  /** Leaves the pool holding exactly this much. */
+  fundPool: (amount: number) => Promise<void>;
+  /** A dearer row of the inscription's own list. */
+  otherPriceId: string;
+  /** The row the seed offers the inscription. */
+  priceId: string;
+  /** Reads the row the inscription stores. */
+  readSelectedPriceId: () => Promise<string | null>;
+  /** Stores a row directly, as a row left behind by a change of key would be. */
+  storePrice: (priceId: string) => Promise<void>;
   /** Drops the row's price under the money on it: a passive excess. */
   reprice: (amount: number) => Promise<void>;
   target: AllocationTarget;
@@ -59,6 +69,8 @@ const kinds = [
   {
     depositAmount: 3000,
     kind: "choreography",
+    // The row in effect replaces a stored row of another group type (#660).
+    keptWithoutPick: (seeded: SeededInscription) => seeded.priceId,
     refusedForEvent: choreographyNotFoundMessage,
     refusedForAcademy: choreographyNotFoundMessage,
     seed: seedChoreographyInscription,
@@ -67,6 +79,8 @@ const kinds = [
   {
     depositAmount: 10000,
     kind: "seminar",
+    // The stored row stays, whatever its cell.
+    keptWithoutPick: (seeded: SeededInscription) => seeded.foreignPriceId,
     refusedForEvent: "No encontramos ese seminario.",
     refusedForAcademy: inscriptionMoneyRefusals.inscriptionNotFound,
     seed: seedSeminarInscription,
@@ -101,6 +115,23 @@ async function seedChoreographyInscription(): Promise<SeededInscription> {
     .select({ id: prices.id })
     .from(prices)
     .where(eq(prices.eventId, event.id));
+  const [otherPrice, foreignPrice] = await insertTestPrices([
+    {
+      amount: 15000,
+      eventId: event.id,
+      groupType: "solo",
+      name: "Solo tardío",
+      paymentDeadline: "2026-12-31",
+    },
+    {
+      amount: 20000,
+      eventId: event.id,
+      groupType: "duo",
+      name: "Dúo",
+      paymentDeadline: "2026-12-31",
+    },
+  ]);
+  const target = { id: inscription!.id, kind: "choreography" as const };
 
   await db.insert(payments).values({
     academyId,
@@ -114,22 +145,28 @@ async function seedChoreographyInscription(): Promise<SeededInscription> {
   return {
     academyId,
     eventId: event.id,
-    fund: async (amount) => {
-      expectAccepted(
-        await allocateToInscription({
-          academyId,
-          amount,
-          choreographyId: choreography.id,
-          eventId: event.id,
-          inscriptionId: inscription!.id,
-          priceId: price!.id,
-        }),
-      );
+    foreignPriceId: foreignPrice!.id,
+    fundPool: (amount) => setPool(academyId, event.id, amount),
+    otherPriceId: otherPrice!.id,
+    priceId: price!.id,
+    readSelectedPriceId: async () => {
+      const [row] = await db
+        .select({ selectedPriceId: choreographyDancers.selectedPriceId })
+        .from(choreographyDancers)
+        .where(eq(choreographyDancers.id, inscription!.id));
+
+      return row?.selectedPriceId ?? null;
     },
     reprice: async (amount) => {
       await db.update(prices).set({ amount }).where(eq(prices.id, price!.id));
     },
-    target: { id: inscription!.id, kind: "choreography" },
+    storePrice: async (priceId) => {
+      await db
+        .update(choreographyDancers)
+        .set({ selectedPriceId: priceId })
+        .where(eq(choreographyDancers.id, inscription!.id));
+    },
+    target,
     withdraw: async () => {
       await db
         .update(choreographyDancers)
@@ -143,28 +180,55 @@ async function seedChoreographyInscription(): Promise<SeededInscription> {
 async function seedSeminarInscription(): Promise<SeededInscription> {
   const fixture = await seedEventSeminarFinanceFixture();
   const inscriptionId = fixture.anaInscriptionId;
+  const [otherPrice, foreignPrice] = await db
+    .insert(seminarPrices)
+    .values([
+      {
+        amount: 30000,
+        eventId: fixture.eventId,
+        forParticipants: false,
+        kind: "regular" as const,
+        name: "No participante tardío",
+        paymentDeadline: "2020-01-01",
+      },
+      {
+        amount: 15000,
+        eventId: fixture.eventId,
+        forParticipants: true,
+        kind: "regular" as const,
+        name: "Participante general",
+        paymentDeadline: null,
+      },
+    ])
+    .returning();
 
   return {
     academyId: fixture.northAcademyId,
     eventId: fixture.eventId,
-    fund: async (amount) => {
-      expectAccepted(
-        await allocateToSeminarInscription({
-          academyId: fixture.northAcademyId,
-          amount,
-          eventId: fixture.eventId,
-          inscriptionId,
-          now: new Date(),
-          priceId: fixture.priceId,
-          seminarId: fixture.abrilSeminarId,
-        }),
-      );
+    foreignPriceId: foreignPrice!.id,
+    fundPool: (amount) =>
+      setPool(fixture.northAcademyId, fixture.eventId, amount),
+    otherPriceId: otherPrice!.id,
+    priceId: fixture.priceId,
+    readSelectedPriceId: async () => {
+      const [row] = await db
+        .select({ selectedPriceId: seminarInscriptions.selectedPriceId })
+        .from(seminarInscriptions)
+        .where(eq(seminarInscriptions.id, inscriptionId));
+
+      return row?.selectedPriceId ?? null;
     },
     reprice: async (amount) => {
       await db
         .update(seminarPrices)
         .set({ amount })
         .where(eq(seminarPrices.id, fixture.priceId));
+    },
+    storePrice: async (priceId) => {
+      await db
+        .update(seminarInscriptions)
+        .set({ selectedPriceId: priceId })
+        .where(eq(seminarInscriptions.id, inscriptionId));
     },
     target: { id: inscriptionId, kind: "seminar" },
     withdraw: async () => {
@@ -176,8 +240,13 @@ async function seedSeminarInscription(): Promise<SeededInscription> {
   };
 }
 
-function expectAccepted(result: { ok: boolean }) {
-  expect(result).toEqual({ ok: true });
+async function setPool(academyId: string, eventId: string, amount: number) {
+  await db
+    .update(payments)
+    .set({ amount })
+    .where(
+      and(eq(payments.academyId, academyId), eq(payments.eventId, eventId)),
+    );
 }
 
 function scopeOf(seeded: SeededInscription) {
@@ -186,6 +255,24 @@ function scopeOf(seeded: SeededInscription) {
     eventId: seeded.eventId,
     target: seeded.target,
   };
+}
+
+function allocate(
+  seeded: SeededInscription,
+  input: { amount: number; priceId: string | null },
+) {
+  return allocateToInscription({
+    ...scopeOf(seeded),
+    ...input,
+    now: new Date(),
+  });
+}
+
+/** Puts money on the row at the seed's price. */
+async function fund(seeded: SeededInscription, amount: number) {
+  expect(await allocate(seeded, { amount, priceId: seeded.priceId })).toEqual({
+    ok: true,
+  });
 }
 
 function readAllocated(seeded: SeededInscription) {
@@ -203,8 +290,18 @@ async function readFigures(seeded: SeededInscription) {
   });
 }
 
-/** The three gestures, for the refusals that hold for every one of them. */
+/** The four gestures, for the refusals that hold for every one of them. */
 const gestures = [
+  {
+    name: "Asignar dinero",
+    run: (scope: ReturnType<typeof scopeOf>) =>
+      allocateToInscription({
+        ...scope,
+        amount: 1000,
+        now: new Date(),
+        priceId: null,
+      }),
+  },
   {
     name: "Quitar dinero",
     run: (scope: ReturnType<typeof scopeOf>) =>
@@ -215,9 +312,121 @@ const gestures = [
 ];
 
 describe.each(kinds)("the money gestures on a $kind inscription", (kind) => {
+  test("Asignar dinero stores the picked row and funds the inscription out of the pool", async () => {
+    const seeded = await kind.seed();
+    const poolBefore = await readPool(seeded);
+
+    const result = await allocate(seeded, {
+      amount: 1000,
+      priceId: seeded.priceId,
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(await seeded.readSelectedPriceId()).toBe(seeded.priceId);
+    expect(await readAllocated(seeded)).toBe(1000);
+    expect(await readPool(seeded)).toBe(poolBefore - 1000);
+  });
+
+  test("Asignar dinero refuses a row of a list that does not price the inscription", async () => {
+    const seeded = await kind.seed();
+
+    const result = await allocate(seeded, {
+      amount: 1000,
+      priceId: seeded.foreignPriceId,
+    });
+
+    expect(result).toEqual({
+      message: inscriptionMoneyRefusals.unknownPriceRow,
+      ok: false,
+    });
+    expect(await seeded.readSelectedPriceId()).toBeNull();
+    expect(await readAllocated(seeded)).toBe(0);
+  });
+
+  test("the price is fixed at the crossing, and taking money off opens it again", async () => {
+    const seeded = await kind.seed();
+    await fund(seeded, kind.depositAmount);
+
+    await expect(
+      allocate(seeded, { amount: 1000, priceId: seeded.otherPriceId }),
+    ).resolves.toEqual({
+      message: inscriptionMoneyRefusals.priceFixed,
+      ok: false,
+    });
+    expect(await seeded.readSelectedPriceId()).toBe(seeded.priceId);
+    expect(await readAllocated(seeded)).toBe(kind.depositAmount);
+
+    // Naming the row it holds, or none, is no change of price.
+    await expect(
+      allocate(seeded, { amount: 1, priceId: seeded.priceId }),
+    ).resolves.toEqual({ ok: true });
+    await expect(
+      allocate(seeded, { amount: 1, priceId: null }),
+    ).resolves.toEqual({ ok: true });
+
+    await removeFromInscription({ ...scopeOf(seeded), amount: 3 });
+
+    await expect(
+      allocate(seeded, { amount: 1, priceId: seeded.otherPriceId }),
+    ).resolves.toEqual({ ok: true });
+    expect(await seeded.readSelectedPriceId()).toBe(seeded.otherPriceId);
+  });
+
+  test("with no pick, a row that holds nothing and stores nothing has to name a price", async () => {
+    const seeded = await kind.seed();
+
+    await expect(
+      allocate(seeded, { amount: 1000, priceId: null }),
+    ).resolves.toEqual({
+      message: inscriptionMoneyRefusals.pickPrice,
+      ok: false,
+    });
+    expect(await readAllocated(seeded)).toBe(0);
+  });
+
+  test("with no pick, the stored row keeps pricing a row below its deposit", async () => {
+    const seeded = await kind.seed();
+    await fund(seeded, 1000);
+
+    await expect(
+      allocate(seeded, { amount: 1000, priceId: null }),
+    ).resolves.toEqual({ ok: true });
+    expect(await seeded.readSelectedPriceId()).toBe(seeded.priceId);
+    expect(await readAllocated(seeded)).toBe(2000);
+  });
+
+  test("with no pick over a stored row of another list, each kind keeps its answer", async () => {
+    const seeded = await kind.seed();
+    await seeded.storePrice(seeded.foreignPriceId);
+
+    await expect(
+      allocate(seeded, { amount: 1000, priceId: null }),
+    ).resolves.toEqual({ ok: true });
+    expect(await seeded.readSelectedPriceId()).toBe(
+      kind.keptWithoutPick(seeded),
+    );
+    expect(await readAllocated(seeded)).toBe(1000);
+  });
+
+  test("a pool that runs dry rolls the pick back along with the money", async () => {
+    const seeded = await kind.seed();
+    await fund(seeded, 1000);
+    await seeded.fundPool(1500);
+
+    const result = await allocate(seeded, {
+      amount: 1000,
+      priceId: seeded.otherPriceId,
+    });
+
+    expect(result).toMatchObject({ ok: false });
+    expect(await seeded.readSelectedPriceId()).toBe(seeded.priceId);
+    expect(await readAllocated(seeded)).toBe(1000);
+    expect(await readPool(seeded)).toBe(500);
+  });
+
   test("Quitar dinero gives the amount back to the pool and the figures follow what is left", async () => {
     const seeded = await kind.seed();
-    await seeded.fund(kind.depositAmount);
+    await fund(seeded, kind.depositAmount);
     const poolBefore = await readPool(seeded);
 
     const result = await removeFromInscription({
@@ -236,7 +445,7 @@ describe.each(kinds)("the money gestures on a $kind inscription", (kind) => {
 
   test("a refused Quitar dinero leaves the money where it was", async () => {
     const seeded = await kind.seed();
-    await seeded.fund(kind.depositAmount);
+    await fund(seeded, kind.depositAmount);
     const poolBefore = await readPool(seeded);
 
     const result = await removeFromInscription({
@@ -251,7 +460,7 @@ describe.each(kinds)("the money gestures on a $kind inscription", (kind) => {
 
   test("releases exactly what the row holds above its Total", async () => {
     const seeded = await kind.seed();
-    await seeded.fund(kind.totalAmount);
+    await fund(seeded, kind.totalAmount);
     await seeded.reprice(kind.totalAmount - 2000);
     const poolBefore = await readPool(seeded);
 
@@ -268,7 +477,7 @@ describe.each(kinds)("the money gestures on a $kind inscription", (kind) => {
 
   test("refuses to release an excess the row does not have", async () => {
     const seeded = await kind.seed();
-    await seeded.fund(kind.totalAmount);
+    await fund(seeded, kind.totalAmount);
 
     await expect(releaseInscriptionExcess(scopeOf(seeded))).resolves.toEqual({
       message: inscriptionMoneyRefusals.noExcess,
@@ -279,7 +488,7 @@ describe.each(kinds)("the money gestures on a $kind inscription", (kind) => {
 
   test("refuses the retained release on a row that is not withdrawn", async () => {
     const seeded = await kind.seed();
-    await seeded.fund(kind.depositAmount);
+    await fund(seeded, kind.depositAmount);
 
     await expect(
       releaseRetainedInscriptionDeposit(scopeOf(seeded)),
@@ -292,7 +501,7 @@ describe.each(kinds)("the money gestures on a $kind inscription", (kind) => {
 
   test("a withdrawn row refuses anything between keeping and releasing all of it", async () => {
     const seeded = await kind.seed();
-    await seeded.fund(kind.depositAmount);
+    await fund(seeded, kind.depositAmount);
     await seeded.withdraw();
     const refused = {
       message: inscriptionMoneyRefusals.partialRetainedRelease,
@@ -310,7 +519,7 @@ describe.each(kinds)("the money gestures on a $kind inscription", (kind) => {
 
   test("the retained release gives everything a withdrawn row holds back to the pool", async () => {
     const seeded = await kind.seed();
-    await seeded.fund(kind.depositAmount + 1000);
+    await fund(seeded, kind.depositAmount + 1000);
     await seeded.withdraw();
     const poolBefore = await readPool(seeded);
 
@@ -333,7 +542,7 @@ describe.each(kinds)("the money gestures on a $kind inscription", (kind) => {
   describe.each(gestures)("$name", (gesture) => {
     test("moves nothing on a row of another academy, event or none at all", async () => {
       const seeded = await kind.seed();
-      await seeded.fund(kind.totalAmount);
+      await fund(seeded, kind.totalAmount);
       await seeded.reprice(kind.totalAmount - 2000);
       const scope = scopeOf(seeded);
 

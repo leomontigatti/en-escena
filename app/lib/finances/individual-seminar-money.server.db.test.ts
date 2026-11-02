@@ -13,10 +13,8 @@ import {
   paySeminarsPreset,
   readSeminarCobroPreviews,
 } from "@/lib/finances/seminar-cobro-presets.server";
-import {
-  allocateToSeminarInscription,
-  readSeminarInscriptionPriceOptions,
-} from "@/lib/finances/seminar-inscription-allocation.server";
+import { readSeminarInscriptionPriceOptions } from "@/lib/finances/seminar-inscription-price-options.server";
+import { allocateToInscription } from "@/lib/finances/inscription-money.server";
 import { readSeminarInscriptionFinanceRows } from "@/lib/finances/seminar-inscriptions.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSignedInRequest } from "@/lib/test-support/auth";
@@ -159,14 +157,13 @@ describe("an individual's seminar money", () => {
       depositAmount: priceAmount / 2,
     });
 
-    const allocated = await allocateToSeminarInscription({
+    const allocated = await allocateToInscription({
       now: new Date(),
       academyId: ownerId,
       amount: priceAmount / 2,
       eventId: fixture.event.id,
-      inscriptionId: first.id,
+      target: { id: first.id, kind: "seminar" },
       priceId: price?.id ?? null,
-      seminarId: first.seminarId,
     });
 
     expect(allocated).toEqual({ ok: true });

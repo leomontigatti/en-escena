@@ -107,7 +107,7 @@ const seminarNotFoundMessage = "No encontramos ese seminario.";
  * **Registration is unlimited.** The quota is not a cap on inscriptions: a new
  * row reserves a place when one is free (`grantSeminarReservation`), and a
  * place is kept by covering the deposit, which is a decision of the allocation path
- * (`app/lib/finances/seminar-inscription-allocation.server.ts`). An academy
+ * (`app/lib/finances/inscription-money.server.ts`). An academy
  * registers whoever it wants, into a full seminar too
  * (docs/domain/seminars.md, "The place").
  *

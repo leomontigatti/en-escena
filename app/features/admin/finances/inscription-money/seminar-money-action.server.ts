@@ -1,12 +1,10 @@
 import {
+  allocateToInscription,
   releaseInscriptionExcess,
   releaseRetainedInscriptionDeposit,
   removeFromInscription,
 } from "@/lib/finances/inscription-money.server";
-import {
-  allocateToSeminarInscription,
-  readSeminarInscriptionMoneyTarget,
-} from "@/lib/finances/seminar-inscription-allocation.server";
+import { readSeminarInscriptionMoneyTarget } from "@/lib/finances/seminar-inscription-price-options.server";
 
 import {
   allocateInscriptionIntent,
@@ -112,10 +110,10 @@ export async function runSeminarInscriptionMoneyIntent(input: {
 
   const result =
     intent === allocateInscriptionIntent
-      ? await allocateToSeminarInscription({
-          now: new Date(),
-          ...target,
+      ? await allocateToInscription({
+          ...scope,
           amount,
+          now: new Date(),
           priceId: readPickedPriceId(input.formData),
         })
       : await removeFromInscription({ ...scope, amount });

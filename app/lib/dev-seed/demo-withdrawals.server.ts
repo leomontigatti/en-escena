@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { expectOk } from "@/lib/dev-seed/expect-ok";
 import { choreographies, choreographyDancers } from "@/db/schema";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
-import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
+import { allocateToInscription } from "@/lib/finances/inscription-money.server";
 import { createSeminarPrice } from "@/lib/seminar-prices/repository.server";
 import {
   registerSeminarInscription,
@@ -102,14 +102,13 @@ export async function seedSeminarWithdrawal(input: {
       "register a seminar inscription",
     );
     expectOk(
-      await allocateToSeminarInscription({
+      await allocateToInscription({
         now: new Date(),
         academyId: input.academyId,
         amount,
         eventId: input.eventId,
-        inscriptionId,
+        target: { id: inscriptionId, kind: "seminar" },
         priceId: participantPriceId,
-        seminarId: seminar.id,
       }),
       "allocate to a seminar inscription",
     );

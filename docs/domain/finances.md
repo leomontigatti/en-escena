@@ -763,13 +763,15 @@ but the option list is not filtered by `paymentDeadline` while
 an expired deadline therefore offers options, applies none, and leaves the picker
 on its placeholder — so a row storing nothing can still be submitted without a
 price, and the refusal is what catches it. It is the only path there:
-`applySelectedPrice` is reached from `allocateToInscription` alone, which this
-dialog is the only caller of. The presets have their own `applySelectedPrices`.
+`applySelectedPrice` is reached from `allocateToInscription` alone, which on the
+admin path only this dialog calls. The presets have their own
+`applySelectedPrices`.
 
 **A seminar inscription opens the same dialog**, with its three shapes and its
 overlay, from the `(seminar, academy)` financial detail. It is the one dialog
 told which kind of target it is about, not a twin: the kind travels in the form,
-and each detail's action owns one of the two writers. Options and the locked
+and each detail's action owns one of the two kinds, over the one writer of
+`inscription-money.server.ts`. Options and the locked
 readout read `{name} · {amount} · seña {deposit}` through the same formatter; the
 picker offers only the `seminarPrice` rows already filtered to the seminar's kind
 (then `regular`) and to the person's participant cell, with no date filter and no
@@ -1027,7 +1029,7 @@ The second is queries that are not about display at all and simply do not need
 the predicate, because a withdrawn row answers their question as well as an
 active one: `readInscriptionSelectedPrices` (the price readout behind the money
 dialog) and the money gestures' own inscription lookup
-(`inscription-allocation.server.ts`, `inscription-money-choreography.server.ts`),
+(`inscription-price-options.server.ts`, `inscription-money-choreography.server.ts`),
 the price-divergence guard that asks
 whether a move would reprice any money-holding inscription of a choreography
 (`choreography-price-divergence-guard.server.ts`), and the check that refuses

@@ -47,12 +47,12 @@ import {
   spreadFromPool,
 } from "./allocation-pool.server";
 import {
-  hasCrossedStoredDepositThreshold,
   loadCandidatePriceRow,
   runCobro,
   type CobroResult,
   type Transaction,
 } from "./choreography-cobro-support.server";
+import { choreographyMoney } from "./inscription-money-choreography.server";
 
 /**
  * The threshold a cobro preset settles against: `deposit` allocates up to the
@@ -505,13 +505,14 @@ async function applySelectedPrices(
       continue;
     }
 
-    const crossed = await hasCrossedStoredDepositThreshold(tx, {
-      allocatedAmount: await readInscriptionAllocatedAmount(
+    const crossed = await choreographyMoney.hasCrossedStored(
+      tx,
+      inscription,
+      await readInscriptionAllocatedAmount(
         tx,
         choreographyTarget(inscription.id),
       ),
-      selectedPriceId: inscription.selectedPriceId,
-    });
+    );
 
     if (crossed) {
       continue;

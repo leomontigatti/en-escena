@@ -16,7 +16,7 @@ import {
   createDancer,
 } from "@/features/portal/choreographies/test-support/db";
 import { payChoreographiesPreset } from "@/lib/finances/choreography-cobro-presets.server";
-import { allocateToInscription } from "@/lib/finances/inscription-allocation.server";
+import { allocateToInscription } from "@/lib/finances/inscription-money.server";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import {
   createAcademyFinanceChoreographyFixture,
@@ -686,11 +686,11 @@ describe("payChoreographiesPreset on a choreography whose group type moved", () 
     const inscriptionId = fixture.inscriptionIds[0]!;
     const allocate = (amount: number, priceId: string | null) =>
       allocateToInscription({
+        now: new Date(),
         academyId: fixture.academyId,
         amount,
-        choreographyId: choreographyId!,
         eventId: fixture.eventId,
-        inscriptionId,
+        target: { id: inscriptionId, kind: "choreography" },
         priceId,
       });
     // 2000 against the solo row's 3000 deposit.

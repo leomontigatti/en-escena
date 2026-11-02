@@ -16,12 +16,12 @@ import { getComprobanteEmissionDeps } from "@/lib/comprobantes/emission-config.s
 import { choreographyTarget } from "@/lib/finances/allocation-target.server";
 import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
 import {
-  allocateToInscription,
   readInscriptionChoreographyId,
   readInscriptionEffectivePrices,
   readInscriptionPriceOptions,
-} from "@/lib/finances/inscription-allocation.server";
+} from "@/lib/finances/inscription-price-options.server";
 import {
+  allocateToInscription,
   releaseInscriptionExcess,
   releaseRetainedInscriptionDeposit,
   removeFromInscription,
@@ -315,11 +315,9 @@ async function runInscriptionMoneyIntent(input: {
   return moneyFailure(
     input.intent === allocateInscriptionIntent
       ? await allocateToInscription({
-          academyId: input.academyId,
+          ...scope,
           amount,
-          choreographyId: input.choreographyId,
-          eventId: input.eventId,
-          inscriptionId,
+          now: new Date(),
           priceId: readPickedPriceId(input.formData),
         })
       : await removeFromInscription({ ...scope, amount }),

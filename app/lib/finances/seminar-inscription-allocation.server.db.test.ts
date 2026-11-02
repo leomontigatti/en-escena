@@ -10,11 +10,8 @@ import {
   seminars,
 } from "@/db/schema";
 import { createDancer } from "@/lib/choreographies/registration.test-support";
-import { removeFromInscription } from "@/lib/finances/inscription-money.server";
-import {
-  allocateToSeminarInscription,
-  readSeminarInscriptionPriceOptions,
-} from "@/lib/finances/seminar-inscription-allocation.server";
+import { readSeminarInscriptionPriceOptions } from "@/lib/finances/seminar-inscription-price-options.server";
+import { allocateToInscription } from "@/lib/finances/inscription-money.server";
 import { hasCoveredSeminarInscription } from "@/lib/seminars/seminar-places.server";
 import { updateSeminar } from "@/lib/seminars/repository.server";
 import {
@@ -156,14 +153,16 @@ function allocate(
   fixture: Fixture,
   input: { amount: number; inscriptionId?: string; priceId: string | null },
 ) {
-  return allocateToSeminarInscription({
+  return allocateToInscription({
     now: new Date(),
     academyId: fixture.academyId,
     amount: input.amount,
     eventId: fixture.eventId,
-    inscriptionId: input.inscriptionId ?? fixture.inscriptionId,
+    target: {
+      id: input.inscriptionId ?? fixture.inscriptionId,
+      kind: "seminar",
+    },
     priceId: input.priceId,
-    seminarId: fixture.seminarId,
   });
 }
 
@@ -190,15 +189,6 @@ function setQuota(fixture: Fixture, quota: number) {
 /** The deposit of a non-participant row, which is what the second and third
  * inscriptions cross at. */
 const outsiderDeposit = amounts.specialOutsider / 2;
-
-async function readSelectedPriceId(inscriptionId: string) {
-  const thresholds = await db.query.seminarInscriptions.findFirst({
-    columns: { selectedPriceId: true },
-    where: eq(seminarInscriptions.id, inscriptionId),
-  });
-
-  return thresholds?.selectedPriceId ?? null;
-}
 
 describe("seminar inscription allocation", () => {
   test("offers each person only their own cell of the seminar's kind", async () => {
@@ -251,66 +241,10 @@ describe("seminar inscription allocation", () => {
     ]);
   });
 
-  test("writes the chosen price and funds the row out of the academy's pool", async () => {
+  test("a covered row freezes the seminar's kind and its own deposit rate", async () => {
     const fixture = await seedFixture();
+    await coverFirstPlace(fixture);
 
-    const result = await allocate(fixture, {
-      amount: 5000,
-      priceId: fixture.priceIds.get("specialParticipant")!,
-    });
-
-    expect(result).toEqual({ ok: true });
-    expect(await readSelectedPriceId(fixture.inscriptionId)).toBe(
-      fixture.priceIds.get("specialParticipant"),
-    );
-    // Below the deposit the row holds its money and no place.
-    expect(await hasCoveredSeminarInscription(db, fixture.seminarId)).toBe(
-      false,
-    );
-  });
-
-  test("refuses a price row of another cell", async () => {
-    const fixture = await seedFixture();
-
-    const result = await allocate(fixture, {
-      amount: 5000,
-      priceId: fixture.priceIds.get("specialOutsider")!,
-    });
-
-    expect(result).toEqual({
-      ok: false,
-      message: "No encontramos esa fila de precio.",
-    });
-    expect(await readSelectedPriceId(fixture.inscriptionId)).toBeNull();
-  });
-
-  test("locks the price once the deposit is covered and opens it again when money leaves", async () => {
-    const fixture = await seedFixture();
-    // A second row of the same cell, which is what there has to be for a switch
-    // to be refusable at all.
-    const [lateRow] = await db
-      .insert(seminarPrices)
-      .values({
-        amount: amounts.specialParticipant + 5000,
-        eventId: fixture.eventId,
-        forParticipants: true,
-        kind: "special",
-        name: "Precio tardío",
-        paymentDeadline: "2030-09-01",
-      })
-      .returning();
-
-    await allocate(fixture, {
-      amount: amounts.specialParticipant / 2,
-      priceId: fixture.priceIds.get("specialParticipant")!,
-    });
-
-    expect(await hasCoveredSeminarInscription(db, fixture.seminarId)).toBe(
-      true,
-    );
-
-    // A covered row freezes the seminar's kind and its own deposit rate, which
-    // is the guard slice 1 left behind this predicate.
     await expect(
       updateSeminar(fixture.seminarId, {
         instructorName: "Abril Sosa",
@@ -321,52 +255,6 @@ describe("seminar inscription allocation", () => {
         startTime: "18:30",
       }),
     ).resolves.toMatchObject({ ok: false, code: "covered-inscriptions" });
-
-    const refused = await allocate(fixture, {
-      amount: 1000,
-      priceId: lateRow.id,
-    });
-
-    expect(refused.ok).toBe(false);
-    expect(await readSelectedPriceId(fixture.inscriptionId)).toBe(
-      fixture.priceIds.get("specialParticipant"),
-    );
-
-    // Taking money off until the row falls back below its deposit is what opens
-    // the picker again.
-    await removeFromInscription({
-      academyId: fixture.academyId,
-      amount: 1,
-      eventId: fixture.eventId,
-      target: { id: fixture.inscriptionId, kind: "seminar" },
-    });
-
-    const accepted = await allocate(fixture, {
-      amount: 1,
-      priceId: lateRow.id,
-    });
-
-    expect(accepted).toEqual({ ok: true });
-    expect(await readSelectedPriceId(fixture.inscriptionId)).toBe(lateRow.id);
-  });
-
-  test("refuses to move money onto an inscription of another academy", async () => {
-    const fixture = await seedFixture();
-
-    const result = await allocateToSeminarInscription({
-      now: new Date(),
-      academyId: fixture.academyId,
-      amount: 1000,
-      eventId: fixture.eventId,
-      inscriptionId: fixture.outsiderInscriptionId,
-      priceId: fixture.priceIds.get("specialOutsider")!,
-      seminarId: fixture.seminarId,
-    });
-
-    expect(result).toEqual({
-      ok: false,
-      message: "No encontramos esa inscripción.",
-    });
   });
 
   test("refuses the crossing that would take a place a full seminar has none of, and lets a partial allocation through", async () => {
@@ -529,7 +417,7 @@ describe("seminar inscription allocation", () => {
   });
 
   /**
-   * `loadSeminarMoneyContext` takes the seminar row `FOR UPDATE` before it
+   * `seminarMoney` takes the seminar row `FOR UPDATE` before it
    * counts the covered inscriptions, so two crossings racing for the last place
    * are serialised: the second counts after the first has committed, finds the
    * quota full, and is refused.

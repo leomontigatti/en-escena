@@ -7,6 +7,10 @@ export const inscriptionMoneyRefusals = {
   inscriptionNotFound: "No encontramos esa inscripción.",
   noExcess: "Esta inscripción no tiene excedente para liberar.",
   notWithdrawn: "Esta inscripción no está retirada.",
+  pickPrice: "Elegí un precio para la inscripción.",
+  priceFixed:
+    "El precio queda fijo desde que la inscripción cubre su seña. Para cambiarlo hay que quitarle dinero hasta dejarla por debajo de la seña.",
+  unknownPriceRow: "No encontramos esa fila de precio.",
   /**
    * `Quitar dinero` with an amount, or `Liberar` just the excess, on a withdrawn
    * row: an amount in between the two outcomes is what the clause forbids.

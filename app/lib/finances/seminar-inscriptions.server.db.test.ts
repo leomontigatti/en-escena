@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { seminarInscriptions } from "@/db/schema";
 import { createDancer } from "@/lib/choreographies/registration.test-support";
-import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
+import { allocateToInscription } from "@/lib/finances/inscription-money.server";
 import { readSeminarInscriptionFinanceRows } from "@/lib/finances/seminar-inscriptions.server";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { seedEventSeminarFinanceFixture } from "@/lib/admin/finances/seminar-finances.test-support";
@@ -19,14 +19,13 @@ describe("readSeminarInscriptionFinanceRows", () => {
   test("reads every seminar inscription of the event, each with its academy and its seminar", async () => {
     const fixture = await seedEventSeminarFinanceFixture();
     await seedInscriptionInAnotherEvent(fixture.northAcademyId);
-    await allocateToSeminarInscription({
+    await allocateToInscription({
       now: new Date(),
       academyId: fixture.northAcademyId,
       amount: 10000,
       eventId: fixture.eventId,
-      inscriptionId: fixture.anaInscriptionId,
+      target: { id: fixture.anaInscriptionId, kind: "seminar" },
       priceId: fixture.priceId,
-      seminarId: fixture.abrilSeminarId,
     });
 
     const rows = await readSeminarInscriptionFinanceRows(

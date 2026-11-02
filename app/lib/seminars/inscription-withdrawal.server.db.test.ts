@@ -13,8 +13,10 @@ import {
   readAcademyAvailableBalance,
   readInscriptionAllocatedAmount,
 } from "@/lib/finances/allocation-pool.server";
-import { releaseRetainedInscriptionDeposit } from "@/lib/finances/inscription-money.server";
-import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
+import {
+  allocateToInscription,
+  releaseRetainedInscriptionDeposit,
+} from "@/lib/finances/inscription-money.server";
 import {
   deleteSeminarInscriptionForAcademy,
   registerSeminarInscription,
@@ -137,14 +139,13 @@ async function allocate(
   fixture: Fixture,
   input: { amount: number; inscriptionId: string },
 ) {
-  const result = await allocateToSeminarInscription({
+  const result = await allocateToInscription({
     now: new Date(),
     academyId: fixture.academyId,
     amount: input.amount,
     eventId: fixture.eventId,
-    inscriptionId: input.inscriptionId,
+    target: { id: input.inscriptionId, kind: "seminar" },
     priceId: fixture.priceId,
-    seminarId: fixture.seminarId,
   });
 
   if (!result.ok) {

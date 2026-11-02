@@ -25,10 +25,8 @@ import { readAnchorBilling } from "@/lib/comprobantes/anchor-billing.server";
 import { type ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
 import { getComprobanteEmissionDeps } from "@/lib/comprobantes/emission-config.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
-import {
-  readSeminarInscriptionPriceOptions,
-  type SeminarInscriptionPriceOption,
-} from "@/lib/finances/seminar-inscription-allocation.server";
+import { readSeminarInscriptionPriceOptions } from "@/lib/finances/seminar-inscription-price-options.server";
+import type { InscriptionPriceOption } from "@/lib/finances/inscription-price";
 import { readSeminarInscriptionFinanceRows } from "@/lib/finances/seminar-inscriptions.server";
 import { getSeminar } from "@/lib/seminars/repository.server";
 import { readFormData } from "@/lib/shared/read-form-data";
@@ -70,10 +68,7 @@ export async function loadSeminarFinanceDetail(input: {
       comprobantes: [],
       inscriptions: [],
       invoicing: null,
-      priceOptionsByInscription: {} as Record<
-        string,
-        SeminarInscriptionPriceOption[]
-      >,
+      priceOptionsByInscription: {} as Record<string, InscriptionPriceOption[]>,
       seminar: null,
       selectedEventId: null,
     };
