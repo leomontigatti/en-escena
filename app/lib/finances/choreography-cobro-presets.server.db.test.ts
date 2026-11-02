@@ -348,6 +348,108 @@ describe("chargeThreshold on choreographies with a picked price that is not toda
   });
 });
 
+describe("chargeThreshold on choreographies with a stored price and no pick", () => {
+  test.each([
+    { allocated: 8000, amount: 8000, onRow: 0, stage: "balance" },
+    { allocated: 2400, amount: 8000, onRow: 0, stage: "deposit" },
+    { allocated: 8000, amount: 8000, onRow: 1000, stage: "balance" },
+    { allocated: 2400, amount: 8000, onRow: 1000, stage: "deposit" },
+    { allocated: 12000, amount: 12000, onRow: 0, stage: "balance" },
+    { allocated: 3600, amount: 12000, onRow: 0, stage: "deposit" },
+  ] as const)(
+    "charges the $stage of the stored $amount row with $onRow on it",
+    async ({ allocated, amount, onRow, stage }) => {
+      const fixture = await seedPresetFixture([20000]);
+      const [stored] = await insertTestPrices([
+        {
+          amount,
+          eventId: fixture.eventId,
+          groupType: "solo",
+          name: "Precio Solo vencido",
+          paymentDeadline: "2026-02-28",
+        },
+      ]);
+      const [inscriptionId] = fixture.inscriptionIds;
+
+      await db
+        .update(choreographyDancers)
+        .set({ selectedPriceId: stored.id })
+        .where(eq(choreographyDancers.id, inscriptionId));
+
+      if (onRow > 0) {
+        await allocateToInscription({
+          academyId: fixture.academyId,
+          amount: onRow,
+          eventId: fixture.eventId,
+          now: new Date(),
+          priceId: stored.id,
+          target: { id: inscriptionId, kind: "choreography" },
+        });
+      }
+
+      const result = await chargeThreshold({
+        kind: "choreography",
+        academyId: fixture.academyId,
+        choreographyIds: [fixture.choreographyIds[0]],
+        eventId: fixture.eventId,
+        priceIdByGroupType: {},
+        stage,
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(
+        sumByInscription(await readAllocations([inscriptionId])).get(
+          inscriptionId,
+        ),
+      ).toBe(allocated);
+
+      const [row] = await db
+        .select({ selectedPriceId: choreographyDancers.selectedPriceId })
+        .from(choreographyDancers)
+        .where(eq(choreographyDancers.id, inscriptionId));
+
+      expect(row.selectedPriceId).toBe(stored.id);
+    },
+  );
+
+  test("charges today's row beside it on an inscription storing none", async () => {
+    const fixture = await seedPresetFixture([20000]);
+    const [stored] = await insertTestPrices([
+      {
+        amount: 8000,
+        eventId: fixture.eventId,
+        groupType: "solo",
+        name: "Precio Solo vencido",
+        paymentDeadline: "2026-02-28",
+      },
+    ]);
+    const [storing, storingNone] = fixture.inscriptionIds;
+
+    await db
+      .update(choreographyDancers)
+      .set({ selectedPriceId: stored.id })
+      .where(eq(choreographyDancers.id, storing));
+
+    const result = await chargeThreshold({
+      kind: "choreography",
+      academyId: fixture.academyId,
+      choreographyIds: fixture.choreographyIds,
+      eventId: fixture.eventId,
+      priceIdByGroupType: {},
+      stage: "balance",
+    });
+
+    expect(result).toEqual({ ok: true });
+
+    const totals = sumByInscription(
+      await readAllocations(fixture.inscriptionIds),
+    );
+
+    expect(totals.get(storing)).toBe(8000);
+    expect(totals.get(storingNone)).toBe(10000);
+  });
+});
+
 describe("chargeThreshold on choreographies with a pick whose deposit cannot fit", () => {
   const refusalOf = (price: string) =>
     `No se puede aplicar el precio de ${price} a Bailarín 0 Preset: la seña de ese precio supera lo que la inscripción adeuda.`;

@@ -46,6 +46,8 @@ describe("sumPresetOwedAmount", () => {
             id: "inscription_1",
             owedBalanceAmount: 4,
             owedDepositAmount: 0,
+            storedDepositAmount: null,
+            storedPriceAmount: null,
           }),
         ],
         pickedPriceByGroupType: {},
@@ -234,6 +236,7 @@ describe("sumPresetOwedAmount", () => {
       owedBalanceAmount: null,
       owedDepositAmount: null,
       storedDepositAmount: null,
+      storedPriceAmount: null,
     });
 
     expect(
@@ -311,6 +314,7 @@ describe("hasRePriceableInscription", () => {
           allocatedAmount: 9000,
           id: "unstored",
           storedDepositAmount: null,
+          storedPriceAmount: null,
         }),
       ]),
     ).toBe(true);
@@ -426,6 +430,34 @@ describe("resolveCurrentPriceId", () => {
   });
 });
 
+describe("sumPresetOwedAmount with no pick on a stored row", () => {
+  test.each([
+    { amount: 8000, owed: 8000, stage: "balance" },
+    { amount: 8000, owed: 2400, stage: "deposit" },
+    { amount: 12000, owed: 12000, stage: "balance" },
+    { amount: 12000, owed: 3600, stage: "deposit" },
+  ] as const)(
+    "says the $stage of the stored $amount row, as the write charges it",
+    ({ amount, owed, stage }) => {
+      expect(
+        sumPresetOwedAmount({
+          groupTypeByChoreography: { choreography_1: "solo" },
+          inscriptions: [
+            inscriptionFixture({
+              id: "inscription_1",
+              storedDepositAmount: amount * 0.3,
+              storedPriceAmount: amount,
+            }),
+          ],
+          pickedPriceByGroupType: {},
+          requiredDepositPercentage: 30,
+          stage,
+        }),
+      ).toEqual({ amount: owed, status: "complete" });
+    },
+  );
+});
+
 function inscriptionFixture(
   overrides: Partial<PresetInscription> & { id: string },
 ): PresetInscription {
@@ -439,6 +471,7 @@ function inscriptionFixture(
     owedBalanceAmount: 10000,
     owedDepositAmount: 3000,
     storedDepositAmount: 3000,
+    storedPriceAmount: 10000,
     withdrawn: false,
     ...overrides,
   };

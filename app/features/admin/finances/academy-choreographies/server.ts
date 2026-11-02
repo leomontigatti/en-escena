@@ -79,7 +79,7 @@ export async function loadAcademyFinances(input: {
     financeDetail,
     linkedInscriptions,
     presetPricing,
-    storedDepositByInscription,
+    storedPriceByInscription,
     pricingScheduleIdByChoreography,
     seminarPresetPreviews,
   ] =
@@ -95,7 +95,7 @@ export async function loadAcademyFinances(input: {
           [],
           // No event lists no row, so no dialog reads the percentage.
           { priceOptionsByGroupType: {}, requiredDepositPercentage: 0 },
-          new Map<string, number>(),
+          new Map<string, StoredPrice>(),
           {} as Record<string, string | null>,
           {} as Record<string, SeminarCobroPreview>,
         ]
@@ -109,7 +109,7 @@ export async function loadAcademyFinances(input: {
             eventId: eventContext.selectedEventId,
           }),
           readPresetPricing(eventContext.selectedEventId),
-          readStoredDepositByInscription({
+          readStoredPriceByInscription({
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
           }),
@@ -163,7 +163,7 @@ export async function loadAcademyFinances(input: {
     inscriptions: financeDetail.inscriptions.map((inscription) =>
       toPresetInscription(
         inscription,
-        storedDepositByInscription.get(inscription.id) ?? null,
+        storedPriceByInscription.get(inscription.id),
       ),
     ),
     ...presetPricing,
@@ -364,7 +364,7 @@ function readPriceSelection(formData: FormData): Record<string, string> {
  */
 function toPresetInscription(
   inscription: ResolvedInscription,
-  storedDepositAmount: number | null,
+  stored: StoredPrice | undefined,
 ): PresetInscription {
   return {
     allocatedAmount: inscription.allocatedAmount,
@@ -376,20 +376,23 @@ function toPresetInscription(
     id: inscription.id,
     owedBalanceAmount: inscription.owedBalanceAmount,
     owedDepositAmount: inscription.owedDepositAmount,
-    storedDepositAmount,
+    storedDepositAmount: stored?.depositAmount ?? null,
+    storedPriceAmount: stored?.priceAmount ?? null,
     withdrawn: inscription.withdrawn,
   };
 }
 
+type StoredPrice = { depositAmount: number; priceAmount: number };
+
 /**
- * The deposit of the row each inscription **stores**, by inscription, leaving
- * out the ones with none. The finance reader resolves the effective row only,
- * and it is the stored one the writer tests a pick against.
+ * The row each inscription **stores**, by inscription, leaving out the ones with
+ * none. The finance reader resolves the effective row only, and it is the stored
+ * one the writer tests a pick against and charges with no pick.
  */
-async function readStoredDepositByInscription(input: {
+async function readStoredPriceByInscription(input: {
   academyId: string;
   eventId: string;
-}): Promise<Map<string, number>> {
+}): Promise<Map<string, StoredPrice>> {
   const rows = await db
     .select({
       id: choreographyDancers.id,
@@ -410,7 +413,15 @@ async function readStoredDepositByInscription(input: {
       ),
     );
 
-  return new Map(rows.map((row) => [row.id, calculateDepositAmount(row)]));
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      {
+        depositAmount: calculateDepositAmount(row),
+        priceAmount: row.priceAmount,
+      },
+    ]),
+  );
 }
 
 /**

@@ -27,9 +27,10 @@ import type { PresetPriceOption } from "./presets";
  * It is the shape the loader trims `ResolvedInscription` down to: the figures
  * already derived, plus what it takes to re-derive them against another price.
  *
- * `storedDepositAmount` is the deposit of the row the inscription **stores**,
- * `null` with none stored: the one a pick is tested against, as the writer does.
- * The effective deposit is not it: below the stored deposit that is today's row.
+ * `storedPriceAmount` and `storedDepositAmount` are the row the inscription
+ * **stores**, `null` with none stored: the one a pick is tested against and the
+ * one the write charges with no pick. The effective row is not it: below the
+ * stored deposit that is today's row.
  */
 export type PresetInscription = {
   allocatedAmount: number;
@@ -44,14 +45,15 @@ export type PresetInscription = {
   owedBalanceAmount: number | null;
   owedDepositAmount: number | null;
   storedDepositAmount: number | null;
+  storedPriceAmount: number | null;
   withdrawn: boolean;
 };
 
 /**
  * What the selection owes against the stage, projected through the prices picked
- * right now. With nothing picked it is what the write charges at the price in
- * effect, which is the number the choreography rows carry except on a deposit
- * that rounds to zero.
+ * right now. With nothing picked it is what the write charges at the row stored,
+ * or at the price in effect with none, which is the number the choreography rows
+ * carry except on a deposit that rounds to zero or a stored row below its deposit.
  *
  * It sums the inscriptions rather than the choreography rows because a pick does
  * not reach all of them — it stops at the ones that have covered their deposit —
@@ -89,10 +91,9 @@ export function sumPresetOwedAmount(input: {
 
 /**
  * One inscription's shortfall against the stage, planned as the writer plans it:
- * at the picked row when the pick reaches it, and at the price in effect when it
- * does not, which is no pick for that group type or a deposit already covered.
- * What the write skips keeps the loader's figure: a row off the roster and a
- * waived one.
+ * at the picked row when the pick reaches it, and otherwise at the row it stores,
+ * or at the price in effect with none stored. What the write skips keeps the
+ * loader's figure: a row off the roster and a waived one.
  *
  * One deliberate approximation: the `Descuento por bailarín` is the row's own.
  * It is derived from the roster's prices, so a pick moves it, but the projection
@@ -121,16 +122,16 @@ function resolvePresetOwedAmount(input: {
     priceRow:
       price !== null && canBeRePriced(inscription)
         ? price
-        : priceInEffect(inscription),
+        : chargedRowWithoutPick(inscription),
     requiredDepositPercentage: input.requiredDepositPercentage,
     stage: input.stage,
   }).owedAmount;
 }
 
-function priceInEffect(inscription: PresetInscription) {
-  return inscription.basePriceAmount === null
-    ? null
-    : { amount: inscription.basePriceAmount };
+function chargedRowWithoutPick(inscription: PresetInscription) {
+  const amount = inscription.storedPriceAmount ?? inscription.basePriceAmount;
+
+  return amount === null ? null : { amount };
 }
 
 /**
