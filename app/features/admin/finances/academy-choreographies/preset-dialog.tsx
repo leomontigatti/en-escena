@@ -98,6 +98,7 @@ export function FinancePresetDialog({
   open,
   priceOptionsByGroupType,
   pricingScheduleIdByChoreography,
+  requiredDepositPercentage,
   selectedRows,
   stage,
 }: {
@@ -107,6 +108,7 @@ export function FinancePresetDialog({
   open: boolean;
   priceOptionsByGroupType: Record<string, PresetPriceOption[]>;
   pricingScheduleIdByChoreography: Record<string, string | null>;
+  requiredDepositPercentage: number;
   selectedRows: ChoreographyFinanceRow[];
   stage: CobroStage;
 }) {
@@ -150,6 +152,7 @@ export function FinancePresetDialog({
       priceFields,
       priceIdByGroupType,
     }),
+    requiredDepositPercentage,
     stage,
   });
   const isBalanceShort = isPresetBalanceShort({

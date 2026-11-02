@@ -11,8 +11,6 @@
 
 import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
 import {
-  calculateTotalAmount,
-  deriveInscriptionFinancialFigures,
   hasCrossedDepositThreshold,
   type InscriptionFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
@@ -20,6 +18,7 @@ import {
   buildOperationalFinanceAmount,
   type OperationalFinanceAmount,
 } from "@/lib/finances/operational-summary";
+import { planThresholdCharge } from "@/lib/finances/threshold-charge";
 
 import type { PresetPriceOption } from "./presets";
 
@@ -27,6 +26,10 @@ import type { PresetPriceOption } from "./presets";
  * An inscription of the academy, as much of it as the dialog's projection needs.
  * It is the shape the loader trims `ResolvedInscription` down to: the figures
  * already derived, plus what it takes to re-derive them against another price.
+ *
+ * `storedDepositAmount` is the deposit of the row the inscription **stores**,
+ * `null` with none stored: the one a pick is tested against, as the writer does.
+ * The effective deposit is not it: below the stored deposit that is today's row.
  */
 export type PresetInscription = {
   allocatedAmount: number;
@@ -34,13 +37,13 @@ export type PresetInscription = {
   basePriceId: string | null;
   choreographyId: string;
   dancerDiscountAmount: number;
-  depositAmount: number | null;
   // Required, so a loader that drops it fails to typecheck: without it a
   // waived inscription would be re-priced in the projection.
   financialStatus: InscriptionFinancialStatus;
   id: string;
   owedBalanceAmount: number | null;
   owedDepositAmount: number | null;
+  storedDepositAmount: number | null;
   withdrawn: boolean;
 };
 
@@ -57,6 +60,7 @@ export function sumPresetOwedAmount(input: {
   groupTypeByChoreography: Record<string, string>;
   inscriptions: PresetInscription[];
   pickedPriceByGroupType: Record<string, PresetPriceOption>;
+  requiredDepositPercentage: number;
   stage: CobroStage;
 }): OperationalFinanceAmount {
   let amount = 0;
@@ -67,6 +71,7 @@ export function sumPresetOwedAmount(input: {
     const owed = resolvePresetOwedAmount({
       inscription,
       price: (groupType && input.pickedPriceByGroupType[groupType]) || null,
+      requiredDepositPercentage: input.requiredDepositPercentage,
       stage: input.stage,
     });
 
@@ -88,17 +93,15 @@ export function sumPresetOwedAmount(input: {
  * pick for that group type, a row off the roster, and an inscription that has
  * covered its deposit — which is the crossing that fixes the price.
  *
- * Two deliberate approximations, both the same ones the single inscription's
- * dialog makes. The crossing is tested against the **effective** deposit while
- * the writer tests the **stored** one, which can only differ when the price list
- * moved down under a row holding money, and errs on the strict side. And the
- * `Descuento por bailarín` is the row's own: it is derived from the roster's
- * prices, so a pick moves it, but the projection keeps it rather than re-deriving
- * a discount across the whole academy. The write recomputes both.
+ * One deliberate approximation: the `Descuento por bailarín` is the row's own.
+ * It is derived from the roster's prices, so a pick moves it, but the projection
+ * keeps it rather than re-deriving a discount across the whole academy. The
+ * write recomputes it.
  */
 function resolvePresetOwedAmount(input: {
   inscription: PresetInscription;
   price: PresetPriceOption | null;
+  requiredDepositPercentage: number;
   stage: CobroStage;
 }): number | null {
   const { inscription, price } = input;
@@ -109,20 +112,15 @@ function resolvePresetOwedAmount(input: {
       : inscription.owedBalanceAmount;
   }
 
-  const figures = deriveInscriptionFinancialFigures({
+  return planThresholdCharge({
     allocatedAmount: inscription.allocatedAmount,
-    thresholds: {
-      depositAmount: price.depositAmount,
-      totalAmount: calculateTotalAmount({
-        dancerDiscountAmount: inscription.dancerDiscountAmount,
-        priceAmount: price.amount,
-      }),
-    },
-  });
-
-  return input.stage === "deposit"
-    ? figures.owedDepositAmount
-    : figures.owedBalanceAmount;
+    // Below its stored deposit, which is what `canBeRePriced` just said.
+    covered: false,
+    dancerDiscountAmount: inscription.dancerDiscountAmount,
+    priceRow: price,
+    requiredDepositPercentage: input.requiredDepositPercentage,
+    stage: input.stage,
+  }).owedAmount;
 }
 
 /**
@@ -176,8 +174,8 @@ export function hasRePriceableInscription(
 /**
  * Whether a pick reaches an inscription at all, which is the writer's own rule:
  * off the roster it is not touched, a waived one owes nothing whatever its
- * price, and once its deposit is covered its price is fixed — money on the row
- * does not fix it, only the crossing does.
+ * price, and once the deposit of the row it stores is covered its price is fixed
+ * — money on the row does not fix it, only the crossing does.
  */
 function canBeRePriced(inscription: PresetInscription): boolean {
   return (
@@ -185,7 +183,7 @@ function canBeRePriced(inscription: PresetInscription): boolean {
     inscription.financialStatus !== "waived" &&
     !hasCrossedDepositThreshold({
       allocatedAmount: inscription.allocatedAmount,
-      depositAmount: inscription.depositAmount,
+      depositAmount: inscription.storedDepositAmount,
     })
   );
 }
