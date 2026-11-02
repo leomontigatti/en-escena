@@ -63,7 +63,7 @@ export async function loadSeminarInscriptionFinances(request: Request) {
 }
 
 /**
- * The money dialog's three gestures, posted from the list. A write that went
+ * The money dialog's four gestures, posted from the list. A write that went
  * through stays on the list (form-feedback: a dialog over a list does not
  * redirect): the loader revalidates, the row shows its new figures and the
  * success is toasted.
