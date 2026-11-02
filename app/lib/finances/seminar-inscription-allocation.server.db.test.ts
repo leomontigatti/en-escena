@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -11,7 +11,12 @@ import {
 } from "@/db/schema";
 import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { readSeminarInscriptionPriceOptions } from "@/lib/finances/seminar-inscription-price-options.server";
+import {
+  readAcademyAvailableBalance,
+  readInscriptionAllocatedAmount,
+} from "@/lib/finances/allocation-pool.server";
 import { allocateToInscription } from "@/lib/finances/inscription-money.server";
+import { seminarNoPlacesForDepositMessage } from "@/lib/seminars/registration-refusals";
 import { hasCoveredSeminarInscription } from "@/lib/seminars/seminar-places.server";
 import { updateSeminar } from "@/lib/seminars/repository.server";
 import {
@@ -184,6 +189,24 @@ function setQuota(fixture: Fixture, quota: number) {
     .update(seminars)
     .set({ quota })
     .where(eq(seminars.id, fixture.seminarId));
+}
+
+/** Leaves a row of the other participant cell stored, as a person who started
+ * or stopped dancing after it was charged would. */
+function storeStaleRow(inscriptionId: string, priceId: string) {
+  return db
+    .update(seminarInscriptions)
+    .set({ selectedPriceId: priceId })
+    .where(eq(seminarInscriptions.id, inscriptionId));
+}
+
+async function readSelectedPriceId(inscriptionId: string) {
+  const [row] = await db
+    .select({ selectedPriceId: seminarInscriptions.selectedPriceId })
+    .from(seminarInscriptions)
+    .where(eq(seminarInscriptions.id, inscriptionId));
+
+  return row?.selectedPriceId ?? null;
 }
 
 /** The deposit of a non-participant row, which is what the second and third
@@ -364,6 +387,80 @@ describe("seminar inscription allocation", () => {
       message:
         "No quedan lugares en el seminario, así que esta inscripción no puede cubrir su seña.",
     });
+  });
+
+  test("with no pick, refuses a row of the other cell when no row of its own is in effect, and moves nothing", async () => {
+    const fixture = await seedFixture();
+    const stale = fixture.priceIds.get("specialOutsider")!;
+    await storeStaleRow(fixture.inscriptionId, stale);
+    await db
+      .delete(seminarPrices)
+      .where(
+        inArray(seminarPrices.id, [
+          fixture.priceIds.get("regularParticipant")!,
+          fixture.priceIds.get("specialParticipant")!,
+        ]),
+      );
+    const target = { id: fixture.inscriptionId, kind: "seminar" as const };
+    const poolBefore = await readAcademyAvailableBalance(db, fixture);
+
+    await expect(
+      allocate(fixture, { amount: 1000, priceId: null }),
+    ).resolves.toMatchObject({ ok: false });
+
+    expect(await readSelectedPriceId(fixture.inscriptionId)).toBe(stale);
+    expect(await readInscriptionAllocatedAmount(db, target)).toBe(0);
+    expect(await readAcademyAvailableBalance(db, fixture)).toBe(poolBefore);
+  });
+
+  test("with no pick, money that only reaches a stale row's deposit takes no place in a full seminar", async () => {
+    const fixture = await seedFixture();
+    await coverFirstPlace(fixture);
+    await setQuota(fixture, 1);
+    await storeStaleRow(
+      fixture.secondInscriptionId,
+      fixture.priceIds.get("specialParticipant")!,
+    );
+
+    // 20000 covers the stale row's deposit, but the row in effect asks 25000.
+    await expect(
+      allocate(fixture, {
+        amount: amounts.specialParticipant / 2,
+        inscriptionId: fixture.secondInscriptionId,
+        priceId: null,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    expect(await readSelectedPriceId(fixture.secondInscriptionId)).toBe(
+      fixture.priceIds.get("specialOutsider")!,
+    );
+  });
+
+  test("with no pick, judges the quota against the deposit of the row in effect, which the stale row would have left uncovered", async () => {
+    const fixture = await seedFixture();
+    const stale = fixture.priceIds.get("specialOutsider")!;
+    await expect(
+      allocate(fixture, {
+        amount: outsiderDeposit,
+        inscriptionId: fixture.secondInscriptionId,
+        priceId: stale,
+      }),
+    ).resolves.toEqual({ ok: true });
+    await setQuota(fixture, 1);
+    await storeStaleRow(fixture.inscriptionId, stale);
+
+    // 20000 is the row in effect's deposit, and short of the stale row's 25000.
+    await expect(
+      allocate(fixture, {
+        amount: amounts.specialParticipant / 2,
+        priceId: null,
+      }),
+    ).resolves.toEqual({
+      message: seminarNoPlacesForDepositMessage,
+      ok: false,
+    });
+
+    expect(await readSelectedPriceId(fixture.inscriptionId)).toBe(stale);
   });
 
   test("lets a reserved registration cover its own deposit in a seminar its reservation fills", async () => {

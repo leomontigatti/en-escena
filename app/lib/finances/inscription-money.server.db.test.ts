@@ -69,8 +69,6 @@ const kinds = [
   {
     depositAmount: 3000,
     kind: "choreography",
-    // The row in effect replaces a stored row of another group type (#660).
-    keptWithoutPick: (seeded: SeededInscription) => seeded.priceId,
     refusedForEvent: choreographyNotFoundMessage,
     refusedForAcademy: choreographyNotFoundMessage,
     seed: seedChoreographyInscription,
@@ -79,8 +77,6 @@ const kinds = [
   {
     depositAmount: 10000,
     kind: "seminar",
-    // The stored row stays, whatever its cell.
-    keptWithoutPick: (seeded: SeededInscription) => seeded.foreignPriceId,
     refusedForEvent: "No encontramos ese seminario.",
     refusedForAcademy: inscriptionMoneyRefusals.inscriptionNotFound,
     seed: seedSeminarInscription,
@@ -384,27 +380,25 @@ describe.each(kinds)("the money gestures on a $kind inscription", (kind) => {
     expect(await readAllocated(seeded)).toBe(0);
   });
 
-  test("with no pick, the stored row keeps pricing a row below its deposit", async () => {
+  test("with no pick, a stored row of its own list keeps pricing a row below its deposit", async () => {
     const seeded = await kind.seed();
-    await fund(seeded, 1000);
+    await allocate(seeded, { amount: 1000, priceId: seeded.otherPriceId });
 
     await expect(
       allocate(seeded, { amount: 1000, priceId: null }),
     ).resolves.toEqual({ ok: true });
-    expect(await seeded.readSelectedPriceId()).toBe(seeded.priceId);
+    expect(await seeded.readSelectedPriceId()).toBe(seeded.otherPriceId);
     expect(await readAllocated(seeded)).toBe(2000);
   });
 
-  test("with no pick over a stored row of another list, each kind keeps its answer", async () => {
+  test("with no pick over a stored row of another list, the row in effect replaces it", async () => {
     const seeded = await kind.seed();
     await seeded.storePrice(seeded.foreignPriceId);
 
     await expect(
       allocate(seeded, { amount: 1000, priceId: null }),
     ).resolves.toEqual({ ok: true });
-    expect(await seeded.readSelectedPriceId()).toBe(
-      kind.keptWithoutPick(seeded),
-    );
+    expect(await seeded.readSelectedPriceId()).toBe(seeded.priceId);
     expect(await readAllocated(seeded)).toBe(1000);
   });
 

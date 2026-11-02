@@ -394,8 +394,8 @@ type)` among the special ones, enforced by `price_general_unique` and
 
 **A seminar inscription is priced the same way**
 `seminarInscription.selectedPriceId` is nullable, references a
-`seminarPrice` row, is written only by the allocation dialog, and the effective
-row is `crossed ? stored : (current ?? stored)` through the same owner,
+`seminarPrice` row, is written by the allocation dialog and the seminar presets,
+and the effective row is `crossed ? stored : (current ?? stored)` through the same owner,
 `resolveEffectiveBasePriceRow`, fed the seminar's own
 `requiredDepositPercentage` and a candidate set with **no schedule or group-type
 axis**: the event's `seminarPrice` rows of the seminar's `seminarKind` for the
@@ -405,7 +405,9 @@ among them through `selectApplicablePriceCandidate`, one call into the owner. Th
 stored row carries its own `forParticipants` flag, so the crossing freezes the
 tier and the participant fact in one column and nothing else is persisted. The
 picker offers the same candidate set with no date filter, as the choreography
-picker does. A price row referenced by any seminar inscription cannot be deleted
+picker does. A stored row of the other participant cell is replaced below the
+deposit as a stored row of another group type is (#660): with none submitted the
+server stores the row in effect, and refuses when the cell has none. A price row referenced by any seminar inscription cannot be deleted
 or restructured, and a seminar's kind cannot flip while any of its inscriptions
 is covered — which closes, for seminars, the known divergence below. The
 `Señada`-without-a-place band this creates for the seminar quota is named in
