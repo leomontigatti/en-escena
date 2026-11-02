@@ -167,3 +167,5 @@ cover that case.
   is a better-auth minor, which can require a schema migration (#984). A
   major, or any bump by hand, targets the newest release at least three days
   old, not the version an issue's title names.
+
+Probe of a draft PR's merge state; this PR is closed unmerged.
