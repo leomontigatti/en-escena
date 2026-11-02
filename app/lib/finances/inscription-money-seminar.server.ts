@@ -20,6 +20,7 @@ import { seminarInscriptions, seminarPrices } from "@/db/schema";
 import { hasCrossedDepositThreshold } from "@/lib/finances/inscription-financial-status";
 import {
   deriveSeminarInscriptionThresholds,
+  selectCurrentSeminarPriceRow,
   selectSeminarPriceCandidates,
 } from "@/lib/finances/seminar-inscription-price";
 import {
@@ -51,6 +52,9 @@ type SeminarPricingContext = PricingContext & {
   forParticipants: boolean;
   seminar: LockedSeminar;
 };
+
+const storedRowOfTheOtherCellMessage =
+  "La inscripción guarda un precio que ya no corresponde a esta persona y ninguno de los suyos aplica hoy. Revisá los precios del evento.";
 
 async function lockInscription(tx: Transaction, scope: InscriptionMoneyScope) {
   // The seminar's lock comes first, so the row is read once to learn which
@@ -101,6 +105,12 @@ async function lockInscription(tx: Transaction, scope: InscriptionMoneyScope) {
   }
 
   return { ok: true as const, inscription, seminar };
+}
+
+function readEventPriceRows(tx: Transaction, eventId: string) {
+  return tx.query.seminarPrices.findMany({
+    where: eq(seminarPrices.eventId, eventId),
+  });
 }
 
 export const seminarMoney = {
@@ -160,21 +170,38 @@ export const seminarMoney = {
   },
 
   async candidate(tx, context, priceId) {
-    const priceRows = await tx.query.seminarPrices.findMany({
-      where: eq(seminarPrices.eventId, context.eventId),
-    });
-
     return (
       selectSeminarPriceCandidates({
         forParticipants: context.forParticipants,
-        priceRows,
+        priceRows: await readEventPriceRows(tx, context.eventId),
         seminarKind: context.seminar.kind,
       }).find((price) => price.id === priceId) ?? null
     );
   },
 
-  async withoutPick() {
-    return { ok: true, priceId: null };
+  /**
+   * With no pick, a stored row of the other participant cell would be the one
+   * the money crosses on, and freeze there: the row in effect is stored
+   * instead, as the seminar presets do. A stored row of the person's own cell
+   * keeps its place, since somebody picked it on purpose.
+   */
+  async withoutPick(tx, context) {
+    const priceRows = await readEventPriceRows(tx, context.eventId);
+    const stored = priceRows.find((row) => row.id === context.selectedPriceId);
+
+    if (!stored || stored.forParticipants === context.forParticipants) {
+      return { ok: true, priceId: null };
+    }
+
+    const inEffect = selectCurrentSeminarPriceRow({
+      forParticipants: context.forParticipants,
+      priceRows,
+      seminarKind: context.seminar.kind,
+    });
+
+    return inEffect === null
+      ? { ok: false, message: storedRowOfTheOtherCellMessage }
+      : { ok: true, priceId: inEffect.id };
   },
 
   async storePrice(tx, inscriptionId, priceRowId) {
