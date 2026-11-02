@@ -770,7 +770,11 @@ admin path only this dialog calls. The presets have their own
 **A seminar inscription opens the same dialog**, with its three shapes and its
 overlay, from the `(seminar, academy)` financial detail. It is the one dialog
 told which kind of target it is about, not a twin: the kind travels in the form,
-and each detail's action owns one of the two kinds, over the one writer of
+and one runner (`runInscriptionMoneyIntent`) serves every screen that mounts the
+dialog. Each route says which kind it owns and refuses the other; a screen about
+one unit also passes `expectedScope`, the event-wide seminar list passes nothing,
+and the redirect after a write stays with each detail. The runner resolves the
+scope through the kind's adapter and dispatches to the one writer of
 `inscription-money.server.ts`. Options and the locked
 readout read `{name} · {amount} · seña {deposit}` through the same formatter; the
 picker offers only the `seminarPrice` rows already filtered to the seminar's kind

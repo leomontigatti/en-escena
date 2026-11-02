@@ -1,7 +1,7 @@
 import {
-  runSeminarInscriptionMoneyIntent,
-  type SeminarMoneyAnswer,
-} from "@/features/admin/finances/inscription-money/seminar-money-action.server";
+  runInscriptionMoneyIntent,
+  type InscriptionMoneyAnswer,
+} from "@/features/admin/finances/inscription-money/money-action.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { readSeminarInscriptionPriceOptions } from "@/lib/finances/seminar-inscription-price-options.server";
@@ -65,7 +65,7 @@ export async function loadSeminarInscriptionFinances(request: Request) {
  */
 export async function handleSeminarInscriptionFinancesAction(
   request: Request,
-): Promise<SeminarMoneyAnswer> {
+): Promise<InscriptionMoneyAnswer> {
   await requireAdminPanelWriter(request);
   const eventContext = await loadEventContext(request);
 
@@ -76,8 +76,9 @@ export async function handleSeminarInscriptionFinancesAction(
     };
   }
 
-  return await runSeminarInscriptionMoneyIntent({
+  return await runInscriptionMoneyIntent({
     eventId: eventContext.selectedEventId,
     formData: await readFormData(request),
+    kind: "seminar",
   });
 }

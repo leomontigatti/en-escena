@@ -8,8 +8,9 @@
  * row. `docs/domain/finances.md` fixes where the pool's lock sits after them.
  */
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
+import { db } from "@/db";
 import {
   choreographies,
   choreographyDancers,
@@ -124,6 +125,27 @@ async function storesRowOfAnotherGroupType(
 }
 
 export const choreographyMoney = {
+  async readOwner({ eventId, inscriptionId }) {
+    const [owner] = await db
+      .select({
+        academyId: choreographies.academyId,
+        parentId: choreographyDancers.choreographyId,
+      })
+      .from(choreographyDancers)
+      .innerJoin(
+        choreographies,
+        eq(choreographies.id, choreographyDancers.choreographyId),
+      )
+      .where(
+        and(
+          eq(choreographyDancers.id, inscriptionId),
+          eq(choreographies.eventId, eventId),
+        ),
+      );
+
+    return owner ?? null;
+  },
+
   async loadContext(tx, scope) {
     const locked = await lockInscription(tx, scope);
 

@@ -13,20 +13,11 @@ import { deriveInscriptionBillingStatus } from "@/lib/comprobantes/anchor-billin
 import { readAnchorBilling } from "@/lib/comprobantes/anchor-billing.server";
 import { type ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
 import { getComprobanteEmissionDeps } from "@/lib/comprobantes/emission-config.server";
-import { choreographyTarget } from "@/lib/finances/allocation-target.server";
 import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
 import {
-  readInscriptionChoreographyId,
   readInscriptionEffectivePrices,
   readInscriptionPriceOptions,
 } from "@/lib/finances/inscription-price-options.server";
-import {
-  allocateToInscription,
-  releaseInscriptionExcess,
-  releaseRetainedInscriptionDeposit,
-  removeFromInscription,
-  type MoneyResult,
-} from "@/lib/finances/inscription-money.server";
 import {
   unwaiveInscriptions,
   waiveInscriptions,
@@ -44,15 +35,8 @@ import {
   emitComprobanteIntent,
   recheckComprobanteIntent,
 } from "@/features/admin/finances/comprobante-emission/shared";
-import {
-  allocateInscriptionIntent,
-  readAllocationTargetKind,
-  readMoneyAmount,
-  readPickedPriceId,
-  releaseInscriptionExcessIntent,
-  releaseRetainedDepositIntent,
-  removeInscriptionMoneyIntent,
-} from "@/features/admin/finances/inscription-money/intents";
+import { isInscriptionMoneyIntent } from "@/features/admin/finances/inscription-money/intents";
+import { runInscriptionMoneyIntent } from "@/features/admin/finances/inscription-money/money-action.server";
 import { readFormData } from "@/lib/shared/read-form-data";
 
 import {
@@ -207,21 +191,15 @@ export async function handleChoreographyFinanceAction(input: {
   const formData = await readFormData(input.request);
   const intent = String(formData.get("intent") ?? "");
 
-  if (
-    intent === allocateInscriptionIntent ||
-    intent === removeInscriptionMoneyIntent ||
-    intent === releaseInscriptionExcessIntent ||
-    intent === releaseRetainedDepositIntent
-  ) {
+  if (isInscriptionMoneyIntent(intent)) {
     const result = await runInscriptionMoneyIntent({
-      academyId,
-      choreographyId,
       eventId,
+      expectedScope: { academyId, parentId: choreographyId },
       formData,
-      intent,
+      kind: "choreography",
     });
 
-    if (result !== null) {
+    if (result.status === "error") {
       return result;
     }
 
@@ -260,82 +238,6 @@ export async function handleChoreographyFinanceAction(input: {
 
   return { status: "error", message: "No pudimos procesar esa acción." };
 }
-
-/**
- * The money gestures of an inscription, which differ only in what they read
- * off the form: an amount for two of them and nothing at all for the two
- * releases, whose figure is computed. Returns `null` when the write succeeded,
- * so the caller redirects; an error otherwise, which keeps the dialog open with
- * what the administrator typed.
- */
-async function runInscriptionMoneyIntent(input: {
-  academyId: string;
-  choreographyId: string;
-  eventId: string;
-  formData: FormData;
-  intent: string;
-}): Promise<ChoreographyFinanceActionData | null> {
-  const inscriptionId = String(
-    input.formData.get("inscriptionId") ?? "",
-  ).trim();
-
-  // The shared dialog names the kind it is about, and this action owns one of
-  // them: a seminar target reaching here is a form pointed at the wrong writer,
-  // not a choreography inscription that went missing.
-  if (readAllocationTargetKind(input.formData) !== "choreography") {
-    return { status: "error", message: "No pudimos procesar esa acción." };
-  }
-
-  // This screen is about one choreography, and a gesture's scope names none.
-  if (
-    (await readInscriptionChoreographyId(inscriptionId)) !==
-    input.choreographyId
-  ) {
-    return { status: "error", message: "No encontramos esa inscripción." };
-  }
-
-  const scope = {
-    academyId: input.academyId,
-    eventId: input.eventId,
-    target: choreographyTarget(inscriptionId),
-  };
-
-  const release = releaseWriters[input.intent];
-
-  if (release) {
-    return moneyFailure(await release(scope));
-  }
-
-  const amount = readMoneyAmount(input.formData);
-
-  if (amount === null) {
-    return { status: "error", message: "Ingresá un monto mayor a 0." };
-  }
-
-  return moneyFailure(
-    input.intent === allocateInscriptionIntent
-      ? await allocateToInscription({
-          ...scope,
-          amount,
-          now: new Date(),
-          priceId: readPickedPriceId(input.formData),
-        })
-      : await removeFromInscription({ ...scope, amount }),
-  );
-}
-
-function moneyFailure(
-  result: MoneyResult,
-): ChoreographyFinanceActionData | null {
-  return result.ok ? null : { status: "error", message: result.message };
-}
-
-/** The two gestures that read nothing off the form: their figure is computed. */
-const releaseWriters: Partial<Record<string, typeof releaseInscriptionExcess>> =
-  {
-    [releaseInscriptionExcessIntent]: releaseInscriptionExcess,
-    [releaseRetainedDepositIntent]: releaseRetainedInscriptionDeposit,
-  };
 
 function isWaiverIntent(intent: string): intent is WaiverIntent {
   return (waiverIntents as readonly string[]).includes(intent);

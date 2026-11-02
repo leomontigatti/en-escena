@@ -14,9 +14,10 @@
  * `docs/domain/finances.md` fixes where the pool's lock sits after them.
  */
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
-import { seminarInscriptions, seminarPrices } from "@/db/schema";
+import { db } from "@/db";
+import { seminarInscriptions, seminarPrices, seminars } from "@/db/schema";
 import { hasCrossedDepositThreshold } from "@/lib/finances/inscription-financial-status";
 import {
   deriveSeminarInscriptionThresholds,
@@ -104,6 +105,31 @@ async function lockInscription(tx: Transaction, scope: InscriptionMoneyScope) {
 }
 
 export const seminarMoney = {
+  async readOwner({ eventId, inscriptionId }) {
+    const [owner] = await db
+      .select({
+        academyId: seminarInscriptionPerson.academyId,
+        parentId: seminarInscriptions.seminarId,
+      })
+      .from(seminarInscriptions)
+      .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
+      .innerJoin(
+        seminarInscriptionPerson,
+        eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
+      )
+      .where(
+        and(
+          eq(seminarInscriptions.id, inscriptionId),
+          eq(seminars.eventId, eventId),
+        ),
+      )
+      .limit(1);
+
+    return owner?.academyId
+      ? { academyId: owner.academyId, parentId: owner.parentId }
+      : null;
+  },
+
   async loadContext(tx, scope) {
     const locked = await lockInscription(tx, scope);
 

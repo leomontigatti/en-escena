@@ -22,9 +22,9 @@
  * lands, and it is locked once the inscription covers its deposit: a rule the
  * database also holds, through the guard triggers on `selected_price_id`.
  *
- * A scope names no choreography or seminar: which screen may touch a row is the
- * caller's check (`readInscriptionChoreographyId`,
- * `readSeminarInscriptionMoneyTarget`), and a row's parent never changes.
+ * A scope names no choreography or seminar: which screen may touch a row is
+ * answered once, by `resolveInscriptionMoneyScope`, and a row's parent never
+ * changes.
  */
 
 import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
@@ -60,6 +60,13 @@ export type InscriptionMoneyScope = {
   target: AllocationTarget;
 };
 
+/** What a screen about one unit holds: the row's academy and its parent, the
+ * choreography or the seminar it hangs from. */
+export type ExpectedInscriptionMoneyScope = {
+  academyId: string;
+  parentId: string;
+};
+
 type MoneyRefusal = { ok: false; message: string };
 
 /** A row the scope reaches, as a gesture reads it under the kind's locks. */
@@ -84,6 +91,13 @@ export type PickOutcome = MoneyRefusal | { ok: true; priceId: string | null };
 export type InscriptionMoneyKind<
   Context extends PricingContext = PricingContext,
 > = {
+  /** Whose the row is, read off it with no lock, or `null` when it is not one
+   * of the event's. The gestures check the academy again under their locks:
+   * this read says where the money goes, and that check is what keeps it there. */
+  readOwner(input: {
+    eventId: string;
+    inscriptionId: string;
+  }): Promise<ExpectedInscriptionMoneyScope | null>;
   /** Takes the kind's locks in its documented order, then checks the row
    * belongs to the scope. */
   loadContext(
@@ -138,6 +152,37 @@ const moneyKinds: Record<AllocationTargetKind, InscriptionMoneyKind> = {
   choreography: choreographyMoney,
   seminar: seminarMoney,
 };
+
+/**
+ * The scope of a row a form named, so a form only has to name it. `null` when the
+ * event does not hold it, or when it falls outside what the screen expected; a
+ * screen with no `expectedScope` reaches every row of the event.
+ */
+export async function resolveInscriptionMoneyScope(input: {
+  eventId: string;
+  expectedScope?: ExpectedInscriptionMoneyScope;
+  target: AllocationTarget;
+}): Promise<InscriptionMoneyScope | null> {
+  const owner = await moneyKinds[input.target.kind].readOwner({
+    eventId: input.eventId,
+    inscriptionId: input.target.id,
+  });
+
+  if (
+    owner === null ||
+    (input.expectedScope !== undefined &&
+      (owner.academyId !== input.expectedScope.academyId ||
+        owner.parentId !== input.expectedScope.parentId))
+  ) {
+    return null;
+  }
+
+  return {
+    academyId: owner.academyId,
+    eventId: input.eventId,
+    target: input.target,
+  };
+}
 
 function loadContext(tx: Transaction, scope: InscriptionMoneyScope) {
   return moneyKinds[scope.target.kind].loadContext(tx, scope);

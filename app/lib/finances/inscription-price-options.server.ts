@@ -1,7 +1,6 @@
 /**
- * The price rows a choreography inscription's money dialog reads, and the
- * choreography a row belongs to. The gestures themselves live in
- * `inscription-money.server.ts`.
+ * The price rows a choreography inscription's money dialog reads. The gestures
+ * themselves live in `inscription-money.server.ts`.
  */
 
 import { eq, inArray } from "drizzle-orm";
@@ -181,20 +180,4 @@ export async function readInscriptionEffectivePrices(input: {
   }
 
   return effectivePrices;
-}
-
-/**
- * The choreography an inscription belongs to, or `null` when there is no such
- * row. A screen about one choreography asks this before a money gesture, whose
- * scope names no parent.
- */
-export async function readInscriptionChoreographyId(
-  inscriptionId: string,
-): Promise<string | null> {
-  const [inscription] = await db
-    .select({ choreographyId: choreographyDancers.choreographyId })
-    .from(choreographyDancers)
-    .where(eq(choreographyDancers.id, inscriptionId));
-
-  return inscription?.choreographyId ?? null;
 }

@@ -1,8 +1,8 @@
 /**
  * The price rows a seminar inscription's money dialog reads, wherever it is
  * mounted (the `(seminar, academy)` financial detail, the event-wide seminar
- * inscriptions list), and the scope a money form resolves to. The gestures
- * themselves live in `inscription-money.server.ts`.
+ * inscriptions list). The gestures themselves live in
+ * `inscription-money.server.ts`.
  *
  * **The candidate set is per person, not per seminar.** The participant cell is
  * read on the roster row the inscription names, so two inscriptions of the same
@@ -21,7 +21,6 @@ import {
   isParticipating,
   readSeminarParticipation,
 } from "@/lib/finances/seminar-participation.server";
-import { seminarInscriptionPerson } from "@/lib/seminars/inscription-person.server";
 
 /**
  * What the money dialog offers each inscription of one seminar — or of every
@@ -108,53 +107,4 @@ export async function readSeminarInscriptionPriceOptions(input: {
   }
 
   return options;
-}
-
-/**
- * The academy and the seminar a seminar inscription belongs to in the event,
- * read off the inscription itself so a money form only has to name it. The
- * academy is read **through the person**, as everywhere else on this side.
- * `null` when the inscription is not one of the event's.
- *
- * The writers check the academy again inside their transaction: this read says
- * where the money goes, and that check is what keeps it there.
- */
-export async function readSeminarInscriptionMoneyTarget(input: {
-  eventId: string;
-  inscriptionId: string;
-}): Promise<{
-  academyId: string;
-  eventId: string;
-  inscriptionId: string;
-  seminarId: string;
-} | null> {
-  const [target] = await db
-    .select({
-      academyId: seminarInscriptionPerson.academyId,
-      seminarId: seminarInscriptions.seminarId,
-    })
-    .from(seminarInscriptions)
-    .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
-    .innerJoin(
-      seminarInscriptionPerson,
-      eq(seminarInscriptionPerson.inscriptionId, seminarInscriptions.id),
-    )
-    .where(
-      and(
-        eq(seminarInscriptions.id, input.inscriptionId),
-        eq(seminars.eventId, input.eventId),
-      ),
-    )
-    .limit(1);
-
-  if (!target?.academyId) {
-    return null;
-  }
-
-  return {
-    academyId: target.academyId,
-    eventId: input.eventId,
-    inscriptionId: input.inscriptionId,
-    seminarId: target.seminarId,
-  };
 }
