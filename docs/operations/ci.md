@@ -46,7 +46,9 @@ protection, so making a job required is a human step in the repo settings.
   reviewers the diff's tier requires are named, by the `review-paths` block of
   [review.md](../agents/review.md), and no code commit landed after the
   reviewed one. Its own file for the same `edited` reason; it skips drafts and
-  Dependabot's PRs. The action is pinned to a commit of
+  Dependabot's PRs. A skipped run takes another name, as `pr-title` does: a
+  skipped `review-record` beside the passing one on one commit reports the PR
+  `BLOCKED` with every required check green (#1787). The action is pinned to a commit of
   leomontigatti/agent-workflow; bump the SHA to take a change to its rules.
 
 The commit gate before any of these is `.husky/pre-commit`: gitleaks on the

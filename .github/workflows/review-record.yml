@@ -27,8 +27,12 @@ concurrency:
 
 jobs:
   review-record:
-    name: review-record
-    # A draft is not reviewed yet: a PRD PR records its review when it is marked ready.
+    # A draft is not reviewed yet: a PRD PR records its review when it is marked
+    # ready. A skipped run takes another name, as in `pr-title.yml`: a skipped
+    # `review-record` beside the passing one on the same commit left the PR
+    # `BLOCKED` with every required check green (#1787). GitHub does not evaluate
+    # a skipped job's `name:`, so the check shows the raw expression.
+    name: ${{ github.event.pull_request.draft && 'review-record (draft)' || 'review-record' }}
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
