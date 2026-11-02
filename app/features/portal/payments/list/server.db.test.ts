@@ -18,6 +18,7 @@ installDatabaseTestHooks();
 async function seedPayment(input: {
   academyId: string;
   amount: number;
+  createdAt?: Date;
   eventId: string;
   internalNote?: string;
   paymentDate: string;
@@ -29,6 +30,7 @@ async function seedPayment(input: {
     .values({
       academyId: input.academyId,
       amount: input.amount,
+      createdAt: input.createdAt,
       eventId: input.eventId,
       internalNote: input.internalNote ?? null,
       paymentDate: input.paymentDate,
@@ -160,6 +162,8 @@ describe("loadPortalAcademyPayments", () => {
     await seedPayment({
       academyId: owner.academyId,
       amount: 8000,
+      // Recorded before the same day's refund, by more than the clock resolves.
+      createdAt: new Date(Date.now() - 60_000),
       eventId: event.id,
       paymentDate: "2026-03-20",
       paymentNumber: 2,
