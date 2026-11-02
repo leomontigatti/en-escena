@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 import { db } from "@/db";
 import { paymentAllocations, seminarPrices, seminars } from "@/db/schema";
 import { seedSeminarPresetFixture } from "@/lib/admin/finances/seminar-finances.test-support";
-import { paySeminarsPreset } from "@/lib/finances/seminar-cobro-presets.server";
+import { chargeThreshold } from "@/lib/finances/inscription-money.server";
 import { readSeminarPlaceLedgers } from "@/lib/seminars/seminar-places.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -28,7 +28,8 @@ test("takes a peso at the deposit stage of a row whose deposit rounds to nothing
       ]),
     );
 
-  const result = await paySeminarsPreset({
+  const result = await chargeThreshold({
+    kind: "seminar",
     academyId: fixture.academyId,
     eventId: fixture.eventId,
     now: new Date(),

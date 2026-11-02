@@ -20,8 +20,10 @@ import {
 } from "@/lib/finances/allocation-pool.server";
 import type { AllocationTarget } from "@/lib/finances/allocation-target.server";
 import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
+import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
 import {
   allocateToInscription,
+  chargeThreshold,
   releaseInscriptionExcess,
   releaseRetainedInscriptionDeposit,
   removeFromInscription,
@@ -43,6 +45,9 @@ beforeEach(() => {
 
 type SeededInscription = {
   academyId: string;
+  /** A second active inscription of the academy, and the selection reaching
+   * both of them. */
+  addSibling: () => Promise<{ parentIds: string[]; target: AllocationTarget }>;
   eventId: string;
   /** A row of the list this inscription is not priced by. */
   foreignPriceId: string;
@@ -50,6 +55,8 @@ type SeededInscription = {
   fundPool: (amount: number) => Promise<void>;
   /** A dearer row of the inscription's own list. */
   otherPriceId: string;
+  /** The choreography or the seminar the inscription hangs from. */
+  parentId: string;
   /** The row the seed offers the inscription. */
   priceId: string;
   /** Reads the row the inscription stores. */
@@ -67,16 +74,24 @@ type SeededInscription = {
  * and each kind's own not-found copy. */
 const kinds = [
   {
+    charge: chargeChoreographies,
     depositAmount: 3000,
+    emptySelection: "Elegí al menos una coreografía.",
     kind: "choreography",
+    noActiveInscriptions:
+      "Las coreografías elegidas no tienen inscripciones activas.",
     refusedForEvent: choreographyNotFoundMessage,
     refusedForAcademy: choreographyNotFoundMessage,
     seed: seedChoreographyInscription,
     totalAmount: 10000,
   },
   {
+    charge: chargeSeminars,
     depositAmount: 10000,
+    emptySelection: "Elegí al menos un seminario.",
     kind: "seminar",
+    noActiveInscriptions:
+      "Los seminarios elegidos no tienen inscripciones activas.",
     refusedForEvent: "No encontramos ese seminario.",
     refusedForAcademy: inscriptionMoneyRefusals.inscriptionNotFound,
     seed: seedSeminarInscription,
@@ -140,10 +155,30 @@ async function seedChoreographyInscription(): Promise<SeededInscription> {
 
   return {
     academyId,
+    addSibling: async () => {
+      const sibling = await createDancer(academyId, {
+        firstName: "Bea",
+        lastName: "Blanco",
+      });
+      const [row] = await db
+        .insert(choreographyDancers)
+        .values({
+          ageAtEventStart: 14,
+          choreographyId: choreography.id,
+          dancerId: sibling.id,
+        })
+        .returning();
+
+      return {
+        parentIds: [choreography.id],
+        target: { id: row!.id, kind: "choreography" },
+      };
+    },
     eventId: event.id,
     foreignPriceId: foreignPrice!.id,
     fundPool: (amount) => setPool(academyId, event.id, amount),
     otherPriceId: otherPrice!.id,
+    parentId: choreography.id,
     priceId: price!.id,
     readSelectedPriceId: async () => {
       const [row] = await db
@@ -200,11 +235,16 @@ async function seedSeminarInscription(): Promise<SeededInscription> {
 
   return {
     academyId: fixture.northAcademyId,
+    addSibling: async () => ({
+      parentIds: [fixture.abrilSeminarId, fixture.brunoSeminarId],
+      target: { id: fixture.nicolasInscriptionId, kind: "seminar" },
+    }),
     eventId: fixture.eventId,
     foreignPriceId: foreignPrice!.id,
     fundPool: (amount) =>
       setPool(fixture.northAcademyId, fixture.eventId, amount),
     otherPriceId: otherPrice!.id,
+    parentId: fixture.abrilSeminarId,
     priceId: fixture.priceId,
     readSelectedPriceId: async () => {
       const [row] = await db
@@ -243,6 +283,34 @@ async function setPool(academyId: string, eventId: string, amount: number) {
     .where(
       and(eq(payments.academyId, academyId), eq(payments.eventId, eventId)),
     );
+}
+
+function chargeChoreographies(
+  seeded: SeededInscription,
+  input: { parentIds: string[]; stage: CobroStage },
+) {
+  return chargeThreshold({
+    academyId: seeded.academyId,
+    choreographyIds: input.parentIds,
+    eventId: seeded.eventId,
+    kind: "choreography",
+    priceIdByGroupType: { solo: seeded.priceId },
+    stage: input.stage,
+  });
+}
+
+function chargeSeminars(
+  seeded: SeededInscription,
+  input: { parentIds: string[]; stage: CobroStage },
+) {
+  return chargeThreshold({
+    academyId: seeded.academyId,
+    eventId: seeded.eventId,
+    kind: "seminar",
+    now: new Date(),
+    seminarIds: input.parentIds,
+    stage: input.stage,
+  });
 }
 
 function scopeOf(seeded: SeededInscription) {
@@ -306,6 +374,96 @@ const gestures = [
   { name: "the excess release", run: releaseInscriptionExcess },
   { name: "the retained release", run: releaseRetainedInscriptionDeposit },
 ];
+
+describe.each(kinds)("a threshold charge on $kind inscriptions", (kind) => {
+  test("charges exactly the deposit, then the rest of the total", async () => {
+    const seeded = await kind.seed();
+    const selection = { parentIds: [seeded.parentId] };
+
+    expect(
+      await kind.charge(seeded, { ...selection, stage: "deposit" }),
+    ).toEqual({ ok: true });
+    expect(await seeded.readSelectedPriceId()).toBe(seeded.priceId);
+    expect(await readAllocated(seeded)).toBe(kind.depositAmount);
+
+    expect(
+      await kind.charge(seeded, { ...selection, stage: "balance" }),
+    ).toEqual({ ok: true });
+    expect(await readAllocated(seeded)).toBe(kind.totalAmount);
+  });
+
+  test("refuses an empty selection", async () => {
+    const seeded = await kind.seed();
+
+    expect(
+      await kind.charge(seeded, { parentIds: [], stage: "deposit" }),
+    ).toEqual({ ok: false, message: kind.emptySelection });
+  });
+
+  test("refuses a selection with no active inscription", async () => {
+    const seeded = await kind.seed();
+    await seeded.withdraw();
+
+    expect(
+      await kind.charge(seeded, {
+        parentIds: [seeded.parentId],
+        stage: "deposit",
+      }),
+    ).toEqual({ ok: false, message: kind.noActiveInscriptions });
+  });
+
+  test("skips an inscription that already covered the stage", async () => {
+    const seeded = await kind.seed();
+    await fund(seeded, kind.depositAmount);
+    const poolBefore = await readPool(seeded);
+
+    expect(
+      await kind.charge(seeded, {
+        parentIds: [seeded.parentId],
+        stage: "deposit",
+      }),
+    ).toEqual({ ok: true });
+    expect(await readAllocated(seeded)).toBe(kind.depositAmount);
+    expect(await readPool(seeded)).toBe(poolBefore);
+  });
+
+  test("rolls the whole charge back when the pool runs dry partway", async () => {
+    const seeded = await kind.seed();
+    const sibling = await seeded.addSibling();
+    await seeded.fundPool(kind.depositAmount + 1);
+
+    const result = await kind.charge(seeded, {
+      parentIds: sibling.parentIds,
+      stage: "deposit",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(await readAllocated(seeded)).toBe(0);
+    expect(await readInscriptionAllocatedAmount(db, sibling.target)).toBe(0);
+    expect(await seeded.readSelectedPriceId()).toBeNull();
+    expect(await readPool(seeded)).toBe(kind.depositAmount + 1);
+  });
+});
+
+describe("a threshold charge on choreography inscriptions", () => {
+  test("refuses a picked row foreign to the selection in the dialog's words", async () => {
+    const seeded = await seedChoreographyInscription();
+
+    expect(
+      await chargeThreshold({
+        academyId: seeded.academyId,
+        choreographyIds: [seeded.parentId],
+        eventId: seeded.eventId,
+        kind: "choreography",
+        priceIdByGroupType: { solo: seeded.foreignPriceId },
+        stage: "deposit",
+      }),
+    ).toEqual({
+      ok: false,
+      message: inscriptionMoneyRefusals.unknownPriceRow,
+    });
+  });
+});
 
 describe.each(kinds)("the money gestures on a $kind inscription", (kind) => {
   test("Asignar dinero stores the picked row and funds the inscription out of the pool", async () => {

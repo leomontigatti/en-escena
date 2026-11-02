@@ -25,6 +25,11 @@
  * A scope names no choreography or seminar: which screen may touch a row is
  * answered once, by `resolveInscriptionMoneyScope`, and a row's parent never
  * changes.
+ *
+ * `Pagar seña` and `Pagar saldo` run through `chargeThreshold`, one script over a
+ * selection: lock and read it, price it, fund it, all or nothing. Each step is
+ * the kind's own (`ThresholdChargeKind`), because the choreography picker and
+ * waiver, and the seminar places, are what really differ there.
  */
 
 import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
@@ -41,6 +46,10 @@ import {
   type PoolTargetGuard,
 } from "./allocation-pool.server";
 import {
+  choreographyCharge,
+  type ChoreographyChargeInput,
+} from "./choreography-cobro-presets.server";
+import {
   runCobro,
   type CobroResult,
   type Executor,
@@ -49,6 +58,10 @@ import {
 import { choreographyMoney } from "./inscription-money-choreography.server";
 import { inscriptionMoneyRefusals } from "./inscription-money-refusals";
 import { seminarMoney } from "./inscription-money-seminar.server";
+import {
+  seminarCharge,
+  type SeminarChargeInput,
+} from "./seminar-cobro-presets.server";
 import { toCobroResult } from "./withdrawal-retention-refusals";
 import { releaseRetainedDeposit } from "./withdrawal-retention.server";
 
@@ -146,6 +159,34 @@ export type InscriptionMoneyKind<
     context: Context,
     now: Date,
   ): Promise<PoolTargetGuard>;
+};
+
+/**
+ * A kind's steps in a threshold charge. Each one takes the kind's locks in its
+ * documented order and refuses in the kind's own order, inside one transaction.
+ */
+export type ThresholdChargeKind<
+  Input,
+  Selection extends { activeCount: number },
+  Priced,
+> = {
+  emptySelection: string;
+  noActiveInscriptions: string;
+  selectedIds(input: Input): string[];
+  /** Locks the selection, checks it belongs to the list, and reads it. */
+  load(
+    tx: Transaction,
+    input: Input,
+    ids: string[],
+  ): Promise<MoneyRefusal | ({ ok: true } & Selection)>;
+  /** Stores the prices the charge runs at, or refuses what cannot be charged. */
+  price(
+    tx: Transaction,
+    input: Input,
+    selection: Selection,
+  ): Promise<MoneyRefusal | ({ ok: true } & Priced)>;
+  /** Moves the money out of the pool. */
+  fund(tx: Transaction, input: Input, priced: Priced): Promise<MoneyResult>;
 };
 
 const moneyKinds: Record<AllocationTargetKind, InscriptionMoneyKind> = {
@@ -298,6 +339,53 @@ async function resolvePickedPriceId(
   }
 
   return await kind.withoutPick(tx, context);
+}
+
+/**
+ * `Pagar seña` or `Pagar saldo` over a selection: every active inscription it
+ * reaches is charged what it owes for the stage, out of the academy's pool. An
+ * inscription that already covered the stage is skipped, so running a preset
+ * twice moves nothing the second time. A refusal rolls the whole selection back.
+ */
+export async function chargeThreshold(
+  input: ChoreographyChargeInput | SeminarChargeInput,
+): Promise<MoneyResult> {
+  return input.kind === "choreography"
+    ? await runThresholdCharge(choreographyCharge, input)
+    : await runThresholdCharge(seminarCharge, input);
+}
+
+async function runThresholdCharge<
+  Input,
+  Selection extends { activeCount: number },
+  Priced,
+>(
+  kind: ThresholdChargeKind<Input, Selection, Priced>,
+  input: Input,
+): Promise<MoneyResult> {
+  const ids = [...new Set(kind.selectedIds(input))];
+
+  if (ids.length === 0) {
+    return { ok: false, message: kind.emptySelection };
+  }
+
+  return await runCobro(async (tx) => {
+    const selection = await kind.load(tx, input, ids);
+    if (!selection.ok) {
+      return selection;
+    }
+
+    if (selection.activeCount === 0) {
+      return { ok: false, message: kind.noActiveInscriptions };
+    }
+
+    const priced = await kind.price(tx, input, selection);
+    if (!priced.ok) {
+      return priced;
+    }
+
+    return await kind.fund(tx, input, priced);
+  });
 }
 
 /** Takes an arbitrary amount off the inscription, back to `Saldo disponible`. */

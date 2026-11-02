@@ -14,7 +14,7 @@ import {
   registerPaymentForTest,
 } from "@/lib/admin/finances/finances.test-support";
 import { createSavedSchedule } from "@/lib/events/bases.test-support";
-import { payChoreographiesPreset } from "@/lib/finances/choreography-cobro-presets.server";
+import { chargeThreshold } from "@/lib/finances/inscription-money.server";
 import type { Transaction } from "@/lib/finances/choreography-cobro-support.server";
 import { allocateToInscription } from "@/lib/finances/inscription-money.server";
 import {
@@ -164,7 +164,8 @@ describe.skipIf(isPgliteTestBackend())(
         const preset = await whileHoldingThePrice(
           fixture.specialPriceId,
           () =>
-            payChoreographiesPreset({
+            chargeThreshold({
+              kind: "choreography",
               academyId: fixture.academyId,
               choreographyIds: [fixture.choreographyId],
               eventId: fixture.eventId,
@@ -176,8 +177,7 @@ describe.skipIf(isPgliteTestBackend())(
 
         expect(preset).toEqual({
           ok: false,
-          message:
-            "Esa fila de precio no corresponde a la coreografía elegida.",
+          message: "No encontramos esa fila de precio.",
         });
         await expectNothingStored(fixture);
       });

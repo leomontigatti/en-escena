@@ -46,9 +46,8 @@ import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operati
 import { withLinkedInscriptionsCounted } from "@/lib/finances/seminar-operational-summary.server";
 import { readLinkedIndividualSeminarInscriptions } from "@/lib/seminars/linked-individual-inscriptions.server";
 import type { ResolvedInscription } from "@/lib/finances/operational-summary-calculations.server";
-import { payChoreographiesPreset } from "@/lib/finances/choreography-cobro-presets.server";
+import { chargeThreshold } from "@/lib/finances/inscription-money.server";
 import {
-  paySeminarsPreset,
   readSeminarCobroPreviews,
   type SeminarCobroPreview,
 } from "@/lib/finances/seminar-cobro-presets.server";
@@ -238,14 +237,16 @@ export async function handleAcademyFinancesAction(input: {
   // charged, at which price and how much is the server's to recompute.
   const result =
     target === "seminars"
-      ? await paySeminarsPreset({
+      ? await chargeThreshold({
+          kind: "seminar",
           now: new Date(),
           academyId,
           eventId: eventContext.selectedEventId,
           seminarIds: readIds(formData, seminarIdFieldName),
           stage,
         })
-      : await payChoreographiesPreset({
+      : await chargeThreshold({
+          kind: "choreography",
           academyId,
           choreographyIds: readIds(formData, choreographyIdFieldName),
           eventId: eventContext.selectedEventId,

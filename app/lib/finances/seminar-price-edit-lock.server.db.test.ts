@@ -12,7 +12,7 @@ import {
   type SeminarPresetFixture,
 } from "@/lib/admin/finances/seminar-finances.test-support";
 import type { Transaction } from "@/lib/finances/choreography-cobro-support.server";
-import { paySeminarsPreset } from "@/lib/finances/seminar-cobro-presets.server";
+import { chargeThreshold } from "@/lib/finances/inscription-money.server";
 import { allocateToInscription } from "@/lib/finances/inscription-money.server";
 import {
   frozenPriceDeleteError,
@@ -108,7 +108,8 @@ describe.skipIf(isPgliteTestBackend())(
           waitingOn: "seminar price list lock",
           hold: (tx) => lockEventSeminarPricesForEdit(tx, fixture.eventId),
           contender: () =>
-            paySeminarsPreset({
+            chargeThreshold({
+              kind: "seminar",
               now: new Date(),
               academyId: fixture.academyId,
               eventId: fixture.eventId,
@@ -141,7 +142,8 @@ describe.skipIf(isPgliteTestBackend())(
           waitingOn: "seminar price list lock",
           hold: (tx) => lockEventSeminarPricesForEdit(tx, fixture.eventId),
           contender: () =>
-            paySeminarsPreset({
+            chargeThreshold({
+              kind: "seminar",
               now: new Date(),
               academyId: fixture.academyId,
               eventId: fixture.eventId,

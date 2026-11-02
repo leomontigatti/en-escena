@@ -1,6 +1,6 @@
 /**
- * `Pagar seña` and `Pagar saldo` as **list actions** over several selected
- * choreographies at once.
+ * The choreography steps of `chargeThreshold`: `Pagar seña` and `Pagar saldo` as
+ * **list actions** over several selected choreographies at once.
  *
  * A preset is nothing but a pre-filled figure. It reads each active
  * inscription's shortfall against the requested threshold and funds exactly
@@ -16,6 +16,9 @@
  * The whole run is one transaction: a pool that dries up on the last
  * choreography rolls the first one back, so an administrator who sees a refusal
  * can trust that nothing moved.
+ *
+ * Lock order: the selection's active inscriptions in id order, then the picked
+ * price rows in order, as `lockPriceRows` takes them.
  */
 
 import { and, asc, eq, inArray } from "drizzle-orm";
@@ -38,9 +41,12 @@ import {
   readInscriptionThresholds,
   type InscriptionThresholdResolution,
 } from "@/lib/finances/inscription-thresholds.server";
-import { seminarOverAllocatedMessage } from "@/lib/finances/seminar-cobro-refusals";
 import { planThresholdCharge } from "@/lib/finances/threshold-charge";
 import { lockPriceRows } from "@/lib/prices/rows.server";
+import {
+  inscriptionMoneyRefusals,
+  overAllocatedChargeMessage,
+} from "@/lib/finances/inscription-money-refusals";
 
 import { choreographyTarget } from "./allocation-target.server";
 import {
@@ -49,11 +55,11 @@ import {
 } from "./allocation-pool.server";
 import {
   loadCandidatePriceRow,
-  runCobro,
   type CobroResult,
   type Transaction,
 } from "./choreography-cobro-support.server";
 import { choreographyMoney } from "./inscription-money-choreography.server";
+import type { ThresholdChargeKind } from "./inscription-money.server";
 
 /**
  * The threshold a cobro preset settles against: `deposit` allocates up to the
@@ -71,8 +77,6 @@ export type CobroStage = "deposit" | "balance";
  */
 export type PresetPriceSelection = Record<string, string>;
 
-const inscriptionNotFoundMessage = "No encontramos esa inscripción.";
-
 const groupTypeWithoutPriceMessage =
   "Elegí un precio para cada tipo de grupo: hay inscripciones que guardan el precio de otro tipo de grupo.";
 
@@ -82,20 +86,39 @@ type PresetChoreography = {
   scheduleId: string;
 };
 
-export async function payChoreographiesPreset(input: {
+export type ChoreographyChargeInput = {
   academyId: string;
   choreographyIds: string[];
   eventId: string;
+  kind: "choreography";
   priceIdByGroupType: PresetPriceSelection;
   stage: CobroStage;
-}): Promise<CobroResult> {
-  const choreographyIds = [...new Set(input.choreographyIds)];
+};
 
-  if (choreographyIds.length === 0) {
-    return { ok: false, message: "Elegí al menos una coreografía." };
-  }
+type PresetInscription = {
+  choreographyId: string;
+  id: string;
+  selectedPriceId: string | null;
+  waivedAt: Date | null;
+};
 
-  return await runCobro(async (tx) => {
+type ChoreographySelection = {
+  activeCount: number;
+  choreographies: PresetChoreography[];
+  inscriptions: PresetInscription[];
+};
+
+export const choreographyCharge: ThresholdChargeKind<
+  ChoreographyChargeInput,
+  ChoreographySelection,
+  { inscriptions: PresetInscription[]; pickedAmounts: Map<string, number> }
+> = {
+  emptySelection: "Elegí al menos una coreografía.",
+  noActiveInscriptions:
+    "Las coreografías elegidas no tienen inscripciones activas.",
+  selectedIds: (input) => input.choreographyIds,
+
+  async load(tx, input, choreographyIds) {
     const inscriptions = await tx
       .select({
         choreographyId: choreographyDancers.choreographyId,
@@ -130,24 +153,28 @@ export async function payChoreographiesPreset(input: {
       return { ok: false, message: choreographyNotFoundMessage };
     }
 
-    if (inscriptions.length === 0) {
-      return {
-        ok: false,
-        message: "Las coreografías elegidas no tienen inscripciones activas.",
-      };
-    }
-
-    const priced = await applySelectedPrices(tx, {
+    return {
+      activeCount: inscriptions.length,
       choreographies: selected,
-      eventId: input.eventId,
       inscriptions,
+      ok: true,
+    };
+  },
+
+  async price(tx, input, selection) {
+    const priced = await applySelectedPrices(tx, {
+      choreographies: selection.choreographies,
+      eventId: input.eventId,
+      inscriptions: selection.inscriptions,
       priceIdByGroupType: input.priceIdByGroupType,
     });
 
-    if (!priced.ok) {
-      return priced;
-    }
+    return priced.ok
+      ? { ...priced, inscriptions: selection.inscriptions }
+      : priced;
+  },
 
+  async fund(tx, input, priced) {
     const event = await tx.query.events.findFirst({
       columns: { requiredDepositPercentage: true },
       where: eq(events.id, input.eventId),
@@ -172,13 +199,13 @@ export async function payChoreographiesPreset(input: {
     return await fundOwedThreshold(tx, {
       academyId: input.academyId,
       eventId: input.eventId,
-      inscriptionIds: inscriptions.map((inscription) => inscription.id),
+      inscriptionIds: priced.inscriptions.map((inscription) => inscription.id),
       pickedInscriptionIds: new Set(priced.pickedAmounts.keys()),
       requiredDepositPercentage,
       stage: input.stage,
     });
-  });
-}
+  },
+};
 
 /**
  * Funds each picked inscription up to the deposit of the row it was just given.
@@ -211,7 +238,10 @@ async function coverPickedDeposits(
     const resolution = thresholds.get(inscriptionId);
 
     if (!resolution) {
-      return { ok: false, message: inscriptionNotFoundMessage };
+      return {
+        ok: false,
+        message: inscriptionMoneyRefusals.inscriptionNotFound,
+      };
     }
 
     if (resolution.priceAmount === priceAmount) {
@@ -282,7 +312,10 @@ async function fundOwedThreshold(
     const resolution = thresholds.get(inscriptionId);
 
     if (!resolution) {
-      return { ok: false, message: inscriptionNotFoundMessage };
+      return {
+        ok: false,
+        message: inscriptionMoneyRefusals.inscriptionNotFound,
+      };
     }
 
     // A waived inscription owes nothing whatever its price.
@@ -425,10 +458,10 @@ async function overAllocatedPickMessage(
   inscriptionId: string,
   overAllocatedAmount: number,
 ): Promise<string> {
-  return `${seminarOverAllocatedMessage({
+  return overAllocatedChargeMessage({
     overAllocatedAmount,
     personName: await readDancerName(tx, inscriptionId),
-  })} Quitale la diferencia desde su detalle antes de asignar.`;
+  });
 }
 
 async function readDancerName(
@@ -549,12 +582,7 @@ async function applySelectedPrices(
   input: {
     choreographies: PresetChoreography[];
     eventId: string;
-    inscriptions: Array<{
-      choreographyId: string;
-      id: string;
-      selectedPriceId: string | null;
-      waivedAt: Date | null;
-    }>;
+    inscriptions: PresetInscription[];
     priceIdByGroupType: PresetPriceSelection;
   },
 ): Promise<
@@ -620,10 +648,7 @@ async function applySelectedPrices(
     });
 
     if (!price) {
-      return {
-        ok: false,
-        message: "Esa fila de precio no corresponde a la coreografía elegida.",
-      };
+      return { ok: false, message: inscriptionMoneyRefusals.unknownPriceRow };
     }
 
     await tx

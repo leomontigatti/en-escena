@@ -1,3 +1,5 @@
+import { seminarOverAllocatedMessage } from "./seminar-cobro-refusals";
+
 /**
  * What the inscription money gestures say when they refuse, worded once for both
  * kinds of inscription. A kind keeps its own copy only for the parent it names:
@@ -18,3 +20,12 @@ export const inscriptionMoneyRefusals = {
   partialRetainedRelease:
     "De una inscripción retirada se libera toda la seña retenida o nada.",
 } as const;
+
+/** A threshold charge whose row is cheaper than the money on it: storing it
+ * would fix a price the inscription already exceeds. */
+export function overAllocatedChargeMessage(input: {
+  overAllocatedAmount: number;
+  personName: string;
+}): string {
+  return `${seminarOverAllocatedMessage(input)} Quitale la diferencia desde su detalle antes de asignar.`;
+}
