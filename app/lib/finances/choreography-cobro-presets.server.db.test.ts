@@ -413,7 +413,7 @@ describe("chargeThreshold on choreographies with a stored price and no pick", ()
     },
   );
 
-  test("charges today's row on one storing a row that does not price its schedule", async () => {
+  test("refuses one storing a row that does not price its schedule", async () => {
     const fixture = await seedPresetFixture([20000]);
     const otherSchedule = await createScheduleForModalityFixture({
       eventId: fixture.eventId,
@@ -445,12 +445,12 @@ describe("chargeThreshold on choreographies with a stored price and no pick", ()
       stage: "deposit",
     });
 
-    expect(result).toEqual({ ok: true });
-    expect(
-      sumByInscription(await readAllocations([inscriptionId])).get(
-        inscriptionId,
-      ),
-    ).toBe(3000);
+    expect(result).toEqual({
+      ok: false,
+      message:
+        "Elegí un precio: hay inscripciones que guardan el precio de otro cronograma.",
+    });
+    await expect(readAllocations([inscriptionId])).resolves.toEqual([]);
   });
 
   test("charges today's row beside it on an inscription storing none", async () => {

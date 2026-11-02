@@ -79,6 +79,9 @@ export type CobroStage = "deposit" | "balance";
  */
 export type PresetPriceSelection = Record<string, string>;
 
+const storedRowOfAnotherScheduleMessage =
+  "Elegí un precio: hay inscripciones que guardan el precio de otro cronograma.";
+
 const groupTypeWithoutPriceMessage =
   "Elegí un precio para cada tipo de grupo: hay inscripciones que guardan el precio de otro tipo de grupo.";
 
@@ -667,10 +670,10 @@ async function storePickedPrice(
 /**
  * With no pick for its group type, an inscription below its deposit is charged
  * the row it stores, which is the one the money crossing fixes, and `null` when
- * it stores none or one that does not price its schedule, as for a pick. One of
- * another group type is refused: crossing it would freeze the row the roster
- * save refuses to leave behind (#660). One already past it is frozen whatever
- * the preset does.
+ * it stores none. One that does not price the choreography is refused, whether
+ * by group type or by schedule: any money reaching its deposit would freeze it,
+ * the state the roster save refuses to leave behind (#660). One already past it
+ * is frozen whatever the preset does.
  */
 async function readStoredRowToCharge(
   tx: Transaction,
@@ -700,5 +703,7 @@ async function readStoredRowToCharge(
     scheduleId: choreography.scheduleId,
   });
 
-  return { amount: stored?.amount ?? null, ok: true };
+  return stored
+    ? { amount: stored.amount, ok: true }
+    : { ok: false, message: storedRowOfAnotherScheduleMessage };
 }

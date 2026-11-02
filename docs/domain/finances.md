@@ -433,8 +433,9 @@ derivation follows the new key on its own, as long as the row stored there is
 replaced before the money crosses: the dialog submits the row in effect, and
 when it submits none over a stored row of another group type the server stores
 the row in effect itself; a preset with no pick for the choreography's group
-type refuses an inscription storing a row of another one, and charges the row
-stored when it is of that group type, since that row is what the crossing fixes. The schedule
+type refuses an inscription storing a row of another one or of a schedule it is
+not on, and otherwise charges the row stored, since that row is what the crossing
+fixes. The schedule
 axis is closed too: a general row prices every schedule, and the guard refuses a
 move that takes a crossed inscription off the schedules its special row covers.
 Production held no crossed row on a foreign key when this landed (#660, counted
