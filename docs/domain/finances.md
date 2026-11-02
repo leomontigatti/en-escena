@@ -789,7 +789,10 @@ selects and stores a price row only for inscriptions that have not covered their
 deposit yet; anything already past that threshold keeps the price it holds. A
 picked row is the one charged, not the row that applies today: the preset covers
 its deposit first, which fixes it, and reads what is owed from there, and a pick
-below the money already on the inscription is refused.
+below the money already on the inscription is refused. So is a pick whose deposit
+cannot fit, above what the inscription owes today or above the pick's own
+discounted total, with a sentence naming the dancer and the price: moving it would
+break the pool's over-allocation check.
 On either kind of inscription a deposit that rounds to zero is charged one peso,
 because only money crosses a deposit (`planThresholdCharge`).
 The dialog's owed figure follows its price pickers, and when it exceeds

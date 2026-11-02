@@ -30,6 +30,7 @@ import {
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
+import { pickDepositDoesNotFitMessage } from "@/lib/finances/choreography-cobro-refusals";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import { formatDancerName } from "@/lib/finances/formatters";
 import { hasCrossedDepositThreshold } from "@/lib/finances/inscription-financial-status";
@@ -69,6 +70,8 @@ export type CobroStage = "deposit" | "balance";
  * that row (#660).
  */
 export type PresetPriceSelection = Record<string, string>;
+
+const inscriptionNotFoundMessage = "No encontramos esa inscripción.";
 
 const groupTypeWithoutPriceMessage =
   "Elegí un precio para cada tipo de grupo: hay inscripciones que guardan el precio de otro tipo de grupo.";
@@ -184,6 +187,10 @@ export async function payChoreographiesPreset(input: {
  * price and lets the read reach the live `Descuento por bailarín` on that row.
  * A pick at today's amount owes the same either way and is left to that read:
  * its deposit can sit above its discounted total, which the pool would refuse.
+ *
+ * A deposit past what today's row owes is refused here with the reason. One past
+ * the pick's own discounted total shows only once the money crossed, in
+ * `fundOwedThreshold`: the discount on the pick needs the row fixed first.
  */
 async function coverPickedDeposits(
   tx: Transaction,
@@ -201,15 +208,21 @@ async function coverPickedDeposits(
   });
 
   for (const [inscriptionId, priceAmount] of input.pickedAmounts) {
-    if (thresholds.get(inscriptionId)?.priceAmount === priceAmount) {
+    const resolution = thresholds.get(inscriptionId);
+
+    if (!resolution) {
+      return { ok: false, message: inscriptionNotFoundMessage };
+    }
+
+    if (resolution.priceAmount === priceAmount) {
       continue;
     }
 
-    const target = choreographyTarget(inscriptionId);
+    const { allocatedAmount, totalAmount } = resolution;
     // Below the deposit by construction: a pick reaches no row past it. The
     // discount stays out, since it moves the total and never the deposit.
     const { moves } = planThresholdCharge({
-      allocatedAmount: await readInscriptionAllocatedAmount(tx, target),
+      allocatedAmount,
       covered: false,
       priceRow: { amount: priceAmount },
       requiredDepositPercentage: input.requiredDepositPercentage,
@@ -217,11 +230,18 @@ async function coverPickedDeposits(
     });
 
     for (const amount of moves) {
+      if (totalAmount !== null && allocatedAmount + amount > totalAmount) {
+        return {
+          ok: false,
+          message: await pickDepositRefusal(tx, inscriptionId, priceAmount),
+        };
+      }
+
       const result = await spreadFromPool(tx, {
         academyId: input.academyId,
         amount,
         eventId: input.eventId,
-        target,
+        target: choreographyTarget(inscriptionId),
       });
 
       if (!result.ok) {
@@ -262,7 +282,7 @@ async function fundOwedThreshold(
     const resolution = thresholds.get(inscriptionId);
 
     if (!resolution) {
-      return { ok: false, message: "No encontramos esa inscripción." };
+      return { ok: false, message: inscriptionNotFoundMessage };
     }
 
     // A waived inscription owes nothing whatever its price.
@@ -270,25 +290,27 @@ async function fundOwedThreshold(
       continue;
     }
 
+    const allocatedAmount = await readInscriptionAllocatedAmount(
+      tx,
+      choreographyTarget(inscriptionId),
+    );
     const { overAllocatedAmount, owedAmount } = planResolvedCharge({
-      allocatedAmount: await readInscriptionAllocatedAmount(
-        tx,
-        choreographyTarget(inscriptionId),
-      ),
+      allocatedAmount,
       requiredDepositPercentage: input.requiredDepositPercentage,
       resolution,
       stage: input.stage,
     });
+    const refusal = await refusePick(tx, {
+      allocatedAmount,
+      inscriptionId,
+      overAllocatedAmount,
+      owedAmount,
+      picked: input.pickedInscriptionIds.has(inscriptionId),
+      resolution,
+    });
 
-    if (overAllocatedAmount && input.pickedInscriptionIds.has(inscriptionId)) {
-      return {
-        ok: false,
-        message: await overAllocatedPickMessage(
-          tx,
-          inscriptionId,
-          overAllocatedAmount,
-        ),
-      };
+    if (refusal) {
+      return { ok: false, message: refusal };
     }
 
     if (owedAmount === null) {
@@ -346,11 +368,72 @@ function planResolvedCharge(input: {
   });
 }
 
+/**
+ * Why a picked row cannot be charged, if it cannot. At
+ * `Pagar saldo` a row whose deposit tops its total charges that total and never
+ * reaches the deposit, so only money landing past the total is refused.
+ */
+async function refusePick(
+  tx: Transaction,
+  input: {
+    allocatedAmount: number;
+    inscriptionId: string;
+    overAllocatedAmount: number;
+    owedAmount: number | null;
+    picked: boolean;
+    resolution: InscriptionThresholdResolution;
+  },
+): Promise<string | null> {
+  const { inscriptionId, overAllocatedAmount, resolution } = input;
+  const { depositAmount, priceAmount, totalAmount } = resolution;
+
+  if (
+    !input.picked ||
+    priceAmount === null ||
+    depositAmount === null ||
+    totalAmount === null
+  ) {
+    return null;
+  }
+
+  if (
+    depositAmount > totalAmount &&
+    input.allocatedAmount + (input.owedAmount ?? 0) > totalAmount
+  ) {
+    return await pickDepositRefusal(tx, inscriptionId, priceAmount);
+  }
+
+  return overAllocatedAmount
+    ? await overAllocatedPickMessage(tx, inscriptionId, overAllocatedAmount)
+    : null;
+}
+
+async function pickDepositRefusal(
+  tx: Transaction,
+  inscriptionId: string,
+  priceAmount: number,
+): Promise<string> {
+  return pickDepositDoesNotFitMessage({
+    personName: await readDancerName(tx, inscriptionId),
+    priceAmount,
+  });
+}
+
 /** A pick below the money on the row would fix a price it already exceeds. */
 async function overAllocatedPickMessage(
   tx: Transaction,
   inscriptionId: string,
   overAllocatedAmount: number,
+): Promise<string> {
+  return `${seminarOverAllocatedMessage({
+    overAllocatedAmount,
+    personName: await readDancerName(tx, inscriptionId),
+  })} Quitale la diferencia desde su detalle antes de asignar.`;
+}
+
+async function readDancerName(
+  tx: Transaction,
+  inscriptionId: string,
 ): Promise<string> {
   const [person] = await tx
     .select({ firstName: dancers.firstName, lastName: dancers.lastName })
@@ -362,10 +445,7 @@ async function overAllocatedPickMessage(
     throw new Error(`Expected a dancer on inscription ${inscriptionId}.`);
   }
 
-  return `${seminarOverAllocatedMessage({
-    overAllocatedAmount,
-    personName: formatDancerName(person),
-  })} Quitale la diferencia desde su detalle antes de asignar.`;
+  return formatDancerName(person);
 }
 
 /**
