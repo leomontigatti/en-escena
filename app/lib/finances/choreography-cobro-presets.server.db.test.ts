@@ -43,8 +43,11 @@ beforeEach(() => {
  * catalogue price of 10000 with a 30 % deposit. That is the shape a list action
  * operates on: several choreographies at once, funded from one pool.
  */
-async function seedPresetFixture(paymentAmounts: number[]) {
-  const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+async function seedPresetFixture(
+  paymentAmounts: number[],
+  requiredDepositPercentage = 30,
+) {
+  const event = await createSavedEvent({ requiredDepositPercentage });
   const { academy, catalog, choreography } =
     await createAcademyFinanceChoreographyFixture({
       academyName: "Academia Preset",
@@ -102,10 +105,49 @@ async function seedPresetFixture(paymentAmounts: number[]) {
 
   return {
     academyId: academy.academy.id,
+    catalog,
     choreographyIds: [choreography.id, second.id],
     eventId: event.id,
     inscriptionIds,
     priceId: price.id,
+  };
+}
+
+/**
+ * Puts the first dancer on the second choreography and on a third one, which
+ * takes them to the three inscriptions that earn a `Descuento por bailarín`.
+ */
+async function addThirdInscriptionOfFirstDancer(
+  fixture: Awaited<ReturnType<typeof seedPresetFixture>>,
+) {
+  const third = await createChoreographyRecord({
+    academyId: fixture.academyId,
+    categoryId: fixture.catalog.categoryWithLevel.id,
+    eventId: fixture.eventId,
+    experienceLevelId: fixture.catalog.level.id,
+    modalityId: fixture.catalog.modality.id,
+    name: "Milonga",
+    scheduleCapacityId: fixture.catalog.scheduleCapacity.id,
+    submodalityId: fixture.catalog.submodality.id,
+  });
+  const [first] = await db
+    .select({ dancerId: choreographyDancers.dancerId })
+    .from(choreographyDancers)
+    .where(eq(choreographyDancers.id, fixture.inscriptionIds[0]));
+  const rest = await db
+    .insert(choreographyDancers)
+    .values(
+      [fixture.choreographyIds[1], third.id].map((choreographyId) => ({
+        ageAtEventStart: 14,
+        choreographyId,
+        dancerId: first.dancerId,
+      })),
+    )
+    .returning({ id: choreographyDancers.id });
+
+  return {
+    choreographyIds: [...fixture.choreographyIds, third.id],
+    inscriptionIds: [fixture.inscriptionIds[0], ...rest.map((row) => row.id)],
   };
 }
 
@@ -135,6 +177,170 @@ function sumByInscription(
 
   return totals;
 }
+
+describe("payChoreographiesPreset with a picked price that is not today's", () => {
+  test.each([
+    { allocated: 8000, amount: 8000, stage: "balance" },
+    { allocated: 2400, amount: 8000, stage: "deposit" },
+    { allocated: 12000, amount: 12000, stage: "balance" },
+    { allocated: 3600, amount: 12000, stage: "deposit" },
+  ] as const)(
+    "charges the $stage of the $amount row the pick stored",
+    async ({ allocated, amount, stage }) => {
+      const fixture = await seedPresetFixture([20000]);
+      const [picked] = await insertTestPrices([
+        {
+          amount,
+          eventId: fixture.eventId,
+          groupType: "solo",
+          name: "Precio Solo vencido",
+          paymentDeadline: "2026-02-28",
+        },
+      ]);
+      const [inscriptionId] = fixture.inscriptionIds;
+
+      const result = await payChoreographiesPreset({
+        academyId: fixture.academyId,
+        choreographyIds: [fixture.choreographyIds[0]],
+        eventId: fixture.eventId,
+        priceIdByGroupType: { solo: picked.id },
+        stage,
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(
+        sumByInscription(await readAllocations([inscriptionId])).get(
+          inscriptionId,
+        ),
+      ).toBe(allocated);
+    },
+  );
+
+  test("charges a picked row whose deposit rounds to nothing", async () => {
+    const fixture = await seedPresetFixture([20000], 10);
+    const [picked] = await insertTestPrices([
+      {
+        amount: 4,
+        eventId: fixture.eventId,
+        groupType: "solo",
+        name: "Precio Solo vencido",
+        paymentDeadline: "2026-02-28",
+      },
+    ]);
+    const [inscriptionId] = fixture.inscriptionIds;
+
+    const result = await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds: [fixture.choreographyIds[0]],
+      eventId: fixture.eventId,
+      priceIdByGroupType: { solo: picked.id },
+      stage: "balance",
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(
+      sumByInscription(await readAllocations([inscriptionId])).get(
+        inscriptionId,
+      ),
+    ).toBe(4);
+  });
+
+  test("takes the live dancer discount off the total of the picked row", async () => {
+    const fixture = await seedPresetFixture([40000]);
+    const [picked] = await insertTestPrices([
+      {
+        amount: 8000,
+        eventId: fixture.eventId,
+        groupType: "solo",
+        name: "Precio Solo vencido",
+        paymentDeadline: "2026-02-28",
+      },
+    ]);
+    const { choreographyIds, inscriptionIds } =
+      await addThirdInscriptionOfFirstDancer(fixture);
+
+    const result = await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds,
+      eventId: fixture.eventId,
+      priceIdByGroupType: { solo: picked.id },
+      stage: "balance",
+    });
+
+    expect(result).toEqual({ ok: true });
+    // Three inscriptions of one dancer: 10 % off all but the dearest of them.
+    const allocated = await readAllocations(inscriptionIds);
+    expect(allocated.reduce((sum, row) => sum + row.amount, 0)).toBe(22400);
+  });
+
+  test("charges today's row picked at a deposit above its discounted total", async () => {
+    const fixture = await seedPresetFixture([40000], 100);
+    const { choreographyIds, inscriptionIds } =
+      await addThirdInscriptionOfFirstDancer(fixture);
+
+    const result = await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds,
+      eventId: fixture.eventId,
+      priceIdByGroupType: { solo: fixture.priceId },
+      stage: "balance",
+    });
+
+    expect(result).toEqual({ ok: true });
+    // 10000 and twice 10000 less the 10 % of the third inscription of a dancer.
+    const allocated = await readAllocations(inscriptionIds);
+    expect(allocated.reduce((sum, row) => sum + row.amount, 0)).toBe(28000);
+  });
+
+  test("refuses a pick below the money already on the inscription and moves nothing", async () => {
+    const fixture = await seedPresetFixture([20000]);
+    const [picked] = await insertTestPrices([
+      {
+        amount: 5000,
+        eventId: fixture.eventId,
+        groupType: "solo",
+        name: "Precio Solo vencido",
+        paymentDeadline: "2026-02-28",
+      },
+    ]);
+    const [inscriptionId] = fixture.inscriptionIds;
+    const [payment] = await db
+      .select({ id: payments.id })
+      .from(payments)
+      .where(eq(payments.academyId, fixture.academyId));
+    await db.insert(paymentAllocations).values({
+      academyId: fixture.academyId,
+      amount: 6000,
+      eventId: fixture.eventId,
+      choreographyInscriptionId: inscriptionId,
+      paymentId: payment.id,
+    });
+
+    const result = await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds: [fixture.choreographyIds[0]],
+      eventId: fixture.eventId,
+      priceIdByGroupType: { solo: picked.id },
+      stage: "balance",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      message:
+        "Bailarín 0 Preset tiene asignados $ 1.000 más que el precio que le corresponde. Quitale la diferencia desde su detalle antes de asignar.",
+    });
+    const [row] = await db
+      .select({ selectedPriceId: choreographyDancers.selectedPriceId })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.id, inscriptionId));
+    expect(row.selectedPriceId).toBeNull();
+    expect(
+      sumByInscription(await readAllocations([inscriptionId])).get(
+        inscriptionId,
+      ),
+    ).toBe(6000);
+  });
+});
 
 describe("payChoreographiesPreset", () => {
   test("funds the owed deposit of every selected choreography with plain allocations", async () => {
