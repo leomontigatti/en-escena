@@ -19,8 +19,8 @@ check a screen by hand: drive it and show the result.
   background command.
 - **A signed-in session**: the demo accounts are `admin`, `academy`, `auditor` and `judge`
   (`admin@enescena.local`, `academia@enescena.local`, `auditoria@enescena.local`,
-  `jurado@enescena.local`). Outside T3, `pnpm ui:session <role> <path>` does the whole launch: it
-  starts `pnpm dev` in the background when nothing answers on the worktree's port (log in
+  `jurado@enescena.local`). `pnpm ui:session <role> <path>` does the whole launch: it starts
+  `pnpm dev` in the background when nothing answers on the worktree's port (log in
   `.playwright-cli/dev.log`), seeds a database with no users (one that has users but not the
   role's demo account, such as a production refresh, is refused, never seeded over), signs in
   through `/ingresar` in a `playwright-cli` session named for the role, sized 1440×900, and opens
@@ -38,34 +38,24 @@ check a screen by hand: drive it and show the result.
 
 ## Drive
 
-In a T3 thread, drive with T3's preview tools as the shared `implement` skill's `PREVIEW.md` says,
-on the URL § Launch started. Sign in by hand: navigate to `/ingresar`, type the demo account's
-email and the seed's password, submit. Size the viewport to 1440×900, the design width in
-[style-guide.md](style-guide.md#viewports), once: it holds across navigations and sign-ins. When
-the change touches a table or a dense row, also check it at 1280×800, the floor. The admin
-sidebar fills most of the snapshot's tree, so target a popover's items by role locator, click a
-button by the `aria-ref` the latest snapshot gives it (a role locator on a visible button such as
-`Ingresar` or `Acciones` timed out in the 2026-10-26 probe), and wait for text the main content
-shows (a sidebar label such as `Resultados` matches before the page loads).
-
-The preview tools are on trial (the shared `preview-tools-verification` dependency). They drive,
-assert, read the console and record reliably here, and since the 2026-10-26 probe their captures
-are evidence too: a capture keeps the 1440×900 layout and is saved scaled to 1280×800, and a
-dialog's blurred backdrop renders as it does in `playwright-cli`. When a step cannot be done with
-the preview tools, finish it with `playwright-cli` below and say so in the final report.
-
-Outside T3, or as that fallback, the browser is the Playwright CLI (`@playwright/cli`, the
-`playwright-cli` binary), installed globally with a headless Chromium
+The browser, in a T3 thread too, is the Playwright CLI (`@playwright/cli`, the `playwright-cli`
+binary), installed globally with a headless Chromium
 ([local-auth.md](../local-auth.md#running-locally) has the two commands). If it is missing, stop
 and tell the user. Its scratch files go in `.playwright-cli/`, which is gitignored.
+
+T3's preview tools are for a quick look at a page, as the shared `implement` skill's `PREVIEW.md`
+says; a click made through `preview_evaluate` proves nothing about the path.
 
 1. `pnpm ui:session <role> <path>` (§ Launch). Every later command names the session:
    `playwright-cli -s=academy snapshot`. The login is also saved to
    `.playwright-cli/<role>-state.json`, for `state-load`. Another account is signed in by hand:
    `open` `/ingresar`, `snapshot` for the field refs (they change between snapshots), `fill` the
-   email and password, `click` the button.
+   email and password, `click` the button. Keep 1440×900, the design width in
+   [style-guide.md](style-guide.md#viewports). When the change touches a table or a dense row,
+   also check it at 1280×800, the floor (`resize 1280 800`).
 2. Drive: `goto`, `click`, `fill`, `select`, `press`, and `snapshot` (or `find "<text>"`) to
-   confirm the result. Prefer the snapshot for asserting text and structure.
+   confirm the result. Prefer the snapshot for asserting text and structure, on text the main
+   content shows: a sidebar label such as `Resultados` matches before the page loads.
 3. Diagnose from the page: `console` for errors, `requests` then `request <n>` or
    `response-body <n>` for the network.
 
@@ -80,15 +70,13 @@ A change to what a screen looks like is shown as before and after images; a chan
 interaction as a short recording.
 
 - Capture the **before** during exploration, before the first edit, and the **after** once the
-  change is final: same screen, same account, same 1440×900 viewport. In a T3 thread both are
-  `preview_snapshot` with `save: true`; outside T3 both are `playwright-cli`
-  (`pnpm ui:session <role> <path>`, then
+  change is final: same screen, same account, same 1440×900 viewport. Both are `playwright-cli`,
+  in a T3 thread too (`pnpm ui:session <role> <path>`, then
   `screenshot --filename=.playwright-cli/<what>-before.png`, and `-after.png`). A recording can
   come from `preview_recording_start` and `preview_recording_stop`.
 - Show them to the user in the thread for approval before the PR opens (the `implement` skill's
-  step 7): embed each image by its absolute path, the snapshot's `screenshotPath` or
-  `<worktree>/.playwright-cli/<what>-after.png`. The snapshot's file sits in T3's own storage and
-  `.playwright-cli/` is gitignored, so neither reaches the repo or the PR.
+  step 7): embed each image by its absolute path, `<worktree>/.playwright-cli/<what>-after.png`.
+  `.playwright-cli/` is gitignored, so the images never reach the repo or the PR.
 
 ## Cleanup
 
