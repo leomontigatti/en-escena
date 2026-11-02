@@ -80,7 +80,7 @@ export type CobroStage = "deposit" | "balance";
 export type PresetPriceSelection = Record<string, string>;
 
 const storedRowOfAnotherScheduleMessage =
-  "Elegí un precio: hay inscripciones que guardan el precio de otro cronograma.";
+  "Hay inscripciones que guardan el precio de otro cronograma: pagá esa coreografía sola y elegí su precio.";
 
 const groupTypeWithoutPriceMessage =
   "Elegí un precio para cada tipo de grupo: hay inscripciones que guardan el precio de otro tipo de grupo.";
