@@ -262,6 +262,7 @@ export function AcademyFinancesRouteView({
           pricingScheduleIdByChoreography={
             loaderData.pricingScheduleIdByChoreography
           }
+          requiredDepositPercentage={loaderData.requiredDepositPercentage}
           selectedRows={choreographyTotals.selectedRows}
           stage={preset.stage}
         />
