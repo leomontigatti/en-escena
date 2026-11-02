@@ -7,6 +7,7 @@ import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-t
 import {
   choreographies,
   choreographyDancers,
+  dancers,
   paymentAllocations,
   payments,
   prices,
@@ -339,6 +340,175 @@ describe("payChoreographiesPreset with a picked price that is not today's", () =
         inscriptionId,
       ),
     ).toBe(6000);
+  });
+});
+
+describe("payChoreographiesPreset with a pick whose deposit cannot fit", () => {
+  const refusalOf = (price: string) =>
+    `No se puede aplicar el precio de ${price} a Bailarín 0 Preset: la seña de ese precio supera lo que la inscripción adeuda.`;
+
+  async function expectNothingMoved(inscriptionIds: string[]) {
+    await expect(readAllocations(inscriptionIds)).resolves.toEqual([]);
+    const rows = await db
+      .select({ selectedPriceId: choreographyDancers.selectedPriceId })
+      .from(choreographyDancers)
+      .where(inArray(choreographyDancers.id, inscriptionIds));
+    expect(rows.map((row) => row.selectedPriceId)).toEqual(
+      inscriptionIds.map(() => null),
+    );
+  }
+
+  test.each(["deposit", "balance"] as const)(
+    "refuses a %s pick whose deposit is above what the row owes today",
+    async (stage) => {
+      const fixture = await seedPresetFixture([20000]);
+      const [picked] = await insertTestPrices([
+        {
+          amount: 40000,
+          eventId: fixture.eventId,
+          groupType: "solo",
+          name: "Precio Solo vencido",
+          paymentDeadline: "2026-02-28",
+        },
+      ]);
+
+      const result = await payChoreographiesPreset({
+        academyId: fixture.academyId,
+        choreographyIds: [fixture.choreographyIds[0]],
+        eventId: fixture.eventId,
+        priceIdByGroupType: { solo: picked.id },
+        stage,
+      });
+
+      expect(result).toEqual({ ok: false, message: refusalOf("$ 40.000") });
+      await expectNothingMoved([fixture.inscriptionIds[0]]);
+    },
+  );
+
+  test.each(["deposit", "balance"] as const)(
+    "refuses a %s pick whose deposit is above its own discounted total",
+    async (stage) => {
+      const fixture = await seedPresetFixture([40000], 95);
+      const [picked] = await insertTestPrices([
+        {
+          amount: 9000,
+          eventId: fixture.eventId,
+          groupType: "solo",
+          name: "Precio Solo vencido",
+          paymentDeadline: "2026-02-28",
+        },
+      ]);
+      const { choreographyIds, inscriptionIds } =
+        await addThirdInscriptionOfFirstDancer(fixture);
+
+      const result = await payChoreographiesPreset({
+        academyId: fixture.academyId,
+        choreographyIds,
+        eventId: fixture.eventId,
+        priceIdByGroupType: { solo: picked.id },
+        stage,
+      });
+
+      expect(result).toEqual({ ok: false, message: refusalOf("$ 9.000") });
+      await expectNothingMoved(inscriptionIds);
+    },
+  );
+
+  test("refuses a deposit charge on today's row picked at a deposit above its discounted total", async () => {
+    const fixture = await seedPresetFixture([40000], 100);
+    const { choreographyIds, inscriptionIds } =
+      await addThirdInscriptionOfFirstDancer(fixture);
+
+    const result = await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds,
+      eventId: fixture.eventId,
+      priceIdByGroupType: { solo: fixture.priceId },
+      stage: "deposit",
+    });
+
+    expect(result).toEqual({ ok: false, message: refusalOf("$ 10.000") });
+    await expectNothingMoved(inscriptionIds);
+  });
+
+  test("refuses a pick whose deposit fits today's price but not today's discounted total", async () => {
+    const fixture = await seedPresetFixture([40000], 80);
+    const [picked] = await insertTestPrices([
+      {
+        amount: 12000,
+        eventId: fixture.eventId,
+        groupType: "solo",
+        name: "Precio Solo vencido",
+        paymentDeadline: "2026-02-28",
+      },
+    ]);
+    const { choreographyIds, inscriptionIds } =
+      await addThirdInscriptionOfFirstDancer(fixture);
+
+    const result = await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds,
+      eventId: fixture.eventId,
+      priceIdByGroupType: { solo: picked.id },
+      stage: "deposit",
+    });
+
+    expect(result).toEqual({ ok: false, message: refusalOf("$ 12.000") });
+    await expectNothingMoved(inscriptionIds);
+  });
+
+  test("rolls back the inscription the run already funded", async () => {
+    const fixture = await seedPresetFixture([20000]);
+    // The funded inscription is the one that sorts first: the run walks them
+    // in id order, so it reaches the refused one with money already moved.
+    const [funded, refused] = [
+      {
+        choreographyId: fixture.choreographyIds[0],
+        id: fixture.inscriptionIds[0],
+      },
+      {
+        choreographyId: fixture.choreographyIds[1],
+        id: fixture.inscriptionIds[1],
+      },
+    ].sort((a, b) => a.id.localeCompare(b.id));
+    await db
+      .update(choreographies)
+      .set({ groupType: "duo" })
+      .where(eq(choreographies.id, funded.choreographyId));
+    const [fittingPick, unfittingPick] = await insertTestPrices([
+      {
+        amount: 8000,
+        eventId: fixture.eventId,
+        groupType: "duo",
+        name: "Precio Dúo",
+      },
+      {
+        amount: 40000,
+        eventId: fixture.eventId,
+        groupType: "solo",
+        name: "Precio Solo vencido",
+        paymentDeadline: "2026-02-28",
+      },
+    ]);
+    const [dancer] = await db
+      .select({ firstName: dancers.firstName })
+      .from(choreographyDancers)
+      .innerJoin(dancers, eq(dancers.id, choreographyDancers.dancerId))
+      .where(eq(choreographyDancers.id, refused.id));
+
+    const result = await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds: fixture.choreographyIds,
+      eventId: fixture.eventId,
+      priceIdByGroupType: { duo: fittingPick.id, solo: unfittingPick.id },
+      stage: "deposit",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      message: refusalOf("$ 40.000").replace("Bailarín 0", dancer.firstName),
+    });
+    await expectNothingMoved(fixture.inscriptionIds);
   });
 });
 
