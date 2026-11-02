@@ -3,9 +3,9 @@
  * inscriptions, across several seminars, shares with the per-inscription money
  * dialog: the lock on the seminars and the place check.
  *
- * The per-inscription writer (`seminar-inscription-allocation.server.ts`) takes
- * the lock through here too, so one seminar or seven are
- * serialised by the same lock taken the same way.
+ * The per-inscription writers (`seminar-inscription-allocation.server.ts`,
+ * `inscription-money-seminar.server.ts`) take the lock through here too, so one
+ * seminar or seven are serialised by the same lock taken the same way.
  */
 
 import { asc, inArray } from "drizzle-orm";

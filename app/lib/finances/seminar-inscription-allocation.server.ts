@@ -1,16 +1,8 @@
 /**
- * The write side of the money dialog on a seminar inscription, wherever it is
- * mounted (the `(seminar, academy)` financial detail, the event-wide seminar
- * inscriptions list): the seminar twin of `inscription-allocation.server.ts`,
- * gesture for gesture — put an arbitrary amount on one inscription, take an
- * arbitrary amount off it, release exactly what it holds above its `Total`.
- *
- * It is a second module and not a branch inside the choreography one because
- * what differs is everything *around* the pool: which table the inscription
- * lives in, which list prices it, and what makes a price row a candidate. The
- * pool rules themselves are shared — `spreadFromPool` and `unwindToPool` take
- * the target and do not care which kind it names — and so are the three
- * refusals they raise.
+ * Putting an arbitrary amount on one seminar inscription, wherever its money
+ * dialog is mounted (the `(seminar, academy)` financial detail, the event-wide
+ * seminar inscriptions list), and the price rows that dialog reads. The gestures
+ * that take money off live in `inscription-money.server.ts`.
  *
  * Two seminar-only facts shape this file:
  *
@@ -31,14 +23,12 @@ import { db } from "@/db";
 import { seminarInscriptions, seminarPrices, seminars } from "@/db/schema";
 import {
   calculateDepositAmount,
-  deriveInscriptionFinancialFigures,
   hasCrossedDepositThreshold,
 } from "@/lib/finances/inscription-financial-status";
 import {
   deriveSeminarInscriptionThresholds,
   selectSeminarPriceCandidates,
 } from "@/lib/finances/seminar-inscription-price";
-import { readSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-thresholds.server";
 import {
   isParticipating,
   readSeminarParticipation,
@@ -56,13 +46,7 @@ import {
   lockTargetRow,
   readInscriptionAllocatedAmount,
   spreadFromPool,
-  unwindToPool,
 } from "./allocation-pool.server";
-import {
-  partialRetainedReleaseMessage,
-  toCobroResult,
-} from "./withdrawal-retention-refusals";
-import { releaseRetainedDeposit } from "./withdrawal-retention.server";
 import {
   runCobro,
   type CobroResult,
@@ -185,8 +169,8 @@ export type SeminarInscriptionMoneyInput = {
  * academy is read **through the person**, as everywhere else on this side.
  * `null` when the inscription is not one of the event's.
  *
- * The writers below check the pair again inside their transaction: this read
- * says where the money goes, and that check is what keeps it there.
+ * The writers check the academy again inside their transaction: this read says
+ * where the money goes, and that check is what keeps it there.
  */
 export async function readSeminarInscriptionMoneyTarget(input: {
   eventId: string;
@@ -362,113 +346,6 @@ async function readStoredSeminarDepositAmount(
     priceAmount: stored?.amount ?? null,
     requiredDepositPercentage: input.requiredDepositPercentage,
   }).depositAmount;
-}
-
-/**
- * Takes an arbitrary amount off one seminar inscription and returns it to the
- * academy's `Saldo disponible`. Nothing here refuses on financial grounds, and
- * dropping back below the deposit is what opens the price lock again.
- */
-export async function removeFromSeminarInscription(
-  input: SeminarInscriptionMoneyInput & { amount: number },
-): Promise<CobroResult> {
-  return await runCobro(async (tx) => {
-    const context = await loadSeminarMoneyContext(tx, input);
-    if (!context.ok) {
-      return context;
-    }
-
-    if (context.inscription.withdrawn) {
-      return { ok: false, message: partialRetainedReleaseMessage };
-    }
-
-    return await unwindToPool(tx, {
-      academyId: input.academyId,
-      amount: input.amount,
-      eventId: input.eventId,
-      target: { id: input.inscriptionId, kind: "seminar" },
-    });
-  });
-}
-
-/** Releases **exactly** what the inscription holds above its `Total`. */
-export async function releaseSeminarInscriptionExcess(
-  input: SeminarInscriptionMoneyInput,
-): Promise<CobroResult> {
-  return await runCobro(async (tx) => {
-    const context = await loadSeminarMoneyContext(tx, input);
-    if (!context.ok) {
-      return context;
-    }
-
-    if (context.inscription.withdrawn) {
-      return { ok: false, message: partialRetainedReleaseMessage };
-    }
-
-    const thresholds = await readSeminarInscriptionThresholds(tx, {
-      academyId: input.academyId,
-      eventId: input.eventId,
-      inscriptionIds: [input.inscriptionId],
-    });
-    const inscriptionThresholds = thresholds.get(input.inscriptionId);
-
-    if (!inscriptionThresholds) {
-      return { ok: false, message: seminarInscriptionNotFoundMessage };
-    }
-
-    const figures = deriveInscriptionFinancialFigures({
-      allocatedAmount: await readInscriptionAllocatedAmount(tx, {
-        id: input.inscriptionId,
-        kind: "seminar",
-      }),
-      thresholds: inscriptionThresholds,
-    });
-
-    if (!figures.overAllocatedAmount) {
-      return {
-        ok: false,
-        message: "Esta inscripción no tiene excedente para liberar.",
-      };
-    }
-
-    return await unwindToPool(tx, {
-      academyId: input.academyId,
-      amount: figures.overAllocatedAmount,
-      eventId: input.eventId,
-      target: { id: input.inscriptionId, kind: "seminar" },
-    });
-  });
-}
-
-/**
- * The medical case on a withdrawn seminar inscription: its whole retained deposit
- * goes back to `Saldo disponible`, with no amount to choose (#1065).
- */
-export async function releaseRetainedSeminarInscriptionDeposit(
-  input: SeminarInscriptionMoneyInput,
-): Promise<CobroResult> {
-  return await runCobro(async (tx) => {
-    const context = await loadSeminarMoneyContext(tx, input);
-    if (!context.ok) {
-      return context;
-    }
-
-    if (!context.inscription.withdrawn) {
-      return { ok: false, message: "Esta inscripción no está retirada." };
-    }
-
-    return toCobroResult(
-      await releaseRetainedDeposit(tx, seminarPoolTarget(input)),
-    );
-  });
-}
-
-function seminarPoolTarget(input: SeminarInscriptionMoneyInput) {
-  return {
-    academyId: input.academyId,
-    eventId: input.eventId,
-    target: { id: input.inscriptionId, kind: "seminar" as const },
-  };
 }
 
 /**

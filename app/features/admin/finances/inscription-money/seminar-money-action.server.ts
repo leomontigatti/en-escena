@@ -1,9 +1,11 @@
 import {
+  releaseInscriptionExcess,
+  releaseRetainedInscriptionDeposit,
+  removeFromInscription,
+} from "@/lib/finances/inscription-money.server";
+import {
   allocateToSeminarInscription,
   readSeminarInscriptionMoneyTarget,
-  releaseRetainedSeminarInscriptionDeposit,
-  releaseSeminarInscriptionExcess,
-  removeFromSeminarInscription,
 } from "@/lib/finances/seminar-inscription-allocation.server";
 
 import {
@@ -84,14 +86,20 @@ export async function runSeminarInscriptionMoneyIntent(input: {
     return { status: "error", message: "No encontramos esa inscripción." };
   }
 
+  const scope = {
+    academyId: target.academyId,
+    eventId: target.eventId,
+    target: { id: target.inscriptionId, kind: "seminar" as const },
+  };
+
   if (intent === releaseInscriptionExcessIntent) {
-    const released = await releaseSeminarInscriptionExcess(target);
+    const released = await releaseInscriptionExcess(scope);
 
     return answer(intent, released);
   }
 
   if (intent === releaseRetainedDepositIntent) {
-    const released = await releaseRetainedSeminarInscriptionDeposit(target);
+    const released = await releaseRetainedInscriptionDeposit(scope);
 
     return answer(intent, released);
   }
@@ -110,7 +118,7 @@ export async function runSeminarInscriptionMoneyIntent(input: {
           amount,
           priceId: readPickedPriceId(input.formData),
         })
-      : await removeFromSeminarInscription({ ...target, amount });
+      : await removeFromInscription({ ...scope, amount });
 
   return answer(intent, result);
 }
