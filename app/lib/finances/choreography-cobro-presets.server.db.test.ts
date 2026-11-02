@@ -16,6 +16,7 @@ import {
   createChoreographyRecord,
   createDancer,
 } from "@/features/portal/choreographies/test-support/db";
+import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
 import { chargeThreshold } from "@/lib/finances/inscription-money.server";
 import { allocateToInscription } from "@/lib/finances/inscription-money.server";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
@@ -412,6 +413,46 @@ describe("chargeThreshold on choreographies with a stored price and no pick", ()
     },
   );
 
+  test("charges today's row on one storing a row that does not price its schedule", async () => {
+    const fixture = await seedPresetFixture([20000]);
+    const otherSchedule = await createScheduleForModalityFixture({
+      eventId: fixture.eventId,
+      modalityId: fixture.catalog.modality.id,
+    });
+    const [stored] = await insertTestPrices([
+      {
+        amount: 8000,
+        eventId: fixture.eventId,
+        groupType: "solo",
+        name: "Precio especial de otro cronograma",
+        paymentDeadline: "2026-02-28",
+        scheduleIds: [otherSchedule.id],
+      },
+    ]);
+    const [inscriptionId] = fixture.inscriptionIds;
+
+    await db
+      .update(choreographyDancers)
+      .set({ selectedPriceId: stored.id })
+      .where(eq(choreographyDancers.id, inscriptionId));
+
+    const result = await chargeThreshold({
+      kind: "choreography",
+      academyId: fixture.academyId,
+      choreographyIds: [fixture.choreographyIds[0]],
+      eventId: fixture.eventId,
+      priceIdByGroupType: {},
+      stage: "deposit",
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(
+      sumByInscription(await readAllocations([inscriptionId])).get(
+        inscriptionId,
+      ),
+    ).toBe(3000);
+  });
+
   test("charges today's row beside it on an inscription storing none", async () => {
     const fixture = await seedPresetFixture([20000]);
     const [stored] = await insertTestPrices([
@@ -520,6 +561,41 @@ describe("chargeThreshold on choreographies with a pick whose deposit cannot fit
 
       expect(result).toEqual({ ok: false, message: refusalOf("$ 9.000") });
       await expectNothingMoved(inscriptionIds);
+    },
+  );
+
+  test.each(["deposit", "balance"] as const)(
+    "refuses a %s with no pick on a stored row whose deposit is above its own discounted total",
+    async (stage) => {
+      const fixture = await seedPresetFixture([40000], 95);
+      const [stored] = await insertTestPrices([
+        {
+          amount: 9000,
+          eventId: fixture.eventId,
+          groupType: "solo",
+          name: "Precio Solo vencido",
+          paymentDeadline: "2026-02-28",
+        },
+      ]);
+      const { choreographyIds, inscriptionIds } =
+        await addThirdInscriptionOfFirstDancer(fixture);
+
+      await db
+        .update(choreographyDancers)
+        .set({ selectedPriceId: stored.id })
+        .where(inArray(choreographyDancers.id, inscriptionIds));
+
+      const result = await chargeThreshold({
+        kind: "choreography",
+        academyId: fixture.academyId,
+        choreographyIds,
+        eventId: fixture.eventId,
+        priceIdByGroupType: {},
+        stage,
+      });
+
+      expect(result).toEqual({ ok: false, message: refusalOf("$ 9.000") });
+      await expect(readAllocations(inscriptionIds)).resolves.toEqual([]);
     },
   );
 

@@ -96,9 +96,9 @@ export function sumPresetOwedAmount(input: {
  * loader's figure: a row off the roster and a waived one.
  *
  * One deliberate approximation: the `Descuento por bailarín` is the row's own.
- * It is derived from the roster's prices, so a pick moves it, but the projection
- * keeps it rather than re-deriving a discount across the whole academy. The
- * write recomputes it.
+ * It is derived from the roster's prices, so a row other than today's moves it,
+ * picked or stored, but the projection keeps it rather than re-deriving a
+ * discount across the whole academy. The write recomputes it.
  */
 function resolvePresetOwedAmount(input: {
   inscription: PresetInscription;

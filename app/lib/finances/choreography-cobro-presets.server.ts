@@ -20,7 +20,7 @@
  * can trust that nothing moved.
  *
  * Lock order: the selection's active inscriptions in id order, then the picked
- * price rows in order, as `lockPriceRows` takes them.
+ * and stored price rows in order, as `lockPriceRows` takes them.
  */
 
 import { and, asc, eq, inArray } from "drizzle-orm";
@@ -97,8 +97,6 @@ export type ChoreographyChargeInput = {
   stage: CobroStage;
 };
 
-type StoredRow = { amount: number; groupType: string };
-
 type RowToCharge =
   { ok: false; message: string } | { amount: number | null; ok: true };
 
@@ -118,11 +116,7 @@ type ChoreographySelection = {
 export const choreographyCharge: ThresholdChargeKind<
   ChoreographyChargeInput,
   ChoreographySelection,
-  {
-    inscriptions: PresetInscription[];
-    pickedAmounts: Map<string, number>;
-    storedAmounts: Map<string, number>;
-  }
+  { inscriptions: PresetInscription[]; rowAmounts: Map<string, number> }
 > = {
   emptySelection: "Elegí al menos una coreografía.",
   noActiveInscriptions:
@@ -199,7 +193,7 @@ export const choreographyCharge: ThresholdChargeKind<
     const crossed = await coverDepositsOfChargedRows(tx, {
       academyId: input.academyId,
       eventId: input.eventId,
-      priceAmounts: new Map([...priced.storedAmounts, ...priced.pickedAmounts]),
+      rowAmounts: priced.rowAmounts,
       requiredDepositPercentage,
     });
 
@@ -211,7 +205,7 @@ export const choreographyCharge: ThresholdChargeKind<
       academyId: input.academyId,
       eventId: input.eventId,
       inscriptionIds: priced.inscriptions.map((inscription) => inscription.id),
-      pickedInscriptionIds: new Set(priced.pickedAmounts.keys()),
+      inscriptionIdsOnTheirRow: new Set(priced.rowAmounts.keys()),
       requiredDepositPercentage,
       stage: input.stage,
     });
@@ -236,17 +230,17 @@ async function coverDepositsOfChargedRows(
   input: {
     academyId: string;
     eventId: string;
-    priceAmounts: ReadonlyMap<string, number>;
+    rowAmounts: ReadonlyMap<string, number>;
     requiredDepositPercentage: number;
   },
 ): Promise<CobroResult> {
   const thresholds = await readInscriptionThresholds(tx, {
     academyId: input.academyId,
     eventId: input.eventId,
-    inscriptionIds: [...input.priceAmounts.keys()],
+    inscriptionIds: [...input.rowAmounts.keys()],
   });
 
-  for (const [inscriptionId, priceAmount] of input.priceAmounts) {
+  for (const [inscriptionId, priceAmount] of input.rowAmounts) {
     const resolution = thresholds.get(inscriptionId);
 
     if (!resolution) {
@@ -261,7 +255,7 @@ async function coverDepositsOfChargedRows(
     }
 
     const { allocatedAmount, totalAmount } = resolution;
-    // Below the deposit by construction: neither map holds a row past it. The
+    // Below the deposit by construction: the map holds no row past it. The
     // discount stays out, since it moves the total and never the deposit.
     const { moves } = planThresholdCharge({
       allocatedAmount,
@@ -309,7 +303,7 @@ async function fundOwedThreshold(
     academyId: string;
     eventId: string;
     inscriptionIds: string[];
-    pickedInscriptionIds: ReadonlySet<string>;
+    inscriptionIdsOnTheirRow: ReadonlySet<string>;
     requiredDepositPercentage: number;
     stage: CobroStage;
   },
@@ -350,7 +344,7 @@ async function fundOwedThreshold(
       inscriptionId,
       overAllocatedAmount,
       owedAmount,
-      picked: input.pickedInscriptionIds.has(inscriptionId),
+      onItsRow: input.inscriptionIdsOnTheirRow.has(inscriptionId),
       resolution,
     });
 
@@ -414,7 +408,7 @@ function planResolvedCharge(input: {
 }
 
 /**
- * Why a picked row cannot be charged, if it cannot. At
+ * Why the row picked or stored cannot be charged, if it cannot. At
  * `Pagar saldo` a row whose deposit tops its total charges that total and never
  * reaches the deposit, so only money landing past the total is refused.
  */
@@ -423,9 +417,9 @@ async function refusePick(
   input: {
     allocatedAmount: number;
     inscriptionId: string;
+    onItsRow: boolean;
     overAllocatedAmount: number;
     owedAmount: number | null;
-    picked: boolean;
     resolution: InscriptionThresholdResolution;
   },
 ): Promise<string | null> {
@@ -433,7 +427,7 @@ async function refusePick(
   const { depositAmount, priceAmount, totalAmount } = resolution;
 
   if (
-    !input.picked ||
+    !input.onItsRow ||
     priceAmount === null ||
     depositAmount === null ||
     totalAmount === null
@@ -493,11 +487,11 @@ async function readDancerName(
   return formatDancerName(person);
 }
 
-/** Each row the inscriptions store, by price id. */
-async function readStoredRows(
+/** The group type of each row the inscriptions store, by price id. */
+async function readStoredGroupTypes(
   tx: Transaction,
   inscriptions: Array<{ selectedPriceId: string | null }>,
-): Promise<Map<string, StoredRow>> {
+): Promise<Map<string, string>> {
   const priceIds = [
     ...new Set(
       inscriptions.flatMap(({ selectedPriceId }) =>
@@ -511,15 +505,11 @@ async function readStoredRows(
   }
 
   const rows = await tx
-    .select({
-      amount: prices.amount,
-      groupType: prices.groupType,
-      id: prices.id,
-    })
+    .select({ groupType: prices.groupType, id: prices.id })
     .from(prices)
     .where(inArray(prices.id, priceIds));
 
-  return new Map(rows.map((row) => [row.id, row]));
+  return new Map(rows.map((row) => [row.id, row.groupType]));
 }
 
 /**
@@ -580,25 +570,22 @@ async function applySelectedPrices(
     priceIdByGroupType: PresetPriceSelection;
   },
 ): Promise<
-  | { ok: false; message: string }
-  | {
-      ok: true;
-      pickedAmounts: Map<string, number>;
-      storedAmounts: Map<string, number>;
-    }
+  { ok: false; message: string } | { ok: true; rowAmounts: Map<string, number> }
 > {
-  const pickedAmounts = new Map<string, number>();
-  const storedAmounts = new Map<string, number>();
+  const rowAmounts = new Map<string, number>();
   const byId = new Map(
     input.choreographies.map((choreography) => [choreography.id, choreography]),
   );
 
-  // Every row the loop below can lock, all at once and in order, before it
-  // takes them one by one through `loadCandidatePriceRow`: two presets picking
-  // the same rows cannot deadlock.
-  await lockPriceRows(tx, Object.values(input.priceIdByGroupType));
+  const storedGroupTypes = await readStoredGroupTypes(tx, input.inscriptions);
 
-  const storedRows = await readStoredRows(tx, input.inscriptions);
+  // Every row the loop below can lock, all at once and in order, before it
+  // takes them one by one through `loadCandidatePriceRow`: two presets charging
+  // the same rows cannot deadlock.
+  await lockPriceRows(tx, [
+    ...Object.values(input.priceIdByGroupType),
+    ...storedGroupTypes.keys(),
+  ]);
 
   for (const inscription of input.inscriptions) {
     const choreography = byId.get(inscription.choreographyId);
@@ -630,21 +617,23 @@ async function applySelectedPrices(
           inscriptionId: inscription.id,
           priceId,
         })
-      : readStoredRowToCharge({ choreography, inscription, storedRows });
+      : await readStoredRowToCharge(tx, {
+          choreography,
+          eventId: input.eventId,
+          inscription,
+          storedGroupTypes,
+        });
 
     if (!priced.ok) {
       return priced;
     }
 
     if (priced.amount !== null) {
-      (priceId ? pickedAmounts : storedAmounts).set(
-        inscription.id,
-        priced.amount,
-      );
+      rowAmounts.set(inscription.id, priced.amount);
     }
   }
 
-  return { ok: true, pickedAmounts, storedAmounts };
+  return { ok: true, rowAmounts };
 }
 
 async function storePickedPrice(
@@ -677,21 +666,39 @@ async function storePickedPrice(
 
 /**
  * With no pick for its group type, an inscription below its deposit is charged
- * the row it stores, which is the one the money crossing fixes, and `null` with
- * none stored. One of another group type is refused: crossing it would freeze
- * the row the roster save refuses to leave behind (#660). One already past it is
- * frozen whatever the preset does.
+ * the row it stores, which is the one the money crossing fixes, and `null` when
+ * it stores none or one that does not price its schedule, as for a pick. One of
+ * another group type is refused: crossing it would freeze the row the roster
+ * save refuses to leave behind (#660). One already past it is frozen whatever
+ * the preset does.
  */
-function readStoredRowToCharge(input: {
-  choreography: PresetChoreography;
-  inscription: { selectedPriceId: string | null };
-  storedRows: Map<string, StoredRow>;
-}): RowToCharge {
-  const stored = input.storedRows.get(input.inscription.selectedPriceId ?? "");
+async function readStoredRowToCharge(
+  tx: Transaction,
+  input: {
+    choreography: PresetChoreography;
+    eventId: string;
+    inscription: { selectedPriceId: string | null };
+    storedGroupTypes: Map<string, string>;
+  },
+): Promise<RowToCharge> {
+  const { choreography, inscription } = input;
 
-  if (stored && stored.groupType !== input.choreography.groupType) {
+  if (inscription.selectedPriceId === null) {
+    return { amount: null, ok: true };
+  }
+
+  const groupType = input.storedGroupTypes.get(inscription.selectedPriceId);
+
+  if (groupType !== choreography.groupType) {
     return { ok: false, message: groupTypeWithoutPriceMessage };
   }
+
+  const stored = await loadCandidatePriceRow(tx, {
+    eventId: input.eventId,
+    groupType,
+    priceId: inscription.selectedPriceId,
+    scheduleId: choreography.scheduleId,
+  });
 
   return { amount: stored?.amount ?? null, ok: true };
 }
