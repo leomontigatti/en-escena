@@ -23,14 +23,21 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import {
   choreographies,
   choreographyDancers,
+  dancers,
+  events,
   prices,
   scheduleCapacities,
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
-import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
+import { formatDancerName } from "@/lib/finances/formatters";
+import {
+  calculateDepositAmount,
+  deriveInscriptionFinancialFigures,
+} from "@/lib/finances/inscription-financial-status";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
+import { seminarOverAllocatedMessage } from "@/lib/finances/seminar-cobro-refusals";
 import { lockPriceRows } from "@/lib/prices/rows.server";
 
 import { choreographyTarget } from "./allocation-target.server";
@@ -137,13 +144,89 @@ export async function payChoreographiesPreset(input: {
       return priced;
     }
 
+    const crossed = await coverPickedDeposits(tx, {
+      academyId: input.academyId,
+      eventId: input.eventId,
+      pickedAmounts: priced.pickedAmounts,
+    });
+
+    if (!crossed.ok) {
+      return crossed;
+    }
+
     return await fundOwedThreshold(tx, {
       academyId: input.academyId,
       eventId: input.eventId,
       inscriptionIds: inscriptions.map((inscription) => inscription.id),
+      pickedInscriptionIds: new Set(priced.pickedAmounts.keys()),
       stage: input.stage,
     });
   });
+}
+
+/**
+ * Funds each picked inscription up to the deposit of the row it was just given.
+ * Below that deposit the thresholds read today's row, so what is owed can only
+ * be read off the pick once the money has crossed it, which is what fixes the
+ * price and lets the read reach the live `Descuento por bailarín` on that row.
+ * A pick at today's amount owes the same either way and is left to that read:
+ * its deposit can sit above its discounted total, which the pool would refuse.
+ */
+async function coverPickedDeposits(
+  tx: Transaction,
+  input: {
+    academyId: string;
+    eventId: string;
+    pickedAmounts: ReadonlyMap<string, number>;
+  },
+): Promise<CobroResult> {
+  const event = await tx.query.events.findFirst({
+    columns: { requiredDepositPercentage: true },
+    where: eq(events.id, input.eventId),
+  });
+
+  if (!event) {
+    return { ok: false, message: "No encontramos ese evento." };
+  }
+
+  const thresholds = await readInscriptionThresholds(tx, {
+    academyId: input.academyId,
+    eventId: input.eventId,
+    inscriptionIds: [...input.pickedAmounts.keys()],
+  });
+
+  for (const [inscriptionId, priceAmount] of input.pickedAmounts) {
+    if (thresholds.get(inscriptionId)?.priceAmount === priceAmount) {
+      continue;
+    }
+
+    const target = choreographyTarget(inscriptionId);
+    const depositAmount = calculateDepositAmount({
+      priceAmount,
+      requiredDepositPercentage: event.requiredDepositPercentage,
+    });
+    // Only money crosses a deposit, so one that rounds to zero still takes a peso.
+    const shortfall =
+      Math.max(depositAmount, 1) -
+      (await readInscriptionAllocatedAmount(tx, target));
+
+    if (shortfall <= 0) {
+      continue;
+    }
+
+    const result = await spreadFromPool(tx, {
+      academyId: input.academyId,
+      amount: shortfall,
+      eventId: input.eventId,
+      target,
+    });
+
+    if (!result.ok) {
+      return result;
+    }
+  }
+
+  return { ok: true };
 }
 
 /**
@@ -159,6 +242,7 @@ async function fundOwedThreshold(
     academyId: string;
     eventId: string;
     inscriptionIds: string[];
+    pickedInscriptionIds: ReadonlySet<string>;
     stage: CobroStage;
   },
 ): Promise<CobroResult> {
@@ -182,6 +266,21 @@ async function fundOwedThreshold(
       ),
       thresholds: resolution,
     });
+
+    if (
+      figures.overAllocatedAmount &&
+      input.pickedInscriptionIds.has(inscriptionId)
+    ) {
+      return {
+        ok: false,
+        message: await overAllocatedPickMessage(
+          tx,
+          inscriptionId,
+          figures.overAllocatedAmount,
+        ),
+      };
+    }
+
     const owedAmount =
       input.stage === "deposit"
         ? figures.owedDepositAmount
@@ -212,6 +311,28 @@ async function fundOwedThreshold(
   }
 
   return { ok: true };
+}
+
+/** A pick below the money on the row would fix a price it already exceeds. */
+async function overAllocatedPickMessage(
+  tx: Transaction,
+  inscriptionId: string,
+  overAllocatedAmount: number,
+): Promise<string> {
+  const [person] = await tx
+    .select({ firstName: dancers.firstName, lastName: dancers.lastName })
+    .from(choreographyDancers)
+    .innerJoin(dancers, eq(dancers.id, choreographyDancers.dancerId))
+    .where(eq(choreographyDancers.id, inscriptionId));
+
+  if (!person) {
+    throw new Error(`Expected a dancer on inscription ${inscriptionId}.`);
+  }
+
+  return `${seminarOverAllocatedMessage({
+    overAllocatedAmount,
+    personName: formatDancerName(person),
+  })} Quitale la diferencia desde su detalle antes de asignar.`;
 }
 
 /**
@@ -323,7 +444,11 @@ async function applySelectedPrices(
     }>;
     priceIdByGroupType: PresetPriceSelection;
   },
-): Promise<CobroResult> {
+): Promise<
+  | { ok: false; message: string }
+  | { ok: true; pickedAmounts: Map<string, number> }
+> {
+  const pickedAmounts = new Map<string, number>();
   const byId = new Map(
     input.choreographies.map((choreography) => [choreography.id, choreography]),
   );
@@ -391,7 +516,8 @@ async function applySelectedPrices(
       .update(choreographyDancers)
       .set({ selectedPriceId: price.id })
       .where(eq(choreographyDancers.id, inscription.id));
+    pickedAmounts.set(inscription.id, price.amount);
   }
 
-  return { ok: true };
+  return { ok: true, pickedAmounts };
 }

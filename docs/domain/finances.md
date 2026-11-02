@@ -786,7 +786,10 @@ payments it comes from. A preset is **all or nothing** — if the pool runs dry
 partway through, or any inscription is refused, the whole charge rolls back and
 the administrator who sees an error can trust that nothing moved. A preset
 selects and stores a price row only for inscriptions that have not covered their
-deposit yet; anything already past that threshold keeps the price it holds.
+deposit yet; anything already past that threshold keeps the price it holds. A
+picked row is the one charged, not the row that applies today: the preset covers
+its deposit first, which fixes it, and reads what is owed from there, and a pick
+below the money already on the inscription is refused.
 The dialog's owed figure follows its price pickers, and when it exceeds
 `Saldo disponible` `Asignar` is disabled with the reason stated, as on the
 seminar side. An owed figure missing a price counts only when its known part
