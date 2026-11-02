@@ -10,13 +10,11 @@ import {
   seminars,
 } from "@/db/schema";
 import { createDancer } from "@/lib/choreographies/registration.test-support";
+import { removeFromInscription } from "@/lib/finances/inscription-money.server";
 import {
   allocateToSeminarInscription,
   readSeminarInscriptionPriceOptions,
-  releaseSeminarInscriptionExcess,
-  removeFromSeminarInscription,
 } from "@/lib/finances/seminar-inscription-allocation.server";
-import { readSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-thresholds.server";
 import { hasCoveredSeminarInscription } from "@/lib/seminars/seminar-places.server";
 import { updateSeminar } from "@/lib/seminars/repository.server";
 import {
@@ -336,12 +334,11 @@ describe("seminar inscription allocation", () => {
 
     // Taking money off until the row falls back below its deposit is what opens
     // the picker again.
-    await removeFromSeminarInscription({
+    await removeFromInscription({
       academyId: fixture.academyId,
       amount: 1,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
-      seminarId: fixture.seminarId,
+      target: { id: fixture.inscriptionId, kind: "seminar" },
     });
 
     const accepted = await allocate(fixture, {
@@ -586,36 +583,5 @@ describe("seminar inscription allocation", () => {
     expect(await hasCoveredSeminarInscription(db, fixture.seminarId)).toBe(
       true,
     );
-  });
-
-  test("releases exactly what the row holds above its total", async () => {
-    const fixture = await seedFixture();
-    await allocate(fixture, {
-      amount: amounts.specialParticipant,
-      priceId: fixture.priceIds.get("specialParticipant")!,
-    });
-    // Past the total, which the pool refuses to grow into: the excess is written
-    // directly so the release has something to take off.
-    await db
-      .update(seminarPrices)
-      .set({ amount: 30000 })
-      .where(eq(seminarPrices.id, fixture.priceIds.get("specialParticipant")!));
-
-    const released = await releaseSeminarInscriptionExcess({
-      academyId: fixture.academyId,
-      eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
-      seminarId: fixture.seminarId,
-    });
-
-    expect(released).toEqual({ ok: true });
-
-    const thresholds = await readSeminarInscriptionThresholds(db, {
-      academyId: fixture.academyId,
-      eventId: fixture.eventId,
-      inscriptionIds: [fixture.inscriptionId],
-    });
-
-    expect(thresholds.get(fixture.inscriptionId)?.totalAmount).toBe(30000);
   });
 });

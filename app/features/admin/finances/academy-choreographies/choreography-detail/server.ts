@@ -13,15 +13,20 @@ import { deriveInscriptionBillingStatus } from "@/lib/comprobantes/anchor-billin
 import { readAnchorBilling } from "@/lib/comprobantes/anchor-billing.server";
 import { type ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
 import { getComprobanteEmissionDeps } from "@/lib/comprobantes/emission-config.server";
+import { choreographyTarget } from "@/lib/finances/allocation-target.server";
 import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
 import {
   allocateToInscription,
+  readInscriptionChoreographyId,
   readInscriptionEffectivePrices,
   readInscriptionPriceOptions,
+} from "@/lib/finances/inscription-allocation.server";
+import {
   releaseInscriptionExcess,
   releaseRetainedInscriptionDeposit,
   removeFromInscription,
-} from "@/lib/finances/inscription-allocation.server";
+  type MoneyResult,
+} from "@/lib/finances/inscription-money.server";
 import {
   unwaiveInscriptions,
   waiveInscriptions,
@@ -281,23 +286,24 @@ async function runInscriptionMoneyIntent(input: {
     return { status: "error", message: "No pudimos procesar esa acción." };
   }
 
-  if (!inscriptionId) {
+  // This screen is about one choreography, and a gesture's scope names none.
+  if (
+    (await readInscriptionChoreographyId(inscriptionId)) !==
+    input.choreographyId
+  ) {
     return { status: "error", message: "No encontramos esa inscripción." };
   }
 
-  const target = {
+  const scope = {
     academyId: input.academyId,
-    choreographyId: input.choreographyId,
     eventId: input.eventId,
-    inscriptionId,
+    target: choreographyTarget(inscriptionId),
   };
 
   const release = releaseWriters[input.intent];
 
   if (release) {
-    const result = await release(target);
-
-    return result.ok ? null : { status: "error", message: result.message };
+    return moneyFailure(await release(scope));
   }
 
   const amount = readMoneyAmount(input.formData);
@@ -306,15 +312,23 @@ async function runInscriptionMoneyIntent(input: {
     return { status: "error", message: "Ingresá un monto mayor a 0." };
   }
 
-  const result =
+  return moneyFailure(
     input.intent === allocateInscriptionIntent
       ? await allocateToInscription({
-          ...target,
+          academyId: input.academyId,
           amount,
+          choreographyId: input.choreographyId,
+          eventId: input.eventId,
+          inscriptionId,
           priceId: readPickedPriceId(input.formData),
         })
-      : await removeFromInscription({ ...target, amount });
+      : await removeFromInscription({ ...scope, amount }),
+  );
+}
 
+function moneyFailure(
+  result: MoneyResult,
+): ChoreographyFinanceActionData | null {
   return result.ok ? null : { status: "error", message: result.message };
 }
 

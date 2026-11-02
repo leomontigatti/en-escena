@@ -1,27 +1,17 @@
 /**
- * The write side of the money dialogs on the choreography financial detail:
- * putting an arbitrary amount on one inscription, taking an arbitrary amount
- * off it, and releasing exactly what it holds above its `Total`. On a withdrawn
- * inscription only the two outcomes of its retained deposit remain: release what
- * is above it, or release all of it (`withdrawal-retention.server.ts`).
+ * Putting an arbitrary amount on one choreography inscription, and the price
+ * rows its money dialog reads. The gestures that take money off live in
+ * `inscription-money.server.ts`.
  *
- * All three go through the pool rules and **none of them lets the administrator
- * name a payment**: `spreadFromPool` consumes the academy's payments
- * oldest-first, `unwindToPool` gives them back newest-first, and which payment
- * a peso came from is the system's answer, not a person's.
+ * It goes through the pool rules and **does not let the administrator name a
+ * payment**: `spreadFromPool` consumes the academy's payments oldest-first, and
+ * which payment a peso came from is the system's answer, not a person's.
  *
- * Two asymmetries between the directions are deliberate:
- *
- * - **Adding money refuses; removing money never does.** Active over-allocation
- *   is rejected by `spreadFromPool` with no override, so allocating is the only
- *   direction that can bounce. A removal has nothing to refuse: the figures and
- *   the status re-derive from whatever is left.
- * - **Only adding money has a price.** The price fixes the two thresholds, so it
- *   belongs to the moment money lands, and it is locked once the inscription
- *   covers its deposit — a rule the database also holds, through the guard trigger
- *   on `selected_price_id`. The removal shapes carry no price control at all,
- *   and taking money off until the row falls back below its deposit is precisely
- *   what opens the lock again.
+ * **Adding money is the only direction that refuses, and the only one with a
+ * price.** Active over-allocation is rejected by `spreadFromPool` with no
+ * override. The price fixes the two thresholds, so it belongs to the moment money
+ * lands, and it is locked once the inscription covers its deposit — a rule the
+ * database also holds, through the guard trigger on `selected_price_id`.
  */
 
 import { and, eq, inArray } from "drizzle-orm";
@@ -35,11 +25,7 @@ import {
 } from "@/db/schema";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
-import {
-  calculateDepositAmount,
-  deriveInscriptionFinancialFigures,
-} from "@/lib/finances/inscription-financial-status";
-import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
+import { calculateDepositAmount } from "@/lib/finances/inscription-financial-status";
 import { type ChoreographyGroupType } from "@/lib/finances/operational-summary-calculations.server";
 import {
   resolveEffectiveBasePriceRow,
@@ -56,13 +42,7 @@ import {
   lockTargetRow,
   readInscriptionAllocatedAmount,
   spreadFromPool,
-  unwindToPool,
 } from "./allocation-pool.server";
-import {
-  partialRetainedReleaseMessage,
-  toCobroResult,
-} from "./withdrawal-retention-refusals";
-import { releaseRetainedDeposit } from "./withdrawal-retention.server";
 import {
   hasCrossedStoredDepositThreshold,
   loadCandidatePriceRow,
@@ -255,6 +235,22 @@ export async function readInscriptionEffectivePrices(input: {
   return effectivePrices;
 }
 
+/**
+ * The choreography an inscription belongs to, or `null` when there is no such
+ * row. A screen about one choreography asks this before a money gesture, whose
+ * scope names no parent.
+ */
+export async function readInscriptionChoreographyId(
+  inscriptionId: string,
+): Promise<string | null> {
+  const [inscription] = await db
+    .select({ choreographyId: choreographyDancers.choreographyId })
+    .from(choreographyDancers)
+    .where(eq(choreographyDancers.id, inscriptionId));
+
+  return inscription?.choreographyId ?? null;
+}
+
 type InscriptionMoneyInput = {
   academyId: string;
   choreographyId: string;
@@ -311,129 +307,6 @@ export async function allocateToInscription(
       eventId: input.eventId,
       target: choreographyTarget(input.inscriptionId),
     });
-  });
-}
-
-/**
- * Takes an arbitrary amount off one inscription and returns it to the academy's
- * `Saldo disponible`, unwinding newest-first. Nothing here can refuse on
- * financial grounds: the resulting figures and status re-derive from what
- * remains.
- */
-export async function removeFromInscription(
-  input: InscriptionMoneyInput & { amount: number },
-): Promise<CobroResult> {
-  return await runCobro(async (tx) => {
-    const context = await loadInscriptionMoneyContext(tx, input);
-    if (!context.ok) {
-      return context;
-    }
-
-    if (context.inscription.withdrawn) {
-      return { ok: false, message: partialRetainedReleaseMessage };
-    }
-
-    return await unwindInscription(tx, { ...input, amount: input.amount });
-  });
-}
-
-/**
- * Releases **exactly** what the inscription holds above its `Total` and nothing
- * more. There is nothing to type and nothing to pick: the excess is computed,
- * which is what makes this one click rather than a dialog.
- */
-export async function releaseInscriptionExcess(
-  input: InscriptionMoneyInput,
-): Promise<CobroResult> {
-  return await runCobro(async (tx) => {
-    const context = await loadInscriptionMoneyContext(tx, input);
-    if (!context.ok) {
-      return context;
-    }
-
-    if (context.inscription.withdrawn) {
-      return { ok: false, message: partialRetainedReleaseMessage };
-    }
-
-    const thresholds = await readInscriptionThresholds(tx, {
-      academyId: input.academyId,
-      eventId: input.eventId,
-      inscriptionIds: [input.inscriptionId],
-    });
-    const inscriptionThresholds = thresholds.get(input.inscriptionId);
-
-    if (!inscriptionThresholds) {
-      return { ok: false, message: "No encontramos esa inscripción." };
-    }
-
-    const figures = deriveInscriptionFinancialFigures({
-      allocatedAmount: await readInscriptionAllocatedAmount(
-        tx,
-        choreographyTarget(input.inscriptionId),
-      ),
-      thresholds: inscriptionThresholds,
-    });
-
-    if (!figures.overAllocatedAmount) {
-      return {
-        ok: false,
-        message: "Esta inscripción no tiene excedente para liberar.",
-      };
-    }
-
-    return await unwindInscription(tx, {
-      ...input,
-      amount: figures.overAllocatedAmount,
-    });
-  });
-}
-
-/**
- * The medical case on a withdrawn inscription: its whole retained deposit goes
- * back to `Saldo disponible`. There is no amount, because the clause allows no
- * outcome between keeping all of it and releasing all of it.
- */
-export async function releaseRetainedInscriptionDeposit(
-  input: InscriptionMoneyInput,
-): Promise<CobroResult> {
-  return await runCobro(async (tx) => {
-    const context = await loadInscriptionMoneyContext(tx, input);
-    if (!context.ok) {
-      return context;
-    }
-
-    if (!context.inscription.withdrawn) {
-      return { ok: false, message: "Esta inscripción no está retirada." };
-    }
-
-    return toCobroResult(
-      await releaseRetainedDeposit(tx, inscriptionPoolTarget(input)),
-    );
-  });
-}
-
-function inscriptionPoolTarget(input: InscriptionMoneyInput) {
-  return {
-    academyId: input.academyId,
-    eventId: input.eventId,
-    target: choreographyTarget(input.inscriptionId),
-  };
-}
-
-/**
- * The removal both gestures share: unwind through the pool rule and stop
- * there. Nothing is reconciled afterwards, because nothing is stored: the
- * figures and the status of what is left re-derive from the allocations.
- */
-async function unwindInscription(
-  tx: Transaction,
-  input: InscriptionMoneyInput & { amount: number },
-): Promise<CobroResult> {
-  return await unwindToPool(tx, {
-    academyId: input.academyId,
-    amount: input.amount,
-    eventId: input.eventId,
-    target: choreographyTarget(input.inscriptionId),
   });
 }
 

@@ -2,10 +2,8 @@ import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import {
-  allocateToSeminarInscription,
-  releaseRetainedSeminarInscriptionDeposit,
-} from "@/lib/finances/seminar-inscription-allocation.server";
+import { releaseRetainedInscriptionDeposit } from "@/lib/finances/inscription-money.server";
+import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
 import { removeSeminarInscriptionFromRoster } from "@/lib/seminars/inscription-withdrawal.server";
 import { loader } from "@/routes/administracion.finanzas_.seminarios";
 import {
@@ -70,11 +68,10 @@ describe("`/administracion/finanzas/seminarios`", () => {
     );
     await removeSeminarInscriptionFromRoster(db, fixture.anaInscriptionId);
     await removeSeminarInscriptionFromRoster(db, fixture.nicolasInscriptionId);
-    await releaseRetainedSeminarInscriptionDeposit({
+    await releaseRetainedInscriptionDeposit({
       academyId: fixture.northAcademyId,
       eventId: fixture.eventId,
-      inscriptionId: fixture.nicolasInscriptionId,
-      seminarId: fixture.brunoSeminarId,
+      target: { id: fixture.nicolasInscriptionId, kind: "seminar" },
     });
 
     const loaderData = await load(fixture);
