@@ -554,12 +554,14 @@ describe("administrative choreography detail: access, rename, delete and withdra
       where: eq(choreographies.eventId, event.id),
     });
     expect(
-      rows.map((row) => ({ id: row.id, withdrawnAt: row.withdrawnAt })).sort(),
+      rows
+        .map((row) => ({ id: row.id, withdrawnAt: row.withdrawnAt }))
+        .sort(byId),
     ).toEqual(
       [
         { id: empty.id, withdrawnAt: null },
         { id: funded.id, withdrawnAt: null },
-      ].sort(),
+      ].sort(byId),
     );
     await expect(
       db.query.presentations.findMany({
@@ -789,4 +791,9 @@ function facturaCInput(
     lines: [],
     ...rest,
   };
+}
+
+/** Database rows come back in no promised order; compare them by id. */
+function byId(a: { id: string }, b: { id: string }) {
+  return a.id.localeCompare(b.id);
 }
