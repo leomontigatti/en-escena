@@ -19,12 +19,12 @@ type AcademyFinancesRouteProps = {
 };
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Finanzas | Panel de administración | En Escena" },
+  { title: "Saldos | Finanzas | Panel de administración | En Escena" },
 ];
 
 export const handle = {
   adminBreadcrumbs: [
-    { label: "Finanzas", to: "/administracion/finanzas" },
+    { label: "Saldos", to: "/administracion/finanzas" },
     (match) => {
       const data = match.loaderData as LoaderData | undefined;
       return data?.academy ? { label: data.academy.name } : null;
