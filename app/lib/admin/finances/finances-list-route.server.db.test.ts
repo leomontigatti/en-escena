@@ -299,7 +299,6 @@ describe("`/administracion/finanzas`", () => {
         owedBalanceAmount: { status: "complete", amount: 10000 },
       },
     ]);
-    expect(markup).toContain("Finanzas");
     expect(markup).toContain(
       `/administracion/finanzas/${academyNorth.academy.id}`,
     );

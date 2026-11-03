@@ -21,7 +21,7 @@ export const meta: Route.MetaFunction = () => [
 
 export const handle = {
   adminBreadcrumbs: [
-    { label: "Finanzas", to: "/administracion/finanzas" },
+    { label: "Saldos", to: "/administracion/finanzas" },
     (match) => {
       const data = match.loaderData as LoaderData | undefined;
       return data?.academy
