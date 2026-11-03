@@ -15,11 +15,11 @@ type FinancesListRouteProps = {
 };
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Finanzas | Panel de administración | En Escena" },
+  { title: "Saldos | Finanzas | Panel de administración | En Escena" },
 ];
 
 export const handle = {
-  adminBreadcrumbs: [{ label: "Finanzas" }],
+  adminBreadcrumbs: [{ label: "Saldos" }],
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {

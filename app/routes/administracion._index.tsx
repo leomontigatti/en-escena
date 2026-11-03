@@ -175,8 +175,8 @@ export default function DashboardRoute({ loaderData }: DashboardRouteProps) {
 
 const adminHomeCards = [
   {
-    title: "Finanzas",
-    description: "Revisá los saldos de cada academia.",
+    title: "Saldos",
+    description: "Revisá el saldo de cada academia y particular.",
     icon: ClipboardList,
     to: "/administracion/finanzas",
   },

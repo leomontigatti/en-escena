@@ -22,7 +22,7 @@ import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import type { FinanceAccountRow, loadFinancesList } from "./server";
 
-const emptyAcademyList = describeEmptyList("academias", "search");
+const emptyBalanceList = describeEmptyList("saldos", "search-and-filters");
 
 export const financesListFacetedFilterIds = ["tipo"] as const;
 
@@ -86,12 +86,11 @@ export function FinancesListRouteView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title="Finanzas"
+      title="Saldos"
       description="Saldo de cada academia y particular en el evento activo: seña, total, saldo adeudado y saldo disponible."
       eventRequiredEmptyState={{
         title: "No hay un evento activo para operar finanzas",
-        description:
-          "Activá un evento para revisar cuentas corrientes y pagos.",
+        description: "Activá un evento para revisar saldos y pagos.",
       }}
     >
       {loaderData.rows.length > 0 ? (
@@ -106,13 +105,13 @@ export function FinancesListRouteView({
             columnId: "academyName",
             direction: "asc",
           }}
-          emptyMessage={emptyAcademyList.nothingMatched}
+          emptyMessage={emptyBalanceList.nothingMatched}
         />
       ) : (
         <AdminEmptyState
           icon={Landmark}
-          title="Todavía no hay academias con movimientos financieros."
-          description="Cuando el evento activo tenga academias con coreografías o movimientos financieros, van a aparecer acá."
+          title="Todavía no hay saldos en el evento activo."
+          description="Cuando una academia o un particular tenga inscripciones o movimientos financieros en el evento activo, su saldo va a aparecer acá."
         />
       )}
     </AdminResourceLayout>
