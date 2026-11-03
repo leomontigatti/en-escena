@@ -56,16 +56,35 @@ export function resolveSelectedMovementTotals<
     return { ...input.summary, hasSelection };
   }
 
-  const paymentsAmount = sumBy(selectedRows, (row) =>
+  return {
+    ...sumMovementTotals({
+      availableAmount: sumBy(selectedRows, (row) => row.availableAmount ?? 0),
+      movements: selectedRows,
+    }),
+    hasSelection,
+  };
+}
+
+/**
+ * The movement figures over a set of movements: a selection on the event's
+ * list, or all of an academy's on its `Movimientos` tab. `Disponible` comes in
+ * from the caller because not every row carries a payment's share of it; an
+ * owner's available balance is the sum of those shares, refunds already taken
+ * out.
+ */
+export function sumMovementTotals(input: {
+  availableAmount: number;
+  movements: readonly { amount: number; kind: MovementKind }[];
+}): MovementTotals {
+  const paymentsAmount = sumBy(input.movements, (row) =>
     row.kind === "payment" ? row.amount : 0,
   );
-  const refundsAmount = sumBy(selectedRows, (row) =>
+  const refundsAmount = sumBy(input.movements, (row) =>
     row.kind === "refund" ? row.amount : 0,
   );
 
   return {
-    availableAmount: sumBy(selectedRows, (row) => row.availableAmount ?? 0),
-    hasSelection,
+    availableAmount: input.availableAmount,
     netAmount: paymentsAmount - refundsAmount,
     paymentsAmount,
     refundsAmount,

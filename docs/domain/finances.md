@@ -681,7 +681,9 @@ they live in one module.
   `/administracion/movimientos/pagos/` and a refund under
   `/administracion/movimientos/reembolsos/`, which both lists link to. The
   `Movimientos` tab of the owner's finance page lists the owner's payments and
-  refunds newest first, never its allocations. The portal's and an individual's
+  refunds newest first, never its allocations, under the event list's four
+  cards over the owner's movements in place of the owed ones, `Disponible`
+  being the owner's `Saldo disponible`. The portal's and an individual's
   own `Movimientos` page list the owner's refunds beside its payments the same
   way, kind badged, without either's internal note. The event-wide list at `/administracion/movimientos` pages both kinds as one
   set, ordering a day's movements by recording time as the owner's tab does

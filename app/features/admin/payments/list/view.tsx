@@ -12,7 +12,6 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import type { DataTableFacetedFilterValue } from "@/components/shared/data-table.shared";
-import { MetricCard } from "@/components/shared/metric-card";
 import { Badge } from "@/components/ui/badge";
 import { formatAmount, formatDate } from "@/lib/finances/formatters";
 import {
@@ -27,6 +26,7 @@ import {
   paymentMethodValues,
 } from "@/lib/finances/payment-methods";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
+import { MovementMetrics } from "@/lib/finances/movement-metrics";
 import {
   movementRowKey,
   resolveSelectedMovementTotals,
@@ -242,15 +242,12 @@ export function MovementsListRouteView({
             has been collected — a card that disappears is one the administrator
             has to guess the value of. They go away only with the event, where
             there is no position to state. */}
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard title="Pagos" value={formatAmount(paymentsAmount)} />
-          <MetricCard title="Reembolsos" value={formatAmount(refundsAmount)} />
-          <MetricCard title="Neto" value={formatAmount(netAmount)} />
-          <MetricCard
-            title="Disponible"
-            value={formatAmount(availableAmount)}
-          />
-        </section>
+        <MovementMetrics
+          availableAmount={availableAmount}
+          netAmount={netAmount}
+          paymentsAmount={paymentsAmount}
+          refundsAmount={refundsAmount}
+        />
 
         {shouldShowTable ? (
           <ServerDataTable

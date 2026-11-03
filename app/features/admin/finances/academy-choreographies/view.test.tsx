@@ -1177,6 +1177,42 @@ describe("AcademyFinancesRouteView", () => {
     expect(metricCardText("Saldo disponible")).toContain("$ 0");
   });
 
+  // The tab lists money that moved, not debt, so it reads the movements list's
+  // four figures over this academy's movements in place of the owed ones.
+  test("shows the movement figures on the `Movimientos` tab", async () => {
+    await renderListIntoDocument({
+      loaderData: academyFinancesLoaderDataFixture({
+        movements: [
+          ownerMovementFixture({ amount: 30000, id: "payment_1" }),
+          ownerMovementFixture({ amount: 12000, id: "payment_2" }),
+          ownerMovementFixture({
+            amount: 5000,
+            id: "refund_1",
+            kind: "refund",
+          }),
+        ],
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 7000,
+        },
+      }),
+    });
+
+    await clickTab("Movimientos");
+
+    expect(metricCardText("Pagos")).toContain("$ 42.000");
+    expect(metricCardText("Reembolsos")).toContain("$ 5.000");
+    expect(metricCardText("Neto")).toContain("$ 37.000");
+    expect(metricCardText("Disponible")).toContain("$ 7.000");
+    expect(() => metricCardText("Seña total")).toThrow();
+    expect(() => metricCardText("Saldo disponible")).toThrow();
+
+    await clickTab("Coreografías");
+
+    expect(metricCardText("Seña total")).toContain("$ 6.000");
+    expect(() => metricCardText("Pagos")).toThrow();
+  });
+
   test("keeps one selection per tab and narrows the owed pair to it", async () => {
     await renderListIntoDocument({
       loaderData: academyFinancesLoaderDataFixture({
@@ -1543,6 +1579,21 @@ function academyFinancesLoaderDataFixture(
       owedDepositAmount: { amount: 6000, status: "complete" },
       totalPaidAmount: 0,
     },
+    ...overrides,
+  };
+}
+
+function ownerMovementFixture(
+  overrides: Partial<AcademyFinancesLoaderData["movements"][number]>,
+): AcademyFinancesLoaderData["movements"][number] {
+  return {
+    amount: 10000,
+    date: "2026-10-10",
+    id: "payment_1",
+    kind: "payment",
+    method: "efectivo",
+    number: 1,
+    reference: null,
     ...overrides,
   };
 }
