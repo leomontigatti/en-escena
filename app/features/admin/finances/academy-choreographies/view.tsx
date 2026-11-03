@@ -34,7 +34,9 @@ import { operationalFinanceColumns } from "@/lib/finances/operational-finance-co
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
+import { MovementMetrics } from "@/lib/finances/movement-metrics";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
+import { sumMovementTotals } from "@/lib/finances/selected-movement-totals";
 import { BulkEmissionBlockedDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { BulkEmissionDialog } from "@/features/admin/finances/comprobante-emission/bulk-dialog";
 import { OwnerMovementsTab } from "@/features/admin/finances/owner-movements/tab";
@@ -206,15 +208,27 @@ export function AcademyFinancesRouteView({
       }
     >
       <div className="flex flex-col gap-6">
-        {/* The two owed figures re-scope to the active tab's selection, the two
-            thresholds follow the tab, and the available balance does neither. */}
-        <OperationalFinanceMetrics
-          availableBalanceAmount={loaderData.summary.availableBalanceAmount}
-          depositAmount={activeThresholds.depositAmount}
-          owedBalanceAmount={activeTotals.owedBalanceAmount}
-          owedDepositAmount={activeTotals.owedDepositAmount}
-          totalAmount={activeThresholds.totalAmount}
-        />
+        {/* The `Movimientos` tab lists money that moved, not debt, so it reads
+            the movements list's figures over this academy's movements. On the
+            other two, the owed figures re-scope to the active tab's selection,
+            the two thresholds follow the tab, and the available balance does
+            neither. */}
+        {activeTab === movementsTabValue ? (
+          <MovementMetrics
+            {...sumMovementTotals({
+              availableAmount: loaderData.summary.availableBalanceAmount,
+              movements: loaderData.movements,
+            })}
+          />
+        ) : (
+          <OperationalFinanceMetrics
+            availableBalanceAmount={loaderData.summary.availableBalanceAmount}
+            depositAmount={activeThresholds.depositAmount}
+            owedBalanceAmount={activeTotals.owedBalanceAmount}
+            owedDepositAmount={activeTotals.owedDepositAmount}
+            totalAmount={activeThresholds.totalAmount}
+          />
+        )}
 
         <Tabs value={activeTab} onValueChange={onTabChange}>
           <TabsList variant="line">

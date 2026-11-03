@@ -36,7 +36,8 @@ type FinanceTabRow = {
  *
  * The four threshold-and-owed figures follow the active tab: they are that
  * kind's debt, summed over that kind's rows. The `Movimientos` tab lists no
- * debt, so it keeps the choreographies' figures. `Saldo disponible` is not here on
+ * debt, so the page shows the movement figures there instead and these keep the
+ * choreographies'. `Saldo disponible` is not here on
  * purpose — it is the academy's pool, one for both kinds, and it never moves
  * with the tab.
  */
