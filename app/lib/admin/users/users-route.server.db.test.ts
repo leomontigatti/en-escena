@@ -318,6 +318,42 @@ describe("`/administracion/usuarios` route", () => {
       "Sara Sur",
     ]);
   });
+
+  // #1809: an academy's `user.name` holds its email, so its name is reachable
+  // only through `academies.name`.
+  test("finds an academy by part of its name, ignoring case and accents", async () => {
+    await createAcademyUser({
+      email: "contacto@estudio-danza.com",
+      academyName: "Estudio de Danza Árbol",
+      contactName: "Clara Contacto",
+      name: "contacto@estudio-danza.com",
+    });
+    await createAcademyUser({
+      email: "contacto@otra-academia.com",
+      academyName: "Otra Academia",
+      contactName: "Olga Otra",
+      name: "contacto@otra-academia.com",
+    });
+
+    const byAcademyName = await loader(
+      routeArgs(
+        (
+          await createSignedInRequest({
+            email: "admin.nombre.academia@enescena.com.ar",
+            role: "admin",
+            requestUrl:
+              "http://localhost/administracion/usuarios?busqueda=danza%20arbol",
+            name: "Admin Nombre Academia",
+            internalUsername: "admin.nombre.academia",
+          })
+        ).request,
+      ),
+    );
+
+    expect(
+      byAcademyName.users.map((savedUser) => savedUser.academyName),
+    ).toEqual(["Estudio de Danza Árbol"]);
+  });
 });
 
 function renderRoute(
