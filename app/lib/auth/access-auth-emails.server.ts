@@ -1,4 +1,5 @@
-import { sendEmail } from "@/lib/shared/email.server";
+import { sendEmail, type SendEmailInput } from "@/lib/shared/email.server";
+import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 
 // Access emails in Spanish, sent by Better Auth's built-in flow (#424). They
 // replace Supabase's `Send Email` webhook (`handleSupabaseSendEmailHook`,
@@ -35,11 +36,15 @@ export function buildAccessRecoveryLink(input: {
   return target.toString();
 }
 
+// Whether the email left. A failed send is logged here and reported as `false`
+// rather than thrown: the public answer must read the same whether or not the
+// address has an account (docs/domain/access.md), and only an address that can
+// register or recover ever reaches a send.
 export async function sendAcademySignUpConfirmationEmail(input: {
   to: string;
   confirmationUrl: string;
-}): Promise<void> {
-  await sendEmail({
+}): Promise<boolean> {
+  return await sendAccessEmail("signUpConfirmation", {
     to: input.to,
     subject: "Confirmá tu correo en En Escena",
     text: [
@@ -59,8 +64,8 @@ export async function sendAcademySignUpConfirmationEmail(input: {
 export async function sendAccessRecoveryEmail(input: {
   to: string;
   recoveryUrl: string;
-}): Promise<void> {
-  await sendEmail({
+}): Promise<boolean> {
+  return await sendAccessEmail("accessRecovery", {
     to: input.to,
     subject: "Recuperá tu acceso a En Escena",
     text: [
@@ -75,4 +80,20 @@ export async function sendAccessRecoveryEmail(input: {
       "El equipo de En Escena",
     ].join("\n"),
   });
+}
+
+async function sendAccessEmail(
+  kind: "accessRecovery" | "signUpConfirmation",
+  input: SendEmailInput,
+): Promise<boolean> {
+  try {
+    await sendEmail(input);
+    return true;
+  } catch (thrown) {
+    console.error("[auth:email:not-sent]", {
+      kind,
+      error: describeServerError(thrown),
+    });
+    return false;
+  }
 }
