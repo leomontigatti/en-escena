@@ -22,6 +22,9 @@ context on `master` ([ci.md](../operations/ci.md#required-contexts)). Run it bef
   nobody is babysitting is updated the same way by hand.
 - `db-gate` runs after the `db-shard` matrix, so it is missing from a fresh push's checks for
   about four minutes: read the required list from branch protection, not from the rollup.
+- A red `db-shard <i>/4` is replayed locally with `pnpm test:db:shard <i>` before the fix is
+  pushed. A test can fail only beside the other files of its shard and pass in the full local
+  run, so a green `pnpm test:db` or `pnpm test:db:postgres` does not clear it.
 - A stack is linked with `gh stack` so CI evaluates every layer as if it targeted `master`
   ([ci.md](../operations/ci.md#stacked-prs)). Babysit once the whole stack is open: a babysit per
   layer spends checks on commits the next layer's push restarts. After a stack's bottom layer

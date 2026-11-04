@@ -332,7 +332,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # Resets and applies the versioned schema (the #305/#391 path) against this shard's
       # own service container, then runs this shard's slice of the DB suite. Spelled out
-      # rather than reusing `pnpm test:db:postgres` because only CI passes `--shard`.
+      # here so the job reads on its own; `pnpm test:db:shard <i>` runs the same two
+      # commands locally, and its test keeps its shard count in step with this matrix.
       - name: db suite (shard ${{ matrix.shard }} of 4)
         run: pnpm db:test:reset && pnpm exec vitest --config vitest.db.config.ts --run --shard=${{ matrix.shard }}/4
 
