@@ -18,6 +18,7 @@ import { AccountMenu } from "@/components/shared/account-menu";
 import { useRecordTitleHeading } from "@/components/shared/record-title";
 import { TopBarTools } from "@/components/shared/top-bar-tools";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
+import { EventStatusBadge } from "@/components/shared/event-status-badge";
 import {
   SidebarNavigationGroups,
   type SidebarNavigationGroup,
@@ -54,10 +55,6 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import {
-  eventStatusLabels,
-  noActiveEventLabel,
-} from "@/lib/events/event-status-copy";
 import type { PortalShellEventContext } from "@/lib/portal/event-context";
 
 type PortalShellProps = {
@@ -430,9 +427,9 @@ function PortalActiveEventSummary({
   eventContext: PortalShellEventContext;
 }) {
   const activeEventName = eventContext.activeEvent?.name ?? "Sin evento";
-  const eventStatusLabel = eventContext.activeEvent
-    ? eventStatusLabels[eventContext.eventStatus]
-    : noActiveEventLabel;
+  const eventStatus = eventContext.activeEvent
+    ? eventContext.eventStatus
+    : null;
 
   return (
     <>
@@ -442,7 +439,7 @@ function PortalActiveEventSummary({
             <EnEscenaAvatar />
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{activeEventName}</span>
-              <span className="truncate text-xs">{eventStatusLabel}</span>
+              <EventStatusBadge eventStatus={eventStatus} className="w-fit" />
             </div>
           </SidebarMenuButton>
         </SidebarMenuItem>

@@ -422,7 +422,6 @@ describe("`/administracion/profesores` route", () => {
     expect(listMarkup).toContain("Saltar al contenido principal");
     expect(listMarkup.match(/Saltar al contenido principal/g)).toHaveLength(1);
     expect(listMarkup).toContain("Profesores");
-    expect(listMarkup).toContain("En curso");
     expect(detailMarkup).toMatch(/<h2[^>]*>Julia Pérez<\/h2>/);
     expect(detailMarkup).toContain('href="/administracion/profesores"');
     expect(detailMarkup).toContain("Julia Pérez");

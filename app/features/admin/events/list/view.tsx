@@ -7,8 +7,8 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
+import { EventStatusBadge } from "@/components/shared/event-status-badge";
 import { Badge } from "@/components/ui/badge";
-import type { EventStatus } from "@/lib/events/event-status";
 import { eventStatusLabels } from "@/lib/events/event-status-copy";
 import { formatLongBusinessDate } from "@/lib/shared/business-time-zone";
 import { describeEmptyList } from "@/lib/list-query/list-query";
@@ -83,9 +83,7 @@ function EventTable({ events }: { events: EventListRow[] }) {
             <Badge variant={event.active ? "success" : "secondary"}>
               {event.active ? "Activo" : "Inactivo"}
             </Badge>
-            <Badge variant={getEventStatusBadgeVariant(event.eventStatus)}>
-              {eventStatusLabels[event.eventStatus]}
-            </Badge>
+            <EventStatusBadge eventStatus={event.eventStatus} />
             {event.shouldShowRegistrationReadiness &&
             !event.isRegistrationReady ? (
               <Badge variant="warning">Configuración pendiente</Badge>
@@ -120,15 +118,4 @@ function EventTable({ events }: { events: EventListRow[] }) {
       initialSort={{ columnId: "startsAt", direction: "desc" }}
     />
   );
-}
-
-function getEventStatusBadgeVariant(eventStatus: EventStatus) {
-  switch (eventStatus) {
-    case "not-started":
-      return "info";
-    case "in-progress":
-      return "success";
-    case "finished":
-      return "secondary";
-  }
 }

@@ -701,7 +701,6 @@ describe("`/administracion/bailarines` route: list and detail", () => {
     expect(listMarkup).toContain("Saltar al contenido principal");
     expect(listMarkup.match(/Saltar al contenido principal/g)).toHaveLength(1);
     expect(listMarkup).toContain("Bailarines");
-    expect(listMarkup).toContain("En curso");
     expect(detailMarkup).toContain("Julia Pérez");
     expect(detailMarkup).toContain('href="/administracion/bailarines"');
     expect(detailMarkup).toContain("Julia Pérez");

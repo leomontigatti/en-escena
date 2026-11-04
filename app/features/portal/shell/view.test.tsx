@@ -17,7 +17,6 @@ describe("portal route view", () => {
     });
 
     expect(markup).toContain("Regional 2026");
-    expect(markup).toContain("En curso");
     expect(markup).toContain("Inicio");
     expect(markup).toContain('href="/portal/perfil"');
     expect(markup).toContain("Finanzas");

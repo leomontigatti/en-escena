@@ -23,15 +23,12 @@ import { Link, useLocation, type UIMatch } from "react-router";
 
 import type { AdminShellEventContext } from "@/lib/admin/event-context.shared";
 import {
-  eventStatusLabels,
-  noActiveEventLabel,
-} from "@/lib/events/event-status-copy";
-import {
   getInternalAccountInitials,
   type InternalAccount,
 } from "@/lib/auth/internal-account";
 import { AccountMenu } from "@/components/shared/account-menu";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
+import { EventStatusBadge } from "@/components/shared/event-status-badge";
 import { TopBarTools } from "@/components/shared/top-bar-tools";
 import {
   SidebarNavigationGroups,
@@ -427,9 +424,9 @@ function AdminActiveEventSummary({
   eventContext: AdminShellEventContext;
 }) {
   const activeEventName = eventContext.activeEvent?.name ?? "Sin evento";
-  const eventStatusLabel = eventContext.activeEvent
-    ? eventStatusLabels[eventContext.eventStatus]
-    : noActiveEventLabel;
+  const eventStatus = eventContext.activeEvent
+    ? eventContext.eventStatus
+    : null;
 
   return (
     <SidebarMenu>
@@ -438,7 +435,7 @@ function AdminActiveEventSummary({
           <EnEscenaAvatar />
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-medium">{activeEventName}</span>
-            <span className="truncate text-xs">{eventStatusLabel}</span>
+            <EventStatusBadge eventStatus={eventStatus} className="w-fit" />
           </div>
         </SidebarMenuButton>
       </SidebarMenuItem>

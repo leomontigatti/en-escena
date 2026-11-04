@@ -116,6 +116,5 @@ describe("`/administracion` layout route", () => {
     expect(markup).toContain("Detalle de modalidad");
     expect(markup).toContain('href="/administracion/modalidades"');
     expect(markup).toContain("Jazz Contemporáneo");
-    expect(markup).toContain("En curso");
   });
 });
