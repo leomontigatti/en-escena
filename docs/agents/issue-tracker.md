@@ -78,14 +78,14 @@ first. A parked issue carries a comment stating its wake-up trigger ("the first 
 list-query work lands"); without one it is `priority:later`. Deciding against is a different
 thing: parked will be done when the trigger fires, a rejected issue is closed.
 
-A race is ranked by its impact and its likelihood together (the `implement` skill, step 2), with
-the actors from [review.md](review.md#hotspots):
+A race is weighed as the `implement` skill's step 2 says, actors from [review.md](review.md#hotspots).
+Usual outcomes, which a measured frequency or the fix's cost overrides (#1677: silent with a portal
+side, but its window opens once a year, so `priority:later`):
 
-- every side admin-only: `priority:parked`, woken by a second admin account or by a bulk loop or a
-  job reaching one side;
-- loud (a deadlock or a refusal the user retries) and no data lost: `priority:later` at most;
-- silent (lost or wrong data) with a portal or individual side: `priority:next`, and
-  `priority:urgent` in the run-up to an event.
+- every side admin-only: `priority:parked`, woken by a second admin or a bulk loop or job on one side;
+- loud, no data lost: `priority:later` at most;
+- silent loss with a portal or individual side: `priority:next`, `priority:urgent` before an event;
+- hits that cost less than the fix: closed `not planned`, its `Closure:` comment giving the weighing.
 
 | Type label    | Meaning                                                                   |
 | ------------- | ------------------------------------------------------------------------- |
