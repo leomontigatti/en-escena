@@ -13,8 +13,8 @@ import {
 } from "./payment-instructions-format";
 
 /**
- * The event's `Instrucciones de pago`, on the portal's `/portal/pagos` and the
- * individual's `/particular/pagos`: the info note the portal already uses
+ * The event's `Instrucciones de pago`, on the portal's `/portal/movimientos` and the
+ * individual's `/particular/movimientos`: the info note the portal already uses
  * for event-scoped notices, holding a definition grid of the bank identifiers
  * and the free text. Both pages stay read-only — administration still
  * registers every payment.

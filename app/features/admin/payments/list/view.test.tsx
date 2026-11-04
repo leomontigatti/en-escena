@@ -4,13 +4,17 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import { PaymentsListRouteView } from "./view";
-import type { PaymentsListLoaderData, PaymentsListRow } from "./server";
+import { MovementsListRouteView } from "./view";
+import {
+  movementsListLoaderDataFixture,
+  movementsListFiltersFixture,
+} from "./view.test-support";
+import type { MovementsListLoaderData } from "./server";
 
-describe("PaymentsListRouteView", () => {
-  // The administrator selects to read: the two cards above re-scope to what is
-  // ticked. What the sums come to is `resolveSelectedPaymentTotals`' own test;
-  // this one asserts the column is there to tick at all.
+describe("MovementsListRouteView", () => {
+  // The administrator selects to read: the cards above re-scope to what is
+  // ticked. What the sums come to is `resolveSelectedMovementTotals`' own
+  // test; this one asserts the column is there to tick at all.
   test("offers a checkbox on every row and one to select the page", () => {
     const markup = render();
 
@@ -18,152 +22,40 @@ describe("PaymentsListRouteView", () => {
     expect(markup).toContain('aria-label="Seleccionar fila"');
   });
 
-  test("offers `Nuevo pago` to the administrator and not to the auditor", () => {
-    expect(render()).toContain("Nuevo pago");
-    expect(render(loaderDataFixture({ canWrite: false }))).not.toContain(
-      "Nuevo pago",
-    );
-  });
-
-  test("shows what is still free on each payment", () => {
+  // A filter that matched nothing must not fall back to the "no movements
+  // yet" empty state: the cards and the facet are how the reader undoes it.
+  test("keeps the table visible when the kind facet empties it", () => {
     const markup = render(
-      loaderDataFixture({
-        rows: [
-          rowFixture({ amount: 10000, availableAmount: 4000 }),
-          rowFixture({
-            amount: 5000,
-            availableAmount: 0,
-            id: "payment_2",
-            paymentNumber: 2,
-          }),
-        ],
-      }),
-    );
-
-    expect(markup).toContain("$ 4.000");
-    // A fully applied payment reads `$ 0` and not a dash: the zero is the
-    // answer, not a missing value.
-    expect(markup).toContain("$ 0");
-  });
-
-  // What is asserted here is the wiring: a narrowed list shows the filter it is
-  // narrowed by, which is what tells the reader the figures below are not the
-  // whole event.
-  test("carries the availability filter into the facet", () => {
-    expect(render()).not.toContain("data-filter-group");
-    expect(
-      render(
-        loaderDataFixture({
-          filters: { ...filtersFixture(), availability: "con" },
-        }),
-      ),
-    ).toContain('aria-label="Disponible: Con disponible"');
-  });
-
-  // The cards read the event, not the page and not the filtered set, so the
-  // administrator reads the position first and narrows to it second.
-  test("shows the event's collected and available totals", () => {
-    const markup = render(
-      loaderDataFixture({
-        summary: { availableAmount: 4000, totalAmount: 15000 },
-      }),
-    );
-
-    expect(markup).toContain("Total cobrado");
-    expect(markup).toContain("$ 15.000");
-    expect(markup).toContain("Disponible");
-    expect(markup).toContain("$ 4.000");
-  });
-
-  // An event with nothing collected yet still has a position, and it is `$ 0`.
-  // The cards state it beside the empty state instead of disappearing with the
-  // table, which would leave the administrator guessing at the figure.
-  test("states the zero position on an event with no payments", () => {
-    const markup = render(
-      loaderDataFixture({
-        hasAnyPayment: false,
-        rows: [],
-        summary: { availableAmount: 0, totalAmount: 0 },
-        totalCount: 0,
-      }),
-    );
-
-    expect(markup).toContain("Total cobrado");
-    expect(markup).toContain("Disponible");
-    expect(markup).toContain("$ 0");
-    // The table is what goes away, not the position above it.
-    expect(markup).toContain("Todavía no hay pagos.");
-  });
-
-  // A filter that matched nothing must not fall back to the "no payments yet"
-  // empty state: the cards and the facet are how the reader undoes it.
-  test("keeps the table visible when the availability facet empties it", () => {
-    const markup = render(
-      loaderDataFixture({
-        filters: { ...filtersFixture(), availability: "con" },
-        hasAnyPayment: false,
+      movementsListLoaderDataFixture({
+        filters: { ...movementsListFiltersFixture(), kind: "refund" },
+        hasAnyMovement: false,
         rows: [],
       }),
     );
 
-    expect(markup).toContain("Total cobrado");
     expect(markup).toContain(
-      "No hay pagos que coincidan con la búsqueda o los filtros.",
+      "No hay movimientos que coincidan con la búsqueda o los filtros.",
     );
-    expect(markup).not.toContain("Todavía no hay pagos.");
+    expect(markup).not.toContain("Todavía no hay movimientos.");
   });
 });
 
-function render(loaderData: PaymentsListLoaderData = loaderDataFixture()) {
-  const router = createMemoryRouter(
+function routerFor(loaderData: MovementsListLoaderData) {
+  return createMemoryRouter(
     [
       {
         path: "/",
-        element: <PaymentsListRouteView loaderData={loaderData} />,
+        element: <MovementsListRouteView loaderData={loaderData} />,
       },
     ],
     { initialEntries: ["/"] },
   );
-
-  return renderToStaticMarkup(<RouterProvider router={router} />);
 }
 
-function filtersFixture(): PaymentsListLoaderData["filters"] {
-  return {
-    availability: null,
-    method: null,
-    order: { columnId: "paymentDate", direction: "desc" },
-    page: 1,
-    query: "",
-  };
-}
-
-function loaderDataFixture(
-  overrides: Partial<PaymentsListLoaderData> = {},
-): PaymentsListLoaderData {
-  return {
-    canWrite: true,
-    filters: filtersFixture(),
-    hasAnyPayment: true,
-    rows: [rowFixture()],
-    selectedEventId: "event_1",
-    summary: { availableAmount: 4000, totalAmount: 10000 },
-    totalCount: 1,
-    totalPages: 1,
-    ...overrides,
-  };
-}
-
-function rowFixture(overrides: Partial<PaymentsListRow> = {}): PaymentsListRow {
-  return {
-    academyId: "academy_1",
-    academyName: "Academia Norte",
-    amount: 10000,
-    availableAmount: 4000,
-    id: "payment_1",
-    paymentDate: "2026-03-15",
-    paymentMethod: "transferencia",
-    paymentNumber: 1,
-    ...overrides,
-  };
+function render(
+  loaderData: MovementsListLoaderData = movementsListLoaderDataFixture(),
+) {
+  return renderToStaticMarkup(
+    <RouterProvider router={routerFor(loaderData)} />,
+  );
 }

@@ -2,49 +2,51 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  handlePaymentCreateAction,
-  loadPaymentCreate,
+  handleMovementCreateAction,
+  loadMovementCreate,
 } from "@/features/admin/payments/create/server";
-import { NewPaymentRouteView } from "@/features/admin/payments/create/view";
+import { NewMovementRouteView } from "@/features/admin/payments/create/view";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
-import type { Route } from "./+types/administracion.pagos_.nuevo";
+import type { Route } from "./+types/administracion.movimientos_.nuevo";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ActionData = Awaited<ReturnType<typeof action>>;
 
-type NewPaymentRouteProps = {
+type NewMovementRouteProps = {
   actionData?: ActionData;
   loaderData: LoaderData;
 };
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Nuevo pago | Panel de administración | En Escena" },
+  { title: "Nuevo movimiento | Panel de administración | En Escena" },
 ];
 
 export const handle = {
   adminBreadcrumbs: [
-    { label: "Pagos", to: "/administracion/pagos" },
-    { label: "Nuevo pago" },
+    { label: "Movimientos", to: "/administracion/movimientos" },
+    { label: "Nuevo movimiento" },
   ],
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return await loadPaymentCreate(request);
+  return await loadMovementCreate(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  return await handlePaymentCreateAction(request);
+  return await handleMovementCreateAction(request);
 }
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
   return await recoverableClientAction(serverAction);
 }
 
-export default function NewPaymentRoute({ loaderData }: NewPaymentRouteProps) {
+export default function NewMovementRoute({
+  loaderData,
+}: NewMovementRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <NewPaymentRouteView actionData={actionData} loaderData={loaderData} />
+    <NewMovementRouteView actionData={actionData} loaderData={loaderData} />
   );
 }

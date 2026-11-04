@@ -1,0 +1,59 @@
+import { useActionData } from "react-router";
+
+import type { AdminRouteHandle } from "@/components/admin/shell";
+import {
+  PaymentDetailRouteView,
+  getPaymentDisplayName,
+} from "@/features/admin/payments/detail/view";
+import {
+  handlePaymentDetailAction,
+  loadPaymentDetail,
+} from "@/features/admin/payments/detail/server";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
+
+import type { Route } from "./+types/administracion.movimientos_.pagos.$paymentId";
+
+type LoaderData = Awaited<ReturnType<typeof loader>>;
+type ActionData = Awaited<ReturnType<typeof action>>;
+
+type PaymentDetailRouteProps = {
+  actionData?: ActionData;
+  loaderData: LoaderData;
+};
+
+export const meta: Route.MetaFunction = () => [
+  { title: "Detalle de pago | Panel de administración | En Escena" },
+];
+
+export const handle = {
+  adminBreadcrumbs: [
+    { label: "Movimientos", to: "/administracion/movimientos" },
+    (match) => {
+      const data = match.loaderData as LoaderData | undefined;
+
+      return { label: getPaymentDisplayName(data?.payment) };
+    },
+  ],
+} satisfies AdminRouteHandle;
+
+export async function loader({ request, params }: Route.LoaderArgs) {
+  return await loadPaymentDetail(request, params.paymentId ?? "");
+}
+
+export async function action({ request, params }: Route.ActionArgs) {
+  return await handlePaymentDetailAction(request, params.paymentId ?? "");
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
+}
+
+export default function PaymentDetailRoute({
+  loaderData,
+}: PaymentDetailRouteProps) {
+  const actionData = useActionData<typeof action>();
+
+  return (
+    <PaymentDetailRouteView actionData={actionData} loaderData={loaderData} />
+  );
+}

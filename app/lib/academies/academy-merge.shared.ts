@@ -15,6 +15,7 @@ export type AcademyMergeHoldings = {
   dancers: number;
   payments: number;
   professors: number;
+  refunds: number;
 };
 
 export function formatAcademyMergeCandidateLabel(
@@ -39,6 +40,7 @@ export function describeAcademyMerge(input: {
     pluralize(holdings.professors, "profesor", "profesores"),
     pluralize(holdings.choreographies, "coreografía", "coreografías"),
     pluralize(holdings.payments, "pago", "pagos"),
+    pluralize(holdings.refunds, "reembolso", "reembolsos"),
   ]
     .filter((line): line is string => line !== null)
     .map((line) => `${line}.`);

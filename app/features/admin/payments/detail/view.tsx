@@ -46,6 +46,7 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 import type { PaymentDetailActionData, loadPaymentDetail } from "./server";
 import {
   deletePaymentIntent,
+  refundsUncoveredMessage,
   shouldOpenPaymentDeleteDialog,
   updatePaymentIntent,
 } from "./shared";
@@ -190,6 +191,8 @@ export function PaymentDetailRouteView({
 
       {loaderData.canWrite ? (
         <DeleteDialog
+          blockedDescription={refundsUncoveredMessage}
+          isBlocked={loaderData.deletionUncoversRefunds}
           description={
             loaderData.affectedUnits.length > 0
               ? "El pago y sus asignaciones se eliminan juntos. Ese dinero no vuelve al saldo disponible de la academia."
@@ -215,7 +218,8 @@ export function PaymentDetailRouteView({
  * Every unit the payment reaches — choreographies and seminars in one list,
  * named by the choreography's name and by the seminar's instructor — with what
  * the deletion takes out of it and what its inscriptions lose. None of it
- * blocks: the deletion always proceeds, so the list informs rather than warns.
+ * blocks: allocations never stop a deletion, so the list informs rather than
+ * warns.
  *
  * The two kinds lose different things. A choreography names how many of its
  * inscriptions fall and the status it would be left with, and only when
@@ -350,7 +354,7 @@ function EditablePaymentDetailForm({
         contentClassName="gap-5"
         footer={
           <FormActions
-            backTo="/administracion/pagos"
+            backTo="/administracion/movimientos"
             hasChanges={isDirty}
             isPending={isPending}
             onDiscard={() => form.reset()}
@@ -380,7 +384,7 @@ function ReadOnlyPaymentDetail({ loaderData }: { loaderData: LoaderData }) {
         contentClassName="gap-5"
         footer={
           <FormActions
-            backTo="/administracion/pagos"
+            backTo="/administracion/movimientos"
             canEdit={false}
             hasChanges={false}
             isPending={false}
@@ -394,14 +398,11 @@ function ReadOnlyPaymentDetail({ loaderData }: { loaderData: LoaderData }) {
             label="Academia"
             value={payment.academyName}
           />
-          <ReadOnlyDateField
-            label="Fecha de pago"
-            value={payment.paymentDate}
-          />
+          <ReadOnlyDateField label="Fecha" value={payment.paymentDate} />
           <ReadOnlyField label="Referencia" value={payment.reference ?? ""} />
           <ReadOnlyField label="Monto" value={formatAmount(payment.amount)} />
           <ReadOnlySelectField
-            label="Medio de pago"
+            label="Medio"
             options={paymentMethodOptions}
             value={payment.paymentMethod}
           />

@@ -11,11 +11,13 @@ import {
   paymentAllocations,
   payments,
   professors,
+  refunds,
   user,
   votes,
 } from "@/db/schema";
 import { academyOwner } from "@/lib/academies/owner-kind.server";
 import { lockAcademyPools } from "@/lib/finances/allocation-pool.server";
+import { nextRefundVersion } from "@/lib/finances/refunds.server";
 import { formatSpanishList } from "@/lib/shared/text-normalization";
 
 import type {
@@ -34,7 +36,8 @@ export type MergeAcademiesResult =
  * the one that stays (PRD #1187). Everything the removed academy holds moves to
  * the survivor: its dancers and professors (and with them their seminar
  * inscriptions, which carry no academy of their own), its choreographies, its
- * payments and their allocations. Then the removed academy's user is deleted,
+ * payments with their allocations, and its refunds, so the survivor's `Saldo
+ * disponible` in each event is the sum of both. Then the removed academy's user is deleted,
  * which cascades the now-empty academy, so the second login stops working and
  * cannot fork again.
  *
@@ -54,7 +57,7 @@ export async function mergeAcademies(input: {
 
   return await db.transaction(async (tx) => {
     // Both academies' pools, in every event, before anything else: the merge
-    // moves payments and allocations between them, and a spread already
+    // moves payments, allocations and refunds between them, and a spread already
     // reading one of them finishes first. Taken ahead of the academy lock,
     // because a spread holding its pool lock needs the academy row to insert.
     const eventRows = await tx.select({ id: events.id }).from(events);
@@ -152,6 +155,14 @@ export async function mergeAcademies(input: {
       .update(paymentAllocations)
       .set(moveTo)
       .where(eq(paymentAllocations.academyId, removed.id));
+    // The academy's foreign key cascades, so a refund left behind would go
+    // with the user below and the survivor's pool would read money it never
+    // handed back. Each moves to a new version, so a page still open on the
+    // removed academy's refund is refused rather than saved.
+    await tx
+      .update(refunds)
+      .set({ ...moveTo, updatedAt: nextRefundVersion })
+      .where(eq(refunds.academyId, removed.id));
     await tx.delete(user).where(eq(user.id, removed.userId));
 
     return { ok: true, survivor: { id: survivor.id, name: survivor.name } };
@@ -173,6 +184,7 @@ export async function loadAcademyMergeOptions(academyId: string): Promise<{
     dancerCount,
     paymentCount,
     professorCount,
+    refundCount,
   ] = await Promise.all([
     db
       .select({ email: user.email, id: academies.id, name: academies.name })
@@ -185,6 +197,7 @@ export async function loadAcademyMergeOptions(academyId: string): Promise<{
     db.$count(dancers, eq(dancers.academyId, academyId)),
     db.$count(payments, eq(payments.academyId, academyId)),
     db.$count(professors, eq(professors.academyId, academyId)),
+    db.$count(refunds, eq(refunds.academyId, academyId)),
   ]);
 
   return {
@@ -195,6 +208,7 @@ export async function loadAcademyMergeOptions(academyId: string): Promise<{
       dancers: dancerCount,
       payments: paymentCount,
       professors: professorCount,
+      refunds: refundCount,
     },
   };
 }

@@ -23,7 +23,7 @@ import {
   recordComprobante,
   type RecordComprobanteInput,
 } from "@/lib/comprobantes/comprobantes.server";
-import { readAcademyAvailableBalance } from "@/lib/finances/allocation-pool.server";
+import { readAcademyAvailableBalance } from "@/lib/finances/available-balance.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
@@ -554,12 +554,14 @@ describe("administrative choreography detail: access, rename, delete and withdra
       where: eq(choreographies.eventId, event.id),
     });
     expect(
-      rows.map((row) => ({ id: row.id, withdrawnAt: row.withdrawnAt })).sort(),
+      rows
+        .map((row) => ({ id: row.id, withdrawnAt: row.withdrawnAt }))
+        .sort(byId),
     ).toEqual(
       [
         { id: empty.id, withdrawnAt: null },
         { id: funded.id, withdrawnAt: null },
-      ].sort(),
+      ].sort(byId),
     );
     await expect(
       db.query.presentations.findMany({
@@ -789,4 +791,9 @@ function facturaCInput(
     lines: [],
     ...rest,
   };
+}
+
+/** Database rows come back in no promised order; compare them by id. */
+function byId(a: { id: string }, b: { id: string }) {
+  return a.id.localeCompare(b.id);
 }

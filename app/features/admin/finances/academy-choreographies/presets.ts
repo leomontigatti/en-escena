@@ -74,14 +74,9 @@ export function presetPriceFieldName(groupType: ChoreographyGroupType): string {
  * A price row a preset may fix on an inscription. `scheduleIds` travels because
  * the writer refuses a special row that does not cover the choreography's
  * schedule, so the picker has to apply the very same rule.
- *
- * `depositAmount` travels already computed because the dialog projects what the
- * selection would owe against the picked row, and the percentage it comes from
- * belongs to the event and not to the price.
  */
 export type PresetPriceOption = {
   amount: number;
-  depositAmount: number;
   id: string;
   name: string;
   paymentDeadline: string | null;

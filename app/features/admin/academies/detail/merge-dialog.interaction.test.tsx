@@ -54,6 +54,7 @@ async function renderDialog() {
                 dancers: 3,
                 payments: 2,
                 professors: 0,
+                refunds: 1,
               },
             }}
             onOpenChange={() => {}}
@@ -99,6 +100,7 @@ describe("AcademyMergeDialog", () => {
       "3 bailarines.",
       "1 coreografía.",
       "2 pagos.",
+      "1 reembolso.",
       "Las inscripciones a seminarios de esas personas.",
       "Academia Fork: nombre y datos de contacto.",
       "El usuario de acceso fork@example.com, que deja de poder ingresar.",

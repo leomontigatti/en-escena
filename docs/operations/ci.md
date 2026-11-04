@@ -61,7 +61,9 @@ deterministic: formatting staged files through `lint-staged` is the model.
 
 gitleaks is not a pnpm dependency: when the binary is not on `PATH`, the
 pre-commit line warns and continues, and CI's `static-checks` step is the blocking
-half. Installing it locally is optional; pin the version `GITLEAKS_VERSION`
+half. The repo is public, so CI catches a leak only after it is pushed: install it
+on every machine that commits (`.agents/required-tools` lists it, so a session
+without it is warned at its start), pinned to the version `GITLEAKS_VERSION`
 names in `ci.yml` (on macOS `brew install gitleaks` tracks the latest instead,
 which is close enough):
 
@@ -70,6 +72,10 @@ curl -fsSL -o /tmp/gitleaks.tar.gz \
   https://github.com/gitleaks/gitleaks/releases/download/v<version>/gitleaks_<version>_linux_x64.tar.gz
 tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks && sudo mv /tmp/gitleaks /usr/local/bin/
 ```
+
+gitleaks and GitHub push protection are the secret scans; the GitGuardian app
+was removed on 2026-11-03 because its non-required check duplicated them and
+flagged test literals.
 
 ## Waiting on CI from a session
 

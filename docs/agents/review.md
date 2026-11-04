@@ -28,7 +28,7 @@ by hand, and the check accepts a raised tier.
 
 ```review-paths
 # Money, by directory, then by file name wherever the module sits with its caller.
-full money: ^app/(lib/(finances|prices|seminar-prices|comprobantes|admin/finances)|features/admin/(finances|payments|prices|seminar-prices|comprobantes)|features/portal/(finances|payments))/|^app/routes/[^/]*(finanzas|pagos|precios|comprobantes)|^app/db/schema/(finances|prices|comprobantes)\.ts$
+full money: ^app/(lib/(finances|prices|seminar-prices|comprobantes|admin/finances)|features/admin/(finances|payments|prices|seminar-prices|comprobantes)|features/portal/(finances|payments))/|^app/routes/[^/]*(finanzas|movimientos|pagos|precios|comprobantes)|^app/db/schema/(finances|prices|comprobantes)\.ts$
 full money: ^app/[^ ]*(price|payment|financ|comprobante)
 full results or judging: ^app/(lib/(judging|grand-final|presentations)|features/(judging|vote|audit)|features/admin/(results|presentations|grand-final)|features/portal/results)/|^app/routes/[^/]*(resultados|juzgamiento|votar|auditoria|gran-final|presentaciones)|^app/db/schema/(judging|grand-final|presentations)\.ts$
 full results or judging: ^app/[^ ]*(score|judg|vote|result|ranking|finalist)|^app/features/portal/presentations/

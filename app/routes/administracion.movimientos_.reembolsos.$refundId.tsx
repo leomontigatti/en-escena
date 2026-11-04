@@ -2,58 +2,58 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  PaymentDetailRouteView,
-  getPaymentDisplayName,
-} from "@/features/admin/payments/detail/view";
+  handleRefundDetailAction,
+  loadRefundDetail,
+} from "@/features/admin/finances/refunds/server";
 import {
-  handlePaymentDetailAction,
-  loadPaymentDetail,
-} from "@/features/admin/payments/detail/server";
+  RefundDetailRouteView,
+  getRefundDisplayName,
+} from "@/features/admin/finances/refunds/view";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
-import type { Route } from "./+types/administracion.pagos_.$paymentId";
+import type { Route } from "./+types/administracion.movimientos_.reembolsos.$refundId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ActionData = Awaited<ReturnType<typeof action>>;
 
-type PaymentDetailRouteProps = {
+type RefundDetailRouteProps = {
   actionData?: ActionData;
   loaderData: LoaderData;
 };
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Detalle de pago | Panel de administración | En Escena" },
+  { title: "Detalle de reembolso | Panel de administración | En Escena" },
 ];
 
 export const handle = {
   adminBreadcrumbs: [
-    { label: "Pagos", to: "/administracion/pagos" },
+    { label: "Movimientos", to: "/administracion/movimientos" },
     (match) => {
       const data = match.loaderData as LoaderData | undefined;
 
-      return { label: getPaymentDisplayName(data?.payment) };
+      return { label: getRefundDisplayName(data?.refund) };
     },
   ],
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return await loadPaymentDetail(request, params.paymentId ?? "");
+  return await loadRefundDetail(request, params.refundId ?? "");
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
-  return await handlePaymentDetailAction(request, params.paymentId ?? "");
+  return await handleRefundDetailAction(request, params.refundId ?? "");
 }
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
   return await recoverableClientAction(serverAction);
 }
 
-export default function PaymentDetailRoute({
+export default function RefundDetailRoute({
   loaderData,
-}: PaymentDetailRouteProps) {
+}: RefundDetailRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <PaymentDetailRouteView actionData={actionData} loaderData={loaderData} />
+    <RefundDetailRouteView actionData={actionData} loaderData={loaderData} />
   );
 }

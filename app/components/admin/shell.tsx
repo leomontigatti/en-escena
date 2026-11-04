@@ -185,7 +185,7 @@ const accessNavigationItems = [
 
 const financeNavigationItems = [
   {
-    label: "Academias",
+    label: "Saldos",
     to: "/administracion/finanzas",
     icon: ClipboardList,
   },
@@ -195,8 +195,8 @@ const financeNavigationItems = [
     icon: Presentation,
   },
   {
-    label: "Pagos",
-    to: "/administracion/pagos",
+    label: "Movimientos",
+    to: "/administracion/movimientos",
     icon: HandCoins,
   },
   {
@@ -207,8 +207,7 @@ const financeNavigationItems = [
 ] satisfies SidebarNavigationItem[];
 
 // Each group is one of the administrator's jobs, and its items are that job's
-// objects. That is why "Academias" appears twice: under `Finanzas` you look at
-// their balance, under `Accesos` you administer the entity. The group disambiguates.
+// objects.
 const navigationGroups = [
   {
     items: contextNavigationItems,
@@ -243,7 +242,7 @@ const auditorSectionPaths = new Set([
   "/administracion/bailarines",
   "/administracion/profesores",
   "/administracion/coreografias",
-  "/administracion/pagos",
+  "/administracion/movimientos",
   "/administracion/seminarios",
 ]);
 

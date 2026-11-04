@@ -258,8 +258,8 @@ const financeNavigationItems = [
     icon: ClipboardList,
   },
   {
-    label: "Pagos",
-    to: "/portal/pagos",
+    label: "Movimientos",
+    to: "/portal/movimientos",
     icon: HandCoins,
   },
 ] satisfies SidebarNavigationItem[];

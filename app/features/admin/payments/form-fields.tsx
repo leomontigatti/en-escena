@@ -53,11 +53,13 @@ function groupPaymentAcademyOptions(academies: PaymentAcademyOption[]) {
 
 export function PaymentAcademyField<TValues extends PaymentAcademyFieldValues>({
   academies,
+  className = "md:col-span-2",
   control,
   disabled = false,
   value,
 }: {
   academies: PaymentAcademyOption[];
+  className?: string;
   control: Control<TValues>;
   disabled?: boolean;
   value?: string;
@@ -67,7 +69,7 @@ export function PaymentAcademyField<TValues extends PaymentAcademyFieldValues>({
 
     return (
       <ReadOnlyField
-        className="md:col-span-2"
+        className={className}
         hiddenValue={value ?? ""}
         label="Academia"
         name="academyId"
@@ -78,7 +80,7 @@ export function PaymentAcademyField<TValues extends PaymentAcademyFieldValues>({
 
   return (
     <ComboboxField
-      className="md:col-span-2"
+      className={className}
       control={control}
       id="academy-id"
       label="Academia"
@@ -100,7 +102,7 @@ export function PaymentFields<TValues extends PaymentFormFieldValues>({
         name={"paymentDate" as FieldPath<TValues>}
         className="md:col-start-1"
         id="payment-date"
-        label="Fecha de pago"
+        label="Fecha"
       />
 
       <TextInputField
@@ -125,10 +127,10 @@ export function PaymentFields<TValues extends PaymentFormFieldValues>({
         className="md:col-start-2"
         control={control}
         id="payment-method"
-        label="Medio de pago"
+        label="Medio"
         name={"paymentMethod" as FieldPath<TValues>}
         options={paymentMethodOptions}
-        placeholder="Seleccioná un medio de pago"
+        placeholder="Seleccioná un medio"
       />
 
       <TextareaField

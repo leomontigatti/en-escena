@@ -19,10 +19,7 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export const handle = {
-  adminBreadcrumbs: [
-    { label: "Finanzas", to: "/administracion/finanzas" },
-    { label: "Seminarios" },
-  ],
+  adminBreadcrumbs: [{ label: "Seminarios" }],
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
