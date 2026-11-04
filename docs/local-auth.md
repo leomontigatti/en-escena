@@ -301,8 +301,9 @@ EMAIL_FROM="En Escena <verified-sender@example.com>"
 
 `EMAIL_FROM` must match a sender verified in Brevo. A registration or recovery
 email the provider fails to send is logged once as `[auth:email:not-sent]`, with
-the kind of email and the provider's error but no address or secret, and the
-visitor gets the same answer as when it is sent.
+the kind of email and the provider's error but no address or secret, and kept
+as an unexpected error, which alerts. The visitor gets the same answer as when
+it is sent.
 
 When the sending domain is ready, switch the app-owned emails back to Resend:
 

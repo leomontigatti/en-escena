@@ -3,7 +3,7 @@ import { RouterContextProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { verification } from "@/db/schema";
+import { unexpectedErrors, verification } from "@/db/schema";
 import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
 import { createIndividualUser } from "@/lib/test-support/individuals";
 import { action as recoveryAction } from "@/routes/recuperar-acceso";
@@ -11,10 +11,14 @@ import { action as registrationAction } from "@/routes/registro";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
-const sendEmailMock = vi.hoisted(() => vi.fn());
+const resendSendMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/shared/email.server", () => ({
-  sendEmail: sendEmailMock,
+// The provider is the boundary: `sendEmail` runs its production path against
+// a Resend that refuses. A `function` expression, so `new Resend()` works.
+vi.mock("resend", () => ({
+  Resend: vi.fn(function ResendMock() {
+    return { emails: { send: resendSendMock } };
+  }),
 }));
 
 const NEW_EMAIL = "nueva@example.com";
@@ -28,15 +32,27 @@ describe("access emails when the provider fails (#1810)", () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    sendEmailMock.mockReset();
-    sendEmailMock.mockRejectedValue(
-      new Error("Email provider failed to send message (resend: 429)"),
-    );
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APP_ENVIRONMENT", "");
+    vi.stubEnv("EMAIL_PROVIDER", "resend");
+    vi.stubEnv("RESEND_API_KEY", "re_test");
+    vi.stubEnv("EMAIL_FROM", "En Escena <acceso@example.com>");
+    resendSendMock.mockReset();
+    // Resend's free-text message can quote the request; it must not reach a log.
+    resendSendMock.mockImplementation(async ({ to }: { to: string }) => ({
+      data: null,
+      error: {
+        name: "application_error",
+        statusCode: 503,
+        message: `Could not deliver to ${to}`,
+      },
+    }));
     consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
     consoleError.mockRestore();
+    vi.unstubAllEnvs();
   });
 
   test("registration answers a new and an existing address alike", async () => {
@@ -45,12 +61,12 @@ describe("access emails when the provider fails (#1810)", () => {
     const forNewAddress = await register(NEW_EMAIL);
     const forExistingAddress = await register(EXISTING_EMAIL);
 
-    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+    expect(resendSendMock).toHaveBeenCalledTimes(1);
     expect(publicResponse(forNewAddress)).toEqual(
       publicResponse(forExistingAddress),
     );
     expect(publicResponse(forNewAddress)).toMatchObject({ status: "success" });
-    expectOneSendFailureLogged("signUpConfirmation");
+    await expectOneSendFailureReported("signUpConfirmation");
   });
 
   test("recovery answers an eligible and an ineligible address alike", async () => {
@@ -59,19 +75,22 @@ describe("access emails when the provider fails (#1810)", () => {
     const forEligibleAddress = await requestRecovery(EXISTING_EMAIL);
     const forIneligibleAddress = await requestRecovery(NEW_EMAIL);
 
-    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+    expect(resendSendMock).toHaveBeenCalledTimes(1);
     expect(publicResponse(forEligibleAddress)).toEqual(
       publicResponse(forIneligibleAddress),
     );
     expect(publicResponse(forEligibleAddress)).toMatchObject({
       status: "success",
     });
-    expectOneSendFailureLogged("accessRecovery");
+    await expectOneSendFailureReported("accessRecovery");
   });
 
   test("a registration retried after a failed send leaves one pending sign-up", async () => {
     await register(NEW_EMAIL);
-    sendEmailMock.mockResolvedValueOnce(undefined);
+    resendSendMock.mockResolvedValueOnce({
+      data: { id: "email_id" },
+      error: null,
+    });
     await register(NEW_EMAIL);
 
     const pendingSignUps = await db.query.verification.findMany({
@@ -81,20 +100,29 @@ describe("access emails when the provider fails (#1810)", () => {
 
     expect(pendingSignUps).toHaveLength(1);
     expect(pendingSignUps[0]!.value).toContain(NEW_EMAIL);
-    expect(sendEmailMock.mock.lastCall?.[0].text).toContain(
+    expect(resendSendMock.mock.lastCall?.[0].text).toContain(
       pendingSignUps[0]!.identifier.slice("academy-signup:".length),
     );
   });
 
-  function expectOneSendFailureLogged(kind: string) {
+  // The visitor is told the email left, so the failure also goes where an
+  // unhandled one would: a row of `unexpected_error`, which alerts.
+  async function expectOneSendFailureReported(kind: string) {
     expect(consoleError).toHaveBeenCalledTimes(1);
     expect(consoleError).toHaveBeenCalledWith("[auth:email:not-sent]", {
       kind,
       error: expect.stringContaining("Email provider failed to send message"),
     });
-    const logged = JSON.stringify(consoleError.mock.calls);
-    expect(logged).not.toContain(NEW_EMAIL);
-    expect(logged).not.toContain(EXISTING_EMAIL);
+    const recorded = await db.select().from(unexpectedErrors);
+    expect(recorded).toEqual([
+      expect.objectContaining({
+        source: "server",
+        stack: expect.stringContaining("Email provider failed to send message"),
+      }),
+    ]);
+    const reported = JSON.stringify([consoleError.mock.calls, recorded]);
+    expect(reported).not.toContain(NEW_EMAIL);
+    expect(reported).not.toContain(EXISTING_EMAIL);
   }
 });
 

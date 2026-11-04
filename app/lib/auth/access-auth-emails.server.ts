@@ -1,5 +1,11 @@
 import { sendEmail, type SendEmailInput } from "@/lib/shared/email.server";
-import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
+import { readRelease } from "@/lib/shared/app-environment.server";
+import { sendOpsAlert } from "@/lib/shared/ops-alert.server";
+import {
+  describeServerError,
+  readServedRoutePattern,
+} from "@/lib/shared/unexpected-error-log.server";
+import { recordUnexpectedError } from "@/lib/shared/unexpected-error-store.server";
 
 // Access emails in Spanish, sent by Better Auth's built-in flow (#424). They
 // replace Supabase's `Send Email` webhook (`handleSupabaseSendEmailHook`,
@@ -90,10 +96,23 @@ async function sendAccessEmail(
     await sendEmail(input);
     return true;
   } catch (thrown) {
-    console.error("[auth:email:not-sent]", {
-      kind,
-      error: describeServerError(thrown),
-    });
+    const stack = describeServerError(thrown);
+
+    console.error("[auth:email:not-sent]", { kind, error: stack });
+    // The visitor is told the email left, so nobody else would notice an
+    // outage: it is kept and alerted like an unhandled error.
+    await recordUnexpectedError(
+      {
+        source: "server",
+        route: readServedRoutePattern(),
+        method: "POST",
+        userId: null,
+        at: new Date(),
+        release: readRelease(),
+        stack,
+      },
+      { sendAlert: sendOpsAlert },
+    );
     return false;
   }
 }
