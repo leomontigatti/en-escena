@@ -62,12 +62,13 @@ session runs, and when, is [Validation](../agents/validation.md).
 
 ## Database Tests
 
-| Script                            | Purpose                                                                                                                                             |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm test:db`                    | Run the full DB suite on the in-process PGlite harness. No local Postgres. Included in `pnpm test`.                                                 |
-| `pnpm test:db <archivo>`          | Run one focused DB test file on the PGlite harness.                                                                                                 |
-| `pnpm test:db:postgres`           | Push schema to `TEST_DATABASE_URL` and run the DB Vitest suite against real Postgres. The local high-fidelity path; CI runs the same suite sharded. |
-| `pnpm test:db:postgres <archivo>` | Run one focused DB test file against real Postgres.                                                                                                 |
+| Script                            | Purpose                                                                                                                                                |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm test:db`                    | Run the full DB suite on the in-process PGlite harness. No local Postgres. Included in `pnpm test`.                                                    |
+| `pnpm test:db <archivo>`          | Run one focused DB test file on the PGlite harness.                                                                                                    |
+| `pnpm test:db:postgres`           | Push schema to `TEST_DATABASE_URL` and run the DB Vitest suite against real Postgres. The local high-fidelity path; CI runs the same suite sharded.    |
+| `pnpm test:db:postgres <archivo>` | Run one focused DB test file against real Postgres.                                                                                                    |
+| `pnpm test:db:shard <i>`          | Replay CI's `db-shard <i>/4`: `pnpm db:test:reset`, then that shard's slice of the DB suite against `TEST_DATABASE_URL`. Refuses an `<i>` outside 1–4. |
 
 ## Backups
 

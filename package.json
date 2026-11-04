@@ -19,6 +19,7 @@
     "test": "pnpm test:unit && pnpm test:db",
     "test:unit": "vitest --run",
     "test:db": "vitest --config vitest.db.fast.config.ts --run",
+    "test:db:shard": "node --import tsx scripts/test-db-shard.ts",
     "test:db:postgres": "pnpm db:test:reset && vitest --config vitest.db.config.ts --run",
     "check:banned-imports": "node --import tsx scripts/check-banned-imports.ts",
     "check:docs-tests": "oxlint -c .oxlintrc.docs-tests.json",
