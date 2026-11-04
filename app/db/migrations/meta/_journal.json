@@ -484,6 +484,13 @@
       "when": 1792890585034,
       "tag": "0068_faithful_wildside",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1793799423809,
+      "tag": "0069_opposite_scarlet_witch",
+      "breakpoints": true
     }
   ]
 }

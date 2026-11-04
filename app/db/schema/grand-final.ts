@@ -77,7 +77,7 @@ export const finalistPicks = createTable(
     ),
     index("finalist_pick_academy_idx").on(table.academyId),
   ],
-).enableRLS();
+);
 
 /**
  * The two banner pictures a `finalist` shows on the `Gran final` vote page,
@@ -128,7 +128,7 @@ export const finalistBanners = createTable(
     ),
     index("finalist_banner_academy_idx").on(table.academyId),
   ],
-).enableRLS();
+);
 
 /**
  * One print run of `voteCode`s administration generates for the event. Its
@@ -163,7 +163,7 @@ export const voteCodeBatches = createTable(
       table.number,
     ),
   ],
-).enableRLS();
+);
 
 /**
  * A one-time `voteCode`: a random token the printed QR carries in the vote
@@ -189,7 +189,7 @@ export const voteCodes = createTable(
     uniqueIndex("vote_code_token_unique").on(table.token),
     index("vote_code_batch_idx").on(table.batchId),
   ],
-).enableRLS();
+);
 
 /**
  * One run of the public vote of the `Gran final` (`votingRound`). `number` is
@@ -226,7 +226,7 @@ export const votingRounds = createTable(
     ),
     check("voting_round_number_check", sql`${table.number} in (1, 2)`),
   ],
-).enableRLS();
+);
 
 /**
  * A `finalist` as the round copied it when it opened, with the two banner
@@ -264,7 +264,7 @@ export const votingRoundFinalists = createTable(
     ),
     index("voting_round_finalist_academy_idx").on(table.academyId),
   ],
-).enableRLS();
+);
 
 /** Where a `voter` signed in. Meta is a second value when its review clears. */
 export const voterProvider = pgEnum("en_escena_voter_provider", ["google"]);
@@ -294,7 +294,7 @@ export const voters = createTable(
       table.subject,
     ),
   ],
-).enableRLS();
+);
 
 /** How a `vote` was cast: with a printed `voteCode`, or by a signed-in `voter`. */
 export const voteKind = pgEnum("en_escena_vote_kind", ["code", "social"]);
@@ -364,7 +364,7 @@ export const votes = createTable(
       sql`(${table.kind} = 'code' and ${table.voterId} is null) or (${table.kind} = 'social' and ${table.voterId} is not null)`,
     ),
   ],
-).enableRLS();
+);
 
 /**
  * An `auditLink`: the access administration hands to one of the audience's
@@ -399,4 +399,4 @@ export const auditLinks = createTable(
     uniqueIndex("audit_link_token_hash_unique").on(table.tokenHash),
     index("audit_link_event_idx").on(table.eventId),
   ],
-).enableRLS();
+);

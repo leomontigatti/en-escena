@@ -72,7 +72,7 @@ export const seminarPrices = createTable(
       .nullsNotDistinct(),
     check("seminar_price_amount_positive", sql`${table.amount} >= 1`),
   ],
-).enableRLS();
+);
 
 // A class the event offers around the competition: a guest instructor, a local
 // date and time, and a quota of places. Registration is unlimited; the quota
@@ -123,7 +123,7 @@ export const seminars = createTable(
       sql`${table.requiredDepositPercentage} between 1 and 99`,
     ),
   ],
-).enableRLS();
+);
 
 // One person registered into one seminar: a roster person (a dancer or a
 // professor) or an `individual` registering itself (ADR-0019). The owning
@@ -219,4 +219,4 @@ export const seminarInscriptions = createTable(
       sql`num_nonnulls(${table.dancerId}, ${table.professorId}, ${table.individualId}) = 1`,
     ),
   ],
-).enableRLS();
+);

@@ -60,7 +60,7 @@ export const dancers = createTable(
       .on(table.academyId, table.documentNumber)
       .where(sql`${table.documentNumber} is not null`),
   ],
-).enableRLS();
+);
 
 export const professors = createTable(
   "professor",
@@ -98,4 +98,4 @@ export const professors = createTable(
       .on(table.academyId, table.documentNumber)
       .where(sql`${table.documentNumber} is not null`),
   ],
-).enableRLS();
+);

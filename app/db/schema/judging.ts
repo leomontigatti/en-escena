@@ -76,7 +76,7 @@ export const submodalityCriteria = createTable(
       .where(sql`${table.experienceLevel} is not null`),
     check("submodality_criterion_maximum_whole", sql`${table.maximum} >= 1`),
   ],
-).enableRLS();
+);
 
 /**
  * What one judge gave one presentation. The row is created on the judge's first
@@ -130,7 +130,7 @@ export const scores = createTable(
       sql`${table.value} is null or mod(${table.value} * 10, 5) = 0`,
     ),
   ],
-).enableRLS();
+);
 
 /**
  * One filled line of a sheet. Keyed by the pair, so a judge has at most one
@@ -177,4 +177,4 @@ export const scoreCriterionValues = createTable(
       sql`mod(${table.value} * 10, 5) = 0`,
     ),
   ],
-).enableRLS();
+);

@@ -84,4 +84,4 @@ export const academies = createTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [uniqueIndex("academy_user_id_unique").on(table.userId)],
-).enableRLS();
+);
