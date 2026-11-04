@@ -159,7 +159,7 @@ export const comprobantes = createTable(
     // ceiling the emitter checks under the anchor's lock, not an index.
     index("comprobante_associated_idx").on(table.associatedComprobanteId),
   ],
-).enableRLS();
+);
 
 // Internal lines of a comprobante, one per billed inscription (#323/#326) at
 // the amount billed for it, net of discounts. They are a snapshot: the fiscal
@@ -216,4 +216,4 @@ export const comprobanteInscriptions = createTable(
     ),
     index("comprobante_inscription_seminar_idx").on(table.seminarInscriptionId),
   ],
-).enableRLS();
+);

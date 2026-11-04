@@ -134,7 +134,7 @@ export const choreographies = createTable(
       sql`char_length(btrim(${table.name})) between 1 and 120`,
     ),
   ],
-).enableRLS();
+);
 
 export const choreographyDancers = createTable(
   "choreography_dancer",
@@ -203,7 +203,7 @@ export const choreographyDancers = createTable(
     index("choreography_dancer_dancer_id_idx").on(table.dancerId),
     index("choreography_dancer_selected_price_idx").on(table.selectedPriceId),
   ],
-).enableRLS();
+);
 
 export const choreographyProfessors = createTable(
   "choreography_professor",
@@ -228,4 +228,4 @@ export const choreographyProfessors = createTable(
     ),
     index("choreography_professor_professor_id_idx").on(table.professorId),
   ],
-).enableRLS();
+);

@@ -120,4 +120,4 @@ export const comprobanteReservations = createTable(
       table.cbteTipo,
     ),
   ],
-).enableRLS();
+);
