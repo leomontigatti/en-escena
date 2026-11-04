@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -7,6 +7,7 @@ import {
   events,
   presentations,
 } from "@/db/schema";
+import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { resolveChoreographyLocks } from "@/lib/choreographies/choreography-locks";
 import { choreographyHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
@@ -30,9 +31,10 @@ export type ChoreographyRemovalOutcome = "deleted" | "evaluated" | "withdrawn";
  * disponible` in the same transaction.
  *
  * The outcome is decided here, inside the transaction and under a `FOR UPDATE`
- * on the choreography row, and not from what the dialog was rendered with:
- * money allocated between the render and the click still leads to a withdrawal
- * instead of destroying the allocations through the cascade.
+ * on the choreography row and on its active inscriptions, and not from what the
+ * dialog was rendered with: money allocated between the render and the click, or
+ * while the removal runs, still leads to a withdrawal instead of destroying the
+ * allocations through the cascade.
  *
  * The event row is locked first, the lock the automatic ordering and a manual
  * move take: a withdrawn choreography keeps its presentation, so an ordering
@@ -103,6 +105,28 @@ export async function removeChoreography(
     if (deletion.locked) {
       return "evaluated";
     }
+
+    // The active inscriptions are locked before the evidence is read, in the id
+    // order the draft save, the waiver and the presets take: an allocation
+    // locks the inscription before it inserts, so one racing this removal
+    // either committed first and is read as evidence, or waits until the
+    // removal has committed (#1689). Read without the lock, an allocation still
+    // uncommitted read as none, and the delete's cascade took it once it
+    // committed. Only the active ones: an allocation onto a withdrawn row is
+    // refused under its own lock, and locking those too would hold a row a
+    // retained-deposit release keeps while it waits on a pool an academy merge
+    // holds, a merge that waits on this choreography.
+    await tx
+      .select({ id: choreographyDancers.id })
+      .from(choreographyDancers)
+      .where(
+        and(
+          eq(choreographyDancers.choreographyId, choreographyId),
+          activeInscription(),
+        ),
+      )
+      .orderBy(asc(choreographyDancers.id))
+      .for("update");
 
     // A deleted choreography takes its presentation with it, and the number it
     // held stays a gap: every other number is what the academies were told.

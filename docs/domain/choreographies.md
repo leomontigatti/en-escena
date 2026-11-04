@@ -158,8 +158,13 @@ the roster"):
   Inscriptions withdrawn individually beforehand keep their own earlier stamp.
 
 The outcome is decided inside the write's transaction, under a `FOR UPDATE` on
-the choreography row, so money allocated between the dialog and the click still
-leads to a withdrawal instead of destroying the allocations through the cascade.
+the choreography row and on its active inscriptions, so money allocated between
+the dialog and the click, or while the removal runs, still leads to a withdrawal
+instead of destroying the allocations through the cascade. The inscriptions are
+locked before the evidence is read because an allocation locks the inscription,
+not the choreography: one racing the removal either commits first and is read
+as evidence, or waits until the removal has committed and is then refused. A
+withdrawn inscription needs no lock, because no money is allocated onto it.
 What the dialog announced is advisory.
 
 - **The one hard lock is the evaluated presentation** — a presentation with a
