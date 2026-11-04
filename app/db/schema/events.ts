@@ -89,7 +89,7 @@ export const events = createTable(
       .on(table.active)
       .where(sql`${table.active} = true`),
   ],
-).enableRLS();
+);
 
 export const modalities = createTable(
   "modality",
@@ -113,7 +113,7 @@ export const modalities = createTable(
     index("modality_event_id_idx").on(table.eventId),
     uniqueIndex("modality_event_name_unique").on(table.eventId, table.name),
   ],
-).enableRLS();
+);
 
 export const submodalities = createTable(
   "submodality",
@@ -144,7 +144,7 @@ export const submodalities = createTable(
       sql`lower(${table.name})`,
     ),
   ],
-).enableRLS();
+);
 
 export const categories = createTable(
   "category",
@@ -181,7 +181,7 @@ export const categories = createTable(
       table.maxAge,
     ),
   ],
-).enableRLS();
+);
 
 export const categoryModalities = createTable(
   "category_modality",
@@ -206,7 +206,7 @@ export const categoryModalities = createTable(
     ),
     index("category_modality_modality_id_idx").on(table.modalityId),
   ],
-).enableRLS();
+);
 
 export const schedules = createTable(
   "schedule",
@@ -249,7 +249,7 @@ export const schedules = createTable(
       sql`num_nonnulls(${table.awardCeremonyDate}, ${table.awardCeremonyTime}) <> 1`,
     ),
   ],
-).enableRLS();
+);
 
 // The days of an event whose program is published: a row is a visible day, and
 // a day without one is hidden. Keyed by the date and not by the schedule, so a
@@ -300,7 +300,7 @@ export const scheduleModalities = createTable(
       table.modalityId,
     ),
   ],
-).enableRLS();
+);
 
 /**
  * The categories a schedule accepts, alongside the modalities it accepts.
@@ -331,7 +331,7 @@ export const scheduleCategories = createTable(
       table.categoryId,
     ),
   ],
-).enableRLS();
+);
 
 export const scheduleCapacities = createTable(
   "schedule_capacity",
@@ -362,7 +362,7 @@ export const scheduleCapacities = createTable(
       table.groupType,
     ),
   ],
-).enableRLS();
+);
 
 // One counter per event, one row per event. It feeds the readable numbers the
 // user reads and searches by: the payment's, the refund's and the
@@ -398,13 +398,11 @@ export const eventSequences = createTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [index("event_sequence_updated_idx").on(table.updatedAt)],
-).enableRLS();
+);
 
 // Deliberately unlike its neighbours, and not an oversight: the enum carries no
-// `en_escena_` prefix and the table declares no `.enableRLS()`. The prefix is a
-// `create-t3-app` leftover, and the RLS call only ever muted a Supabase warning
-// against an app that connects as the table owner. #506 removes both repo-wide,
-// so a new declaration should not add to the pile.
+// `en_escena_` prefix. The prefix is a `create-t3-app` leftover that #506
+// removes repo-wide, so a new declaration should not add to the pile.
 export const eventDocumentKind = pgEnum("event_document_kind", [
   "professor_contract",
   "minor_authorization",

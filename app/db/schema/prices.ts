@@ -57,7 +57,7 @@ export const prices = createTable(
       .on(table.eventId, table.groupType, table.paymentDeadline)
       .where(sql`not ${table.isSpecialPrice}`),
   ],
-).enableRLS();
+);
 
 // One schedule a special price covers. `groupType` and `paymentDeadline` are
 // copies of the price's, rewritten with the links on every save, so that the
@@ -94,4 +94,4 @@ export const priceSchedules = createTable(
       .on(table.scheduleId, table.groupType, table.paymentDeadline)
       .nullsNotDistinct(),
   ],
-).enableRLS();
+);

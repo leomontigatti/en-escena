@@ -39,7 +39,7 @@ export const user = createTable("user", {
   })
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
-}).enableRLS();
+});
 
 export const accessSession = createTable(
   "access_session",
@@ -80,7 +80,7 @@ export const accessSession = createTable(
     ),
   },
   (table) => [index("access_session_user_id_idx").on(table.userId)],
-).enableRLS();
+);
 
 // The `account` table in Better Auth's canonical shape. It replaces
 // `access_credential`: for local credentials, `provider_id = 'credential'`,
@@ -126,7 +126,7 @@ export const account = createTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [index("account_user_id_idx").on(table.userId)],
-).enableRLS();
+);
 
 // Better Auth's `verification` table: email-verification and password-reset
 // tokens (`identifier` → `value`, with an expiry).
@@ -157,4 +157,4 @@ export const verification = createTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
-).enableRLS();
+);

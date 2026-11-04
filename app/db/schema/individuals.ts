@@ -66,4 +66,4 @@ export const individuals = createTable(
       name: "individual_link_confirmed_by_fk",
     }).onDelete("set null"),
   ],
-).enableRLS();
+);

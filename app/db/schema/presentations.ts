@@ -82,7 +82,7 @@ export const presentations = createTable(
     ),
     index("presentation_event_order_idx").on(table.eventId, table.orderNumber),
   ],
-).enableRLS();
+);
 
 /**
  * A judge put on a presentation. It holds the pair and nothing else: no event
@@ -122,4 +122,4 @@ export const judgeAssignments = createTable(
     ),
     index("judge_assignment_user_idx").on(table.userId),
   ],
-).enableRLS();
+);

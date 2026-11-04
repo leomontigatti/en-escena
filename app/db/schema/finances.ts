@@ -68,7 +68,7 @@ export const payments = createTable(
       table.createdAt,
     ),
   ],
-).enableRLS();
+);
 
 export const paymentAllocations = createTable(
   "payment_allocation",
@@ -169,12 +169,11 @@ export const paymentAllocations = createTable(
       table.createdAt,
     ),
   ],
-).enableRLS();
+);
 
 // Money handed back to an owner, out of its pool for the event (`Saldo
 // disponible`). The mirror of a payment, and deliberately bound to nothing
-// else: a refund names no payment, no allocation and no inscription. Declared
-// without RLS, as new tables are until #506 (tests/db/schema-security.db.test.ts).
+// else: a refund names no payment, no allocation and no inscription.
 export const refunds = createTable(
   "refund",
   {

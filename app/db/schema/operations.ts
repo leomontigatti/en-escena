@@ -45,4 +45,4 @@ export const unexpectedErrors = createTable(
     ),
     index("unexpected_error_created_at_idx").on(table.createdAt),
   ],
-).enableRLS();
+);
