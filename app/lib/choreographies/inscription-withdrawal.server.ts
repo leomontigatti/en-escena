@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { findReservedInscriptionIds } from "@/lib/comprobantes/reservation.server";
@@ -84,6 +84,19 @@ export async function removeInscriptionsFromRoster(
   if (inscriptionIds.length === 0) {
     return;
   }
+
+  // Locked before the evidence is read, in the id order the choreography's
+  // removal, the draft save, the waiver and the presets take: an allocation
+  // locks the inscription before it inserts, so one racing this removal either
+  // committed first and is read as evidence, or waits and is refused once the
+  // row is gone or withdrawn (#1797). These are the rows the delete or the
+  // withdrawal below locks anyway; only the moment moves.
+  await executor
+    .select({ id: choreographyDancers.id })
+    .from(choreographyDancers)
+    .where(inArray(choreographyDancers.id, inscriptionIds))
+    .orderBy(asc(choreographyDancers.id))
+    .for("update");
 
   const evidence = await findInscriptionsWithEvidence(inscriptionIds, executor);
   const withdrawnIds = inscriptionIds.filter((id) => evidence.has(id));

@@ -39,6 +39,8 @@ import { noCompatibleCategoryRosterMessage } from "@/lib/choreographies/choreogr
 import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
+import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
+import { choreographyTarget } from "@/lib/finances/allocation-target.server";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 
 import {
@@ -47,7 +49,11 @@ import {
   submitDetailAction,
 } from "@/features/admin/choreographies/detail/server.test-support";
 
-import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
+import {
+  installDatabaseTestHooks,
+  isPgliteTestBackend,
+} from "../../../../../tests/db/harness";
+import { runBehindAHolder } from "../../../../../tests/db/lock-contention";
 
 // Reaching a real evaluation means a score on an assigned judge, which is not
 // this file's subject, so a test that needs a closed choreography declares it
@@ -171,6 +177,56 @@ describe("administrative choreography roster editing", () => {
     });
     expect(saved?.groupType).toBe("grupal");
   });
+
+  // #1797: the evidence was read before the removed inscriptions were locked,
+  // so an allocation still uncommitted read as none, and the roster's delete
+  // took it through the cascade once it committed. The group type stays
+  // "grupal", the usual save, which locked no inscription before the read.
+  test.skipIf(isPgliteTestBackend())(
+    "withdraws a removed dancer and keeps the money an allocation committed while the save waited",
+    async () => {
+      const scenario = await createGrupalRemovalScenario({
+        academyName: "Academia Roster Carrera",
+        email: "roster.carrera.academia@example.com",
+      });
+      await createPayment(scenario);
+
+      const response = await runBehindAHolder({
+        waitingOn: "inscription lock",
+        // The pool writer every allocation goes through: it locks the
+        // inscription and inserts the allocation, and commits once the save is
+        // queued behind it.
+        hold: async (tx) => {
+          const funded = await spreadFromPool(tx, {
+            academyId: scenario.academyId,
+            amount: 2000,
+            eventId: scenario.event.id,
+            target: choreographyTarget(scenario.inscriptionA.id),
+          });
+          expect(funded).toEqual({ ok: true });
+        },
+        contender: () =>
+          submitRoster({
+            choreographyId: scenario.choreography.id,
+            dancerIds: scenario.remainingDancerIds,
+          }),
+      });
+
+      expect(response).toMatchObject({ status: "success" });
+      const withdrawn = await db.query.choreographyDancers.findFirst({
+        where: eq(choreographyDancers.id, scenario.inscriptionA.id),
+      });
+      expect(withdrawn?.withdrawnAt).toBeInstanceOf(Date);
+      // Below the grupal deposit, so the withdrawal retains all of it.
+      const allocations = await db.query.paymentAllocations.findMany({
+        where: eq(
+          paymentAllocations.choreographyInscriptionId,
+          scenario.inscriptionA.id,
+        ),
+      });
+      expect(allocations.map((row) => row.amount)).toEqual([2000]);
+    },
+  );
 
   // #1065: the withdrawal retains exactly the deposit (30 % of the grupal 25000)
   // and releases the rest to `Saldo disponible`, newest payment first.
