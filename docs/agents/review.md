@@ -72,6 +72,17 @@ Where this codebase gets hurt, pasted into the correctness brief:
 A fix brings its own bugs here too: #1627's race came in with the fix for a correctness finding,
 which is why the fix round re-runs correctness over the fixes.
 
+**Who acts concurrently**, for a race's likelihood. On 2026-11-04 production had one admin, one
+auditor (read-only), 171 academies and 77 individuals on the portal, and 18 judges, for one event
+a year. Money, comprobantes, prices, choreography removal and the admin roster save are admin-only,
+so a race whose every side is one of them needs that one admin in two tabs inside one transaction
+window. A client-driven bulk loop (bulk emission) is a second actor while it runs. A race with a
+portal or individual side (registration, a dancer's data, seminar inscriptions) meets real
+concurrency, peaking while registration is open and during the live event. Measure the actors and
+frequencies instead of recalling them: read production as `readonly`
+([infrastructure.md](../operations/infrastructure.md#operator-access)), counting users by `role`
+and each side's rows per day and per minute by `created_at`.
+
 ## Breadth
 
 - **Admin and portal.** A behaviour reachable from the admin is usually reachable from the portal
