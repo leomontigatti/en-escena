@@ -21,7 +21,7 @@ import {
   createDancer,
 } from "@/features/portal/choreographies/test-support/db";
 import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
-import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
+import { allocateToInscription } from "@/lib/finances/inscription-money.server";
 import { readSeminarPlaceLedger } from "@/lib/seminars/seminars.test-support";
 import {
   deriveMinimumFinancialStatus,
@@ -362,14 +362,13 @@ describe("readPaymentDeletionImpact", () => {
     // Exactly the deposit of the stored row, so the inscription holds a place —
     // and the money comes out of the payment about to be deleted.
     await expect(
-      allocateToSeminarInscription({
+      allocateToInscription({
         now: new Date(),
         academyId: fixture.academyId,
         amount: 2000,
         eventId: fixture.eventId,
-        inscriptionId: seminar.inscriptionId,
+        target: { id: seminar.inscriptionId, kind: "seminar" },
         priceId: seminar.priceId,
-        seminarId: seminar.seminarId,
       }),
     ).resolves.toEqual({ ok: true });
 
@@ -403,14 +402,13 @@ describe("readPaymentDeletionImpact", () => {
     const seminar = await seedSeminarInscription(fixture);
 
     await expect(
-      allocateToSeminarInscription({
+      allocateToInscription({
         now: new Date(),
         academyId: fixture.academyId,
         amount: 2000,
         eventId: fixture.eventId,
-        inscriptionId: seminar.inscriptionId,
+        target: { id: seminar.inscriptionId, kind: "seminar" },
         priceId: seminar.priceId,
-        seminarId: seminar.seminarId,
       }),
     ).resolves.toEqual({ ok: true });
 

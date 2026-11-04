@@ -26,6 +26,7 @@ import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financ
 import { renderInscriptionStatusFilterValue } from "@/lib/finances/inscription-finance-columns";
 import {
   choreographiesTabValue,
+  movementsTabValue,
   seminarsTabValue,
   useFinanceTabs,
 } from "@/lib/finances/finance-tabs";
@@ -33,9 +34,12 @@ import { operationalFinanceColumns } from "@/lib/finances/operational-finance-co
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
+import { MovementMetrics } from "@/lib/finances/movement-metrics";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
+import { sumMovementTotals } from "@/lib/finances/selected-movement-totals";
 import { BulkEmissionBlockedDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { BulkEmissionDialog } from "@/features/admin/finances/comprobante-emission/bulk-dialog";
+import { OwnerMovementsTab } from "@/features/admin/finances/owner-movements/tab";
 import { FinancePresetDialog } from "./preset-dialog";
 import { financePresetLabels, type FinancePresetTarget } from "./presets";
 import { SeminarPresetDialog } from "./seminar-preset-dialog";
@@ -43,6 +47,27 @@ import type { AcademyFinancesLoaderData } from "./types";
 
 function presetTargetOf(tab: string): FinancePresetTarget {
   return tab === seminarsTabValue ? "seminars" : "choreographies";
+}
+
+/**
+ * What the header menu can do from the open tab: the presets act on its
+ * selection and the bulk emission on the choreographies' only. The
+ * `Movimientos` tab has no selection, so nothing is collected from it.
+ */
+function headerActionsOf(
+  tab: string,
+  hasSelection: Record<FinancePresetTarget, boolean>,
+) {
+  if (tab === movementsTabValue) {
+    return { canCollect: false, canEmit: false };
+  }
+
+  const target = presetTargetOf(tab);
+
+  return {
+    canCollect: hasSelection[target],
+    canEmit: target === "choreographies" && hasSelection.choreographies,
+  };
 }
 
 type ChoreographyFinanceRow =
@@ -92,7 +117,7 @@ export function AcademyFinancesRouteView({
     selectedSeminarIds,
     setSelectedChoreographyIds,
     setSelectedSeminarIds,
-  } = useFinanceTabs(loaderData);
+  } = useFinanceTabs({ ...loaderData, withMovementsTab: true });
   // The preset remembers the tab it was opened from, which is the selection it
   // acts on.
   const [preset, setPreset] = useState<{
@@ -112,10 +137,10 @@ export function AcademyFinancesRouteView({
     blockedReason: string | null;
   } | null>(null);
   const activeTarget = presetTargetOf(activeTab);
-  const canCollect =
-    activeTarget === "seminars"
-      ? seminarTotals.hasSelection
-      : choreographyTotals.hasSelection;
+  const { canCollect, canEmit } = headerActionsOf(activeTab, {
+    choreographies: choreographyTotals.hasSelection,
+    seminars: seminarTotals.hasSelection,
+  });
   const choreographyColumns = useMemo(
     () => buildChoreographyFinanceColumns(loaderData.academy.id),
     [loaderData.academy.id],
@@ -169,10 +194,7 @@ export function AcademyFinancesRouteView({
           {/* The choreographies' only: it acts on the choreography tab's
               selection, and a seminar unit emits from its own detail. */}
           <DropdownMenuItem
-            disabled={
-              activeTarget !== "choreographies" ||
-              !choreographyTotals.hasSelection
-            }
+            disabled={!canEmit}
             onSelect={() =>
               setBulkEmission({
                 ids: choreographyTotals.selectedRows.map((row) => row.id),
@@ -186,15 +208,27 @@ export function AcademyFinancesRouteView({
       }
     >
       <div className="flex flex-col gap-6">
-        {/* The two owed figures re-scope to the active tab's selection, the two
-            thresholds follow the tab, and the available balance does neither. */}
-        <OperationalFinanceMetrics
-          availableBalanceAmount={loaderData.summary.availableBalanceAmount}
-          depositAmount={activeThresholds.depositAmount}
-          owedBalanceAmount={activeTotals.owedBalanceAmount}
-          owedDepositAmount={activeTotals.owedDepositAmount}
-          totalAmount={activeThresholds.totalAmount}
-        />
+        {/* The `Movimientos` tab lists money that moved, not debt, so it reads
+            the movements list's figures over this academy's movements. On the
+            other two, the owed figures re-scope to the active tab's selection,
+            the two thresholds follow the tab, and the available balance does
+            neither. */}
+        {activeTab === movementsTabValue ? (
+          <MovementMetrics
+            {...sumMovementTotals({
+              availableAmount: loaderData.summary.availableBalanceAmount,
+              movements: loaderData.movements,
+            })}
+          />
+        ) : (
+          <OperationalFinanceMetrics
+            availableBalanceAmount={loaderData.summary.availableBalanceAmount}
+            depositAmount={activeThresholds.depositAmount}
+            owedBalanceAmount={activeTotals.owedBalanceAmount}
+            owedDepositAmount={activeTotals.owedDepositAmount}
+            totalAmount={activeThresholds.totalAmount}
+          />
+        )}
 
         <Tabs value={activeTab} onValueChange={onTabChange}>
           <TabsList variant="line">
@@ -202,6 +236,7 @@ export function AcademyFinancesRouteView({
               Coreografías
             </TabsTrigger>
             <TabsTrigger value={seminarsTabValue}>Seminarios</TabsTrigger>
+            <TabsTrigger value={movementsTabValue}>Movimientos</TabsTrigger>
           </TabsList>
           <TabsContent value={choreographiesTabValue} className="pt-2">
             <ClientDataTable
@@ -248,6 +283,9 @@ export function AcademyFinancesRouteView({
               emptyMessage="No hay seminarios para mostrar."
             />
           </TabsContent>
+          <TabsContent value={movementsTabValue} className="pt-2">
+            <OwnerMovementsTab movements={loaderData.movements} />
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -262,6 +300,7 @@ export function AcademyFinancesRouteView({
           pricingScheduleIdByChoreography={
             loaderData.pricingScheduleIdByChoreography
           }
+          requiredDepositPercentage={loaderData.requiredDepositPercentage}
           selectedRows={choreographyTotals.selectedRows}
           stage={preset.stage}
         />

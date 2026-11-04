@@ -93,7 +93,6 @@ describe("AcademyFinancesRouteView", () => {
     expect(text).not.toContain("Imputar pago");
     expect(text).not.toContain("Fecha de imputación");
     expect(text).not.toContain("Imputaciones activas");
-    expect(text).not.toContain("Movimientos");
   });
 
   test("shows the total and the owed balance before the status", async () => {
@@ -802,7 +801,6 @@ describe("AcademyFinancesRouteView", () => {
           solo: [
             {
               amount: 10000,
-              depositAmount: 3000,
               id: "price_1",
               name: "Primera fecha",
               paymentDeadline: null,
@@ -810,7 +808,6 @@ describe("AcademyFinancesRouteView", () => {
             },
             {
               amount: 20000,
-              depositAmount: 6000,
               id: "price_2",
               name: "Segunda fecha",
               paymentDeadline: null,
@@ -853,7 +850,6 @@ describe("AcademyFinancesRouteView", () => {
           solo: [
             {
               amount: 10000,
-              depositAmount: 3000,
               id: "price_1",
               name: "Primera fecha",
               paymentDeadline: null,
@@ -861,7 +857,6 @@ describe("AcademyFinancesRouteView", () => {
             },
             {
               amount: 20000,
-              depositAmount: 6000,
               id: "price_2",
               name: "Segunda fecha",
               paymentDeadline: null,
@@ -927,7 +922,6 @@ describe("AcademyFinancesRouteView", () => {
           solo: [
             {
               amount: 10000,
-              depositAmount: 3000,
               id: "price_1",
               name: "Primera fecha",
               paymentDeadline: null,
@@ -935,7 +929,6 @@ describe("AcademyFinancesRouteView", () => {
             },
             {
               amount: 6000,
-              depositAmount: 1500,
               id: "price_2",
               name: "Promoción",
               paymentDeadline: null,
@@ -1060,7 +1053,6 @@ describe("AcademyFinancesRouteView", () => {
           grupal: [
             {
               amount: 20000,
-              depositAmount: 6000,
               id: "price_grupal",
               name: "Primera fecha",
               paymentDeadline: null,
@@ -1070,7 +1062,6 @@ describe("AcademyFinancesRouteView", () => {
           solo: [
             {
               amount: 10000,
-              depositAmount: 3000,
               id: "price_1",
               name: "Primera fecha",
               paymentDeadline: null,
@@ -1103,7 +1094,6 @@ describe("AcademyFinancesRouteView", () => {
           solo: [
             {
               amount: 8000,
-              depositAmount: 2400,
               id: "price_schedule_1",
               name: "Solo cronograma 1",
               paymentDeadline: null,
@@ -1111,7 +1101,6 @@ describe("AcademyFinancesRouteView", () => {
             },
             {
               amount: 12000,
-              depositAmount: 3600,
               id: "price_schedule_2",
               name: "Solo cronograma 2",
               paymentDeadline: null,
@@ -1186,6 +1175,42 @@ describe("AcademyFinancesRouteView", () => {
     expect(metricCardText("Total")).toContain("$ 40.000");
     expect(metricCardText("Saldo adeudado")).toContain("$ 16.000");
     expect(metricCardText("Saldo disponible")).toContain("$ 0");
+  });
+
+  // The tab lists money that moved, not debt, so it reads the movements list's
+  // four figures over this academy's movements in place of the owed ones.
+  test("shows the movement figures on the `Movimientos` tab", async () => {
+    await renderListIntoDocument({
+      loaderData: academyFinancesLoaderDataFixture({
+        movements: [
+          ownerMovementFixture({ amount: 30000, id: "payment_1" }),
+          ownerMovementFixture({ amount: 12000, id: "payment_2" }),
+          ownerMovementFixture({
+            amount: 5000,
+            id: "refund_1",
+            kind: "refund",
+          }),
+        ],
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 7000,
+        },
+      }),
+    });
+
+    await clickTab("Movimientos");
+
+    expect(metricCardText("Pagos")).toContain("$ 42.000");
+    expect(metricCardText("Reembolsos")).toContain("$ 5.000");
+    expect(metricCardText("Neto")).toContain("$ 37.000");
+    expect(metricCardText("Disponible")).toContain("$ 7.000");
+    expect(() => metricCardText("Seña total")).toThrow();
+    expect(() => metricCardText("Saldo disponible")).toThrow();
+
+    await clickTab("Coreografías");
+
+    expect(metricCardText("Seña total")).toContain("$ 6.000");
+    expect(() => metricCardText("Pagos")).toThrow();
   });
 
   test("keeps one selection per tab and narrows the owed pair to it", async () => {
@@ -1530,7 +1555,6 @@ function academyFinancesLoaderDataFixture(
       solo: [
         {
           amount: 10000,
-          depositAmount: 3000,
           id: "price_1",
           name: "Primera fecha",
           paymentDeadline: "2026-03-01",
@@ -1542,6 +1566,8 @@ function academyFinancesLoaderDataFixture(
       choreography_1: "schedule_1",
       choreography_2: "schedule_1",
     },
+    movements: [],
+    requiredDepositPercentage: 30,
     selectedEventId: "event_1",
     seminarFinanceRows: [],
     seminarPresetPreviews: {},
@@ -1553,6 +1579,21 @@ function academyFinancesLoaderDataFixture(
       owedDepositAmount: { amount: 6000, status: "complete" },
       totalPaidAmount: 0,
     },
+    ...overrides,
+  };
+}
+
+function ownerMovementFixture(
+  overrides: Partial<AcademyFinancesLoaderData["movements"][number]>,
+): AcademyFinancesLoaderData["movements"][number] {
+  return {
+    amount: 10000,
+    date: "2026-10-10",
+    id: "payment_1",
+    kind: "payment",
+    method: "efectivo",
+    number: 1,
+    reference: null,
     ...overrides,
   };
 }
@@ -1572,10 +1613,11 @@ function incompleteOwedLoaderDataFixture(availableBalanceAmount: number) {
         basePriceAmount: null,
         basePriceId: null,
         choreographyId: "choreography_2",
-        depositAmount: null,
         id: "inscription_2",
         owedBalanceAmount: null,
         owedDepositAmount: null,
+        storedDepositAmount: null,
+        storedPriceAmount: null,
       }),
     ],
     priceOptionsByGroupType: {},
@@ -1601,10 +1643,11 @@ function presetInscriptionFixture(
     financialStatus: "depositPending",
     choreographyId: "choreography_1",
     dancerDiscountAmount: 0,
-    depositAmount: 3000,
     id: "inscription",
     owedBalanceAmount: 0,
     owedDepositAmount: 3000,
+    storedDepositAmount: 3000,
+    storedPriceAmount: 10000,
     withdrawn: false,
     ...overrides,
   };

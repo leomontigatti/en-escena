@@ -45,7 +45,7 @@ import {
 } from "@/lib/dev-seed/demo-music.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
-import { allocateToInscription } from "@/lib/finances/inscription-allocation.server";
+import { allocateToInscription } from "@/lib/finances/inscription-money.server";
 import { setPresentationDisqualified } from "@/lib/judging/score-settlement.server";
 import { saveJudgeScore } from "@/lib/judging/save-score.server";
 import { assignJudges } from "@/lib/presentations/judge-assignments.server";
@@ -578,11 +578,11 @@ async function coverDeposits(input: {
   for (const inscription of inscriptions) {
     expectOk(
       await allocateToInscription({
+        now: new Date(),
         academyId: input.academyId,
         amount: perInscription,
-        choreographyId: inscription.choreographyId,
         eventId: input.eventId,
-        inscriptionId: inscription.id,
+        target: { id: inscription.id, kind: "choreography" },
         priceId: input.priceId,
       }),
       "allocate a deposit",

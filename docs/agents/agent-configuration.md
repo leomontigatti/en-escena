@@ -57,7 +57,7 @@ shared ones are wired at user level by the shared `install.sh`; the rest from th
 wiring files.
 
 - **`SessionStart`** (shared): `check-tool-path.sh` warns when the session's shell cannot find
-  a tool the work needs; this repo adds `node`, `pnpm` and `playwright-cli` in
+  a tool the work needs; this repo adds `node`, `pnpm`, `playwright-cli` and `gitleaks` in
   `.agents/required-tools`. The fix is [the agent shell's PATH](#the-agent-shells-path).
 - **`PreToolUse` on Bash**: `block-npx-tsc.sh` blocks `npx tsc`, `pnpm exec tsc` and
   `pnpm dlx tsc`, because `pnpm typecheck` generates the React Router route types first. The

@@ -2,7 +2,13 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
-import { choreographies, events, scheduleCapacities } from "@/db/schema";
+import {
+  choreographies,
+  choreographyDancers,
+  events,
+  prices,
+  scheduleCapacities,
+} from "@/db/schema";
 import {
   readFinanceAcademy,
   readFinanceAcademyId,
@@ -40,13 +46,16 @@ import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operati
 import { withLinkedInscriptionsCounted } from "@/lib/finances/seminar-operational-summary.server";
 import { readLinkedIndividualSeminarInscriptions } from "@/lib/seminars/linked-individual-inscriptions.server";
 import type { ResolvedInscription } from "@/lib/finances/operational-summary-calculations.server";
-import { payChoreographiesPreset } from "@/lib/finances/choreography-cobro-presets.server";
+import { chargeThreshold } from "@/lib/finances/inscription-money.server";
 import {
-  paySeminarsPreset,
   readSeminarCobroPreviews,
   type SeminarCobroPreview,
 } from "@/lib/finances/seminar-cobro-presets.server";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
+import {
+  readOwnerEventMovements,
+  type OwnerEventMovement,
+} from "@/lib/finances/owner-event-movements.server";
 import { readFormData } from "@/lib/shared/read-form-data";
 import type { PresetInscription } from "./preset-figures";
 import {
@@ -73,9 +82,11 @@ export async function loadAcademyFinances(input: {
   const [
     financeDetail,
     linkedInscriptions,
-    priceOptionsByGroupType,
+    presetPricing,
+    storedPriceByInscription,
     pricingScheduleIdByChoreography,
     seminarPresetPreviews,
+    movements,
   ] =
     eventContext.selectedEventId === null
       ? [
@@ -87,9 +98,12 @@ export async function loadAcademyFinances(input: {
             summary: emptyOperationalFinanceSummary(),
           },
           [],
-          {} as Record<string, PresetPriceOption[]>,
+          // No event lists no row, so no dialog reads the percentage.
+          { priceOptionsByGroupType: {}, requiredDepositPercentage: 0 },
+          new Map<string, StoredPrice>(),
           {} as Record<string, string | null>,
           {} as Record<string, SeminarCobroPreview>,
+          [] as OwnerEventMovement[],
         ]
       : await Promise.all([
           readAcademyEventOperationalFinanceDetail({
@@ -100,7 +114,11 @@ export async function loadAcademyFinances(input: {
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
           }),
-          readPresetPriceOptions(eventContext.selectedEventId),
+          readPresetPricing(eventContext.selectedEventId),
+          readStoredPriceByInscription({
+            academyId: academy.id,
+            eventId: eventContext.selectedEventId,
+          }),
           readPricingScheduleIdByChoreography({
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
@@ -109,6 +127,10 @@ export async function loadAcademyFinances(input: {
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
             now: new Date(),
+          }),
+          readOwnerEventMovements({
+            academyId: academy.id,
+            eventId: eventContext.selectedEventId,
           }),
         ]);
 
@@ -148,8 +170,15 @@ export async function loadAcademyFinances(input: {
         ),
       }),
     ),
-    inscriptions: financeDetail.inscriptions.map(toPresetInscription),
-    priceOptionsByGroupType,
+    inscriptions: financeDetail.inscriptions.map((inscription) =>
+      toPresetInscription(
+        inscription,
+        storedPriceByInscription.get(inscription.id),
+      ),
+    ),
+    // The `Movimientos` tab's rows: the owner's payments and refunds.
+    movements,
+    ...presetPricing,
     pricingScheduleIdByChoreography,
     selectedEventId: eventContext.selectedEventId,
     // The academy's `(seminar, academy)` units, the `Seminarios` tab's rows.
@@ -186,6 +215,9 @@ export async function handleAcademyFinancesAction(input: {
 }): Promise<AcademyFinancesActionData | BulkEmissionActionData | never> {
   await requireAdminPanelWriter(input.request);
   const academyId = readFinanceAcademyId(input.params);
+  const formData = await readFormData(input.request);
+  const intent = String(formData.get("intent") ?? "");
+
   const eventContext = await loadEventContext(input.request);
 
   if (eventContext.selectedEventId === null) {
@@ -194,9 +226,6 @@ export async function handleAcademyFinancesAction(input: {
       message: "Activá un evento para operar las coreografías.",
     };
   }
-
-  const formData = await readFormData(input.request);
-  const intent = String(formData.get("intent") ?? "");
 
   if (emissionIntents.has(intent)) {
     return await runBulkEmissionIntent({
@@ -220,14 +249,16 @@ export async function handleAcademyFinancesAction(input: {
   // charged, at which price and how much is the server's to recompute.
   const result =
     target === "seminars"
-      ? await paySeminarsPreset({
+      ? await chargeThreshold({
+          kind: "seminar",
           now: new Date(),
           academyId,
           eventId: eventContext.selectedEventId,
           seminarIds: readIds(formData, seminarIdFieldName),
           stage,
         })
-      : await payChoreographiesPreset({
+      : await chargeThreshold({
+          kind: "choreography",
           academyId,
           choreographyIds: readIds(formData, choreographyIdFieldName),
           eventId: eventContext.selectedEventId,
@@ -345,6 +376,7 @@ function readPriceSelection(formData: FormData): Record<string, string> {
  */
 function toPresetInscription(
   inscription: ResolvedInscription,
+  stored: StoredPrice | undefined,
 ): PresetInscription {
   return {
     allocatedAmount: inscription.allocatedAmount,
@@ -352,29 +384,72 @@ function toPresetInscription(
     basePriceId: inscription.basePriceId,
     choreographyId: inscription.choreographyId,
     dancerDiscountAmount: inscription.dancerDiscountAmount,
-    depositAmount: inscription.depositAmount,
     financialStatus: inscription.financialStatus,
     id: inscription.id,
     owedBalanceAmount: inscription.owedBalanceAmount,
     owedDepositAmount: inscription.owedDepositAmount,
+    storedDepositAmount: stored?.depositAmount ?? null,
+    storedPriceAmount: stored?.priceAmount ?? null,
     withdrawn: inscription.withdrawn,
   };
 }
 
+type StoredPrice = { depositAmount: number; priceAmount: number };
+
+/**
+ * The row each inscription **stores**, by inscription, leaving out the ones with
+ * none. The finance reader resolves the effective row only, and it is the stored
+ * one the writer tests a pick against and charges with no pick.
+ */
+async function readStoredPriceByInscription(input: {
+  academyId: string;
+  eventId: string;
+}): Promise<Map<string, StoredPrice>> {
+  const rows = await db
+    .select({
+      id: choreographyDancers.id,
+      priceAmount: prices.amount,
+      requiredDepositPercentage: events.requiredDepositPercentage,
+    })
+    .from(choreographyDancers)
+    .innerJoin(
+      choreographies,
+      eq(choreographyDancers.choreographyId, choreographies.id),
+    )
+    .innerJoin(prices, eq(choreographyDancers.selectedPriceId, prices.id))
+    .innerJoin(events, eq(prices.eventId, events.id))
+    .where(
+      and(
+        eq(choreographies.academyId, input.academyId),
+        eq(choreographies.eventId, input.eventId),
+      ),
+    );
+
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      {
+        depositAmount: calculateDepositAmount(row),
+        priceAmount: row.priceAmount,
+      },
+    ]),
+  );
+}
+
 /**
  * Every price row of the event, bucketed by group type and carrying its
- * schedule. The group type is the only bucket the loader can build, because
- * which schedules matter depends on what the administrator selects; the picker
- * narrows the bucket to the rows the writer would accept for that selection
- * (`selectPresetPriceOptions`).
+ * schedule, with the event's deposit percentage. The group type is the only
+ * bucket the loader can build, because which schedules matter depends on what
+ * the administrator selects; the picker narrows the bucket to the rows the writer
+ * would accept for that selection (`selectPresetPriceOptions`).
  *
- * The `Seña` of each row is computed here, off the event's percentage, so the
- * dialog can say what a pick would leave owing without carrying a rule of its
- * own.
+ * The percentage travels so the dialog can say what a pick would leave owing with
+ * the writer's own plan: it belongs to the event and not to the price.
  */
-async function readPresetPriceOptions(
-  eventId: string,
-): Promise<Record<string, PresetPriceOption[]>> {
+async function readPresetPricing(eventId: string): Promise<{
+  priceOptionsByGroupType: Record<string, PresetPriceOption[]>;
+  requiredDepositPercentage: number;
+}> {
   const [event, rows] = await Promise.all([
     db.query.events.findFirst({
       columns: { requiredDepositPercentage: true },
@@ -387,19 +462,15 @@ async function readPresetPriceOptions(
     throw new Response("No encontramos ese evento.", { status: 404 });
   }
 
-  const optionsByGroupType: Record<string, PresetPriceOption[]> = {};
+  const priceOptionsByGroupType: Record<string, PresetPriceOption[]> = {};
 
   for (const row of [...rows].sort(
     (left, right) => left.amount - right.amount,
   )) {
-    const bucket = (optionsByGroupType[row.groupType] ??= []);
+    const bucket = (priceOptionsByGroupType[row.groupType] ??= []);
 
     bucket.push({
       amount: row.amount,
-      depositAmount: calculateDepositAmount({
-        priceAmount: row.amount,
-        requiredDepositPercentage: event.requiredDepositPercentage,
-      }),
       id: row.id,
       name: row.name,
       paymentDeadline: row.paymentDeadline,
@@ -407,7 +478,10 @@ async function readPresetPriceOptions(
     });
   }
 
-  return optionsByGroupType;
+  return {
+    priceOptionsByGroupType,
+    requiredDepositPercentage: event.requiredDepositPercentage,
+  };
 }
 
 /**

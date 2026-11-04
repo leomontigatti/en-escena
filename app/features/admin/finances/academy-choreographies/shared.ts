@@ -22,7 +22,7 @@ export const registerPaymentSchema = z.object({
       if (!value) {
         context.addIssue({
           code: "custom",
-          message: "Ingresá la fecha de pago.",
+          message: "Este campo es obligatorio.",
         });
         return;
       }
@@ -38,13 +38,14 @@ export const registerPaymentSchema = z.object({
       if (isFutureDateOnly(value)) {
         context.addIssue({
           code: "custom",
-          message: "La fecha de pago no puede ser futura.",
+          message: "La fecha no puede ser futura.",
         });
       }
     }),
   amount: z
     .string()
     .trim()
+    .min(1, { abort: true, message: "Este campo es obligatorio." })
     .refine((value) => /^\d+$/.test(value), {
       message: "Ingresá un monto entero en pesos, sin centavos.",
     })
@@ -54,9 +55,10 @@ export const registerPaymentSchema = z.object({
   paymentMethod: z
     .string()
     .trim()
+    .min(1, { message: "Este campo es obligatorio." })
     .pipe(
       z.enum(paymentMethodValues, {
-        message: "Seleccioná un medio de pago.",
+        message: "Seleccioná un medio válido.",
       }),
     ),
   reference: z.string().trim(),

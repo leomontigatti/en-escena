@@ -1,7 +1,7 @@
 import { redirect } from "react-router";
 
 import { readAnchorComprobantes } from "@/features/admin/finances/anchor-comprobantes/server";
-import { runSeminarInscriptionMoneyIntent } from "@/features/admin/finances/inscription-money/seminar-money-action.server";
+import { runInscriptionMoneyIntent } from "@/features/admin/finances/inscription-money/money-action.server";
 import {
   readFinanceAcademy,
   readFinanceAcademyId,
@@ -25,10 +25,8 @@ import { readAnchorBilling } from "@/lib/comprobantes/anchor-billing.server";
 import { type ComprobanteEmissionDeps } from "@/lib/comprobantes/emit-comprobante.server";
 import { getComprobanteEmissionDeps } from "@/lib/comprobantes/emission-config.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
-import {
-  readSeminarInscriptionPriceOptions,
-  type SeminarInscriptionPriceOption,
-} from "@/lib/finances/seminar-inscription-allocation.server";
+import { readSeminarInscriptionPriceOptions } from "@/lib/finances/seminar-inscription-price-options.server";
+import type { InscriptionPriceOption } from "@/lib/finances/inscription-price";
 import { readSeminarInscriptionFinanceRows } from "@/lib/finances/seminar-inscriptions.server";
 import { getSeminar } from "@/lib/seminars/repository.server";
 import { readFormData } from "@/lib/shared/read-form-data";
@@ -70,10 +68,7 @@ export async function loadSeminarFinanceDetail(input: {
       comprobantes: [],
       inscriptions: [],
       invoicing: null,
-      priceOptionsByInscription: {} as Record<
-        string,
-        SeminarInscriptionPriceOption[]
-      >,
+      priceOptionsByInscription: {} as Record<string, InscriptionPriceOption[]>,
       seminar: null,
       selectedEventId: null,
     };
@@ -170,11 +165,11 @@ export async function loadSeminarFinanceDetail(input: {
 }
 
 /**
- * The detail's action: the emission and the three money gestures of a seminar
- * inscription. The gestures are the shared seminar ones, keyed by the
- * inscription alone, and they are the choreography action's twin down to the
- * redirect: a write that went through leaves the dialog by revalidating the
- * detail, and a refusal comes back as a message the dialog keeps on screen.
+ * The detail's action: the emission and the money gestures of a seminar
+ * inscription. The gestures go through the one money runner, like the
+ * choreography detail's, and the redirect is this route's own: a write that went
+ * through leaves the dialog by revalidating the detail, and a refusal comes back
+ * as a message the dialog keeps on screen.
  */
 export async function handleSeminarFinanceAction(input: {
   params: { academyId?: string; seminarId?: string };
@@ -219,10 +214,11 @@ export async function handleSeminarFinanceAction(input: {
     return await handleAbandonReservation({ ...emissionContext, formData });
   }
 
-  const result = await runSeminarInscriptionMoneyIntent({
+  const result = await runInscriptionMoneyIntent({
     eventId,
-    expectedScope: { academyId, seminarId },
+    expectedScope: { academyId, parentId: seminarId },
     formData,
+    kind: "seminar",
   });
 
   if (result.status === "error") {

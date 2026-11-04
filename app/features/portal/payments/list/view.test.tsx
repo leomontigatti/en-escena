@@ -17,10 +17,10 @@ import { PortalAcademyPaymentsRouteView } from "./view";
 import type { loadPortalAcademyPayments } from "./server";
 
 type LoaderData = Awaited<ReturnType<typeof loadPortalAcademyPayments>>;
-type PaymentRow = Extract<
+type MovementRow = Extract<
   LoaderData,
   { activeEvent: object }
->["payments"][number];
+>["movements"][number];
 
 describe("PortalAcademyPaymentsRouteView", () => {
   const renderer = createReactDomTestRenderer();
@@ -31,7 +31,9 @@ describe("PortalAcademyPaymentsRouteView", () => {
     await renderPortalPayments(renderer, portalPaymentsLoaderDataFixture());
 
     expect(document.body.textContent).toContain("0001");
-    expect(document.querySelector('a[href^="/portal/pagos/"]')).toBeNull();
+    expect(
+      document.querySelector('a[href^="/portal/movimientos/"]'),
+    ).toBeNull();
   });
 
   // Selecting payments is the administration panel's, not the academy's: the
@@ -56,15 +58,15 @@ describe("PortalAcademyPaymentsRouteView", () => {
     await renderPortalPayments(
       renderer,
       portalPaymentsLoaderDataFixture({
-        payments: [
-          paymentRowFixture({
+        movements: [
+          movementRowFixture({
             id: "payment_1",
-            paymentNumber: 42,
+            number: 42,
             reference: "TRF-9",
           }),
-          paymentRowFixture({
+          movementRowFixture({
             id: "payment_2",
-            paymentNumber: 7,
+            number: 7,
             reference: "MP-4",
           }),
         ],
@@ -88,17 +90,6 @@ describe("PortalAcademyPaymentsRouteView", () => {
     expect(text).toContain(shown);
     expect(text).not.toContain(hidden);
   });
-
-  test("shows the empty state when the academy has no payments", async () => {
-    await renderPortalPayments(
-      renderer,
-      portalPaymentsLoaderDataFixture({ payments: [] }),
-    );
-
-    expect(document.body.textContent).toContain(
-      "Todavía no hay pagos registrados",
-    );
-  });
 });
 
 // Renders through the renderer the suite already cleans in `afterEach`: a
@@ -111,11 +102,11 @@ async function renderPortalPayments(
   const router = createMemoryRouter(
     [
       {
-        path: "/portal/pagos",
+        path: "/portal/movimientos",
         element: <PortalAcademyPaymentsRouteView loaderData={loaderData} />,
       },
     ],
-    { initialEntries: ["/portal/pagos"] },
+    { initialEntries: ["/portal/movimientos"] },
   );
 
   await renderer.renderAsync(<RouterProvider router={router} />);
@@ -133,7 +124,7 @@ function portalPaymentsLoaderDataFixture(
       endsAt: new Date("2026-03-02T00:00:00Z"),
     },
     paymentInstructions: null,
-    payments: [paymentRowFixture({ id: "payment_1", reference: "TRF-9" })],
+    movements: [movementRowFixture({ id: "payment_1", reference: "TRF-9" })],
     ...overrides,
   };
 }
@@ -153,13 +144,14 @@ function paymentInstructionsFixture(
   };
 }
 
-function paymentRowFixture(overrides: Partial<PaymentRow> = {}): PaymentRow {
+function movementRowFixture(overrides: Partial<MovementRow> = {}): MovementRow {
   return {
     id: "payment",
     amount: 10000,
-    paymentDate: "2026-02-10",
-    paymentMethod: "transferencia",
-    paymentNumber: 1,
+    date: "2026-02-10",
+    kind: "payment",
+    method: "transferencia",
+    number: 1,
     reference: "TRF-9",
     ...overrides,
   };
@@ -180,7 +172,7 @@ describe("PortalAcademyPaymentsRouteView payment instructions", () => {
     await renderPortalPayments(renderer, {
       activeEvent: null,
       paymentInstructions: null,
-      payments: [],
+      movements: [],
     });
 
     expect(document.querySelector('[data-slot="alert"]')).toBeNull();

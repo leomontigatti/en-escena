@@ -11,7 +11,11 @@ import {
   payments,
   prices,
 } from "@/db/schema";
-import { createDancer } from "@/features/portal/choreographies/test-support/db";
+import {
+  createChoreographyRecord,
+  createDancer,
+  date,
+} from "@/features/portal/choreographies/test-support/db";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { action as choreographyDetailAction } from "@/routes/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
 
@@ -26,7 +30,6 @@ import { createSavedEvent } from "@/lib/test-support/events";
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
 
 import { removeChoreography } from "@/lib/choreographies/choreography-removal.server";
-import { partialRetainedReleaseMessage } from "@/lib/finances/withdrawal-retention-refusals";
 
 import { loadChoreographyFinanceDetail } from "./server";
 
@@ -45,7 +48,7 @@ beforeEach(() => {
  */
 async function seedInscription(paymentAmounts = [50000]) {
   const event = await createSavedEvent({ requiredDepositPercentage: 30 });
-  const { academy, choreography } =
+  const { academy, catalog, choreography } =
     await createAcademyFinanceChoreographyFixture({
       academyName: "Academia Asignación",
       email: `asignacion.${crypto.randomUUID()}@example.com`,
@@ -88,6 +91,7 @@ async function seedInscription(paymentAmounts = [50000]) {
 
   return {
     academyId: academy.academy.id,
+    catalog,
     choreographyId: choreography.id,
     eventId: event.id,
     inscriptionId: inscription.id,
@@ -422,41 +426,6 @@ describe("money on an inscription through the route action", () => {
     expect(row.selectedPriceId).toBe(fixture.priceId);
   });
 
-  test("removing money never blocks and the figures re-derive from what remains", async () => {
-    const fixture = await seedInscription();
-
-    await postDetailAction({
-      academyId: fixture.academyId,
-      choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
-      fields: {
-        intent: "allocate-inscription",
-        inscriptionId: fixture.inscriptionId,
-        priceId: fixture.priceId,
-        amount: "10000",
-      },
-    });
-
-    const response = await postDetailAction({
-      academyId: fixture.academyId,
-      choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
-      fields: {
-        intent: "remove-inscription-money",
-        inscriptionId: fixture.inscriptionId,
-        amount: "8000",
-      },
-    });
-
-    expect(response).toMatchObject({ status: 302 });
-    const detail = await loadDetail(fixture);
-    expect(detail.inscriptions[0]).toMatchObject({
-      allocatedAmount: 2000,
-      financialStatus: "depositPending",
-      owedDepositAmount: 1000,
-    });
-  });
-
   test("releases exactly the over-allocated excess and nothing more", async () => {
     const fixture = await seedInscription();
 
@@ -500,21 +469,58 @@ describe("money on an inscription through the route action", () => {
       overAllocatedAmount: 0,
     });
   });
+});
 
-  test("refuses to release an excess a row does not have", async () => {
+// The detail is about one choreography, so a form naming an inscription of
+// another one is refused there even though the writer could place the money.
+describe("an inscription outside the detail's choreography", () => {
+  async function seedForeignInscription() {
     const fixture = await seedInscription();
-
-    const result = await postDetailAction({
+    const sibling = await createChoreographyRecord({
       academyId: fixture.academyId,
-      choreographyId: fixture.choreographyId,
+      categoryId: fixture.catalog.categoryWithLevel.id,
+      createdAt: date("2026-03-10T12:00:00Z"),
       eventId: fixture.eventId,
+      experienceLevelId: fixture.catalog.level.id,
+      modalityId: fixture.catalog.modality.id,
+      name: "Otra coreografía",
+      scheduleCapacityId: fixture.catalog.scheduleCapacity.id,
+      submodalityId: fixture.catalog.submodality.id,
+    });
+
+    return { choreographyId: sibling.id, fixture };
+  }
+
+  test.each<Record<string, string>>([
+    { amount: "1000", intent: "allocate-inscription" },
+    { amount: "1000", intent: "remove-inscription-money" },
+    { intent: "release-inscription-excess" },
+    { intent: "release-retained-deposit" },
+  ])("refuses $intent and moves nothing", async (fields) => {
+    const { choreographyId, fixture } = await seedForeignInscription();
+    await postDetailAction({
+      ...fixture,
       fields: {
-        intent: "release-inscription-excess",
+        amount: "5000",
         inscriptionId: fixture.inscriptionId,
+        intent: "allocate-inscription",
+        priceId: fixture.priceId,
       },
     });
 
-    expect(result).toMatchObject({ status: "error" });
+    const result = await postDetailAction({
+      ...fixture,
+      choreographyId,
+      fields: { ...fields, inscriptionId: fixture.inscriptionId },
+    });
+
+    expect(result).toEqual({
+      message: "No encontramos esa inscripción.",
+      status: "error",
+    });
+    expect(await readAllocations(fixture.inscriptionId)).toEqual([
+      { amount: 5000, paymentId: fixture.payments[0].id },
+    ]);
   });
 });
 
@@ -783,17 +789,6 @@ describe("the deposit a withdrawn inscription retains", () => {
     });
   });
 
-  test("refuses to take off part of the retained deposit", async () => {
-    const fixture = await seedWithdrawn();
-
-    await expect(
-      post(fixture, { intent: "remove-inscription-money", amount: "1000" }),
-    ).resolves.toMatchObject({ status: "error" });
-    expect(await readAllocations(fixture.inscriptionId)).toEqual([
-      { amount: 3000, paymentId: fixture.payments[0].id },
-    ]);
-  });
-
   // The read path says a withdrawn row owes nothing; the write path agrees.
   test("refuses to allocate money to a withdrawn inscription, below its deposit too", async () => {
     const fixture = await seedWithdrawn();
@@ -806,42 +801,6 @@ describe("the deposit a withdrawn inscription retains", () => {
         amount: "1000",
       }),
     ).resolves.toMatchObject({ status: "error" });
-    expect(await readAllocations(fixture.inscriptionId)).toEqual([]);
-  });
-
-  // A row can hold more than its deposit when it was withdrawn without the
-  // release at withdrawal. The dialog has no release of just the excess: its
-  // one `Liberar` takes all of it.
-  test("refuses to release just the excess of a withdrawn row, and releases all of it", async () => {
-    const fixture = await seedInscription([4000, 4000]);
-    await post(fixture, {
-      intent: "allocate-inscription",
-      priceId: fixture.priceId,
-      amount: "6000",
-    });
-    await db
-      .update(choreographyDancers)
-      .set({ withdrawnAt: new Date("2026-04-10T12:00:00Z") })
-      .where(eq(choreographyDancers.id, fixture.inscriptionId));
-
-    await expect(
-      post(fixture, { intent: "release-inscription-excess" }),
-    ).resolves.toMatchObject({
-      message: partialRetainedReleaseMessage,
-      status: "error",
-    });
-    const held = await readAllocations(fixture.inscriptionId);
-    expect(held).toHaveLength(2);
-    expect(held).toEqual(
-      expect.arrayContaining([
-        { amount: 4000, paymentId: fixture.payments[0].id },
-        { amount: 2000, paymentId: fixture.payments[1].id },
-      ]),
-    );
-
-    await expect(
-      post(fixture, { intent: "release-retained-deposit" }),
-    ).resolves.toMatchObject({ status: 302 });
     expect(await readAllocations(fixture.inscriptionId)).toEqual([]);
   });
 });

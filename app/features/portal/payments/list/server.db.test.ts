@@ -8,6 +8,7 @@ import {
 } from "@/features/portal/test-support/db";
 import { loadPortalAcademyPayments } from "@/features/portal/payments/list/server";
 import { activateEvent, updateEvent } from "@/lib/events/management.server";
+import { registerRefund } from "@/lib/finances/refunds.server";
 import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -17,6 +18,7 @@ installDatabaseTestHooks();
 async function seedPayment(input: {
   academyId: string;
   amount: number;
+  createdAt?: Date;
   eventId: string;
   internalNote?: string;
   paymentDate: string;
@@ -28,6 +30,7 @@ async function seedPayment(input: {
     .values({
       academyId: input.academyId,
       amount: input.amount,
+      createdAt: input.createdAt,
       eventId: input.eventId,
       internalNote: input.internalNote ?? null,
       paymentDate: input.paymentDate,
@@ -44,8 +47,32 @@ async function seedPayment(input: {
   return payment;
 }
 
+/** A refund as administration registers it: through the write module and its cap. */
+async function seedRefund(input: {
+  academyId: string;
+  amount: number;
+  eventId: string;
+  internalNote?: string;
+  reference?: string;
+  refundDate: string;
+}) {
+  const result = await registerRefund({
+    academyId: input.academyId,
+    amount: input.amount,
+    eventId: input.eventId,
+    internalNote: input.internalNote ?? null,
+    reference: input.reference ?? null,
+    refundDate: input.refundDate,
+    refundMethod: "efectivo",
+  });
+
+  if (!result.ok) {
+    throw new Error(`The test refund was refused: ${result.reason}`);
+  }
+}
+
 describe("loadPortalAcademyPayments", () => {
-  test("lists only the academy's payments, without the internal note", async () => {
+  test("lists only the academy's payments and refunds, without their internal notes", async () => {
     const owner = await createAcademySession({
       email: "portal.pagos.owner@example.com",
       academyName: "Academia Portal",
@@ -74,24 +101,50 @@ describe("loadPortalAcademyPayments", () => {
       paymentNumber: 3,
       reference: "TRX-AJENA",
     });
+    await seedRefund({
+      academyId: owner.academyId,
+      amount: 4000,
+      eventId: event.id,
+      internalNote: "Nota interna del reembolso",
+      reference: "DEV-PORTAL-001",
+      refundDate: "2026-03-16",
+    });
+    await seedRefund({
+      academyId: otherAcademy.id,
+      amount: 1000,
+      eventId: event.id,
+      refundDate: "2026-03-18",
+    });
 
     const loaderData = await loadPortalAcademyPayments(
-      new Request("http://localhost/portal/pagos", {
+      new Request("http://localhost/portal/movimientos", {
         headers: { cookie: owner.cookie },
       }),
     );
 
-    expect(loaderData.payments).toHaveLength(1);
-    expect(loaderData.payments[0]).toMatchObject({
-      paymentNumber: 1,
-      paymentMethod: "transferencia",
-      reference: "TRX-PORTAL-001",
-      amount: 15000,
-    });
-    expect(loaderData.payments[0]).not.toHaveProperty("internalNote");
+    expect(loaderData.movements).toEqual([
+      {
+        amount: 4000,
+        date: "2026-03-16",
+        id: expect.any(String),
+        kind: "refund",
+        method: "efectivo",
+        number: 1,
+        reference: "DEV-PORTAL-001",
+      },
+      {
+        amount: 15000,
+        date: "2026-03-15",
+        id: expect.any(String),
+        kind: "payment",
+        method: "transferencia",
+        number: 1,
+        reference: "TRX-PORTAL-001",
+      },
+    ]);
   });
 
-  test("lists the academy's payments newest first", async () => {
+  test("lists the academy's movements newest first, a day's in the order they were recorded", async () => {
     const owner = await createAcademySession({
       email: "portal.pagos.orden@example.com",
       academyName: "Academia Portal",
@@ -109,20 +162,39 @@ describe("loadPortalAcademyPayments", () => {
     await seedPayment({
       academyId: owner.academyId,
       amount: 8000,
+      // Recorded before the same day's refund, by more than the clock resolves.
+      createdAt: new Date(Date.now() - 60_000),
       eventId: event.id,
       paymentDate: "2026-03-20",
       paymentNumber: 2,
     });
+    await seedRefund({
+      academyId: owner.academyId,
+      amount: 1000,
+      eventId: event.id,
+      refundDate: "2026-03-20",
+    });
+    await seedRefund({
+      academyId: owner.academyId,
+      amount: 500,
+      eventId: event.id,
+      refundDate: "2026-03-15",
+    });
 
     const loaderData = await loadPortalAcademyPayments(
-      new Request("http://localhost/portal/pagos", {
+      new Request("http://localhost/portal/movimientos", {
         headers: { cookie: owner.cookie },
       }),
     );
 
-    expect(loaderData.payments.map((payment) => payment.paymentNumber)).toEqual(
-      [2, 1],
-    );
+    expect(
+      loaderData.movements.map((movement) => [movement.kind, movement.number]),
+    ).toEqual([
+      ["refund", 1],
+      ["payment", 2],
+      ["refund", 2],
+      ["payment", 1],
+    ]);
   });
 
   test("returns the active event's payment instructions as one object", async () => {
@@ -204,7 +276,7 @@ describe("loadPortalAcademyPayments", () => {
     expect(loaderData).toMatchObject({
       activeEvent: null,
       paymentInstructions: null,
-      payments: [],
+      movements: [],
     });
   });
 });
@@ -231,7 +303,7 @@ async function loadPaymentInstructions(
 }
 
 function portalPaymentsRequest(cookie: string) {
-  return new Request("http://localhost/portal/pagos", {
+  return new Request("http://localhost/portal/movimientos", {
     headers: { cookie },
   });
 }

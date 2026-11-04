@@ -174,7 +174,7 @@ The place a `seminarInscription` holds without having covered its deposit: grant
 _Avoid_: hold, draft, borrador, expired inscription, waitlist
 
 **`seminarPrice`** — ui: "Precio de seminario"
-One named, dated, event-level price row for seminars, shared by every seminar of the event: a free-text `name`, a `seminarKind`, a `forParticipants` flag, a nullable `paymentDeadline` and one `amount`. At most one deadline-less row per `(kind, forParticipants)` cell of an event, the one that applies once every dated row has expired. Edited in a `Seminarios` tab of the event's `Precios`; the guards are the choreography `price` guards verbatim, and they show on the form before they refuse. A seminar inscription resolves its price from the rows of its seminar's kind for the person's participant cell, falling back to the `regular` rows; the stored row's participant flag is what freezes the participant fact at the deposit crossing. The `selectedPrice` column is written by the allocation dialog, which stores the row picked, and by the seminar `Pagar seña` / `Pagar saldo` presets, which store today's row on an inscription that holds none or, below the deposit, holds a row of the other participant cell, and never overwrite a row of the person's current cell; nothing writes it at creation.
+One named, dated, event-level price row for seminars, shared by every seminar of the event: a free-text `name`, a `seminarKind`, a `forParticipants` flag, a nullable `paymentDeadline` and one `amount`. At most one deadline-less row per `(kind, forParticipants)` cell of an event, the one that applies once every dated row has expired. Edited in a `Seminarios` tab of the event's `Precios`; the guards are the choreography `price` guards verbatim, and they show on the form before they refuse. A seminar inscription resolves its price from the rows of its seminar's kind for the person's participant cell, falling back to the `regular` rows; the stored row's participant flag is what freezes the participant fact at the deposit crossing. The `selectedPrice` column is written by the allocation dialog, which stores the row picked or, with none picked below the deposit, today's row in place of a held row of the other participant cell, and by the seminar `Pagar seña` / `Pagar saldo` presets, which store today's row on an inscription that holds none or, below the deposit, holds a row of the other participant cell, and never overwrite a row of the person's current cell; nothing writes it at creation.
 _Avoid_: `price`, seminar tier, per-seminar price, `participantAmount`, `nonParticipantAmount`
 
 **`seminarKind`** — ui: "Tipo de seminario"
@@ -462,11 +462,11 @@ Money received and recorded for an academy in an event, which may stay available
 _Avoid_: invoice, `paymentAllocation`, `refund`, `choreographyFinancialStatus`
 
 **`paymentInstructions`** — ui: "Instrucciones de pago"
-What an academy needs in order to pay an event: the bank identifiers of the account that receives the money, plus free text that says how to pay and what to write in the transfer. It belongs to one event, is loaded by administration on the event detail and is read by the academy on the portal's payments page and by an individual on its `Pagos`. It is not a `payment` and records nothing about money received; an event without it simply shows no instructions.
+What an academy needs in order to pay an event: the bank identifiers of the account that receives the money, plus free text that says how to pay and what to write in the transfer. It belongs to one event, is loaded by administration on the event detail and is read by the academy on the portal's payments page and by an individual on its `Movimientos`. It is not a `payment` and records nothing about money received; an event without it simply shows no instructions.
 _Avoid_: `payment`, bank settings, global account, `eventBases`
 
 **`refund`** — ui: "Reembolso"
-Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a credit note moves what is owed; either can happen without the other. **Specified, not built** (ADR-0014 §6, #728). Never call it `Devolución`: that term is taken by **`feedbackAudio`**, the judge's recorded feedback.
+Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` in its own series per event — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a credit note moves what is owed; either can happen without the other. It is registered from `Nuevo movimiento` and corrected by editing or deleting it on its own page, never by a counter-movement (ADR-0014 §6). Never call it `Devolución`: that term is taken by **`feedbackAudio`**, the judge's recorded feedback.
 _Avoid_: `Devolución`, negative `payment`, `paymentAllocation`, `nota de crédito`
 
 **`movement`** — ui: "Movimiento"
@@ -474,7 +474,7 @@ Money that came in or went out for one owner in one event: a `payment` or a `ref
 _Avoid_: `paymentAllocation`, account entry, `Cuenta corriente de academia`, negative `payment`
 
 **`collection`** — ui: "Recaudación"
-The money an event received over a period: its `payment`s by payment date, read next to the `refund`s of the same period and the net of the two. It counts money that arrived, whether or not it was allocated, so it is neither what was invoiced nor what is owed. The auditor downloads it as the `Recaudación` workbook; broken down by modality it reads the payments' current allocations, with `Seminarios` and `Sin asignar` rows so it still sums to the payments. Until `refund` is built its refunds are zero.
+The money an event received over a period: its `payment`s by payment date, read next to the `refund`s of the same period and the net of the two. It counts money that arrived, whether or not it was allocated, so it is neither what was invoiced nor what is owed. The auditor downloads it as the `Recaudación` workbook; broken down by modality it reads the payments' current allocations, with `Seminarios` and `Sin asignar` rows so it still sums to the payments. Its refunds are read by refund date and listed beside the payments; they carry no allocation, so the breakdowns leave them out.
 _Avoid_: income, sales, billing, `comprobante` totals, `availableBalanceAmount`
 
 **`comprobante`** — ui: "Factura (comprobante fiscal ARCA)"
@@ -537,7 +537,7 @@ Named no symbol in code before map #547 and names none after it. An academy's mo
 _Avoid_: `availableBalanceAmount`, `choreographyFinancialStatus`, operational balance
 
 **`availableBalanceAmount`** — ui: "Saldo disponible"
-Money an academy has handed over in an event and that is not committed: `paid − allocated − refunded`. Structurally never negative, because every allocation is capped against it and a payment's amount can never be edited below what it already funds. The refunds term is specified and not yet built (#728), so today the figure reads `paid − allocated`.
+Money an academy has handed over in an event and that is not committed: `paid − allocated − refunded`. Structurally never negative, because every allocation is capped against it and a payment's amount can never be edited below what it already funds. Refunds draw on the payments' free money newest payment first, so each payment's `Disponible` sums to it.
 _Avoid_: `owedBalanceAmount`, total paid, `academyAccountBalance` (retired)
 
 **`paymentAvailableAmount`** — ui: "Disponible"

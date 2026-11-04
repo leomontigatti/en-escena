@@ -85,6 +85,79 @@ describe("the collection export", () => {
     expect(amountOf(movements, "Neto")).toBe(50000);
   });
 
+  test("nets the refunds dated in the period and lists them beside the payments", async () => {
+    const fixture = await seedPeriodExportFixture();
+    const academy = await fixture.addAcademy({ name: "Estudio Ritmo" });
+    await fixture.addPayment({
+      academyId: academy.id,
+      amount: 30000,
+      paymentDate: "2026-04-10",
+    });
+    await fixture.addRefund({
+      academyId: academy.id,
+      amount: 5000,
+      refundDate: "2026-04-11",
+    });
+    await fixture.addPayment({
+      academyId: academy.id,
+      amount: 20000,
+      paymentDate: "2026-04-12",
+    });
+    // Outside the period: neither listed nor counted.
+    await fixture.addRefund({
+      academyId: academy.id,
+      amount: 2000,
+      refundDate: "2026-05-02",
+    });
+
+    const { sheets } = await exportSheets({
+      from: "2026-04-01",
+      to: "2026-04-30",
+    });
+    const movements = sheets.get("Movimientos");
+
+    expect(movements?.slice(1, 4)).toEqual([
+      ["Pago", 1, 46122, "Estudio Ritmo", "Transferencia", 30000],
+      ["Reembolso", 1, 46123, "Estudio Ritmo", "Efectivo", 5000],
+      ["Pago", 2, 46124, "Estudio Ritmo", "Transferencia", 20000],
+    ]);
+    expect(amountOf(movements, "Pagos")).toBe(50000);
+    expect(amountOf(movements, "Reembolsos")).toBe(5000);
+    expect(amountOf(movements, "Neto")).toBe(45000);
+  });
+
+  test("keeps the breakdowns to the payments when there are refunds", async () => {
+    const fixture = await seedPeriodExportFixture();
+    const academy = await fixture.addAcademy({
+      name: "Academia Córdoba",
+      province: "cordoba",
+    });
+    await fixture.addPayment({
+      academyId: academy.id,
+      amount: 10000,
+      paymentDate: "2026-04-10",
+    });
+    await fixture.addRefund({
+      academyId: academy.id,
+      amount: 4000,
+      refundDate: "2026-04-11",
+    });
+
+    const { sheets } = await exportSheets();
+
+    expect(sheets.get("Por provincia")).toEqual([
+      ["Provincia", "Monto"],
+      ["Córdoba", 10000],
+      ["Total", 10000],
+    ]);
+    expect(sheets.get("Por modalidad")).toEqual([
+      ["Modalidad", "Monto"],
+      ["Seminarios", 0],
+      ["Sin asignar", 10000],
+      ["Total", 10000],
+    ]);
+  });
+
   // ADR-0019: an individual's payments are money collected like an academy's,
   // so the export's totals add up to every payment of the period.
   test("lists an individual's payment beside the academies'", async () => {

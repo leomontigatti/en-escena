@@ -11,7 +11,7 @@ import {
   seminars,
 } from "@/db/schema";
 import { createDancer } from "@/lib/choreographies/registration.test-support";
-import { readAcademyAvailableBalance } from "@/lib/finances/allocation-pool.server";
+import { readAcademyAvailableBalance } from "@/lib/finances/available-balance.server";
 import { applyAllocationDelta } from "@/lib/finances/choreography-cobro-allocations.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 

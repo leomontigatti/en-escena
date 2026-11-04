@@ -45,6 +45,7 @@ const mergeOptions: AcademyDetailLoaderData["merge"] = {
     dancers: 0,
     payments: 0,
     professors: 0,
+    refunds: 0,
   },
 };
 
