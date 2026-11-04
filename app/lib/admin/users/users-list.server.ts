@@ -111,6 +111,7 @@ function buildUserWhere(filters: UserListFilters): SQL<unknown> | undefined {
     user.name,
     sql`case when ${inArray(user.role, EMAIL_SIGN_UP_ROLES)} then ${user.email} end`,
     user.internalUsername,
+    academies.name,
     academies.contactName,
   ]);
 
