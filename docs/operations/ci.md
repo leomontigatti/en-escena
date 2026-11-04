@@ -26,8 +26,9 @@ protection, so making a job required is a human step in the repo settings.
   requires the name. `--shard` splits by file, so a shard runs whole files and
   never shares a database with another; the isolation model of
   [ADR-0007](../adr/0007-db-test-isolation-model.md) holds within each runner.
-  Only CI shards, so there is no script for it: locally the suite is
-  `pnpm test:db` (PGlite) or `pnpm test:db:postgres` (real Postgres).
+  `pnpm test:db:shard <i>` replays one shard locally with the same two commands
+  against `TEST_DATABASE_URL`; the whole suite is `pnpm test:db` (PGlite) or
+  `pnpm test:db:postgres` (real Postgres).
 - `docs-gate` (`ci.yml`): mapped code changed, so its current-state document
   must change too (`pnpm check:doc-map`).
 - `actions-gate` (`ci.yml`): zizmor and actionlint over `.github/workflows/`,
