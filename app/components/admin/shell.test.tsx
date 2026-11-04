@@ -7,6 +7,7 @@ import {
   getAdminBreadcrumbItems,
   getAdminShellOptions,
 } from "@/components/admin/shell";
+import type { AdminShellEventContext } from "@/lib/admin/event-context.shared";
 
 type AdminBreadcrumbTestMatch = Parameters<
   typeof getAdminBreadcrumbItems
@@ -69,8 +70,7 @@ function navigationLinks(canWrite: boolean) {
       <AdminShell
         account={{ name: "Ana", roleLabel: "Auditor", username: "ana" }}
         canWrite={canWrite}
-        events={[]}
-        selectedEventId={null}
+        eventContext={{ activeEvent: null }}
       />
     </MemoryRouter>,
   );
@@ -116,6 +116,48 @@ describe("the administration navigation", () => {
         "/administracion/coreografias",
         "/administracion/movimientos",
       ]),
+    );
+  });
+});
+
+function sidebarSummary(eventContext: AdminShellEventContext) {
+  const markup = renderToStaticMarkup(
+    <MemoryRouter initialEntries={["/administracion"]}>
+      <AdminShell
+        account={{ name: "Ada", roleLabel: "Administrador", username: "ada" }}
+        canWrite
+        eventContext={eventContext}
+      />
+    </MemoryRouter>,
+  );
+
+  return markup.replace(/<[^>]+>/g, " ");
+}
+
+// #1808: the sidebar showed "Evento activo" where it promises the `Estado del
+// evento`, so a finished event read as if it were running.
+describe("the administration sidebar's event status", () => {
+  test.each([
+    ["not-started", "No iniciado"],
+    ["in-progress", "En curso"],
+    ["finished", "Finalizado"],
+  ] as const)(
+    "reads %s as its label, never as `Evento activo`",
+    (eventStatus, label) => {
+      const text = sidebarSummary({
+        activeEvent: { id: "evento_2026", name: "En Escena 2026" },
+        eventStatus,
+      });
+
+      expect(text).toContain("En Escena 2026");
+      expect(text).toContain(label);
+      expect(text).not.toContain("Evento activo");
+    },
+  );
+
+  test("reads `Sin evento activo` without an active event", () => {
+    expect(sidebarSummary({ activeEvent: null })).toContain(
+      "Sin evento activo",
     );
   });
 });

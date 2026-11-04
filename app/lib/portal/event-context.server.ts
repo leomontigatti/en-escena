@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import { getEventStatus } from "@/lib/events/event-status";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 import { isEventRegistrationOpen } from "@/lib/schedules/registration-open.server";
 import { toPaymentInstructions } from "@/lib/finances/payment-instructions";
@@ -16,9 +17,14 @@ export async function getPortalShellEventContext(
 ): Promise<PortalShellEventContext> {
   const activeEvent = await findPortalActiveEventSummary();
 
+  if (!activeEvent) {
+    return { activeEvent: null, isRegistrationOpen: false };
+  }
+
   return {
     activeEvent,
-    isRegistrationOpen: await isEventRegistrationOpen(activeEvent?.id ?? null),
+    eventStatus: getEventStatus(activeEvent, new Date()),
+    isRegistrationOpen: await isEventRegistrationOpen(activeEvent.id),
   };
 }
 

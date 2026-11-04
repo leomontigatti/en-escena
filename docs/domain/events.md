@@ -6,7 +6,7 @@ Rules for event context, `Bases del evento`, administration and portal behavior.
 
 - `Evento activo` is the only event context in V1 for `Panel de administración` and `Portal de academias`. Lists, event-specific mutations, choreographies, financial operations, scores and awards use it unless a detail route identifies one explicit `Evento` by URL.
 - At most one `Evento activo` can exist globally; there can also be none.
-- `Estado del evento` is automatic from dates: no iniciado, en curso, finalizado. It is not the same as active.
+- `Estado del evento` is automatic from dates: no iniciado, en curso, finalizado. It is not the same as active. Both ends of the dates count as en curso.
 - `Resultados publicados` is a snapshot administration takes of the active event from the `Resultados` list, independent of the event's temporal state: `Mostrar resultados` publishes the presentations evaluated at that moment, `Actualizar resultados` adds the ones evaluated since, and `Ocultar resultados` takes them all down. There is no precondition, and corrections to a published presentation reach the academy without publishing again — see [judging.md](judging.md#program-and-results).
 - `Cronograma` dates and times are local business dates/times, without their own timezone.
 - A `Cupo de cronograma` consumes capacity inside a `Cronograma`; the sum of its capacities cannot exceed the `Cronograma` capacity.
@@ -22,6 +22,7 @@ Rules for event context, `Bases del evento`, administration and portal behavior.
 
 ## Administration and portal
 
+- The sidebars of the `Panel de administración` and the `Portal de academias` show the `Evento activo`'s name and its `Estado del evento`, or `Sin evento activo` when there is none; they never show whether the event is active in its place (#1808).
 - `Portal de academias` can manage professors and dancers even without an active event.
 - Portal choreographies stays visible without active event, showing an empty state.
 - With every `Cronograma` closed, the portal reads `Las inscripciones están cerradas.`, shows existing choreographies and disables new ones. The academy never deletes a choreography; removal is administrative (`docs/domain/choreographies.md`).

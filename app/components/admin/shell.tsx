@@ -21,7 +21,11 @@ import {
 } from "lucide-react";
 import { Link, useLocation, type UIMatch } from "react-router";
 
-import type { EventOption } from "@/lib/admin/event-context.shared";
+import type { AdminShellEventContext } from "@/lib/admin/event-context.shared";
+import {
+  eventStatusLabels,
+  noActiveEventLabel,
+} from "@/lib/events/event-status-copy";
 import {
   getInternalAccountInitials,
   type InternalAccount,
@@ -63,8 +67,7 @@ type AdminShellProps = {
   account: InternalAccount;
   /** False for the auditor, whose navigation lists only the sections reviewed for them. */
   canWrite: boolean;
-  events: EventOption[];
-  selectedEventId: string | null;
+  eventContext: AdminShellEventContext;
   children?: ReactNode;
   breadcrumbItems?: AdminShellBreadcrumbItem[];
   showEventSelector?: boolean;
@@ -264,8 +267,7 @@ function getAdminNavigationGroups(canWrite: boolean): SidebarNavigationGroup[] {
 export function AdminShell({
   account,
   canWrite,
-  events,
-  selectedEventId,
+  eventContext,
   children,
   breadcrumbItems,
   showEventSelector = true,
@@ -286,10 +288,7 @@ export function AdminShell({
         <Sidebar variant="inset">
           <SidebarHeader>
             {showEventSelector ? (
-              <AdminActiveEventSummary
-                events={events}
-                selectedEventId={selectedEventId}
-              />
+              <AdminActiveEventSummary eventContext={eventContext} />
             ) : (
               <AdminBrandLink />
             )}
@@ -422,21 +421,15 @@ function BreadcrumbSegment({
   );
 }
 
-type AdminActiveEventSummaryProps = {
-  events: EventOption[];
-  selectedEventId: string | null;
-};
-
 function AdminActiveEventSummary({
-  events,
-  selectedEventId,
-}: AdminActiveEventSummaryProps) {
-  const selectedEvent =
-    events.find((event) => event.id === selectedEventId) ?? null;
-  const selectedEventName = selectedEvent?.name ?? "Sin evento";
-  const selectedEventStatus = selectedEvent?.active
-    ? "Evento activo"
-    : "Sin evento activo";
+  eventContext,
+}: {
+  eventContext: AdminShellEventContext;
+}) {
+  const activeEventName = eventContext.activeEvent?.name ?? "Sin evento";
+  const eventStatusLabel = eventContext.activeEvent
+    ? eventStatusLabels[eventContext.eventStatus]
+    : noActiveEventLabel;
 
   return (
     <SidebarMenu>
@@ -444,8 +437,8 @@ function AdminActiveEventSummary({
         <SidebarMenuButton size="lg">
           <EnEscenaAvatar />
           <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-medium">{selectedEventName}</span>
-            <span className="truncate text-xs">{selectedEventStatus}</span>
+            <span className="truncate font-medium">{activeEventName}</span>
+            <span className="truncate text-xs">{eventStatusLabel}</span>
           </div>
         </SidebarMenuButton>
       </SidebarMenuItem>

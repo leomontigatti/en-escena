@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
 
 import { AdminShellRouteView } from "@/routes/administracion";
+import type { AdminShellEventContext } from "@/lib/admin/event-context.shared";
 
 // Every admin route renders the shell around it, and the shell only shows who
 // is signed in: one fixed internal account keeps that out of each route's test.
@@ -13,8 +14,7 @@ const adminAccount = {
 };
 
 type ParentLoaderData = {
-  events: Array<{ active: boolean; id: string; name: string }>;
-  selectedEventId: string | null;
+  eventContext: AdminShellEventContext;
 };
 
 type RouteStubComponent = NonNullable<

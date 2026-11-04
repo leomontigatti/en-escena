@@ -31,6 +31,7 @@ import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
+import type { AdminShellEventContext } from "@/lib/admin/event-context.shared";
 
 installDatabaseTestHooks();
 
@@ -131,8 +132,10 @@ describe("`/administracion/coreografias` route filters", () => {
         `/administracion/coreografias?estado=incompleta&modalidad=${contemporaryCatalog.modality.id}` +
         `&categoria=Adulto&tipo-grupo=duo`,
       parentLoaderData: {
-        events: [{ id: event.id, name: event.name, active: true }],
-        selectedEventId: event.id,
+        eventContext: {
+          activeEvent: { id: event.id, name: event.name },
+          eventStatus: "in-progress",
+        },
       },
     });
 
@@ -240,8 +243,7 @@ function renderRoute(input: {
   childLoaderData: Awaited<ReturnType<typeof loader>>;
   initialEntry: string;
   parentLoaderData: {
-    events: Array<{ active: boolean; id: string; name: string }>;
-    selectedEventId: string | null;
+    eventContext: AdminShellEventContext;
   };
 }) {
   return renderAdminChildRoute({

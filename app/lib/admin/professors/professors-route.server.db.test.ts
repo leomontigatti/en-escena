@@ -398,8 +398,10 @@ describe("`/administracion/profesores` route", () => {
       childHandle: profesoresHandle,
       initialEntry: "/administracion/profesores",
       parentLoaderData: {
-        events: [{ id: event.id, name: event.name, active: true }],
-        selectedEventId: event.id,
+        eventContext: {
+          activeEvent: { id: event.id, name: event.name },
+          eventStatus: "in-progress",
+        },
       },
     });
     const detailMarkup = renderAdminChildRoute({
@@ -410,15 +412,17 @@ describe("`/administracion/profesores` route", () => {
       childHandle: profesorDetalleHandle,
       initialEntry: `/administracion/profesores/${professor.id}`,
       parentLoaderData: {
-        events: [{ id: event.id, name: event.name, active: true }],
-        selectedEventId: event.id,
+        eventContext: {
+          activeEvent: { id: event.id, name: event.name },
+          eventStatus: "in-progress",
+        },
       },
     });
 
     expect(listMarkup).toContain("Saltar al contenido principal");
     expect(listMarkup.match(/Saltar al contenido principal/g)).toHaveLength(1);
     expect(listMarkup).toContain("Profesores");
-    expect(listMarkup).toContain("Evento activo");
+    expect(listMarkup).toContain("En curso");
     expect(detailMarkup).toMatch(/<h2[^>]*>Julia Pérez<\/h2>/);
     expect(detailMarkup).toContain('href="/administracion/profesores"');
     expect(detailMarkup).toContain("Julia Pérez");

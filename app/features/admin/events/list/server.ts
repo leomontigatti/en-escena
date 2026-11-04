@@ -3,10 +3,10 @@ import { desc } from "drizzle-orm";
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
 import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
+import { getEventStatus, type EventStatus } from "@/lib/events/event-status";
 import { getEventRegistrationReadinessByEventId } from "@/lib/events/registration-readiness.server";
 import type { EventsListLoaderData } from "./shared";
 type EventRow = typeof eventsTable.$inferSelect;
-type TemporalState = ReturnType<typeof getTemporalState>;
 
 export async function loadEvents(
   request: Request,
@@ -16,31 +16,31 @@ export async function loadEvents(
     orderBy: [desc(eventsTable.startsAt)],
   });
   const now = new Date();
-  const eventsWithTemporalState = eventRows.map((event) => {
-    const temporalState = getTemporalState(event, now);
+  const eventsWithStatus = eventRows.map((event) => {
+    const eventStatus = getEventStatus(event, now);
 
     return {
       event,
       shouldShowRegistrationReadiness: shouldShowRegistrationReadiness(
         event,
-        temporalState,
+        eventStatus,
       ),
-      temporalState,
+      eventStatus,
     };
   });
   const eventReadinessById = await getEventRegistrationReadinessByEventId(
-    eventsWithTemporalState
+    eventsWithStatus
       .filter((eventState) => eventState.shouldShowRegistrationReadiness)
       .map(({ event }) => event.id),
   );
 
   return {
-    events: eventsWithTemporalState.map(
-      ({ event, shouldShowRegistrationReadiness, temporalState }) => ({
+    events: eventsWithStatus.map(
+      ({ event, shouldShowRegistrationReadiness, eventStatus }) => ({
         ...event,
         isRegistrationReady: eventReadinessById.get(event.id)?.isReady ?? false,
         shouldShowRegistrationReadiness,
-        temporalState,
+        eventStatus,
       }),
     ),
   };
@@ -48,22 +48,7 @@ export async function loadEvents(
 
 function shouldShowRegistrationReadiness(
   event: Pick<EventRow, "active">,
-  temporalState: TemporalState,
+  eventStatus: EventStatus,
 ) {
-  return event.active || temporalState.value !== "finished";
-}
-
-function getTemporalState(
-  event: Pick<EventRow, "startsAt" | "endsAt">,
-  now: Date,
-) {
-  if (now < event.startsAt) {
-    return { label: "No iniciado", value: "not-started" } as const;
-  }
-
-  if (now > event.endsAt) {
-    return { label: "Finalizado", value: "finished" } as const;
-  }
-
-  return { label: "En curso", value: "in-progress" } as const;
+  return event.active || eventStatus !== "finished";
 }

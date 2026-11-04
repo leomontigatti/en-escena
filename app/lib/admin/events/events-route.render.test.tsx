@@ -81,7 +81,7 @@ function eventListRow(): EventListRow {
     createdAt: new Date("2026-01-01T15:00:00.000Z"),
     isRegistrationReady: true,
     shouldShowRegistrationReadiness: true,
-    temporalState: { label: "No iniciado", value: "not-started" },
+    eventStatus: "not-started",
   };
 }
 
