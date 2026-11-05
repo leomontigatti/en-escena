@@ -1,4 +1,11 @@
-import { sendEmail } from "@/lib/shared/email.server";
+import { sendEmail, type SendEmailInput } from "@/lib/shared/email.server";
+import { readRelease } from "@/lib/shared/app-environment.server";
+import { sendOpsAlert } from "@/lib/shared/ops-alert.server";
+import {
+  describeServerError,
+  readServedRoutePattern,
+} from "@/lib/shared/unexpected-error-log.server";
+import { recordUnexpectedError } from "@/lib/shared/unexpected-error-store.server";
 
 // Access emails in Spanish, sent by Better Auth's built-in flow (#424). They
 // replace Supabase's `Send Email` webhook (`handleSupabaseSendEmailHook`,
@@ -35,11 +42,15 @@ export function buildAccessRecoveryLink(input: {
   return target.toString();
 }
 
+// Whether the email left. A failed send is logged here and reported as `false`
+// rather than thrown: the public answer must read the same whether or not the
+// address has an account (docs/domain/access.md), and only an address that can
+// register or recover ever reaches a send.
 export async function sendAcademySignUpConfirmationEmail(input: {
   to: string;
   confirmationUrl: string;
-}): Promise<void> {
-  await sendEmail({
+}): Promise<boolean> {
+  return await sendAccessEmail("signUpConfirmation", {
     to: input.to,
     subject: "Confirmá tu correo en En Escena",
     text: [
@@ -59,8 +70,8 @@ export async function sendAcademySignUpConfirmationEmail(input: {
 export async function sendAccessRecoveryEmail(input: {
   to: string;
   recoveryUrl: string;
-}): Promise<void> {
-  await sendEmail({
+}): Promise<boolean> {
+  return await sendAccessEmail("accessRecovery", {
     to: input.to,
     subject: "Recuperá tu acceso a En Escena",
     text: [
@@ -75,4 +86,33 @@ export async function sendAccessRecoveryEmail(input: {
       "El equipo de En Escena",
     ].join("\n"),
   });
+}
+
+async function sendAccessEmail(
+  kind: "accessRecovery" | "signUpConfirmation",
+  input: SendEmailInput,
+): Promise<boolean> {
+  try {
+    await sendEmail(input);
+    return true;
+  } catch (thrown) {
+    const stack = describeServerError(thrown);
+
+    console.error("[auth:email:not-sent]", { kind, error: stack });
+    // The visitor is told the email left, so nobody else would notice an
+    // outage: it is kept and alerted like an unhandled error.
+    await recordUnexpectedError(
+      {
+        source: "server",
+        route: readServedRoutePattern(),
+        method: "POST",
+        userId: null,
+        at: new Date(),
+        release: readRelease(),
+        stack,
+      },
+      { sendAlert: sendOpsAlert },
+    );
+    return false;
+  }
 }

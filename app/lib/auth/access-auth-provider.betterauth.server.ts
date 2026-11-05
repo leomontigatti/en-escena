@@ -94,7 +94,9 @@ export const auth = betterAuth({
     // Real recovery email delivery (Resend, in Spanish). `url` carries the
     // `callbackURL` (`/cambiar-contrasena`); the link carries `?code=<token>`,
     // which that page's loader exchanges for the recovery session. The token
-    // also lives in `verification`, so tests read it without email.
+    // also lives in `verification`, so tests read it without email. The send
+    // never throws: Better Auth 1.7 would swallow it anyway and log the raw
+    // error, so the failure is logged once, our way (#1810).
     sendResetPassword: async ({ user: resetUser, url, token }) => {
       await sendAccessRecoveryEmail({
         to: resetUser.email,
@@ -263,6 +265,7 @@ export function createBetterAuthAccessAuthProvider(): AccessAuthProvider {
       input: EmailSignUpInput,
     ): Promise<EmailSignUpResult> {
       const tokenHash = crypto.randomUUID();
+      const identifier = `${PENDING_SIGNUP_IDENTIFIER_PREFIX}${tokenHash}`;
 
       const encryptedPassword = await symmetricEncrypt({
         key: getBetterAuthSecret(),
@@ -270,7 +273,7 @@ export function createBetterAuthAccessAuthProvider(): AccessAuthProvider {
       });
 
       await db.insert(verification).values({
-        identifier: `${PENDING_SIGNUP_IDENTIFIER_PREFIX}${tokenHash}`,
+        identifier,
         value: JSON.stringify({
           email: input.email,
           password: encryptedPassword,
@@ -281,13 +284,22 @@ export function createBetterAuthAccessAuthProvider(): AccessAuthProvider {
       // App-owned public sign-up (ADR-0001): the user is materialized only in
       // `confirmEmailOtp`. We send the confirmation email in Spanish (Resend)
       // with the link to `/registro/confirmar?token_hash=...&type=signup`.
-      await sendAcademySignUpConfirmationEmail({
+      const sent = await sendAcademySignUpConfirmationEmail({
         to: input.email,
         confirmationUrl: buildAcademySignUpConfirmationLink({
           redirectTo: input.redirectTo,
           tokenHash,
         }),
       });
+
+      if (!sent) {
+        // Nobody holds this token, and a retry writes its own row (#1810).
+        await db
+          .delete(verification)
+          .where(eq(verification.identifier, identifier));
+
+        return { headers: new Headers() };
+      }
 
       return {
         debugConfirmationTokenHash: tokenHash,

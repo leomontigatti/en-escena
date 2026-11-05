@@ -87,6 +87,17 @@ async function reportUnexpectedServerError(
   await recordError({ ...line, source: "server", at });
 }
 
+/**
+ * The route pattern of the request being served, or `unknown` outside one:
+ * for a failure a catch turns into user copy and records itself, which never
+ * reaches `handleError`.
+ */
+function readServedRoutePattern() {
+  const pattern = requestScope.getStore()?.pattern;
+
+  return pattern ? toAbsolutePattern(pattern) : "unknown";
+}
+
 // An error raised before any loader ran (the CSRF check, a failed match) has
 // no recorded pattern. Its path is safe to name only when no param was matched
 // in it; otherwise the route stays unnamed.
@@ -175,6 +186,7 @@ function constraintOf(cause: unknown) {
 
 export {
   describeServerError,
+  readServedRoutePattern,
   resolveUserIdWithin,
   reportUnexpectedServerError,
   routePatternInstrumentation,
