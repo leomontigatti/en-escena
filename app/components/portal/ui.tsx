@@ -177,22 +177,16 @@ export function PortalEmptyState({
   );
 }
 
-const primaryNavigationItems = [
+const contextNavigationItems = [
   {
     label: "Inicio",
     to: "/portal",
     icon: House,
   },
-  {
-    label: "Profesores",
-    to: "/portal/profesores",
-    icon: GraduationCap,
-  },
-  {
-    label: "Bailarines",
-    to: "/portal/bailarines",
-    icon: Users,
-  },
+] satisfies SidebarNavigationItem[];
+
+// Follows the order of the administration panel's `Operación`.
+const primaryNavigationItems = [
   {
     label: "Coreografías",
     to: "/portal/coreografias",
@@ -207,6 +201,16 @@ const primaryNavigationItems = [
     label: "Resultados",
     to: "/portal/resultados",
     icon: Trophy,
+  },
+  {
+    label: "Profesores",
+    to: "/portal/profesores",
+    icon: GraduationCap,
+  },
+  {
+    label: "Bailarines",
+    to: "/portal/bailarines",
+    icon: Users,
   },
   {
     label: "Seminarios",
@@ -238,7 +242,10 @@ const accountNavigationItems = [
 
 const navigationGroups = [
   {
-    label: "Administración",
+    items: contextNavigationItems,
+  },
+  {
+    label: "Operación",
     items: primaryNavigationItems,
   },
   {
