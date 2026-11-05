@@ -22,7 +22,7 @@ Rules for event context, `Bases del evento`, administration and portal behavior.
 
 ## Administration and portal
 
-- The sidebars of the `Panel de administración` and the `Portal de academias` show the `Evento activo`'s name and its `Estado del evento`, or `Sin evento activo` when there is none; they never show whether the event is active in its place (#1808).
+- The sidebars of the `Panel de administración`, the `Portal de academias` and the `Portal de particulares` show the `Evento activo`'s name with its `Estado del evento` beside it, or `Sin evento activo` when there is none, over the area's own name; they never show whether the event is active in its place (#1808). There `Finalizado` is amber, because an `Evento activo` that has ended is administration's to deactivate; the events list keeps it grey.
 - `Portal de academias` can manage professors and dancers even without an active event.
 - Portal choreographies stays visible without active event, showing an empty state.
 - With every `Cronograma` closed, the portal reads `Las inscripciones están cerradas.`, shows existing choreographies and disables new ones. The academy never deletes a choreography; removal is administrative (`docs/domain/choreographies.md`).

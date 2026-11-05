@@ -20,3 +20,11 @@ export function getEventStatus(
 
   return "in-progress";
 }
+
+/**
+ * A shell's `Evento activo` and its `Estado del evento`, which exists only
+ * when there is an active event.
+ */
+export type ActiveEventStatusContext =
+  | { activeEvent: null }
+  | { activeEvent: { name: string }; eventStatus: EventStatus };

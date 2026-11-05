@@ -1,9 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import type { EventStatus } from "@/lib/events/event-status";
-import {
-  eventStatusLabels,
-  noActiveEventLabel,
-} from "@/lib/events/event-status-copy";
+import { eventStatusLabels } from "@/lib/events/event-status-copy";
 
 const eventStatusVariants = {
   "not-started": "info",
@@ -12,26 +9,26 @@ const eventStatusVariants = {
 } as const satisfies Record<EventStatus, string>;
 
 /**
- * An event's `Estado del evento`, the same in the events list and both
- * shells. `null` is a shell with no `Evento activo`.
+ * An event's `Estado del evento`, the same in the events list and the
+ * sidebars. `flagFinished` turns `finished` amber: in a sidebar it means the
+ * `Evento activo` is over and still active, which the list's past events are not.
  */
 export function EventStatusBadge({
   eventStatus,
+  flagFinished = false,
   className,
 }: {
-  eventStatus: EventStatus | null;
+  eventStatus: EventStatus;
+  flagFinished?: boolean;
   className?: string;
 }) {
-  if (eventStatus === null) {
-    return (
-      <Badge variant="secondary" className={className}>
-        {noActiveEventLabel}
-      </Badge>
-    );
-  }
+  const variant =
+    flagFinished && eventStatus === "finished"
+      ? "warning"
+      : eventStatusVariants[eventStatus];
 
   return (
-    <Badge variant={eventStatusVariants[eventStatus]} className={className}>
+    <Badge variant={variant} className={className}>
       {eventStatusLabels[eventStatus]}
     </Badge>
   );

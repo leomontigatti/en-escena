@@ -28,7 +28,7 @@ import {
 } from "@/lib/auth/internal-account";
 import { AccountMenu } from "@/components/shared/account-menu";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
-import { EventStatusBadge } from "@/components/shared/event-status-badge";
+import { SidebarEventHeader } from "@/components/shared/sidebar-event-header";
 import { TopBarTools } from "@/components/shared/top-bar-tools";
 import {
   SidebarNavigationGroups,
@@ -285,7 +285,10 @@ export function AdminShell({
         <Sidebar variant="inset">
           <SidebarHeader>
             {showEventSelector ? (
-              <AdminActiveEventSummary eventContext={eventContext} />
+              <SidebarEventHeader
+                eventContext={eventContext}
+                areaLabel="Panel de administración"
+              />
             ) : (
               <AdminBrandLink />
             )}
@@ -415,31 +418,6 @@ function BreadcrumbSegment({
         )}
       </BreadcrumbItem>
     </>
-  );
-}
-
-function AdminActiveEventSummary({
-  eventContext,
-}: {
-  eventContext: AdminShellEventContext;
-}) {
-  const activeEventName = eventContext.activeEvent?.name ?? "Sin evento";
-  const eventStatus = eventContext.activeEvent
-    ? eventContext.eventStatus
-    : null;
-
-  return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <SidebarMenuButton size="lg">
-          <EnEscenaAvatar />
-          <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-medium">{activeEventName}</span>
-            <EventStatusBadge eventStatus={eventStatus} className="w-fit" />
-          </div>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-    </SidebarMenu>
   );
 }
 

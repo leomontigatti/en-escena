@@ -17,8 +17,7 @@ import { Link, useLocation, type UIMatch } from "react-router";
 import { AccountMenu } from "@/components/shared/account-menu";
 import { useRecordTitleHeading } from "@/components/shared/record-title";
 import { TopBarTools } from "@/components/shared/top-bar-tools";
-import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
-import { EventStatusBadge } from "@/components/shared/event-status-badge";
+import { SidebarEventHeader } from "@/components/shared/sidebar-event-header";
 import {
   SidebarNavigationGroups,
   type SidebarNavigationGroup,
@@ -49,9 +48,6 @@ import {
   SidebarContent,
   SidebarHeader,
   SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
@@ -426,24 +422,12 @@ function PortalActiveEventSummary({
 }: {
   eventContext: PortalShellEventContext;
 }) {
-  const activeEventName = eventContext.activeEvent?.name ?? "Sin evento";
-  const eventStatus = eventContext.activeEvent
-    ? eventContext.eventStatus
-    : null;
-
   return (
     <>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton size="lg">
-            <EnEscenaAvatar />
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-medium">{activeEventName}</span>
-              <EventStatusBadge eventStatus={eventStatus} className="w-fit" />
-            </div>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
+      <SidebarEventHeader
+        eventContext={eventContext}
+        areaLabel="Portal de academias"
+      />
       {eventContext.isRegistrationOpen ? null : (
         <p className="px-2 text-xs text-muted-foreground">
           Las inscripciones están cerradas.

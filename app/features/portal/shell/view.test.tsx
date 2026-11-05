@@ -83,6 +83,7 @@ describe("portal route view", () => {
 
       expect(text).toContain("En Escena 2026");
       expect(text).toContain(label);
+      expect(text).toContain("Portal de academias");
       expect(text).not.toContain("Evento activo");
     },
   );
