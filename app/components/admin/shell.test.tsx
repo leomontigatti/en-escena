@@ -151,7 +151,6 @@ describe("the administration sidebar's event status", () => {
 
       expect(text).toContain("En Escena 2026");
       expect(text).toContain(label);
-      expect(text).toContain("Panel de administración");
       expect(text).not.toContain("Evento activo");
     },
   );

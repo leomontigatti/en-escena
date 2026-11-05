@@ -39,7 +39,9 @@ export function SidebarEventHeader({
                 />
               ) : null}
             </span>
-            <span className="truncate text-xs">{areaLabel}</span>
+            <span className="truncate text-xs" title={areaLabel}>
+              {areaLabel}
+            </span>
           </div>
         </SidebarMenuButton>
       </SidebarMenuItem>
