@@ -32,6 +32,7 @@ import { expectThrownResponse } from "@/lib/test-support/http";
 import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
+import type { AdminShellEventContext } from "@/lib/admin/event-context.shared";
 
 installDatabaseTestHooks();
 
@@ -134,8 +135,10 @@ describe("`/administracion/coreografias` route", () => {
       childLoaderData: loaderData,
       initialEntry: "/administracion/coreografias",
       parentLoaderData: {
-        events: [{ id: event.id, name: event.name, active: true }],
-        selectedEventId: event.id,
+        eventContext: {
+          activeEvent: { id: event.id, name: event.name },
+          eventStatus: "in-progress",
+        },
       },
     });
 
@@ -233,8 +236,10 @@ describe("`/administracion/coreografias` route", () => {
       childLoaderData: nameData,
       initialEntry: `/administracion/coreografias?busqueda=Luna`,
       parentLoaderData: {
-        events: [{ id: event.id, name: event.name, active: true }],
-        selectedEventId: event.id,
+        eventContext: {
+          activeEvent: { id: event.id, name: event.name },
+          eventStatus: "in-progress",
+        },
       },
     });
 
@@ -266,8 +271,10 @@ describe("`/administracion/coreografias` route", () => {
       childLoaderData: emptyData,
       initialEntry: `/administracion/coreografias?busqueda=Tap`,
       parentLoaderData: {
-        events: [{ id: event.id, name: event.name, active: true }],
-        selectedEventId: event.id,
+        eventContext: {
+          activeEvent: { id: event.id, name: event.name },
+          eventStatus: "in-progress",
+        },
       },
     });
 
@@ -477,8 +484,10 @@ describe("`/administracion/coreografias` route", () => {
       childLoaderData: loaderData,
       initialEntry: `/administracion/coreografias?busqueda=Pieza&orden=nombre:asc&pagina=2`,
       parentLoaderData: {
-        events: [{ id: event.id, name: event.name, active: true }],
-        selectedEventId: event.id,
+        eventContext: {
+          activeEvent: { id: event.id, name: event.name },
+          eventStatus: "in-progress",
+        },
       },
     });
 
@@ -552,8 +561,7 @@ function renderRoute(input: {
   childLoaderData: Awaited<ReturnType<typeof loader>>;
   initialEntry: string;
   parentLoaderData: {
-    events: Array<{ active: boolean; id: string; name: string }>;
-    selectedEventId: string | null;
+    eventContext: AdminShellEventContext;
   };
 }) {
   return renderAdminChildRoute({

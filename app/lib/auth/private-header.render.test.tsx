@@ -59,7 +59,7 @@ describe("private route headers", () => {
         expect(markup).toContain('method="post"');
       } else {
         expect(markup).not.toContain("Sesión activa para");
-        expect(markup).toContain("Portal de academias");
+        expect(markup).toContain("Sin evento activo");
       }
     },
   );
@@ -93,8 +93,10 @@ function renderAdminRoute() {
               username: "ada.admin",
             },
             canWrite: true,
-            events: [{ id: "evento_2026", name: "Evento 2026", active: true }],
-            selectedEventId: "evento_2026",
+            eventContext: {
+              activeEvent: { id: "evento_2026", name: "Evento 2026" },
+              eventStatus: "in-progress",
+            },
           },
         },
       },

@@ -86,10 +86,9 @@ describe("`/administracion/eventos` route", () => {
       data.events.find((event) => event.name === "Regional 2025"),
     ).toMatchObject({
       shouldShowRegistrationReadiness: false,
-      temporalState: { value: "finished" },
+      eventStatus: "finished",
     });
     expect(markup).toContain(finalEvent.id);
-    expect(markup).toContain("Evento activo");
     expect(markup).toContain("Regional 2026");
     expect(markup).toContain("Activo");
     expect(markup).toContain("Finalizado");
@@ -107,6 +106,8 @@ describe("`/administracion/eventos` route", () => {
     const activeEvent = await createSavedEvent({
       name: "Regional 2026",
       active: true,
+      startsAt: new Date("2026-05-01T12:00:00Z"),
+      endsAt: new Date("2026-05-03T12:00:00Z"),
     });
     await createSavedEvent({
       active: false,
@@ -123,12 +124,14 @@ describe("`/administracion/eventos` route", () => {
     const shellData = await adminLoader(adminRouteArgs(request));
     const routeData = await loader(routeArgs(request));
 
+    // #1808: the status comes from the dates; the event ended in the past.
     expect(shellData).toMatchObject({
       account: { roleLabel: "Administrador" },
-      events: [{ id: activeEvent.id, name: "Regional 2026", active: true }],
-      selectedEventId: activeEvent.id,
+      eventContext: {
+        activeEvent: { id: activeEvent.id, name: "Regional 2026" },
+        eventStatus: "finished",
+      },
     });
-    expect(shellData.events).toHaveLength(1);
     expect(routeData.events.map((event) => event.name)).toEqual([
       "Final 2027",
       "Regional 2026",
@@ -321,8 +324,10 @@ function adminLoaderData() {
       username: "ada.admin",
     },
     canWrite: true,
-    events: [{ id: "evento_2026", name: "Evento 2026", active: true }],
-    selectedEventId: "evento_2026",
+    eventContext: {
+      activeEvent: { id: "evento_2026", name: "Evento 2026" },
+      eventStatus: "in-progress",
+    },
   };
 }
 

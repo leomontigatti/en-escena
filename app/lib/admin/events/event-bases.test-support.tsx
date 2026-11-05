@@ -106,7 +106,7 @@ export function renderRoute(
       initialEntries: [childRoute.url],
       hydrationData: {
         loaderData: {
-          admin: adminLoaderData(loaderData),
+          admin: adminLoaderData(),
           [childRoute.id]: childRoute.routeLoaderData ?? loaderData,
         },
       },
@@ -123,7 +123,7 @@ type ChildRouteFixture = {
   url: string;
 };
 
-function adminLoaderData(loaderData: EventBasesLoaderData) {
+function adminLoaderData() {
   return {
     account: {
       name: "Ada Admin",
@@ -131,8 +131,10 @@ function adminLoaderData(loaderData: EventBasesLoaderData) {
       username: "ada.admin",
     },
     canWrite: true,
-    events: [{ active: true, id: "event_1", name: "Evento 2026" }],
-    selectedEventId: loaderData.selectedEventId,
+    eventContext: {
+      activeEvent: { id: "event_1", name: "Evento 2026" },
+      eventStatus: "in-progress",
+    },
   };
 }
 

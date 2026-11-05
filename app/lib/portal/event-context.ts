@@ -1,3 +1,4 @@
+import type { EventStatus } from "@/lib/events/event-status";
 import type { EventRegistrationReadiness } from "@/lib/events/registration-readiness";
 import type { PaymentInstructions } from "@/lib/finances/payment-instructions";
 
@@ -14,10 +15,14 @@ export type PortalActiveEventSummaryContext = {
 };
 
 /**
- * The shell's own context: the active event plus the derived "las inscripciones
- * están abiertas" fact, which the sidebar states on every portal page.
+ * The shell's own context: the active event, its `Estado del evento` (only when
+ * there is one) and the derived "las inscripciones están abiertas" fact, which
+ * the sidebar states on every portal page.
  */
-export type PortalShellEventContext = PortalActiveEventSummaryContext & {
+export type PortalShellEventContext = (
+  | { activeEvent: null }
+  | { activeEvent: PortalEventSummary; eventStatus: EventStatus }
+) & {
   isRegistrationOpen: boolean;
 };
 

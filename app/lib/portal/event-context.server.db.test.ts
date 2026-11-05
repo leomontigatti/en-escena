@@ -19,6 +19,32 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
+// #1808: the portal shell carries the active event's `Estado del evento`, derived
+// from its dates, and none without an active event.
+describe("portal shell event context event status", () => {
+  test("is finished once the active event's end has passed", async () => {
+    await createEventRecord({
+      active: true,
+      startsAt: new Date("2026-05-01T12:00:00.000Z"),
+      endsAt: new Date("2026-05-03T12:00:00.000Z"),
+    });
+
+    await expect(
+      getPortalShellEventContext(new Request("http://localhost/portal")),
+    ).resolves.toMatchObject({ eventStatus: "finished" });
+  });
+
+  test("is absent without an active event", async () => {
+    await createEventRecord({ active: false });
+
+    const context = await getPortalShellEventContext(
+      new Request("http://localhost/portal"),
+    );
+
+    expect(context).toEqual({ activeEvent: null, isRegistrationOpen: false });
+  });
+});
+
 describe("portal event context derived inscriptions state", () => {
   test("is open while any schedule of the active event is open", async () => {
     const { event, catalog } = await createOpenEventCatalog({

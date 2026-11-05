@@ -1,16 +1,13 @@
-import type { ComponentProps, ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
   AudioLines,
-  CircleCheck,
   ClipboardList,
   GraduationCap,
   HandCoins,
   House,
   Inbox,
-  Info,
   ListOrdered,
   Presentation,
-  TriangleAlert,
   Trophy,
   User,
   Users,
@@ -20,7 +17,7 @@ import { Link, useLocation, type UIMatch } from "react-router";
 import { AccountMenu } from "@/components/shared/account-menu";
 import { useRecordTitleHeading } from "@/components/shared/record-title";
 import { TopBarTools } from "@/components/shared/top-bar-tools";
-import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
+import { SidebarEventHeader } from "@/components/shared/sidebar-event-header";
 import {
   SidebarNavigationGroups,
   type SidebarNavigationGroup,
@@ -45,31 +42,16 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Alert, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
   SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import type {
-  PortalEventContext,
-  PortalShellEventContext,
-} from "@/lib/portal/event-context";
+import type { PortalShellEventContext } from "@/lib/portal/event-context";
 
 type PortalShellProps = {
   userEmail: string;
@@ -195,24 +177,6 @@ export function PortalEmptyState({
   );
 }
 
-type CoreographyCreationState = {
-  tone: "ready" | "blocked" | "info";
-  message: string;
-};
-
-type AlertVariant = NonNullable<ComponentProps<typeof Alert>["variant"]>;
-type BadgeVariant = NonNullable<ComponentProps<typeof Badge>["variant"]>;
-type CreationAvailabilityPresentation = {
-  alertVariant: AlertVariant;
-  badgeLabel: string;
-  badgeVariant: BadgeVariant;
-  Icon: typeof CircleCheck;
-};
-type EventStatusPresentation = {
-  label: string;
-  variant: BadgeVariant;
-};
-
 const primaryNavigationItems = [
   {
     label: "Inicio",
@@ -286,30 +250,6 @@ const navigationGroups = [
     items: accountNavigationItems,
   },
 ] satisfies SidebarNavigationGroup[];
-
-const creationAvailabilityPresentationByTone: Record<
-  CoreographyCreationState["tone"],
-  CreationAvailabilityPresentation
-> = {
-  ready: {
-    alertVariant: "success",
-    badgeLabel: "Disponible",
-    badgeVariant: "success",
-    Icon: CircleCheck,
-  },
-  blocked: {
-    alertVariant: "warning",
-    badgeLabel: "Bloqueado",
-    badgeVariant: "warning",
-    Icon: TriangleAlert,
-  },
-  info: {
-    alertVariant: "info",
-    badgeLabel: "Información",
-    badgeVariant: "info",
-    Icon: Info,
-  },
-};
 
 export function PortalShell({
   userEmail,
@@ -482,95 +422,18 @@ function PortalActiveEventSummary({
 }: {
   eventContext: PortalShellEventContext;
 }) {
-  const activeEventName = eventContext.activeEvent?.name ?? "Sin evento";
-
   return (
     <>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton size="lg">
-            <EnEscenaAvatar />
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-medium">{activeEventName}</span>
-              <span className="truncate text-xs">Portal de academias</span>
-            </div>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
+      <SidebarEventHeader
+        eventContext={eventContext}
+        areaLabel="Portal de academias"
+      />
       {eventContext.isRegistrationOpen ? null : (
         <p className="px-2 text-xs text-muted-foreground">
           Las inscripciones están cerradas.
         </p>
       )}
     </>
-  );
-}
-
-export function PortalCoreographiesSection({
-  eventContext,
-}: {
-  eventContext: PortalEventContext;
-}) {
-  const selectedEvent = eventContext.selectedEvent;
-  const creationAvailability = getCoreographyCreationState(eventContext);
-  const eventStatus = getPortalEventStatus(eventContext.isReadOnly);
-  const creationAvailabilityPresentation =
-    creationAvailabilityPresentationByTone[creationAvailability.tone];
-
-  return (
-    <section className="mt-8" aria-labelledby="choreographies-title">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p
-            id="choreographies-title"
-            className="text-sm font-semibold text-foreground"
-          >
-            Coreografías
-          </p>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Esta sección muestra información específica del Evento activo.
-          </p>
-        </div>
-      </div>
-
-      <Card className="mt-4">
-        {selectedEvent ? (
-          <>
-            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex flex-col gap-2">
-                <CardTitle>{selectedEvent.name}</CardTitle>
-                <CardDescription className="leading-6">
-                  No hay coreografías registradas para este evento.
-                </CardDescription>
-              </div>
-              <Badge variant={eventStatus.variant}>{eventStatus.label}</Badge>
-            </CardHeader>
-            <CardContent>
-              <Alert variant={creationAvailabilityPresentation.alertVariant}>
-                <creationAvailabilityPresentation.Icon aria-hidden="true" />
-                <AlertTitle className="flex flex-wrap items-center gap-2">
-                  <span>{creationAvailability.message}</span>
-                  <Badge
-                    variant={creationAvailabilityPresentation.badgeVariant}
-                  >
-                    {creationAvailabilityPresentation.badgeLabel}
-                  </Badge>
-                </AlertTitle>
-              </Alert>
-            </CardContent>
-          </>
-        ) : (
-          <CardHeader>
-            <CardTitle>Todavía no hay Eventos configurados</CardTitle>
-            <CardDescription className="leading-6">
-              Cuando administración cree un Evento, vas a poder consultarlo
-              desde esta sección. La gestión de profesores y bailarines sigue
-              disponible como información de la academia.
-            </CardDescription>
-          </CardHeader>
-        )}
-      </Card>
-    </section>
   );
 }
 
@@ -601,59 +464,4 @@ function getUserInitials(value: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
-}
-
-function getPortalEventStatus(isReadOnly: boolean): EventStatusPresentation {
-  if (isReadOnly) {
-    return {
-      label: "Sin Evento activo",
-      variant: "secondary",
-    };
-  }
-
-  return {
-    label: "Evento activo",
-    variant: "default",
-  };
-}
-
-function getCoreographyCreationState(
-  eventContext: PortalEventContext,
-): CoreographyCreationState {
-  if (!eventContext.hasActiveEvent) {
-    return {
-      tone: "blocked",
-      message: "Todavía no hay un Evento activo para registrar coreografías.",
-    };
-  }
-
-  const activeEventReadiness = eventContext.activeEventRegistrationReadiness;
-
-  if (activeEventReadiness?.isReady === false) {
-    return {
-      tone: "blocked",
-      message:
-        "El Evento activo todavía no tiene la configuración mínima para registrar coreografías.",
-    };
-  }
-
-  const canCreateCoreographies =
-    eventContext.selectedEvent !== null &&
-    !eventContext.isReadOnly &&
-    eventContext.isRegistrationOpen &&
-    activeEventReadiness?.isReady === true;
-
-  if (canCreateCoreographies) {
-    return {
-      tone: "ready",
-      message:
-        "La creación de coreografías va a estar disponible para este Evento mientras las inscripciones estén abiertas.",
-    };
-  }
-
-  return {
-    tone: "info",
-    message:
-      "La creación de coreografías va a estar disponible cuando exista un Evento activo y las inscripciones estén abiertas.",
-  };
 }

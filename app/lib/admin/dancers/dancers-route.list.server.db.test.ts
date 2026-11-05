@@ -677,8 +677,10 @@ describe("`/administracion/bailarines` route: list and detail", () => {
       childHandle: bailarinesHandle,
       initialEntry: "/administracion/bailarines",
       parentLoaderData: {
-        events: [{ id: event.id, name: event.name, active: true }],
-        selectedEventId: event.id,
+        eventContext: {
+          activeEvent: { id: event.id, name: event.name },
+          eventStatus: "in-progress",
+        },
       },
     });
     const detailMarkup = renderAdminChildRoute({
@@ -689,15 +691,16 @@ describe("`/administracion/bailarines` route: list and detail", () => {
       childHandle: bailarinDetalleHandle,
       initialEntry: `/administracion/bailarines/${dancer.id}`,
       parentLoaderData: {
-        events: [{ id: event.id, name: event.name, active: true }],
-        selectedEventId: event.id,
+        eventContext: {
+          activeEvent: { id: event.id, name: event.name },
+          eventStatus: "in-progress",
+        },
       },
     });
 
     expect(listMarkup).toContain("Saltar al contenido principal");
     expect(listMarkup.match(/Saltar al contenido principal/g)).toHaveLength(1);
     expect(listMarkup).toContain("Bailarines");
-    expect(listMarkup).toContain("Evento activo");
     expect(detailMarkup).toContain("Julia Pérez");
     expect(detailMarkup).toContain('href="/administracion/bailarines"');
     expect(detailMarkup).toContain("Julia Pérez");

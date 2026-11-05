@@ -7,10 +7,8 @@ import {
   getAdminShellOptions,
 } from "@/components/admin/shell";
 import { ErrorPanel, ErrorScreen } from "@/components/shared/error-panel";
-import {
-  loadShellEventContext,
-  type AdminShellEventContext,
-} from "@/lib/admin/event-context.server";
+import { loadShellEventContext } from "@/lib/admin/event-context.server";
+import type { AdminShellEventContext } from "@/lib/admin/event-context.shared";
 import {
   buildInternalAccount,
   type InternalAccount,
@@ -33,13 +31,11 @@ export async function loader({ request }: Route.LoaderArgs) {
   return {
     account: buildInternalAccount(user),
     canWrite: canWriteInAdminPanel(user.role),
-    events: eventContext.events,
-    selectedEventId: eventContext.selectedEventId,
+    eventContext,
   } satisfies {
     account: InternalAccount;
     canWrite: boolean;
-    events: AdminShellEventContext["events"];
-    selectedEventId: AdminShellEventContext["selectedEventId"];
+    eventContext: AdminShellEventContext;
   };
 }
 
@@ -54,8 +50,7 @@ function AdminShellLayout({
     <AdminShell
       account={loaderData.account}
       canWrite={loaderData.canWrite}
-      events={loaderData.events}
-      selectedEventId={loaderData.selectedEventId}
+      eventContext={loaderData.eventContext}
       breadcrumbItems={getAdminBreadcrumbItems(matches)}
       showEventSelector={shellOptions.showEventSelector}
     >
