@@ -37,10 +37,10 @@ describe("`/administracion` layout route", () => {
                 username: "ada.admin",
               },
               canWrite: true,
-              events: [
-                { id: "evento_2026", name: "Evento 2026", active: true },
-              ],
-              selectedEventId: "evento_2026",
+              eventContext: {
+                activeEvent: { id: "evento_2026", name: "Evento 2026" },
+                eventStatus: "in-progress",
+              },
             }}
           />
         ),
@@ -95,10 +95,10 @@ describe("`/administracion` layout route", () => {
                 username: "ada.admin",
               },
               canWrite: true,
-              events: [
-                { id: "evento_2026", name: "Evento 2026", active: true },
-              ],
-              selectedEventId: "evento_2026",
+              eventContext: {
+                activeEvent: { id: "evento_2026", name: "Evento 2026" },
+                eventStatus: "in-progress",
+              },
             },
             "0-0": {
               selectedEventId: "evento_2026",
@@ -116,6 +116,5 @@ describe("`/administracion` layout route", () => {
     expect(markup).toContain("Detalle de modalidad");
     expect(markup).toContain('href="/administracion/modalidades"');
     expect(markup).toContain("Jazz Contemporáneo");
-    expect(markup).toContain("Evento activo");
   });
 });

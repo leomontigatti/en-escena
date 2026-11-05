@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth/internal-access.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent } from "@/lib/test-support/events";
 import { createIndividualUser } from "@/lib/test-support/individuals";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
@@ -29,6 +30,29 @@ describe("individual area access", () => {
     ).resolves.toEqual({
       email: "particular@example.com",
       fullName: "Ana Pérez",
+      eventContext: { activeEvent: null },
+    });
+  });
+
+  // #1808: the individual's sidebar reads the `Estado del evento` like the
+  // portal's, so a finished active event shows as finished.
+  test("carries the active event and its status for the sidebar", async () => {
+    await createSavedEvent({
+      name: "Regional 2025",
+      startsAt: new Date("2025-05-01T12:00:00Z"),
+      endsAt: new Date("2025-05-03T12:00:00Z"),
+    });
+    const individual = await createIndividualUser({
+      email: "particular@example.com",
+    });
+
+    const loaderData = await loadIndividualShell(
+      signedInRequest("/particular", individual.cookie),
+    );
+
+    expect(loaderData.eventContext).toEqual({
+      activeEvent: { name: "Regional 2025" },
+      eventStatus: "finished",
     });
   });
 

@@ -15,8 +15,8 @@ import {
 } from "react-router";
 
 import { AccountMenu } from "@/components/shared/account-menu";
-import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
 import { ErrorPanel, ErrorScreen } from "@/components/shared/error-panel";
+import { SidebarEventHeader } from "@/components/shared/sidebar-event-header";
 import {
   SidebarNavigationGroups,
   type SidebarNavigationGroup,
@@ -40,9 +40,6 @@ import {
   SidebarContent,
   SidebarHeader,
   SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
@@ -117,19 +114,10 @@ function IndividualShell({
       <SidebarProvider>
         <Sidebar variant="inset">
           <SidebarHeader>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton size="lg">
-                  <EnEscenaAvatar />
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">
-                      {loaderData.fullName}
-                    </span>
-                    <span className="truncate text-xs">Particular</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
+            <SidebarEventHeader
+              eventContext={loaderData.eventContext}
+              areaLabel="Portal de particulares"
+            />
           </SidebarHeader>
 
           <SidebarContent>

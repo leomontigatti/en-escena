@@ -2,24 +2,21 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import {
-  PortalCoreographiesSection,
-  PortalShell,
-} from "@/components/portal/ui";
+import { PortalShell } from "@/components/portal/ui";
 import { PortalShellRouteView } from "@/features/portal/shell/view";
-import type { PortalEventContext } from "@/lib/portal/event-context";
+import type { PortalEventSummary } from "@/lib/portal/event-context";
 
 describe("portal route view", () => {
   test("renders the portal shell", () => {
     const markup = renderPortal({
       eventContext: {
         activeEvent: eventSummary({ name: "Regional 2026" }),
+        eventStatus: "in-progress",
         isRegistrationOpen: true,
       },
     });
 
     expect(markup).toContain("Regional 2026");
-    expect(markup).toContain("Portal de academias");
     expect(markup).toContain("Inicio");
     expect(markup).toContain('href="/portal/perfil"');
     expect(markup).toContain("Finanzas");
@@ -48,21 +45,11 @@ describe("portal route view", () => {
     expect(markup).not.toContain("Teléfono");
   });
 
-  test("shows the shell no-active-event state", () => {
-    const markup = renderPortal({
-      eventContext: {
-        activeEvent: null,
-        isRegistrationOpen: false,
-      },
-    });
-
-    expect(markup).toContain("Sin evento");
-  });
-
   test("states in the shell whether the inscriptions are open", () => {
     const openMarkup = renderPortal({
       eventContext: {
         activeEvent: eventSummary(),
+        eventStatus: "in-progress",
         isRegistrationOpen: true,
       },
     });
@@ -72,6 +59,7 @@ describe("portal route view", () => {
     const closedMarkup = renderPortal({
       eventContext: {
         activeEvent: eventSummary(),
+        eventStatus: "in-progress",
         isRegistrationOpen: false,
       },
     });
@@ -79,39 +67,35 @@ describe("portal route view", () => {
     expect(closedMarkup).toContain("Las inscripciones están cerradas.");
   });
 
-  test("renders shared choreography availability states with shadcn alert and badge variants", () => {
-    const readyMarkup = renderToStaticMarkup(
-      <PortalCoreographiesSection eventContext={portalEventContext()} />,
-    );
-
-    expect(readyMarkup).toContain('data-slot="alert"');
-    expect(readyMarkup).toContain('data-variant="success"');
-    expect(readyMarkup).toContain(">Disponible<");
-
-    const blockedMarkup = renderToStaticMarkup(
-      <PortalCoreographiesSection
-        eventContext={portalEventContext({
-          activeEventRegistrationReadiness: readiness(false),
-        })}
-      />,
-    );
-
-    expect(blockedMarkup).toContain('data-slot="alert"');
-    expect(blockedMarkup).toContain(">Bloqueado<");
-    expect(blockedMarkup).toContain('data-variant="warning"');
-
-    const infoMarkup = renderToStaticMarkup(
-      <PortalCoreographiesSection
-        eventContext={portalEventContext({
-          isReadOnly: true,
+  // #1808: the portal promised the `Estado del evento` and showed whether the
+  // event was active, so a finished event read as if it were running.
+  test.each([
+    ["not-started", "No iniciado"],
+    ["in-progress", "En curso"],
+    ["finished", "Finalizado"],
+  ] as const)(
+    "reads the active event's status %s as its label, never as `Evento activo`",
+    (eventStatus, label) => {
+      const text = renderPortal({
+        eventContext: {
+          activeEvent: eventSummary({ name: "En Escena 2026" }),
+          eventStatus,
           isRegistrationOpen: false,
-        })}
-      />,
-    );
+        },
+      }).replace(/<[^>]+>/g, " ");
 
-    expect(infoMarkup).toContain('data-slot="alert"');
-    expect(infoMarkup).toContain(">Información<");
-    expect(infoMarkup).toContain('data-variant="info"');
+      expect(text).toContain("En Escena 2026");
+      expect(text).toContain(label);
+      expect(text).not.toContain("Evento activo");
+    },
+  );
+
+  test("reads `Sin evento activo` without an active event", () => {
+    const markup = renderPortal({
+      eventContext: { activeEvent: null, isRegistrationOpen: false },
+    });
+
+    expect(markup).toContain("Sin evento activo");
   });
 });
 
@@ -151,48 +135,14 @@ function renderPortal(input: {
 }
 
 function eventSummary(
-  overrides: Partial<NonNullable<PortalEventContext["selectedEvent"]>> = {},
-) {
+  overrides: Partial<PortalEventSummary> = {},
+): PortalEventSummary {
   return {
     id: "event_1",
     name: "Regional 2026",
     active: true,
-    startsAt: date("2026-05-01T12:00:00Z"),
-    endsAt: date("2026-05-03T12:00:00Z"),
+    startsAt: new Date("2026-05-01T12:00:00Z"),
+    endsAt: new Date("2026-05-03T12:00:00Z"),
     ...overrides,
-  };
-}
-
-function portalEventContext(
-  overrides: Partial<PortalEventContext> = {},
-): PortalEventContext {
-  const event = eventSummary();
-
-  return {
-    selectedEvent: event,
-    activeEvent: event,
-    hasActiveEvent: true,
-    activeEventRegistrationReadiness: readiness(true),
-    hasEvents: true,
-    isReadOnly: false,
-    isRegistrationOpen: true,
-    ...overrides,
-  };
-}
-
-function date(value: string) {
-  return new Date(value);
-}
-
-function readiness(
-  isReady: boolean,
-  missingItems: NonNullable<
-    PortalEventContext["activeEventRegistrationReadiness"]
-  >["missingItems"] = [],
-) {
-  return {
-    eventId: "event_1",
-    isReady,
-    missingItems,
   };
 }

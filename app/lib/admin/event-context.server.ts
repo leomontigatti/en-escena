@@ -2,15 +2,14 @@ import { desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
-import type { EventOption } from "@/lib/admin/event-context.shared";
+import type {
+  AdminShellEventContext,
+  EventOption,
+} from "@/lib/admin/event-context.shared";
+import { getEventStatus } from "@/lib/events/event-status";
 
 type ResolveAdminEventContextInput = {
   events: EventOption[];
-};
-
-export type AdminShellEventContext = {
-  events: EventOption[];
-  selectedEventId: string | null;
 };
 
 export type EventContext = {
@@ -24,15 +23,20 @@ export async function loadShellEventContext(): Promise<AdminShellEventContext> {
     columns: {
       id: true,
       name: true,
-      active: true,
+      startsAt: true,
+      endsAt: true,
     },
     where: eq(eventsTable.active, true),
     orderBy: [desc(eventsTable.startsAt)],
   });
 
+  if (!activeEvent) {
+    return { activeEvent: null };
+  }
+
   return {
-    events: activeEvent ? [activeEvent] : [],
-    selectedEventId: activeEvent?.id ?? null,
+    activeEvent: { id: activeEvent.id, name: activeEvent.name },
+    eventStatus: getEventStatus(activeEvent, new Date()),
   };
 }
 

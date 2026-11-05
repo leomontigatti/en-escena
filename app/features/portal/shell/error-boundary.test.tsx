@@ -53,7 +53,7 @@ describe("`/portal` error boundary", () => {
 
     await waitFor(() => page().includes("No encontramos ese profesor."));
     expect(page()).toContain("Página no encontrada");
-    expect(page()).toContain("Portal de academias");
+    expect(page()).toContain("Sin evento activo");
     expect(page()).toContain("Saltar al contenido principal");
     expect(
       renderer.getContainer().querySelector('a[href="/portal/profesores"]'),

@@ -65,7 +65,7 @@ describe("repo style check", () => {
           'const archived = sql`${sql.identifier("d")}.${sql.identifier("active")} = false`;',
           "const selectable = people.filter((p) => p.active || linkedIds.has(p.id));",
           "const alsoSelectable = people.filter((p) => linkedIds.has(p.id) || p.active);",
-          'const unrelated = event.active || temporalState.value !== "finished";',
+          'const unrelated = event.active || eventStatus !== "finished";',
           "const projection = { active: dancers.active };",
         ].join("\n"),
       );

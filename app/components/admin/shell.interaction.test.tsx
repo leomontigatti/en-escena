@@ -24,8 +24,7 @@ describe("AdminShell account menu", () => {
             username: "ada.admin",
           }}
           canWrite
-          events={[]}
-          selectedEventId={null}
+          eventContext={{ activeEvent: null }}
         >
           <p>Contenido administrativo</p>
         </AdminShell>
