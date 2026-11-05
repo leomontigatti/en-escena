@@ -245,7 +245,7 @@ const navigationGroups = [
     items: contextNavigationItems,
   },
   {
-    label: "Administración",
+    label: "Operación",
     items: primaryNavigationItems,
   },
   {
