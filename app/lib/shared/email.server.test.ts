@@ -202,7 +202,7 @@ describe("sendEmail", () => {
     ).rejects.toThrow("BREVO_API_KEY is required to send production email");
   });
 
-  test("logs provider errors without exposing the API key", async () => {
+  test("throws a provider failure without logging it or naming the recipient", async () => {
     process.env.NODE_ENV = "production";
     process.env.EMAIL_PROVIDER = "resend";
     process.env.RESEND_API_KEY = "re_secret_should_not_be_logged";
@@ -214,28 +214,52 @@ describe("sendEmail", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const { sendEmail } = await import("@/lib/shared/email.server");
 
+    const thrown = await sendEmail({
+      to: "usuario@example.com",
+      subject: "Te invitaron a En Escena",
+      text: "Usá este enlace para confirmar tu correo: https://example.com/registro/confirmar?token_hash=token",
+    }).catch((error: unknown) => error);
+
+    // The caller decides what the failure means and logs it once (#1810).
+    expect(errorSpy).not.toHaveBeenCalled();
+    expect(thrown).toEqual(
+      new Error(
+        "Email provider failed to send message (resend: Error: The sender domain is not verified)",
+      ),
+    );
+    expect(String(thrown)).not.toContain("usuario@example.com");
+    expect(String(thrown)).not.toContain("re_secret_should_not_be_logged");
+    errorSpy.mockRestore();
+  });
+
+  // Resend reports a failure as a plain `{ name, statusCode, message }`, not
+  // an `Error`; its name is a fixed error code.
+  test("names a Resend error response by its code and status", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.EMAIL_PROVIDER = "resend";
+    process.env.RESEND_API_KEY = "re_test";
+    process.env.EMAIL_FROM = "En Escena <acceso@example.com>";
+    sendEmailMock.mockResolvedValue({
+      data: null,
+      error: {
+        name: "validation_error",
+        statusCode: 422,
+        message: "Invalid `to` field: usuario@example.com",
+      },
+    });
+    const { sendEmail } = await import("@/lib/shared/email.server");
+
     await expect(
       sendEmail({
         to: "usuario@example.com",
         subject: "Te invitaron a En Escena",
-        text: "Usá este enlace para confirmar tu correo: https://example.com/registro/confirmar?token_hash=token",
+        text: "Usá este enlace: https://example.com/registro/confirmar?token_hash=token",
       }),
-    ).rejects.toThrow("Email provider failed to send message");
-
-    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain(
-      "re_secret_should_not_be_logged",
+    ).rejects.toThrow(
+      new Error(
+        "Email provider failed to send message (resend: validation_error 422)",
+      ),
     );
-    expect(errorSpy).toHaveBeenCalledWith(
-      "[email:provider:error]",
-      expect.objectContaining({
-        provider: "resend",
-        error: {
-          name: "Error",
-          message: "The sender domain is not verified",
-        },
-      }),
-    );
-    errorSpy.mockRestore();
   });
 });
 

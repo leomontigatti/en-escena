@@ -25,19 +25,19 @@ export async function sendEmail(input: SendEmailInput) {
     return;
   }
 
+  // A failure is thrown, not logged: the caller knows what it means for the
+  // person waiting on the email, and logs it once. The message names the
+  // provider's failure, never the recipient.
   try {
     await sendProductionEmail(input);
   } catch (error) {
-    if (
-      error instanceof Error &&
-      (error.message === "Email provider failed to send message" ||
-        isEmailConfigurationError(error))
-    ) {
+    if (error instanceof Error && isEmailConfigurationError(error)) {
       throw error;
     }
 
-    logProviderError(input, error, getEmailProvider());
-    throw new Error("Email provider failed to send message");
+    throw new Error(
+      `Email provider failed to send message (${getEmailProvider()}: ${describeProviderError(error)})`,
+    );
   }
 }
 
@@ -147,36 +147,20 @@ function parseEmailFrom(value: string) {
   };
 }
 
-function logProviderError(
-  input: SendEmailInput,
-  error: unknown,
-  provider: EmailProvider,
-) {
-  console.error("[email:provider:error]", {
-    provider,
-    to: input.to,
-    subject: input.subject,
-    error: serializeProviderError(error),
-  });
-}
-
-function serializeProviderError(error: unknown) {
+// An `Error`'s message is ours or the network's. Resend answers with a plain
+// `{ name, statusCode, message }` whose name is a fixed error code and whose
+// message is free text that can quote the request, so only the code and the
+// status are kept.
+function describeProviderError(error: unknown) {
   if (error instanceof Error) {
-    return {
-      name: error.name,
-      message: error.message,
-    };
+    return `${error.name}: ${error.message}`;
   }
 
-  if (typeof error === "object" && error) {
-    return {
-      name: "ProviderError",
-      message: "Email provider returned a non-standard error response",
-    };
+  if (typeof error === "object" && error && "name" in error) {
+    const status = "statusCode" in error ? ` ${String(error.statusCode)}` : "";
+
+    return `${String(error.name)}${status}`;
   }
 
-  return {
-    name: "ProviderError",
-    message: String(error),
-  };
+  return "non-standard error response";
 }
