@@ -29,14 +29,17 @@ describe("portal route view", () => {
     expect(markup).toContain("Profesores");
     expect(markup).toContain("Bailarines");
     expect(markup).toContain("Coreografías");
-    expect(markup.indexOf("Inicio")).toBeLessThan(markup.indexOf("Profesores"));
+    // The order of the administration panel's `Operación`.
+    expect(markup.indexOf("Inicio")).toBeLessThan(
+      markup.indexOf("Coreografías"),
+    );
+    expect(markup.indexOf("Coreografías")).toBeLessThan(
+      markup.indexOf("Profesores"),
+    );
     expect(markup.indexOf("Profesores")).toBeLessThan(
       markup.indexOf("Bailarines"),
     );
     expect(markup.indexOf("Bailarines")).toBeLessThan(
-      markup.indexOf("Coreografías"),
-    );
-    expect(markup.indexOf("Coreografías")).toBeLessThan(
       markup.indexOf("Finanzas"),
     );
     expect(markup).toContain("Saltar al contenido principal");
