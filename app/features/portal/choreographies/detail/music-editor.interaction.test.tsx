@@ -93,7 +93,6 @@ describe("replacing a choreography's music", () => {
   });
 
   test("comes back to the stored song once the replacement is saved", async () => {
-    // A browser hands back a `blob:` link.
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:tema");
     const submissions: FormData[] = [];
     const router = createMemoryRouter(

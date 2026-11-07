@@ -383,7 +383,6 @@ describe("FileUploadField with an audio preview", () => {
   });
 
   test("plays a picked file in place of the picker, and still submits it", async () => {
-    // A browser hands back a `blob:` link.
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:tema");
     await render(<TestMusicUploadField />);
 
