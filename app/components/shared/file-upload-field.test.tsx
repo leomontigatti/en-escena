@@ -320,7 +320,7 @@ describe("FileUploadField with an audio preview", () => {
       root.unmount();
     });
     container.remove();
-    Reflect.deleteProperty(URL, "createObjectURL");
+    vi.restoreAllMocks();
   });
 
   test("plays the stored file in place of the picker", async () => {
@@ -383,11 +383,8 @@ describe("FileUploadField with an audio preview", () => {
   });
 
   test("plays a picked file in place of the picker, and still submits it", async () => {
-    // jsdom has no `createObjectURL`; a browser hands back a `blob:` link.
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      value: () => "blob:tema",
-    });
+    // A browser hands back a `blob:` link.
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:tema");
     await render(<TestMusicUploadField />);
 
     expect(container.querySelector("audio")).toBeNull();
@@ -418,10 +415,7 @@ describe("FileUploadField with an audio preview", () => {
   // The download is the stored file, so a picked one playing in its place has
   // nothing to offer there, even while the stored key waits in the form.
   test("offers no download while a picked file replaces the stored one", async () => {
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      value: () => "blob:tema",
-    });
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:tema");
     await render(
       <TestMusicUploadField
         defaultStorageKey="academies/a/music.mp3"

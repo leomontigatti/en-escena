@@ -8,7 +8,7 @@ import { loadPgliteSchemaSnapshot } from "./pglite-snapshot";
 const snapshot = await loadPgliteSchemaSnapshot();
 // One per worker: `db-shared` files reuse it and reset it between tests, and the
 // worker's exit is what closes it.
-const rawClient = new PGlite({ loadDataDir: snapshot });
+const rawClient = await PGlite.create({ loadDataDir: snapshot });
 
 // fallow-ignore-next-line unused-export
 export const client = wrapPgliteClient(rawClient);

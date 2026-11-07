@@ -12,7 +12,7 @@ import { resetDatabaseTables } from "./reset";
 export async function createPgliteTestDatabase() {
   const dataDir = await mkdtemp(path.join(tmpdir(), "en-escena-pglite-"));
   runPgliteSchemaMigrate(dataDir);
-  const client = new PGlite(dataDir);
+  const client = await PGlite.create(dataDir);
   const db = drizzle(client, { schema: pgliteSchema });
 
   return { client, dataDir, db };

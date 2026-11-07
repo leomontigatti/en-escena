@@ -20,7 +20,7 @@ if (!dataDir) {
   throw new Error("PGlite migrate requires a data directory argument.");
 }
 
-const client = new PGlite(dataDir);
+const client = await PGlite.create(dataDir);
 const db = drizzle(client, { schema: pgliteSchema });
 
 try {

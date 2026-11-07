@@ -113,13 +113,9 @@ async function buildSnapshotArchive(snapshotPath: string) {
 
   try {
     runPgliteSchemaMigrate(dataDir);
-    const client = new PGlite(dataDir);
+    const client = await PGlite.create(dataDir);
 
     try {
-      // Since pglite 0.5.12, dumpDataDir waits for readiness while holding its
-      // lock, unlike query and exec: called on a client that is not ready yet,
-      // it never settles.
-      await client.waitReady;
       const snapshot = await client.dumpDataDir("none");
       const snapshotBytes = Buffer.from(await snapshot.arrayBuffer());
 

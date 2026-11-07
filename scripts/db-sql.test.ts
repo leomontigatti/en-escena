@@ -119,7 +119,7 @@ describe("readOnlyQuery", () => {
   let session: Session;
 
   beforeAll(async () => {
-    client = new PGlite();
+    client = await PGlite.create();
     await client.exec(
       "create table en_escena_note (id int primary key, body text); insert into en_escena_note values (1, 'hola'), (2, null);",
     );

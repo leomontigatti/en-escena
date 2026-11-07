@@ -220,14 +220,12 @@ describe("the finalist banner form", () => {
       },
     );
     installDataTransferStub();
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      value: () => "blob:foto",
-    });
-    Object.defineProperty(URL, "revokeObjectURL", {
-      configurable: true,
-      value: () => {},
-    });
+    const createObjectUrl = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:foto");
+    const revokeObjectUrl = vi
+      .spyOn(URL, "revokeObjectURL")
+      .mockImplementation(() => {});
     const context = new Proxy({}, { get: () => () => {} });
     const getContext = vi
       .spyOn(HTMLCanvasElement.prototype, "getContext")
@@ -239,8 +237,8 @@ describe("the finalist banner form", () => {
       vi.unstubAllGlobals();
       getContext.mockRestore();
       toBlob.mockRestore();
-      Reflect.deleteProperty(URL, "createObjectURL");
-      Reflect.deleteProperty(URL, "revokeObjectURL");
+      createObjectUrl.mockRestore();
+      revokeObjectUrl.mockRestore();
     });
   }
 

@@ -6,7 +6,7 @@ import {
   useActionData,
   useLoaderData,
 } from "react-router";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type {
   PortalChoreographyMusicActionData,
@@ -89,15 +89,12 @@ describe("replacing a choreography's music", () => {
 
   afterEach(() => {
     renderer.cleanup();
-    Reflect.deleteProperty(URL, "createObjectURL");
+    vi.restoreAllMocks();
   });
 
   test("comes back to the stored song once the replacement is saved", async () => {
-    // jsdom has no `createObjectURL`; a browser hands back a `blob:` link.
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      value: () => "blob:tema",
-    });
+    // A browser hands back a `blob:` link.
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:tema");
     const submissions: FormData[] = [];
     const router = createMemoryRouter(
       [
