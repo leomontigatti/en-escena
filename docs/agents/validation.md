@@ -192,7 +192,10 @@ the files before it. The split is computed from file contents
 test resets any module-level state it touches (a module's `let`, a `Set`, a cache)
 itself, and undoes fake timers before it ends. The jsdom window is shared the same
 way, its URL included: a test whose form posts to the document's URL sets it
-(`window.history.replaceState`) before it renders.
+(`window.history.replaceState`) before it renders. The `URL` global is shared
+too, and under jsdom its `createObjectURL` is Vitest's own wrapper over Node's:
+a test stubs it with `vi.spyOn` and restores it, never deletes it, or the next
+file in the worker reaches Node's, which throws on a jsdom `File` (#1461).
 
 ## Targeting DB tests
 

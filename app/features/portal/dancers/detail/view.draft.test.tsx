@@ -2,7 +2,7 @@
 
 import { act } from "react";
 import { createMemoryRouter, Link, RouterProvider } from "react-router";
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { PortalDancerDetailRouteView } from "@/features/portal/dancers/detail/view";
 import {
@@ -17,24 +17,13 @@ type DancerDetailProps = Parameters<typeof PortalDancerDetailRouteView>[0];
 
 const renderer = createReactDomTestRenderer();
 
-// A picked photo is previewed from a `blob:` link, which jsdom cannot make.
-const createObjectUrl = Object.getOwnPropertyDescriptor(URL, "createObjectURL");
-
 beforeEach(() => {
-  Object.defineProperty(URL, "createObjectURL", {
-    configurable: true,
-    value: () => "blob:frente",
-  });
+  vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:frente");
 });
 
 afterEach(() => {
   renderer.cleanup();
-
-  if (createObjectUrl) {
-    Object.defineProperty(URL, "createObjectURL", createObjectUrl);
-  } else {
-    Reflect.deleteProperty(URL, "createObjectURL");
-  }
+  vi.restoreAllMocks();
 });
 
 describe("the portal dancer detail as one draft", () => {

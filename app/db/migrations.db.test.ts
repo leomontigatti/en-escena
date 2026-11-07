@@ -51,7 +51,7 @@ function pushSchemaToDataDir(dataDir: string) {
 
 describe("drizzle migrations", () => {
   it("applies the baseline migration on a fresh database", async () => {
-    const pglite = new PGlite();
+    const pglite = await PGlite.create();
     const db = drizzle(pglite, { schema });
 
     try {
@@ -70,7 +70,7 @@ describe("drizzle migrations", () => {
   });
 
   it("is a no-op when the baseline is already registered", async () => {
-    const pglite = new PGlite();
+    const pglite = await PGlite.create();
     const db = drizzle(pglite, { schema });
 
     try {
@@ -97,7 +97,7 @@ describe("drizzle migrations", () => {
     // cannot drift apart while both still pass.
     const [baseline] = readHashedJournalEntries(migrationsFolder);
 
-    const pglite = new PGlite();
+    const pglite = await PGlite.create();
     const db = drizzle(pglite, { schema });
 
     try {
@@ -123,7 +123,7 @@ describe("drizzle migrations", () => {
     "migrate produces the same public tables as pushSchema",
     { timeout: 90_000 },
     async () => {
-      const migratePglite = new PGlite();
+      const migratePglite = await PGlite.create();
       const migrateDb = drizzle(migratePglite, { schema });
       const pushDataDir = await mkdtemp(
         path.join(tmpdir(), "en-escena-pglite-oracle-"),
@@ -134,7 +134,7 @@ describe("drizzle migrations", () => {
         const migrateTables = await getPublicTables(migrateDb);
 
         pushSchemaToDataDir(pushDataDir);
-        const pushPglite = new PGlite(pushDataDir);
+        const pushPglite = await PGlite.create(pushDataDir);
         const pushDb = drizzle(pushPglite, { schema });
 
         try {

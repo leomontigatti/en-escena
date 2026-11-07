@@ -93,7 +93,7 @@ describe("drizzle's migration watermark", () => {
   }
 
   it("never applies a migration merged with a timestamp below the watermark", async () => {
-    const pglite = new PGlite();
+    const pglite = await PGlite.create();
 
     try {
       await applyAndReadJournal(
@@ -154,7 +154,7 @@ describe("drizzle's migration watermark", () => {
   });
 
   it("does not notice a migration file edited after it was applied", async () => {
-    const pglite = new PGlite();
+    const pglite = await PGlite.create();
 
     try {
       await applyAndReadJournal(
