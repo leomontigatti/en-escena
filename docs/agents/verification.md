@@ -66,17 +66,43 @@ predates the change. Quote any URL with a `$`-segment route or a query string
 
 ## Evidence
 
-A change to what a screen looks like is shown as before and after images; a change to motion or
-interaction as a short recording.
+A change to what a screen looks like is shown as a reference and an after image; a change to
+motion or interaction as a short recording. The reference is the approved prototype variant when
+the change had one (§ Prototype), else a before.
 
-- Capture the **before** during exploration, before the first edit, and the **after** once the
+- Capture a **before** during exploration, before the first edit, and the **after** once the
   change is final: same screen, same account, same 1440×900 viewport. Both are `playwright-cli`,
   in a T3 thread too (`pnpm ui:session <role> <path>`, then
-  `screenshot --filename=.playwright-cli/<what>-before.png`, and `-after.png`). A recording can
-  come from `preview_recording_start` and `preview_recording_stop`.
+  `screenshot --filename=.playwright-cli/<what>-before.png`, `-reference.png` for an approved
+  variant, and `-after.png`). A recording can come from `preview_recording_start` and
+  `preview_recording_stop`.
 - Show them to the user in the thread for approval before the PR opens (the `implement` skill's
   step 7): embed each image by its absolute path, `<worktree>/.playwright-cli/<what>-after.png`.
   `.playwright-cli/` is gitignored, so the images never reach the repo or the PR.
+
+## Prototype
+
+How the shared `prototype` skill's UI branch runs here.
+
+- **Gates.** Lint and types run on a `prototype/*` branch as anywhere, and so does every other
+  check in `.husky/pre-commit` but one: `pnpm check:fallow` skips the branch there, because
+  variants and the switcher trip dead code and complexity by design, and the branch never merges.
+  The `Stop` hook runs no fallow, so it is unchanged. A push to a prototype branch starts no CI:
+  `ci.yml` runs on PRs to `master` and by hand (`workflow_dispatch`), and a prototype branch
+  opens no PR.
+- **Reference capture.** For the implementation's evidence, add a worktree of the prototype
+  branch beside this one and set it up as `t3.json`'s setup script does, which runs only for a
+  worktree T3 creates: `git worktree add ../<name> prototype/<n>`, then in it
+  `ln -sf <main checkout>/.env .env && pnpm install --frozen-lockfile && pnpm exec react-router typegen`.
+  Launch it there with `pnpm ui:session <role> <path>` (its first run gives it its own port and
+  database) and capture the approved variant at 1440×900 with the same demo account as the
+  after, into this worktree:
+  `screenshot --filename=<this worktree>/.playwright-cli/<what>-reference.png`, an absolute
+  path, since a relative one lands in the prototype's worktree. Then close the session and
+  `pnpm dev:stop` there (§ Cleanup), `git worktree remove` it; its database waits for the next
+  sweep ([housekeeping.md](./housekeeping.md)).
+- **Style overrides.** A rule of [style-guide.md](./style-guide.md) the winner breaks changes in
+  the implementation's PR, citing the winner comment.
 
 ## Cleanup
 
