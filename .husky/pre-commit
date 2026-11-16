@@ -12,7 +12,13 @@ pnpm exec lint-staged
 pnpm check:comment-language
 pnpm typecheck
 pnpm check:file-tokens
-pnpm check:fallow
+# A `prototype/*` branch skips fallow: its variants and switcher trip dead code
+# and complexity by design, and the branch never merges
+# (docs/agents/verification.md § Prototype).
+case "$(git branch --show-current)" in
+  prototype/*) ;;
+  *) pnpm check:fallow ;;
+esac
 # The cheap CI checks, each under a second, so a commit catches what would
 # otherwise fail a PR. CI still runs them all: a hook can be skipped, CI cannot.
 # `check:migration-immutability` stays CI-only: it diffs `origin/master` against
