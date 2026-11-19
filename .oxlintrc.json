@@ -52,40 +52,10 @@
       {
         "assertionStyle": "never"
       }
-    ]
+    ],
+    "typescript/no-unnecessary-type-assertion": "error"
   },
   "overrides": [
-    {
-      "files": [
-        "app/components/shared/roster-document-conflict.test.tsx",
-        "app/features/admin/choreographies/detail/server.draft.db.test.ts",
-        "app/features/admin/events/detail/view.test.tsx",
-        "app/features/admin/finances/available-balance-consistency.db.test.ts",
-        "app/features/admin/finances/inscription-money/money-action.server.db.test.ts",
-        "app/features/admin/modalities/criteria-dialog.test.tsx",
-        "app/features/admin/presentations/list/notices.interaction.test.tsx",
-        "app/features/portal/finances/seminar-detail/server.db.test.ts",
-        "app/features/portal/seminars/detail/server.db.test.ts",
-        "app/features/program/list.interaction.test.tsx",
-        "app/features/program/public/server.db.test.ts",
-        "app/lib/admin/finances/finances.test-support.ts",
-        "app/lib/admin/finances/seminar-finances.test-support.ts",
-        "app/lib/admin/finances/seminar-presets-route.server.db.test.ts",
-        "app/lib/auth/access-email-send-failure.server.db.test.ts",
-        "app/lib/choreographies/choreography-removal.server.db.test.ts",
-        "app/lib/finances/available-balance.server.test.ts",
-        "app/lib/finances/choreography-cobro-presets.server.db.test.ts",
-        "app/lib/finances/choreography-price-divergence-guard.server.db.test.ts",
-        "app/lib/finances/inscription-money.server.db.test.ts",
-        "app/lib/finances/operational-summary-withdrawal.server.db.test.ts",
-        "app/lib/finances/seminar-inscription-allocation.server.db.test.ts",
-        "app/lib/seminar-prices/repository.server.db.test.ts",
-        "app/lib/seminars/linked-individual-inscriptions.server.db.test.ts"
-      ],
-      "rules": {
-        "typescript/no-unnecessary-type-assertion": "error"
-      }
-    },
     {
       "files": [
         "app/components/admin/events/form.tsx",
