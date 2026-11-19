@@ -91,7 +91,7 @@ function overrideProblems({ allowlist, overrides }: RatchetInput): string[] {
 function disableProblems({ disableComments }: RatchetInput): string[] {
   return disableComments.map(
     ({ file, line }) =>
-      `${file}:${line}: a disable comment that names ${ruleName}, or no rule at all. The rule takes none: ${ratchet.instead}.`,
+      `${file}:${line}: a disable comment that names ${ruleName}, or no rule at all. The rule takes none. ${ratchet.instead}.`,
   );
 }
 
