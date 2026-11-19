@@ -46,8 +46,8 @@ describe("counting effects", () => {
 
   test("leaves calls that do not reach React's effect hooks", () => {
     const source = component(
-      `import { useMemo } from "react";\nimport { useEffect } from "./not-react";`,
-      "useMemo(() => 1, []); useEffect(); helpers.useEffect();",
+      `import React, { useMemo } from "react";\nimport { useEffect } from "./not-react";`,
+      `useMemo(() => 1, []); useEffect(); helpers.useEffect(); const useLayoutEffect = "useMemo"; React[useLayoutEffect](() => 1, []);`,
     );
 
     expect(countEffects(source, "probe.tsx")).toBe(0);

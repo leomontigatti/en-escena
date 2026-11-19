@@ -48,12 +48,14 @@ const identifier = z.object({
   type: z.literal("Identifier"),
   name: z.string(),
 });
-// A name an import or a member access spells: `useEffect`, or `"useEffect"`.
+const stringLiteral = z.object({
+  type: z.literal("Literal"),
+  value: z.string(),
+});
+// A name an import spells: `useEffect`, or `"useEffect"`.
 const name = z.union([
   identifier.transform(({ name }) => name),
-  z
-    .object({ type: z.literal("Literal"), value: z.string() })
-    .transform(({ value }) => value),
+  stringLiteral.transform(({ value }) => value),
 ]);
 const reactImport = z.object({
   type: z.literal("ImportDeclaration"),
@@ -70,13 +72,34 @@ const directCall = z.object({
   type: z.literal("CallExpression"),
   callee: identifier,
 });
+// `React.useEffect` names the hook and `React["useEffect"]` spells it as a
+// string; `React[useEffect]` reads a variable, whatever it is called.
 const memberCall = z.object({
   type: z.literal("CallExpression"),
-  callee: z.object({
-    type: z.literal("MemberExpression"),
-    object: identifier,
-    property: name,
-  }),
+  callee: z.union([
+    z
+      .object({
+        type: z.literal("MemberExpression"),
+        computed: z.literal(false),
+        object: identifier,
+        property: identifier,
+      })
+      .transform(({ object, property }) => ({
+        object,
+        property: property.name,
+      })),
+    z
+      .object({
+        type: z.literal("MemberExpression"),
+        computed: z.literal(true),
+        object: identifier,
+        property: stringLiteral,
+      })
+      .transform(({ object, property }) => ({
+        object,
+        property: property.value,
+      })),
+  ]),
 });
 
 /** The local names the imports from `react` give the effect hooks and the module. */
