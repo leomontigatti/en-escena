@@ -117,7 +117,7 @@ describe("the seminar financial detail's comprobantes tab", () => {
 });
 
 describe("what a `(seminar, academy)` unit's documents leave pending", () => {
-  async function loadList(input: { academyId: string; eventId: string }) {
+  async function loadList(input: { academyId: string }) {
     const { request } = await createSignedInRequest({
       email: `${crypto.randomUUID()}@example.com`,
       role: "admin",

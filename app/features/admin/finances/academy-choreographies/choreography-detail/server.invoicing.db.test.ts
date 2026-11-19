@@ -286,11 +286,7 @@ async function buildActionRequest(input: {
   });
 }
 
-function detailUrl(input: {
-  academyId: string;
-  choreographyId: string;
-  eventId: string;
-}) {
+function detailUrl(input: { academyId: string; choreographyId: string }) {
   return `http://localhost/administracion/finanzas/${input.academyId}/coreografias/${input.choreographyId}`;
 }
 

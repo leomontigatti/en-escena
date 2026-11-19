@@ -79,7 +79,6 @@ async function loadDetailAsAdmin(input: {
     requestUrl: choreographyFinanceDetailUrl({
       academyId: input.academyId,
       choreographyId: input.choreographyId,
-      eventId: input.eventId,
     }),
   });
 
@@ -616,7 +615,6 @@ describe("`/administracion/finanzas` choreography detail", () => {
 function choreographyFinanceDetailUrl(input: {
   academyId: string;
   choreographyId: string;
-  eventId: string;
 }) {
   return `http://localhost/administracion/finanzas/${input.academyId}/coreografias/${input.choreographyId}`;
 }

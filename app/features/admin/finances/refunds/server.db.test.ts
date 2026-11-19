@@ -122,10 +122,10 @@ async function read(refundId: string, role: "admin" | "auditor" = "admin") {
   return await loadRefundDetail(request, refundId);
 }
 
-async function readBalance(academyId: string, eventId: string) {
+async function readBalance(academyId: string) {
   const { request } = await createSignedInRequest({
     email: `${crypto.randomUUID()}@example.com`,
-    requestUrl: academyFinancesUrl(academyId, eventId),
+    requestUrl: academyFinancesUrl(academyId),
     role: "admin",
   });
   const page = await academyFinancesLoader(
@@ -240,8 +240,8 @@ describe("correcting a refund", () => {
   });
 
   test("deletes it, raising the `Saldo disponible` by its amount, and returns to the list", async () => {
-    const { academyId, eventId, refund } = await seedRefund();
-    const before = await readBalance(academyId, eventId);
+    const { academyId, refund } = await seedRefund();
+    const before = await readBalance(academyId);
 
     const thrown = await post(refund.id, deleteForm(refund.version)).catch(
       (response: unknown) => response,
@@ -256,7 +256,7 @@ describe("correcting a refund", () => {
         variant: "success",
       },
     );
-    await expect(readBalance(academyId, eventId)).resolves.toBe(before + 1000);
+    await expect(readBalance(academyId)).resolves.toBe(before + 1000);
   });
 
   test("refuses a deletion over a refund changed meanwhile", async () => {

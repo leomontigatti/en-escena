@@ -226,12 +226,12 @@ export function renderFinanceAccountsRoute(input: {
   );
 }
 
-export function academyFinancesUrl(academyId: string, eventId: string) {
-  return `http://localhost/administracion/finanzas/${academyId}?evento=${eventId}`;
+export function academyFinancesUrl(academyId: string) {
+  return `http://localhost/administracion/finanzas/${academyId}`;
 }
 
-export function financesListUrl(eventId: string) {
-  return `http://localhost/administracion/finanzas?evento=${eventId}`;
+export function financesListUrl() {
+  return "http://localhost/administracion/finanzas";
 }
 
 export function academyFinancesRouteArgs(request: Request, academyId: string) {

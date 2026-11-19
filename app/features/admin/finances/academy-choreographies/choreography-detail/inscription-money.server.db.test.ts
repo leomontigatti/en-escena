@@ -103,7 +103,6 @@ async function seedInscription(paymentAmounts = [50000]) {
 async function postDetailAction(input: {
   academyId: string;
   choreographyId: string;
-  eventId: string;
   fields: Record<string, string>;
 }) {
   const requestUrl = `http://localhost/administracion/finanzas/${input.academyId}/coreografias/${input.choreographyId}`;
@@ -147,7 +146,6 @@ async function postDetailAction(input: {
 async function loadDetail(input: {
   academyId: string;
   choreographyId: string;
-  eventId: string;
 }) {
   const requestUrl = `http://localhost/administracion/finanzas/${input.academyId}/coreografias/${input.choreographyId}`;
   const { request } = await createSignedInRequest({
@@ -206,7 +204,6 @@ describe("money on an inscription through the route action", () => {
     const response = await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "allocate-inscription",
         inscriptionId: fixture.inscriptionId,
@@ -237,7 +234,6 @@ describe("money on an inscription through the route action", () => {
     await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "allocate-inscription",
         inscriptionId: fixture.inscriptionId,
@@ -264,7 +260,6 @@ describe("money on an inscription through the route action", () => {
     await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "allocate-inscription",
         inscriptionId: fixture.inscriptionId,
@@ -276,7 +271,6 @@ describe("money on an inscription through the route action", () => {
     const result = await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "allocate-inscription",
         inscriptionId: fixture.inscriptionId,
@@ -304,7 +298,6 @@ describe("money on an inscription through the route action", () => {
     await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "allocate-inscription",
         inscriptionId: fixture.inscriptionId,
@@ -320,7 +313,6 @@ describe("money on an inscription through the route action", () => {
     const result = await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "allocate-inscription",
         inscriptionId: fixture.inscriptionId,
@@ -343,7 +335,6 @@ describe("money on an inscription through the route action", () => {
     await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "allocate-inscription",
         inscriptionId: fixture.inscriptionId,
@@ -357,7 +348,6 @@ describe("money on an inscription through the route action", () => {
     await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "remove-inscription-money",
         inscriptionId: fixture.inscriptionId,
@@ -368,7 +358,6 @@ describe("money on an inscription through the route action", () => {
     const result = await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "allocate-inscription",
         inscriptionId: fixture.inscriptionId,
@@ -390,7 +379,6 @@ describe("money on an inscription through the route action", () => {
     await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "allocate-inscription",
         inscriptionId: fixture.inscriptionId,
@@ -402,7 +390,6 @@ describe("money on an inscription through the route action", () => {
     const response = await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "remove-inscription-money",
         inscriptionId: fixture.inscriptionId,
@@ -432,7 +419,6 @@ describe("money on an inscription through the route action", () => {
     await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "allocate-inscription",
         inscriptionId: fixture.inscriptionId,
@@ -451,7 +437,6 @@ describe("money on an inscription through the route action", () => {
     const response = await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "release-inscription-excess",
         inscriptionId: fixture.inscriptionId,
@@ -532,7 +517,6 @@ describe("waiving an inscription through the route action", () => {
     return await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: { intent, inscriptionId: fixture.inscriptionId },
     });
   }
@@ -566,7 +550,6 @@ describe("waiving an inscription through the route action", () => {
     await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "allocate-inscription",
         inscriptionId: fixture.inscriptionId,
@@ -593,7 +576,6 @@ describe("waiving an inscription through the route action", () => {
     const result = await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "allocate-inscription",
         inscriptionId: fixture.inscriptionId,
@@ -669,7 +651,6 @@ describe("waiving a whole choreography through the route action", () => {
     return await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: { intent },
     });
   }
@@ -696,7 +677,6 @@ describe("waiving a whole choreography through the route action", () => {
     await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "allocate-inscription",
         inscriptionId: fixture.inscriptionId,
@@ -744,7 +724,6 @@ describe("the deposit a withdrawn inscription retains", () => {
     await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: {
         intent: "allocate-inscription",
         inscriptionId: fixture.inscriptionId,
@@ -766,7 +745,6 @@ describe("the deposit a withdrawn inscription retains", () => {
     return postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
       fields: { inscriptionId: fixture.inscriptionId, ...fields },
     });
   }

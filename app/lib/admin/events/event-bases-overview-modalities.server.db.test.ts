@@ -132,7 +132,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       name: "Regional 2026",
       ...eventDates(2030),
     });
-    await createSavedEvent({
+    const inactiveEvent = await createSavedEvent({
       name: "Nacional 2026",
       active: false,
       ...eventDates(2030),
@@ -141,7 +141,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const request = await createSignedInRequest({
       email: "admin.no.activo@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades`,
+      requestUrl: `http://localhost/administracion/modalidades?evento=${inactiveEvent.id}`,
     });
     const data = await loader(routeArgs(request.request));
     const markup = renderModalidadesRoute(data);

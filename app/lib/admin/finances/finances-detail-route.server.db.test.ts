@@ -229,7 +229,7 @@ describe("`/administracion/finanzas` academy", () => {
     const { request } = await createSignedInRequest({
       email: "admin.snapshot.cuenta.corriente@example.com",
       role: "admin",
-      requestUrl: academyFinancesUrl(academy.academy.id, event.id),
+      requestUrl: academyFinancesUrl(academy.academy.id),
     });
 
     const loaderData = await academyFinancesLoader(
@@ -268,7 +268,7 @@ describe("`/administracion/finanzas` academy", () => {
 
   // Not reviewed for the auditor yet (PRD #1448): the finances refuse them.
   test("refuses the auditor and blocks non-admin payment registration", async () => {
-    const event = await createSavedEvent();
+    await createSavedEvent();
     const academy = await createAcademyUser({
       email: "academia.auditoria.finanzas@example.com",
       academyName: "Academia Auditoria",
@@ -276,7 +276,7 @@ describe("`/administracion/finanzas` academy", () => {
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditor.finanzas@example.com",
       role: "auditor",
-      requestUrl: academyFinancesUrl(academy.academy.id, event.id),
+      requestUrl: academyFinancesUrl(academy.academy.id),
     });
 
     await expect(
@@ -356,7 +356,7 @@ describe("`/administracion/finanzas` academy", () => {
     const { request } = await createSignedInRequest({
       email: "admin.coreografias.finanzas@example.com",
       role: "admin",
-      requestUrl: academyFinancesUrl(academy.academy.id, event.id),
+      requestUrl: academyFinancesUrl(academy.academy.id),
     });
 
     const loaderData = await academyFinancesLoader(
@@ -442,7 +442,7 @@ describe("`/administracion/finanzas` academy", () => {
     const { request: signedIn } = await createSignedInRequest({
       email: "admin.preset.ruta@example.com",
       role: "admin",
-      requestUrl: academyFinancesUrl(academy.academy.id, event.id),
+      requestUrl: academyFinancesUrl(academy.academy.id),
     });
     const formData = new FormData();
     formData.set("intent", "pay-deposit-preset");
@@ -451,7 +451,7 @@ describe("`/administracion/finanzas` academy", () => {
 
     const actionData = await academyFinancesAction(
       academyFinancesRouteArgs(
-        new Request(academyFinancesUrl(academy.academy.id, event.id), {
+        new Request(academyFinancesUrl(academy.academy.id), {
           method: "POST",
           body: formData,
           headers: { cookie: signedIn.headers.get("cookie") ?? "" },
@@ -529,7 +529,7 @@ describe("`/administracion/finanzas` academy", () => {
     });
     const loaderData = await academyFinancesLoader(
       academyFinancesRouteArgs(
-        new Request(academyFinancesUrl(academy.academy.id, event.id), {
+        new Request(academyFinancesUrl(academy.academy.id), {
           headers: {
             cookie:
               secondRequest.headers.get("cookie") ??

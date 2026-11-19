@@ -121,7 +121,7 @@ async function adminCookie(fixture: Fixture) {
   const signedIn = await createSignedInRequest({
     email: `admin.${crypto.randomUUID()}@example.com`,
     role: "admin",
-    requestUrl: academyFinancesUrl(fixture.academyId, fixture.eventId),
+    requestUrl: academyFinancesUrl(fixture.academyId),
   });
 
   return signedIn.request.headers.get("cookie") ?? "";
@@ -130,10 +130,9 @@ async function adminCookie(fixture: Fixture) {
 async function loadPanelAcademy(fixture: Fixture) {
   return await loadAcademyFinances({
     params: { academyId: fixture.academyId },
-    request: new Request(
-      academyFinancesUrl(fixture.academyId, fixture.eventId),
-      { headers: { cookie: await adminCookie(fixture) } },
-    ),
+    request: new Request(academyFinancesUrl(fixture.academyId), {
+      headers: { cookie: await adminCookie(fixture) },
+    }),
   });
 }
 

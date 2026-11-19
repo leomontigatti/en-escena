@@ -210,7 +210,7 @@ describe("`Saldo disponible` across surfaces", () => {
     const individualBalance = 16000 - individual.depositAmount;
 
     const financesList = await financesListLoader(
-      financesListRouteArgs(await adminRequest(financesListUrl(event.id))),
+      financesListRouteArgs(await adminRequest(financesListUrl())),
     );
     const listBalance = (academyId: string) =>
       financesList.rows.find((row) => row.academyId === academyId)
@@ -220,7 +220,7 @@ describe("`Saldo disponible` across surfaces", () => {
       (
         await academyFinancesLoader(
           academyFinancesRouteArgs(
-            await adminRequest(academyFinancesUrl(academyId, event.id)),
+            await adminRequest(academyFinancesUrl(academyId)),
             academyId,
           ),
         )
