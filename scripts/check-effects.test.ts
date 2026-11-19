@@ -24,6 +24,26 @@ describe("counting effects", () => {
     expect(countEffects(source, "probe.tsx")).toBe(3);
   });
 
+  test("counts one reached through a string-named import or a computed member", () => {
+    const source = component(
+      `import { default as R, "useLayoutEffect" as onLayout } from "react";\nimport React from "react";`,
+      `R.useEffect(() => {}); onLayout(() => {}); React["useInsertionEffect"](() => {});`,
+    );
+
+    expect(countEffects(source, "probe.tsx")).toBe(3);
+  });
+
+  test("refuses a file it cannot parse, rather than counting it as none", () => {
+    const source = component(
+      `import { useEffect } from "react";`,
+      "useEffect(() => {}); const = ;",
+    );
+
+    expect(() => countEffects(source, "app/broken.tsx")).toThrow(
+      "app/broken.tsx",
+    );
+  });
+
   test("leaves calls that do not reach React's effect hooks", () => {
     const source = component(
       `import { useMemo } from "react";\nimport { useEffect } from "./not-react";`,
@@ -47,7 +67,7 @@ describe("the effect ratchet", () => {
     ).toEqual([]);
   });
 
-  test("fails a new effect outside app/hooks, and says where it goes", () => {
+  test("fails an effect in an unlisted file, and names app/hooks as where it goes", () => {
     const found = effectProblems({
       counts: { "app/routes/a.tsx": 2, "app/routes/b.tsx": 1 },
       list,

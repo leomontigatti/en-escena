@@ -48,6 +48,13 @@ const identifier = z.object({
   type: z.literal("Identifier"),
   name: z.string(),
 });
+// A name an import or a member access spells: `useEffect`, or `"useEffect"`.
+const name = z.union([
+  identifier.transform(({ name }) => name),
+  z
+    .object({ type: z.literal("Literal"), value: z.string() })
+    .transform(({ value }) => value),
+]);
 const reactImport = z.object({
   type: z.literal("ImportDeclaration"),
   source: z.object({ value: z.literal("react") }),
@@ -55,7 +62,7 @@ const reactImport = z.object({
     z.object({
       type: z.string(),
       local: identifier,
-      imported: identifier.optional(),
+      imported: name.optional(),
     }),
   ),
 });
@@ -67,9 +74,8 @@ const memberCall = z.object({
   type: z.literal("CallExpression"),
   callee: z.object({
     type: z.literal("MemberExpression"),
-    computed: z.literal(false),
     object: identifier,
-    property: identifier,
+    property: name,
   }),
 });
 
@@ -82,10 +88,10 @@ function reactBindings(statements: unknown[]) {
   );
 
   for (const { type, local, imported } of specifiers) {
-    if (type !== "ImportSpecifier") {
+    if (type !== "ImportSpecifier" || imported === "default") {
       // A default or namespace import reaches every hook as a member.
       modules.add(local.name);
-    } else if (imported && effectHooks.has(imported.name)) {
+    } else if (imported !== undefined && effectHooks.has(imported)) {
       hooks.add(local.name);
     }
   }
@@ -103,7 +109,7 @@ function isEffectCall(node: unknown, { hooks, modules }: Bindings): boolean {
     (direct !== undefined && hooks.has(direct.callee.name)) ||
     (member !== undefined &&
       modules.has(member.callee.object.name) &&
-      effectHooks.has(member.callee.property.name))
+      effectHooks.has(member.callee.property))
   );
 }
 
@@ -126,7 +132,13 @@ function childrenOf(node: unknown): unknown[] {
 
 /** How many calls to React's effect hooks `source` makes; `file` picks the language. */
 export function countEffects(source: string, file: string): number {
-  const { program } = parseSync(file, source);
+  const { program, errors } = parseSync(file, source);
+
+  // A file that does not parse would count as none and drop its entry.
+  if (errors.length > 0) {
+    throw new Error(`${file}: cannot parse it to count its effects.`);
+  }
+
   const bindings = reactBindings(program.body);
   const pending: unknown[] = [program];
   let count = 0;
