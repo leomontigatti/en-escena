@@ -99,6 +99,44 @@
       "rules": {
         "code/catch-reason": "error"
       }
+    },
+    {
+      "files": ["app/**/*.ts", "app/**/*.tsx"],
+      "excludeFiles": [
+        "app/lib/shared/**",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.test-support.ts",
+        "**/*.test-support.tsx",
+        "**/test-support/**"
+      ],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "fetch",
+            "message": "A network call is a named function in app/lib/shared/ (like email.server.ts or decode-audio.ts); the app's own data goes through loaders, actions and fetchers."
+          }
+        ],
+        "no-restricted-properties": [
+          "error",
+          {
+            "object": "globalThis",
+            "property": "fetch",
+            "message": "A network call is a named function in app/lib/shared/ (like email.server.ts or decode-audio.ts); the app's own data goes through loaders, actions and fetchers."
+          },
+          {
+            "object": "window",
+            "property": "fetch",
+            "message": "A network call is a named function in app/lib/shared/ (like email.server.ts or decode-audio.ts); the app's own data goes through loaders, actions and fetchers."
+          },
+          {
+            "object": "self",
+            "property": "fetch",
+            "message": "A network call is a named function in app/lib/shared/ (like email.server.ts or decode-audio.ts); the app's own data goes through loaders, actions and fetchers."
+          }
+        ]
+      }
     }
   ]
 }
