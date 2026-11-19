@@ -71,7 +71,7 @@ describe("`/administracion/bailarines` route: archive and merge", () => {
     const { request } = await createSignedInRequest({
       email: "admin.archivo.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
 
     const archiveResult = await detailAction(
@@ -108,7 +108,7 @@ describe("`/administracion/bailarines` route: archive and merge", () => {
   });
 
   test("archives and reactivates a dancer with no live commitment in the active event", async () => {
-    const event = await createSavedEvent({ name: "Regional 2026" });
+    await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.archivo.libre.academia@example.com",
       academyName: "Academia Archivo Libre",
@@ -124,7 +124,7 @@ describe("`/administracion/bailarines` route: archive and merge", () => {
     const { request } = await createSignedInRequest({
       email: "admin.archivo.libre@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
 
     const archiveResult = await detailAction(
@@ -190,7 +190,7 @@ describe("`/administracion/bailarines` route: archive and merge", () => {
     const { request } = await createSignedInRequest({
       email: "admin.fusion.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${removed.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${removed.id}`,
     });
 
     await expect(
@@ -233,7 +233,7 @@ describe("`/administracion/bailarines` route: archive and merge", () => {
   });
 
   test("offers no merge to an auditor and refuses the intent with a 403", async () => {
-    const event = await createSavedEvent({ name: "Regional 2026" });
+    await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "auditor.fusion.bailarines.academia@example.com",
       academyName: "Academia Fusión Auditor",
@@ -253,7 +253,7 @@ describe("`/administracion/bailarines` route: archive and merge", () => {
     const { request } = await createSignedInRequest({
       email: "auditor.fusion.bailarines@example.com",
       role: "auditor",
-      requestUrl: `http://localhost/administracion/bailarines/${removed.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${removed.id}`,
     });
 
     await expect(

@@ -163,7 +163,7 @@ describe("finance consistency across admin and portal surfaces", () => {
     const { request: adminRequest } = await createSignedInRequest({
       email: "admin.portal.consistencia@example.com",
       role: "admin",
-      requestUrl: academyFinancesUrl(owner.academyId, event.id),
+      requestUrl: academyFinancesUrl(owner.academyId),
     });
     const adminLoaderData = await academyFinancesLoader(
       academyFinancesRouteArgs(adminRequest, owner.academyId),
@@ -384,7 +384,6 @@ async function loadChoreographyFinanceDetailAsAdmin(input: {
     requestUrl: choreographyFinanceDetailUrl({
       academyId: input.academyId,
       choreographyId: input.choreographyId,
-      eventId: input.eventId,
     }),
   });
 
@@ -400,9 +399,8 @@ async function loadChoreographyFinanceDetailAsAdmin(input: {
 function choreographyFinanceDetailUrl(input: {
   academyId: string;
   choreographyId: string;
-  eventId: string;
 }) {
-  return `http://localhost/administracion/finanzas/${input.academyId}/coreografias/${input.choreographyId}?evento=${input.eventId}`;
+  return `http://localhost/administracion/finanzas/${input.academyId}/coreografias/${input.choreographyId}`;
 }
 
 function choreographyDetailRouteArgs(input: {

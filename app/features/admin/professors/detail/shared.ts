@@ -198,11 +198,7 @@ export function buildProfessorEditSchema() {
 }
 
 export function buildProfessorBackToListHref(requestUrl: string) {
-  const url = new URL(requestUrl);
-  const searchParams = new URLSearchParams(url.search);
-
-  searchParams.delete("evento");
-  const search = searchParams.toString();
+  const search = new URL(requestUrl).searchParams.toString();
 
   return `/administracion/profesores${search.length > 0 ? `?${search}` : ""}`;
 }

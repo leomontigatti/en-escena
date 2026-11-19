@@ -308,16 +308,15 @@ export type SeminarPresetFixture = Awaited<
   ReturnType<typeof seedSeminarPresetFixture>
 >;
 
-export function seminarInscriptionFinancesUrl(eventId: string) {
-  return `http://localhost/administracion/finanzas/seminarios?evento=${eventId}`;
+export function seminarInscriptionFinancesUrl() {
+  return "http://localhost/administracion/finanzas/seminarios";
 }
 
 export function seminarFinanceDetailRequestUrl(input: {
   academyId: string;
-  eventId: string;
   seminarId: string;
 }) {
-  return `http://localhost/administracion/finanzas/${input.academyId}/seminarios/${input.seminarId}?evento=${input.eventId}`;
+  return `http://localhost/administracion/finanzas/${input.academyId}/seminarios/${input.seminarId}`;
 }
 
 /**

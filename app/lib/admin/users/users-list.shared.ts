@@ -13,7 +13,6 @@ export type UserListFilters = {
   role: UserRole | "all";
   /** `null` is no state chosen, and the list then shows the active users. */
   state: UserAccessState | null;
-  type: UserListType | "all";
 };
 
 export type UserListItem = {
@@ -40,7 +39,6 @@ export function toUserListFacets(filters: UserListFilters) {
   return {
     estado: filters.state,
     rol: filters.role === "all" ? null : filters.role,
-    tipo: filters.type === "all" ? null : filters.type,
   };
 }
 

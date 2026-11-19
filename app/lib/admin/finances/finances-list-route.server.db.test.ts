@@ -247,7 +247,7 @@ describe("`/administracion/finanzas`", () => {
     const { request: listRequest } = await createSignedInRequest({
       email: "admin.reporte.lista@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/academias?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/academias`,
     });
     const academiesLoaderData = await academiesLoader(
       academiesRouteArgs(listRequest),
@@ -261,7 +261,7 @@ describe("`/administracion/finanzas`", () => {
     const { request: financesRequest } = await createSignedInRequest({
       email: "admin.reporte@example.com",
       role: "admin",
-      requestUrl: financesListUrl(event.id),
+      requestUrl: financesListUrl(),
     });
 
     const loaderData = await financeAccountsLoader(
@@ -347,7 +347,7 @@ describe("`/administracion/finanzas`", () => {
     const { request } = await createSignedInRequest({
       email: "admin.precio.pendiente@example.com",
       role: "admin",
-      requestUrl: financesListUrl(event.id),
+      requestUrl: financesListUrl(),
     });
 
     const loaderData = await financeAccountsLoader(
@@ -389,11 +389,11 @@ describe("`/administracion/finanzas`", () => {
   // professor registered in a seminar is its only tie to it, and that is
   // money it owes.
   test("lists an academy whose only tie to the event is a seminar inscription", async () => {
-    const fixture = await seedEventSeminarFinanceFixture();
+    await seedEventSeminarFinanceFixture();
     const { request } = await createSignedInRequest({
       email: "admin.seminarios.lista@example.com",
       role: "admin",
-      requestUrl: financesListUrl(fixture.eventId),
+      requestUrl: financesListUrl(),
     });
 
     const loaderData = await financeAccountsLoader(
@@ -423,7 +423,7 @@ describe("`/administracion/finanzas`", () => {
       email: "academia.pago.global@example.com",
       academyName: "Academia Pago Global",
     });
-    const createUrl = `http://localhost/administracion/movimientos/nuevo?evento=${event.id}`;
+    const createUrl = `http://localhost/administracion/movimientos/nuevo`;
     const { request: loaderRequest } = await createSignedInRequest({
       email: "admin.pago.global@example.com",
       role: "admin",
@@ -516,11 +516,11 @@ describe("`/administracion/finanzas`", () => {
 
   // Not reviewed for the auditor yet (PRD #1448): the finances refuse them.
   test("refuses auditors and academy users", async () => {
-    const event = await createSavedEvent();
+    await createSavedEvent();
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditor.reporte.finanzas@example.com",
       role: "auditor",
-      requestUrl: financesListUrl(event.id),
+      requestUrl: financesListUrl(),
     });
 
     await expect(
@@ -530,7 +530,7 @@ describe("`/administracion/finanzas`", () => {
     const { request: academyRequest } = await createSignedInRequest({
       email: "academia.reporte.bloqueada@example.com",
       role: "academy",
-      requestUrl: financesListUrl(event.id),
+      requestUrl: financesListUrl(),
     });
 
     await expect(

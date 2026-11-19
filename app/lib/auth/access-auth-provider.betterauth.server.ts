@@ -37,7 +37,6 @@ import type {
   HeadersResult,
   PasswordRecoveryCodeInput,
   PasswordRecoveryRedirectResult,
-  PasswordRecoveryOtpInput,
   PasswordRecoveryUpdateInput,
   PasswordResetRequestInput,
   PasswordResetRequestResult,
@@ -360,15 +359,6 @@ export function createBetterAuthAccessAuthProvider(): AccessAuthProvider {
       return await beginBetterAuthPasswordRecovery({
         redirectTo: input.redirectTo,
         token: input.code,
-      });
-    },
-
-    async verifyPasswordRecoveryOtp(
-      input: PasswordRecoveryOtpInput,
-    ): Promise<PasswordRecoveryRedirectResult> {
-      return await beginBetterAuthPasswordRecovery({
-        redirectTo: input.redirectTo,
-        token: input.tokenHash,
       });
     },
 

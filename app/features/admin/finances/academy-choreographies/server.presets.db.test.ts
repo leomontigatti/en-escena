@@ -117,7 +117,7 @@ async function seedListThatMovedDown() {
     async load() {
       const { request } = await createSignedInRequest({
         email: "admin.presets@example.com",
-        requestUrl: `http://localhost/administracion/finanzas/${academyId}?evento=${event.id}`,
+        requestUrl: `http://localhost/administracion/finanzas/${academyId}`,
         role: "admin",
       });
 

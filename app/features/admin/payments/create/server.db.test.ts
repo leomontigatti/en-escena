@@ -139,7 +139,7 @@ describe("registering a refund", () => {
     const readPage = async () => {
       const { request } = await createSignedInRequest({
         email: `${crypto.randomUUID()}@example.com`,
-        requestUrl: academyFinancesUrl(academyId, event.id),
+        requestUrl: academyFinancesUrl(academyId),
         role: "admin",
       });
 

@@ -13,7 +13,6 @@ export type SeminarFinanceActionData = ComprobanteEmissionActionData;
 export function seminarFinanceDetailUrl(
   academyId: string,
   seminarId: string,
-  eventId: string,
 ): string {
-  return `/administracion/finanzas/${academyId}/seminarios/${seminarId}?evento=${eventId}`;
+  return `/administracion/finanzas/${academyId}/seminarios/${seminarId}`;
 }

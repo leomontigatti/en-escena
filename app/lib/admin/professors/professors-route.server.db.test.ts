@@ -329,7 +329,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "auditor.ficha@example.com",
       role: "auditor",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&pagina=2&busqueda=Julia`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?pagina=2&busqueda=Julia`,
     });
 
     const loaderData = await detailLoader(
@@ -349,7 +349,6 @@ describe("`/administracion/profesores` route", () => {
     expect(markup).toContain("Pasaporte");
     expect(markup).toContain("AA123456");
     expect(countOccurrences(markup, "lucide-lock")).toBeGreaterThanOrEqual(5);
-    expect(markup).not.toContain(`evento=${event.id}`);
     expect(markup).not.toContain("estado=todos");
     expect(markup).not.toContain("participando=todos");
     expect(markup).toContain("pagina=2");
@@ -384,7 +383,7 @@ describe("`/administracion/profesores` route", () => {
     const { request: detailRequest } = await createSignedInRequest({
       email: "admin.layout.detail@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
     });
     const listLoaderData = await loader(listRouteArgs(listRequest));
     const detailLoaderData = await detailLoader(
@@ -554,7 +553,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.dialogo.profesores@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
     });
     const loaderData = await detailLoader(
       detailRouteArgs(request, professor.id),
@@ -586,7 +585,7 @@ describe("`/administracion/profesores` route", () => {
   });
 
   test("updates a professor in explicit edit mode", async () => {
-    const event = await createSavedEvent({ name: "Regional 2026" });
+    await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.mutacion.academia@example.com",
       academyName: "Academia Mutacion",
@@ -601,7 +600,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.mutacion@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
     });
 
     const result = await detailAction(
@@ -694,7 +693,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.motivo.evento@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
     });
 
     const result = await detailAction(
@@ -922,7 +921,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.archivo@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
     });
 
     const archiveResult = await detailAction(
@@ -950,7 +949,7 @@ describe("`/administracion/profesores` route", () => {
   });
 
   test("archives and reactivates a professor with no live commitment in the active event", async () => {
-    const event = await createSavedEvent({ name: "Regional 2026" });
+    await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.archivo.libre.academia@example.com",
       academyName: "Academia Archivo Libre",
@@ -965,7 +964,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.archivo.libre@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
     });
 
     const archiveResult = await detailAction(

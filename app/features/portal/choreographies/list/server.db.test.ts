@@ -315,12 +315,9 @@ describe("loadPortalChoreographiesList", () => {
     });
 
     const loaderData = await loadPortalChoreographiesList(
-      new Request(
-        `http://localhost/portal/coreografias?evento=${selectedEvent.id}`,
-        {
-          headers: { cookie: owner.cookie },
-        },
-      ),
+      new Request(`http://localhost/portal/coreografias`, {
+        headers: { cookie: owner.cookie },
+      }),
     );
 
     expect(loaderData.choreographies.map((row) => row.name)).toEqual([
@@ -395,7 +392,7 @@ describe("loadPortalChoreographiesList", () => {
     });
 
     const loaderData = await loadPortalChoreographiesList(
-      new Request(`http://localhost/portal/coreografias?evento=${event.id}`, {
+      new Request(`http://localhost/portal/coreografias`, {
         headers: { cookie: owner.cookie },
       }),
     );
@@ -441,7 +438,7 @@ describe("loadPortalChoreographiesList", () => {
     await withdrawChoreographyForTest(withdrawn.id);
 
     const loaderData = await loadPortalChoreographiesList(
-      new Request(`http://localhost/portal/coreografias?evento=${event.id}`, {
+      new Request(`http://localhost/portal/coreografias`, {
         headers: { cookie: owner.cookie },
       }),
     );

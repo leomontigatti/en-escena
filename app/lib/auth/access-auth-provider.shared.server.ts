@@ -19,12 +19,6 @@ export type EmailOtpConfirmationInput = {
   type: "signup";
 };
 
-export type PasswordRecoveryOtpInput = {
-  request: Request;
-  redirectTo: string;
-  tokenHash: string;
-};
-
 export type PasswordResetRequestInput = {
   email: string;
   redirectTo: string;
@@ -90,9 +84,6 @@ export type AccessAuthProvider = {
   ): Promise<PasswordResetRequestResult>;
   exchangePasswordRecoveryCode(
     input: PasswordRecoveryCodeInput,
-  ): Promise<PasswordRecoveryRedirectResult>;
-  verifyPasswordRecoveryOtp(
-    input: PasswordRecoveryOtpInput,
   ): Promise<PasswordRecoveryRedirectResult>;
   updatePasswordForRecovery(
     input: PasswordRecoveryUpdateInput,

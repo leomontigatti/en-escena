@@ -340,7 +340,7 @@ describe("loadPortalAcademyFinances", () => {
     const { request: adminRequest } = await createSignedInRequest({
       email: "admin.portal.snapshot@example.com",
       role: "admin",
-      requestUrl: academyFinancesUrl(owner.academyId, event.id),
+      requestUrl: academyFinancesUrl(owner.academyId),
     });
     const adminLoaderData = await academyFinancesLoader(
       academyFinancesRouteArgs(adminRequest, owner.academyId),
