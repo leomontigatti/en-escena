@@ -304,13 +304,14 @@ named as "the pool" is the academy pool of [finances.md](../domain/finances.md)
 - **A composite key needs a constraint, not an index.** The votes' composite key references
   the round's finalist unique key, so that key is a table constraint, created with its table
   ahead of anything that needs it.
-- **Column order is part of an insert from a select.** The vote table's last column was
-  added after the table; the insert names the columns in that order, so the order must not
-  change.
+- **An insert from a select fills the columns by position.** The vote's select lists its
+  fields in the order the Drizzle table declares them, and that order must be kept when a
+  field is added to either side.
 - **The primary key is shared.** New tables take `uuidPrimaryKey`, a `varchar(255)` holding
   a UUID the application generates, rather than spelling the column out.
-- **Enum names carry no `en_escena_` prefix.** The prefix is a `create-t3-app` leftover that
-  a repo-wide cleanup removes, so a new enum does not add to it.
+- **A new enum takes no `en_escena_` prefix.** Most existing enums carry it, a
+  `create-t3-app` leftover that a planned repo-wide cleanup (#506) removes, so a new enum
+  does not add to it; `event_document_kind` is the first without it.
 - **A deferrable constraint is hand-written.** Drizzle cannot express `DEFERRABLE INITIALLY
 DEFERRED`; the migration is edited by hand, and the schema comment says so.
 - **ARCA dates and the issuer CUIT are text.** The comprobante date and the CAE expiry are
@@ -337,10 +338,12 @@ DEFERRED`; the migration is edited by hand, and the schema comment says so.
 - **A regex escape survives the template literal only doubled.** Written as `'\s+'`, the
   escape cooks to `'s+'` and collapses runs of the letter `s` instead of whitespace.
 - **Text equality is accent-sensitive.** No folding extension is installed. Search over
-  names is folded with `translate` over a fixed list of accented letters, after NFC
-  composition, with `LIKE` patterns escaped so `%` and `_` match literally. The SQL fold
-  must match the in-memory fold on every input, which is why the list is fixed: `unaccent`
-  would need a migration and an immutable wrapper to be indexable.
+  names is folded with `translate` over a fixed list of composed accented letters, with
+  `LIKE` patterns escaped so `%` and `_` match literally; the name sort composes the column
+  (NFC) first, the search does not, and a diacritic outside the list folds in memory but not
+  in SQL. `unaccent` is not used because it would need an extension, a migration and an
+  immutable wrapper to be indexable, and these searches are unindexed substring scans over
+  small tables.
 - **Error classes are read by SQLSTATE.** The repo refuses only on `unique_violation`
   (23505) and `foreign_key_violation` (23503). Narrowing by constraint name is optional.
 - **`FOR UPDATE` outside a transaction is released at once.** It guards nothing there, so

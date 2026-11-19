@@ -131,8 +131,9 @@ Which channel carries a message (alert, toast or field) is
 - **Figures that age on screen count by the browser's clock alone.** An update
   that did not get through leaves them aging; nothing is written before the
   page hydrates.
-- **A confirmation dialog is unmounted while closed**, so its copy does not
-  change under the user while it animates out of a save or an archive.
+- **A confirmation dialog keeps its copy while it animates out**, so it does not
+  change under the user after a save or an archive. The waiver dialog stays mounted
+  with `open` off and keeps the confirmation it was opened with.
 
 ## Forms
 
@@ -218,11 +219,13 @@ Which channel carries a message (alert, toast or field) is
 
 - **A one-line file field is a box that reads as its own value.** Empty, it shows
   the placeholder, which opens the picker; holding a stored file, it is a link
-  that opens it; locked, it is inert text. Its remove button sits beside the box,
+  that opens it, locked or not; empty and locked, it is inert text. Its remove
+  button sits beside the box,
   since it acts on the value, and the placeholder is muted while a real file name
   is not.
-- **A stored file must be removed before another can replace it.** The field stops
-  offering its picker and refuses drops until the remove button is pressed, so a
+- **Where a file field sets `replaceRequiresRemoval` (the event documents and the
+  seminar form), a stored file must be removed before another can replace it.** The
+  field stops offering its picker and refuses drops until the remove button is pressed, so a
   replacement is always two deliberate steps. An uploaded picture or PDF reads as
   a link that opens it, and the field is the whole status: no line under it
   restates it.
@@ -276,8 +279,7 @@ Which channel carries a message (alert, toast or field) is
   fields another tab's `Guardar` posts, the leave guard.
 
 - **`PinnedActions` is opaque, where `CardFooter` is translucent**, since the
-  fields scroll under it. `data-pinned-actions` keeps a focused field from
-  scrolling into the bar (`app/app.css`).
+  fields scroll under it.
 - **Both shells draw their main column down to the bottom edge**, so a screen can
   grow to fill the viewport; the choreography detail pins its actions to that
   edge.
@@ -333,8 +335,9 @@ What happens after the submit is [form-feedback.md](form-feedback.md).
   made during a save is dropped when the save lands.
 - **A dialog that holds a pick or a typed password starts empty on every
   opening**, since a pick belongs to one opening.
-- **A dialog that holds no typed text never asks before it closes**, as a roster
-  pick cannot be lost.
+- **A dialog that holds no typed text asks before it closes only when it holds an
+  unsaved change**: a roster checkbox that differs from what is saved counts, so the
+  judge dialog asks.
 
 ## Destructive actions
 
@@ -350,9 +353,9 @@ What happens after the submit is [form-feedback.md](form-feedback.md).
 - **A `DeleteDialog`'s description says what goes, not that it is for good**:
   its alert already says the action is irreversible.
 
-- **Every confirmation dialog is bounded to the viewport**, with its reasons,
-  details or consequence as the row that scrolls, so the footer stays reachable
-  on a phone in landscape (#708).
+- **The delete and withdraw dialogs are bounded to the viewport**, with their
+  details as the row that scrolls, so the footer stays reachable on a phone in
+  landscape (#708). A plain `ConfirmationDialog` sets no bound of its own.
 - **A bulk-run dialog is an `AlertDialog` that cannot close while it runs**, since
   closing would hide a run still sending. Its cancel says `Cancelar` before the
   run and `Cerrar` after it, and nothing while it runs.
@@ -388,8 +391,9 @@ What happens after the submit is [form-feedback.md](form-feedback.md).
   changes**, so a search typed in one tab does not filter the next
   (`useResetListQuery`). The change is marked as in-page, so a leave guard over a
   form in another tab does not read it as leaving.
-- **A URL tab's default is the absence of its parameter**: the URL names only tabs
-  the page does not open on. An unknown value opens as if none were named. A
+- **A URL tab's default is the absence of its parameter**, when the page opens on
+  that default: the URL names only tabs the page does not open on. An `openingValue`
+  that differs writes the default's name instead. An unknown value opens as if none were named. A
   switch replaces the history entry and keeps the scroll, and a reset drops the
   page number with the tab.
 
@@ -485,15 +489,18 @@ What happens after the submit is [form-feedback.md](form-feedback.md).
   presentation yet, so its name is plain text.
 - **A search matches what the list shows.** On a presentation list that is the
   name, the academy (only where the list shows one) and the number. A search of
-  digits alone matches whole numbers, so `12` does not bring `112`, and a row not
-  yet in the order has no number to find.
+  digits matches the order number and the choreography number whole, so `12` does
+  not bring `112`, and a row not yet in the order is still found by its choreography
+  number. Digits also match inside names and academies.
 - **A list's search matches a number with and without its zero padding**: `00042`,
   `042` and `42` all reach the same record.
-- **A list's search is accent- and case-insensitive**: typing `bailarin` finds
-  `Bailarín`. The in-memory search is the reference, and its SQL twin must agree
-  on every input.
-- **Typing filters the rows at once, and the address bar catches up 300 ms after
-  the reader stops**, so a search leaves one history entry. The search box's clear
+- **The shared lists' search is accent- and case-insensitive**: typing `bailarin`
+  finds `Bailarín`. The in-memory search is the reference; its SQL twin folds a
+  fixed set of Spanish and common Latin accents, so a diacritic outside that set
+  matches in memory only. The individual choreographies search only lowercases.
+- **On a client list, typing filters the rows at once. On a server list the search
+  reaches the address bar 300 ms after the reader stops**, so a search leaves one
+  history entry. The search box's clear
   button empties it at once, since clearing is a decision and not a pause.
 - **A client list pages at ten rows.** A list read or acted on as a whole asks for
   a bigger page, since its rows are already on the page. An administrative list
@@ -557,8 +564,9 @@ What happens after the submit is [form-feedback.md](form-feedback.md).
 
 - **The address bar owns a list's search, filters, page and order.** The list
   renders the state as it was left, so Back, reload and a shared link show it as
-  left. Writes replace the history entry, since pushing one would turn Back into a
-  page-by-page rewind.
+  left. Client-list writes replace the history entry, since pushing one would turn
+  Back into a page-by-page rewind. A server list's search replaces it too; its
+  sorting, paging and facets push one.
 - **A list's applied query is written back in one fixed order, with every default
   left out**, so one list state has one URL. The reader is redirected there only
   when the address holds something else (the order of parameters alone does not
@@ -567,8 +575,8 @@ What happens after the submit is [form-feedback.md](form-feedback.md).
 - **Stale or invalid list URLs fall back quietly.** An unknown order column takes
   the default order, a page below one is the first page, and two lists on one page
   start clean from each other. A facet at its default does not count as active.
-- **Clearing a filter group removes it from the URL**, and re-picking what is already
-  picked counts as clearing it, so a cleared group never reaches the URL.
+- **Clearing a filter group removes it from the URL**, so a cleared group never
+  reaches it. Picking the value a group already holds is not a clear.
 
 ## Cards
 
@@ -639,10 +647,11 @@ contrato`, `el archivo de la autorización`).
 - **A roster person's document number is text**, so it keeps its leading zeros and
   letters, and the birth date is a real date, so the sheet can sort by it and read
   each age.
-- **A roster person missing a document keeps their row, with the identity cells
-  blank**, so the gap is visible in the export.
-- **An empty document type is written as `Sin documento`, not a blank cell**, since
-  the list leaves the app and a blank cell reads as something someone forgot to copy.
+- **A roster person missing a document keeps their row**, so the gap is visible in
+  the export.
+- **The dancers export writes an empty document type as `Sin documento`, not a blank
+  cell**, since the list leaves the app and a blank cell reads as something someone
+  forgot to copy. The period export leaves that cell blank.
 - **A period export's file name states the period it holds**, so two downloads never
   look alike. A period in a download address that is not a date is read as no
   date, so a hand-edited address gets the wider file rather than an error page.
@@ -767,7 +776,8 @@ above reads for every screen; these only say what is particular to one.
 
 - **A round's batches and audit links sit under their own tabs**, shown only once there
   is one. Once a round has closed, its result is the first tab, and the page opens on it.
-- **Each list runs in creation order.** An audit link's name opens its QR and address
+- **The audit links run in creation order, and the vote-code batches newest first.**
+  An audit link's name opens its QR and address
   again, with a revoke that asks first; a revoked link's name, or a spent one's once its
   round closed, says why it cannot be opened. Revoking stays on the list, and its answer
   is a toast.
@@ -777,7 +787,7 @@ above reads for every screen; these only say what is particular to one.
 - **Linked rows list by academy name, then dancers before professors, then by name.**
 - **The `Vínculo` facet lists the link states in the order an individual goes through
   them**: unlinked, pending, linked.
-- **A dancer, professor or user list offers its day filter only with a selected event**,
+- **A dancer or professor list offers its day filter only with a selected event**,
   since without one there are no days to offer.
 - **In the status filter only `Archivado` reads as a badge**, because `Todos` is not a
   status of any row.
@@ -815,7 +825,8 @@ above reads for every screen; these only say what is particular to one.
   dances, then what the order groups by, minus the columns this surface lacks. Each
   printed row stays one line, cut where a name does not fit.
 - **The program's name column takes the width the state column held before it left the
-  academy's page**: 28 with a level column, 37 without.
+  academy's page**: on that page, 28 with a level column, 37 without. A list that shows
+  the academy column takes 19.
 - **On a phone a program row is a card with its number leading.** An evaluated card, on
   the public program's day being danced, fades all but its number, which becomes a green
   badge. A withdrawn card fades the same way, with its number in a muted badge and a minus.

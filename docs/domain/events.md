@@ -23,7 +23,7 @@ Rules for event context, `Bases del evento`, administration and portal behavior.
 - An event cannot be deleted while it is the `Evento activo`. A choreography inscribed on the event, withdrawn ones included, locks its dates, its deposit (`Seña`) and its deletion. Once it has choreographies, the event form shows the dates and the deposit read-only, and the name stays editable.
 - A schedule's date and time lock once choreographies or prices hold it, because they were placed and priced against it. A withdrawn choreography does not count.
 - Restructuring a schedule in use is refused only where an occupying choreography would be left out. Date and time freeze once it has dependencies. Accepted modalities and categories may widen freely and narrow only when no occupant is excluded, and the total capacity may drop only to what is occupied. Withdrawn choreographies are not asked about.
-- An edit that carries neither field of the awards ceremony date and time leaves the stored pair as it is; a blank half is stored as null.
+- An edit that carries neither field of the awards ceremony date and time leaves the stored pair as it is; a pair of blank halves is stored as null, and one filled half without the other is refused.
 - A schedule capacity's group type freezes once an entry holds choreographies, because they were placed by that type. The capacity itself may still move while it holds them.
 - A schedule's occupancy is the choreographies assigned to it, not the sum of its split capacities, and its free places never go below zero: the view reads `sin lugares` instead of a negative number.
 - A category edit that drops a group type or modality link a choreography still sits on is refused. A rename keeps every path standing.

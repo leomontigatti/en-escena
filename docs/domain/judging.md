@@ -43,7 +43,7 @@ Rules for presentations, judging, program, results, scores and feedback.
 - A manual move names the number the row had when it was picked up. When that number has changed since, the move is refused and nothing is written, so two administrators moving at once never overwrite each other. A move that works shows no message, since the refreshed list is the answer.
 - The warnings rank: `Sin jueces` comes first and is the only one drawn as destructive, since a presentation nobody judges cannot be scored. The rest follow `Seña pendiente`, `Cronograma evaluado`, `Separación`, `Fuera de bloque` and `Nivel sin asignar`, and the same order picks the row's badge.
 - A presentation's panel is listed by the judge's name.
-- A disqualification records when it happened, not who made it: any assigned judge can undo one, so there is no decision to attribute.
+- A disqualification records when it happened, not who made it.
 - The music download starts from its dialog without leaving the list. The dialog turns down a day with no music before any download is asked for, since a failed download has no page to say so.
 
 ## Program And Results

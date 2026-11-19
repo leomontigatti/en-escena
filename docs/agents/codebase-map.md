@@ -106,9 +106,9 @@ The portal and the `Panel de administración` are layout routes:
   A `handle` breadcrumb function tolerates `match.data` being `undefined`, since
   it runs for the failed child too.
 
-Resource routes sit outside their layout and serve a download (a spreadsheet, a zip or a
-PDF) or a print page with no app chrome. None of them triggers an emission. Each is
-opened from the action menu of the list or detail it belongs to.
+Download and print resource routes sit outside their layout and serve a download (a
+spreadsheet, a zip or a PDF) or a print page with no app chrome. None of them triggers an
+emission. Each is opened from the action menu of the list or detail it belongs to.
 
 ## Public Academy Registration
 
@@ -287,15 +287,15 @@ summary lives in `Admin Finances`, not here.
 
 ## Admin Finances
 
-Use for the money side of the academy finance screens: the academy list and its two
-financial details, the money dialog, and the comprobantes ARCA authorizes for them. The
+Use for the money side of the academy finance screens: an academy's choreography finance
+list and its two financial details, the money dialog, and the comprobantes ARCA authorizes for them. The
 seminar side of those screens is in `Admin Seminars`.
 
 - Domain: `docs/domain/finances.md`
 - ADRs: `docs/adr/0009-inscription-based-finances.md`, `docs/adr/0014-arbitrary-amount-allocation-and-comprobante-amendments.md`
 - Feature modules: `app/features/admin/finances/` (`academy-choreographies/`, `academy-seminars/`, `inscription-money/`, `comprobante-emission/`, `anchor-comprobantes/`)
 - The money half of an inscription row (`Total`, `Saldo adeudado`, `Estado` and their badges) is built once, in `app/lib/finances/inscription-finance-columns.tsx`, for both financial details. Only the `Bailarín` column is built per screen, since it is the only one that is not a reading, so the administrator and the academy cannot show one figure two ways.
-- `app/features/admin/finances/academy.server.ts` reads the academy for the three finance screens (the academy list and the two financial details). Its 404 is part of the answer, so no screen can refuse where another accepts.
+- `app/features/admin/finances/academy.server.ts` reads the academy for the three finance screens (an academy's choreography finance list and the two financial details). Its 404 is part of the answer, so no screen can refuse where another accepts.
 - The preset dialog's money arithmetic is in `app/features/admin/finances/academy-choreographies/preset-figures.ts`, beside the dialog, as pure readings of the loader rows, so it is testable without mounting the dialog. The single inscription's arithmetic sits the same way in `inscription-money/figures.ts`.
 - The ARCA client (`app/lib/comprobantes/arca/client.server.ts`) and the payload builders (`app/lib/comprobantes/arca/nota-credito.ts`) decide neither sequence numbers nor state: they build payloads, talk to ARCA and interpret its answers. The emitter (`app/lib/comprobantes/emit-comprobante.server.ts`) resolves the number and the amount. The recording layer (`app/lib/comprobantes/comprobantes.server.ts`) persists an already authorized snapshot and never calls ARCA.
 - Emission and re-check settle a reserved number through one function, in `app/lib/comprobantes/arca/emission.server.ts`: a query of the number records ours, marks someone else's as number-taken, and leaves anything else live and unverified.
@@ -322,7 +322,7 @@ schedules, capacities, prices and registration readiness.
 - High-signal feature UI entry points: `app/features/admin/schedules/list/view.tsx`, `app/features/admin/schedules/detail/view.tsx`, `app/features/admin/prices/list/view.tsx`, `app/features/admin/prices/detail/view.tsx`
 - The criteria dialog's setup is optional, so the create form renders without it: a submodality not yet saved has no id to attach criteria to (`app/features/admin/modalities/form.tsx`).
 - The price detail loads only the choreography prices and the schedules, never the seminar list, which belongs to the `Seminarios` tab alone. Each `Precios` route loads its own slice of one loader type, which the tests render as one object.
-- Every reader of choreography prices loads them through `app/lib/prices/rows.server.ts`, so a row's tier is read the same way everywhere.
+- A reader that needs whole choreography price rows with their schedule links loads them through `app/lib/prices/rows.server.ts`, so a row's tier is read the same way everywhere; existence and duplicate guards query prices directly.
 - A schedule's capacity has no identity outside its schedule, so it lives in `app/lib/schedules/capacities.server.ts` rather than in a module of its own.
 - Test helpers: `app/lib/admin/events/event-bases.test-support.tsx`
 - Tests: `app/features/admin/schedules/view-shared.test.ts`, `app/features/admin/prices/routes.adapter.test.tsx`, `app/lib/admin/event-context.server.test.ts`, `app/lib/admin/events/events-route.server.db.test.ts`, `app/lib/admin/events/event-detail-route.server.db.test.ts`, `app/lib/admin/events/event-bases-overview-modalities.server.db.test.ts`, `app/lib/admin/events/event-bases-categories.server.db.test.ts`, `app/lib/admin/events/event-bases-prices.server.db.test.ts`, `app/lib/admin/events/event-bases-validation.server.db.test.ts`, `app/lib/admin/events/event-bases-cronogramas.server.db.test.ts`, `app/lib/events/management.server.db.test.ts`, `app/lib/events/bases.server.test.ts`, `app/lib/categories/repository.server.db.test.ts`, `app/lib/schedules/repository.server.db.test.ts`, `app/lib/prices/repository.server.db.test.ts`, `app/lib/schedules/repository-capacities.server.db.test.ts`, `app/lib/events/registration-readiness.server.db.test.ts`, `app/lib/finances/bank-identifiers.test.ts`, `app/lib/finances/payment-instructions.test.ts`, `app/lib/admin/events/form-values.test.ts`
@@ -420,7 +420,7 @@ certificates.
 - Admin surface: `app/features/admin/results/list/` (the `Resultados` list: live award and average per presentation, and `publication.tsx`, the publication's confirmations and alert), `app/features/admin/results/export/` (the results spreadsheet, on the program export's columns and `app/features/admin/day-export/`, the day picker and workbook every spreadsheet export shares), `app/features/admin/presentations/scores/`, `app/features/admin/modalities/criteria-dialog.tsx`, `app/components/shared/award-badge.tsx` (the award, or `Descalificada`, as every surface shows it)
 - Academy surface: `app/features/portal/presentations/list/` (the `Nivel` column and the link to a published result), `app/features/portal/presentations/detail/` (the evaluation detail: award, average and a card per judge)
 - Certificates: `app/lib/certificates/` — `certificates.server.ts` (who a choreography's certificates go to: the one rule both surfaces read), `templates.server.ts` (each edition's design and sentence, matched by the event's start year, with the designer's SVG beside it minus its `texto` path), `artwork.ts` (reads that SVG to draw it as vectors), `body-layout.ts` (wraps and shrinks the sentence into the design's frame), `pdf.server.ts` (pdfkit, Montserrat from `@fontsource/montserrat`) and `response.server.ts`; the academy's `app/features/portal/presentations/certificates/` (the `Acciones` dialog and its PDF) and the individual's `app/features/individual/choreographies/certificate/`
-- `artwork.ts` reads the designer's flat SVG (rectangles, one embedded JPEG and filled paths) and throws on anything else, so a new edition that uses more fails its test instead of printing with a piece missing.
+- `artwork.ts` reads the designer's flat SVG (rectangles, one embedded JPEG and filled paths) and throws on an element it cannot draw or a missing or non-numeric attribute it needs, so a new edition that uses another element fails its test instead of printing with a piece missing. Attributes it does not read (opacity, say) are ignored.
 - `body-layout.ts` shrinks the sentence in steps of about 1% of the designer's size, fine enough that it stops close to the largest size that fits. The body frame's position, size and colour come from the designer (`templates.server.ts`): it spans the width of their four lines of Montserrat, centred on the page, and ends just above the right-hand signature.
 - The rule for a sheet's criteria lives in `app/lib/judging/sheet-criteria.ts`. The criteria editor and the save both ask it with the same stored criteria, so they refuse the same lists.
 - Evaluation locks read one fact —disqualified, or any score row— through `app/lib/presentations/evaluation-lock.server.ts`.

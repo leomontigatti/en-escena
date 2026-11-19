@@ -382,7 +382,7 @@ place for good, de-allocating below it releases both.
 
 ## Surfaces
 
-Seminar lists open in the order of the seminar's date and then its instructor,
+Seminar lists open in the order of the seminar's date, then its start time, then its instructor,
 the order the finance tab opens in. Within one seminar and academy the
 inscriptions are in person order.
 
@@ -431,5 +431,6 @@ inscriptions are in person order.
   screens do not. An amount that depends on a price is blank while an
   inscription has none, and so is its column's total, rather than a partial sum
   that reads as complete. A seminar is named by its instructor, with its date
-  and time when another seminar of the export shares that name; the dialog, the
-  sheet and the file name use the same name.
+  and time when another seminar of the export shares that name. The dialog names it
+  that way; the sheet writes the same name with the characters a sheet name allows,
+  cut to 31 and de-duplicated; the file name is slugified separately.

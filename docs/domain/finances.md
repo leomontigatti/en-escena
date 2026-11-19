@@ -139,7 +139,7 @@ move under an academy when a sibling roster changes a discount tier.
 A free place is a waived inscription ([ADR-0017](../adr/0017-waived-inscription.md)): a yes-or-no fact that administration sets per inscription. It holds no money, zeroes both thresholds, reads `Bonificada` and stays out of the minimum rollup.
 
 - `Bonificar coreografía` is all or nothing: any money on a paying inscription blocks it. A withdrawn inscription cannot be waived, so its dialog offers no waiver.
-- A waived inscription is skipped by a preset's pick. It keeps the stored row it goes back to when the waiver is removed.
+- A waived inscription is skipped by a preset's pick. Removing the waiver only clears it: the stored price row stays, and the inscription's price resolves as it would for any inscription again, so with no money on it today's applicable row can win over the stored one.
 
 ## The four figures
 
@@ -1222,7 +1222,7 @@ predating the column was backfilled from — and taken from the emission input f
 a seminar one. **Every rule below reads "the same anchor"**, and both kinds get
 all of it.
 
-The issuer is registered as VAT-exempt (`IVA Exento`), so every comprobante is a `Factura C`, class C, as for a monotributista. The issuer's VAT condition is frozen on each comprobante as an enum with one value. The class follows the registration: if the standing changed, the class and this model would change with it. Whether the registration holds is open, and the entity's accountant has to answer it ([research note](../research/arca-vat-exempt-civil-association.md), §3 and §7).
+The issuer is registered as VAT-exempt (`IVA Exento`), so every comprobante is class C (a `Factura C`, or a class C credit or debit note), as for a monotributista. The issuer's VAT condition is frozen on each comprobante as an enum with one value. The class follows the registration: if the standing changed, the class and this model would change with it. Whether the registration holds is open, and the entity's accountant has to answer it ([research note](../research/arca-vat-exempt-civil-association.md), §3 and §7).
 
 Each comprobante snapshots the anonymous final consumer as its recipient (`DocTipo` 99, `DocNro` 0, `Consumidor Final`). The document number is text, in case a recipient has a CUIT. The research note (§6) argues that a business recipient has to be identified by CUIT, so this snapshot is open to change.
 

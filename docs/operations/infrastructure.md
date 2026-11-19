@@ -350,9 +350,10 @@ which Coolify reports as `TaskFailed` after its retries.
 
 - Each uploaded asset kind has one read path, shared by the portal and the
   administration, so the two cannot disagree about whether a file is present.
-- A missing key and an unreachable object both read as "no file" on every surface
-  that shows one, and no read throws into a loader, so one broken object cannot blank
-  a whole detail view. An unreachable object is logged first, since nothing else
+- A missing key reads as "no file" on every surface that shows one, and no read throws
+  into a loader, so one broken object cannot blank a whole detail view. A read only
+  signs the key, so an object that is gone or unreachable shows as a link that fails
+  on download, not as "no file". A signing error is logged, since nothing else
   tells an operator that the volume is failing.
 - Removing an object that is already gone succeeds for every kind, so a retried save
   converges.

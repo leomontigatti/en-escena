@@ -10,7 +10,7 @@ Repo rules that follow from them are in [coding-standards.md](coding-standards.m
 - A closure keeps the values of the render that created it. Timers, debounces and live ticks that need the current value read it through a ref. The app does this for the judge's take, the live day's minute and the search debounce.
 - React attaches `wheel` listeners passively, so `preventDefault` needs a native listener. The banner editor's zoom adds one to keep the dialog from scrolling.
 - A `useState` initialiser runs only on mount, and changing a `key` remounts the element and resets its state. The app seeds a dialog's price pick once and keys tabs, forms and file inputs by the value they belong to.
-- Setting an input's value from React moves the caret to the end. The app puts the caret back after a keystroke it rewrites.
+- When a keystroke's value is rewritten (normalised) before it is set, the caret can jump to the end. The app puts the caret back after a keystroke it rewrites.
 - Uncontrolled state updaters chain through React, but a controlled prop catches up only on the next render. A loop of updates over controlled state therefore chains through a ref.
 - `useId` gives the same id on server and client. The app uses it for the drag context, which keeps the table hydratable.
 - Events from a React portal bubble through the React tree, so a submit from a dialog portalled out of a form reaches that form's handler. The app stops it there.
@@ -21,9 +21,9 @@ Repo rules that follow from them are in [coding-standards.md](coding-standards.m
 - A failed data request is wrapped in a message that hides its cause, which is kept in `cause`. The app's error report keeps the cause headlines. A navigation whose data request fails calls `onError` once per boundary that holds the error, so the report de-duplicates per error.
 - `fetcher.submit` silently ignores the navigation-only options (`replace`, `state`, `navigate`, `fetcherKey`, `viewTransition`). The app's shared submit options are narrowed to `encType` and `method` to match.
 - The hooks `useFormAction`, `useSubmit` and `useNavigation` throw synchronously when their context is missing: outside a router, and `useNavigation` also inside a non-data router such as the memory router the render tests use. The app wraps each one in a `try`. oxlint 1.83 reads a hook inside `try` as a conditional call, so each call carries its own suppression rather than the rule being turned off for the file.
-- By default the router re-runs a route's loader after every action and every navigation to it, search-parameter changes included. A route narrows that with `shouldRevalidate`.
+- By default the router re-runs a route's loader after a successful action and on a navigation that changes its parameters or search, so a search-parameter change re-runs it. A route narrows that with `shouldRevalidate`.
 - `revalidator` reloads root data too, so a poll through it can trade the page for the error boundary when the root load fails. The app's polls go through a fetcher, and a route's `clientLoader` keeps the last data on screen when a reload throws.
-- The router prefetches links, so a link that starts a sign-in would fire the redirect early. The app starts sign-in only from a plain form, and a plain visit to the sign-in URL redirects back to the page.
+- A link set to prefetch starts its GET early, so a link that starts a sign-in would fire the redirect before the press. The app starts sign-in only from a plain form, and a plain visit to the sign-in URL redirects back to the page.
 - A native form posts before hydration, and a raw button inside one submits without the client. The logout item relies on that.
 - On a client navigation or a submit, `request.url` is the data request: a `.data` suffix on the path (`/_.data` for a slash path) and the `_routes` and `index` parameters React Router adds. A server module that takes the request alone strips them to recover the URL the reader asked for.
 - React Router numbers its history entries in `history.state.idx` from 0, for the entry the tab opened the app on. An index above 0 means an app page is behind the current one.
@@ -41,17 +41,16 @@ Repo rules that follow from them are in [coding-standards.md](coding-standards.m
 
 - Its clear button empties the chosen value as well as the search. The app keeps the search in its own field, so the clear button empties only the search.
 - Grouped items are one entry per section, each carrying its own values. The library hides a section whose options the search has all filtered out, and the app builds the items in that shape.
-- A combobox popup portals to the body, and inside a dialog its press reads as an outside press. The app's combobox props portal it into a host the dialog renders.
 
 ## TanStack Table (v9)
 
 - A table answers only to the features it is given, and the row models are slots rather than table options. The app registers one feature list for both of its tables.
 - The client row models stay on unless a `manual*` flag turns them off. A server table sets them off, since the loader has already searched, sorted and paged the rows.
-- `autoResetPageIndex` is on by default and resets the page on the table's own changes. The app turns it off because the address bar owns the page reset.
+- On a client-paginated table `autoResetPageIndex` is on by default and resets the page on the table's own changes. The app turns it off because the address bar owns the page reset.
 - The engine caches its page model, so a table that is already mounted needs `manualPagination` to stop paging.
 - `enableRowSelection` given only a flag keeps the row model out of the per-row path. A predicate costs a call per row, so the app passes one only for tables that can refuse some rows.
 - Headers are modelled as groups for stacked headers. The app maps the groups it has, which is one for each table.
-- The engine runs the global filter only through columns it can read a string or a number from, so a row-wide matcher needs `getColumnCanGlobalFilter`.
+- The engine runs the global filter only through columns it can read a string or a number from, so a row-wide matcher has to widen that: the app overrides `getColumnCanGlobalFilter` (a column's `enableGlobalFilter: true` would also do it).
 - TanStack's `flexRender` mounts a column's declared function as a component. A view that builds its columns while rendering then hands React a new component on every render, and each cell remounts and loses its state. The app draws a header or a cell by calling its function from one stable component instead.
 
 ## Better Auth
@@ -76,16 +75,16 @@ Repo rules that follow from them are in [coding-standards.md](coding-standards.m
 
 ## Spreadsheets (`write-excel-file`)
 
-- A sheet name cannot contain `:`, `\`, `/`, `?`, `*`, `[` or `]`, and is capped at 31 characters. The app drops the refused characters and caps the name. A name that is left empty gets the writer's default.
-- Numeric-looking text in a cell is read as a number and loses its leading zeros. The app writes the phone number as text.
+- A sheet name cannot contain `:`, `\`, `/`, `?`, `*`, `[` or `]`, and is capped at 31 characters. The app replaces the refused characters and caps the name, and a name left empty becomes `Seminario`, so no sheet is left unnamed.
+- A phone number converted to a number would lose its leading zeros, so the app writes it as a string cell.
 
 ## Browsers: media
 
 - A `MediaRecorder` webm has no duration in its header, so `audio.duration` is `Infinity`. Decoding the take gives its length. A browser without an `AudioContext` still plays the take but reports no duration. The app decodes the take once, and a caller may pass a length for audio that reports none.
 - A `MediaRecorder` hands over its data a moment after it is stopped, and by then the session may be gone. The app's save waits for the take, and unmounting mid-take drops it.
-- `AudioContext.close()` rejects only when the context is already closed, which is the state wanted. The app ignores that rejection.
+- `AudioContext.close()` rejects when the context is already closed or its document is no longer active. The waveform's decoding context closes it with `void`, so that rejection is not caught.
 - `play()` rejects on an autoplay-policy block or a decode failure. A tap that starts nothing looks broken, so the rejection has to show an error.
-- `preload` sets how much an audio element loads up front. The app asks for metadata only. Seeking an audio element asks the server for a byte range, which the storage route answers.
+- `preload` sets how much an audio element loads up front. The shared player asks for metadata only; the `Devolución` player asks for the whole file (`auto`). Seeking an audio element asks the server for a byte range, which the storage route answers.
 - A decoded image applies its EXIF orientation, so the banner editor sees a picked photo upright.
 - A JPEG keeps no transparency. A transparent photo is painted white in the preview and in the banner alike.
 - A lazy image loads only once it is about to enter the view. An image that settles before hydration fires no event, so the app reads its `complete` flag on mount.
@@ -94,7 +93,7 @@ Repo rules that follow from them are in [coding-standards.md](coding-standards.m
 
 ## Browsers: files and forms
 
-- A file input holds a file the form library never sees. A file is put into an input through `DataTransfer`, as a pick does. The app restores a kept file that way.
+- The app's upload field gives the form a storage key, not the file, so the file in its input is one the form library never sees. A file is put into an input through `DataTransfer`, as a pick does. The app restores a kept file that way.
 - The app clears a file input by remounting it, so no stale file rides along on the next save. (Browsers also accept setting a file input's value to empty; the app relies on the remount.)
 - A `<label>` wrapping a file input opens the picker on a press anywhere inside it.
 - A `download` attribute is honoured on a same-origin link, so a stored song saves instead of opening.
@@ -102,14 +101,14 @@ Repo rules that follow from them are in [coding-standards.md](coding-standards.m
 - Some browsers do not take focus on a pointer press. Safari never focuses a button on click, so a clear button hands focus back to its input.
 - A page restored from the back-forward cache can come back with its pending state still set. The app resets it on `pageshow`.
 - A scrolling region clips anything inside it that tries to escape its box. A popover or a sticky heading placed inside is cut off.
-- A disabled button fires no pointer events, so a tooltip on it hangs off a wrapper element that still does.
+- The app's `Button` turns off pointer events when disabled (`disabled:pointer-events-none`), so a tooltip on a disabled button hangs off a wrapper element that still gets them.
 - A view transition morphs the elements that share a name between the old and new page. The app marks only the pair a navigation touches.
-- `localStorage` throws `SecurityError` in a private window and `QuotaExceededError` when its quota is full. The app treats both as unavailable storage.
+- `localStorage` can throw: `SecurityError` where storage access is denied, and `QuotaExceededError` when its quota is full. The app treats both as unavailable storage.
 
 ## Browsers: web fonts, text and in-app browsers
 
 - A web font's arrival changes text size without resizing its box, so a `ResizeObserver` misses it. `document.fonts.ready` resolves once the fonts have loaded, and the app measures again then.
-- A fallback font's widths differ from the web font's, and only the browser can measure text. The print pass therefore fits names in the browser, after the font loads.
+- A fallback font's widths differ from the web font's, so a name fitted in the browser is measured only after the web font loads; the print pass waits for it. (PDFs measure with their embedded font on the server.)
 - Google refuses sign-in from the Instagram, Facebook and TikTok in-app browsers (`disallowed_useragent`), which identify themselves in the user agent. The app tests Instagram first, since its Android agent can carry Facebook's marks as well.
 - On Android, an intent URL hands the page to the phone's own browser. An iPhone has no such address, so the page offers its own menu to leave the in-app browser, and on Android it is the fallback when the app ignores the link.
 - Firefox and Safari write only the frames of an error's stack, so the first line of a stack is a frame and not the message. V8 starts the stack with the headline. The app's report takes the first line either way.

@@ -482,7 +482,7 @@ marked, and do not cite the existing unmarked portal ones as precedent.
 - A form that renders a picture field posts `multipart/form-data` whenever that field renders, since the picture travels with the rest of the body.
 - Staged event documents are browser state: a save drops what was staged, keyed by the upload dates so an unrelated revalidation keeps a file the user just chose. The card learns of a pick through the controller's callback.
 - Ids from a form are never trusted. A score write names its presentation as well, and the server refuses a score that belongs to another one.
-- A tampered submission is refused rather than defaulted. An unknown criteria kind falls back to the add rule, where the 100-point rule catches it. An unknown level is refused, since reading it as the general criteria would overwrite them.
+- A tampered submission is refused rather than defaulted, except an unknown criteria kind, which is read as `adds`; the sheet's total rule then judges it. An unknown level is refused, since reading it as the general criteria would overwrite them.
 - A bulk run settles each row by the request it sent, never by comparing answers: two requests can answer with the same generic-failure object.
 - An action that must work before hydration is a native form, with a raw button inside it. The logout item posts to `/salir` that way.
 - A dialog portalled out of a form still sits inside that form in the component tree, so its submit must not reach the form's handler. Otherwise the parent would post again without the dialog's validation.
@@ -494,12 +494,12 @@ marked, and do not cite the existing unmarked portal ones as precedent.
 - A dialog closed with `open` off stays mounted, so its content survives its exit animation instead of vanishing mid-animation.
 - A confirmation with a form submits the form from the click itself, not from a submit button. The click closes the dialog unless the dialog waits on its request. A caller may unmount the form on close, and a browser drops a submission from a form that is no longer in the document.
 - A menu item that opens a dialog closes the menu first: the dialog takes focus, and a menu left open behind it would hold it. The dialog a menu item opens is decided when the item is chosen, since the list revalidates after each link is created.
-- A delete dialog's details region is the only one that scrolls, so anything in it that must escape its box (a popover, a tooltip, a sticky heading) is clipped, with no way to opt out from outside.
+- A delete dialog's details region is the only one that scrolls, so anything in it that must escape its box is clipped unless it portals out, as a popover and a tooltip do.
 - A filter picker's tooltip is held shut from the moment the picker opens until the pointer next enters its button, since focus returns to that button when the picker closes.
 - A popover trigger's label only focuses the trigger (`labelFocusesOnly`). Activating the label would toggle the popover.
 - A search box's clear button hands focus back to its input, so the reader keeps typing.
 - A tooltip on a disabled button hangs off a wrapper that still receives pointer events.
-- A money dialog sits beside its table, not inside the row that opened it. Every revalidation remounts the table's cells, which would take an open dialog and a refused write's message with it. The open-dialog handler is kept stable, so the columns are not rebuilt by a re-render.
+- A money dialog sits beside its table, not inside the row that opened it.
 - `DiscardChangesDialog` closes when its `open` prop turns false. Its confirm handler does not close it as well: that would report a dismissal, and on a page that resets its blocker before a back, the navigation would go through twice.
 
 ## Comboboxes
@@ -521,7 +521,7 @@ marked, and do not cite the existing unmarked portal ones as precedent.
 - Both tables register one feature list. The server table switches the client row models off with its manual flags, since the loader has already searched, sorted and paged the rows.
 - A table with no page controls is not paged: every row is on screen. The page in the address bar belongs to the screen, so such a table leaves it alone. The address bar owns the page reset.
 - Filter and sort state re-seed only when their values change, not when the object identity changes: admin lists build their initial values inline on every render, and a re-seed would put back the old filters while the loader answers.
-- The optional props of a table are resolved once, outside the component, since they are defaults and nothing else.
+- The optional props of a table are defaulted by one helper outside the component, since they are defaults and nothing else. The helper runs on every render.
 - A row can be reordered without a pointer: the keyboard sensor is what makes the move reachable.
 - Server table search keeps a queue of the searches it navigated with, oldest first. A search arriving from the address bar that is found in the queue is its own echo and is ignored. Anything else (Back, a shared link, a view resetting its filters) is an outside change, and the box adopts it. The typed value decides its own surrounding spaces, since the URL records the search trimmed.
 - The text filter narrows one named column and leaves the global filter out; without one, the search box is the global filter. It is derived from the search rather than stored, so a search arriving from the address bar filters the rows the same way.
@@ -545,7 +545,7 @@ marked, and do not cite the existing unmarked portal ones as precedent.
 
 - An audio preview sits outside the picker's dropzone, because a player inside the picker's label would open the picker on play. A new file gets a new player keyed by its URL. The picker stays mounted, hidden, while a player shows, since a picked file is submitted through its input.
 - A stored song is saved rather than opened, so the browser's player does not open in a new tab.
-- A kept file is restored into the file input as a pick would set it, so the form submits it.
+- A kept file is restored into the file input as described in [stack-gotchas.md](stack-gotchas.md#browsers-files-and-forms), so the form submits it.
 - Audio playback follows the element's position every frame while it plays. Audio loads only its metadata by default, since a song is too big to load with every page. A caller passes the length it decoded as `durationMs` for audio that reports none.
 - A recorder owns and revokes every object URL it creates for a take, never the stored URL, which is the server's. A judge re-records on a tablet that stays open all day, so a dropped take must be let go.
 - A save tapped while the recorder still hands over the take waits for it. Unmounting mid-take drops the take, since nothing is left to receive it.
@@ -557,7 +557,7 @@ marked, and do not cite the existing unmarked portal ones as precedent.
 - Vote shares round in integer tenths before the float division, so 2 of 3 reads 66.7.
 - A check against a decimal step (a judge's half point) runs in tenths. Binary floating point cannot hold decimal steps exactly, and a valid half point must never be refused by arithmetic.
 - A shape tolerance compares whole pixels, so a picture exactly at the tolerance is not refused by a rounding error.
-- Title-casing keeps a letter whose capital is more than one character (`ß`) as it is. Capitalised, its stored form would change again on its next save.
+- Choreography names keep a leading letter whose capital is more than one character (`ß`) as it is, since capitalised its stored form would change again on its next save. The shared `toTitleCase` does not: it turns a leading `ß` into `SS`, and the next save turns that into `Ss`.
 
 ## Dates and times
 
@@ -699,7 +699,7 @@ sits next to the app, so distance to the database is a poor first guess.
 
 ### Polled pages
 
-- The audit page polls every ten seconds, and the live program every minute, only while the round or the program may still change. A closed round or a refused link has nothing more to show. A hidden page does not poll and asks as soon as it is seen again. A load still on its way is let finish, so a slow connection is not cut off.
+- The audit page polls every ten seconds, only while the round may still change. A closed round or a refused link has nothing more to show. A hidden audit page does not poll and asks as soon as it is seen again. A load still on its way is let finish, so a slow connection is not cut off. The live program polls every minute, and only when its day is live or a new program day has begun; it has no hidden-page or in-flight guard.
 - A poll goes through a fetcher, not the revalidator: the revalidator reloads root data too, so one failed root load would trade the page for the error boundary. A failed poll keeps the data on screen.
 - What the last poll brought decides whether the audit page is still live. A poll that finds the link revoked drops its cookie, and one more poll would read as a browser that never opened a link.
 

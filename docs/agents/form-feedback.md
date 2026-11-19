@@ -63,7 +63,7 @@ client validation, an alert, a dialog. The result of a submit is a toast.
 - **Copying is confirmed inline, never with a toast**: copying never reaches the
   server. The clipboard receives the stored value exactly, and the confirmation
   waits for the write, so a refused write leaves the icon unchanged and silent.
-- **Server validation names the submission's own fields first**, in the order the
+- **A category's server validation names its own fields first**, in the order the
   administrator meets them: name, ages, group types, then whether any modality was
   chosen.
 
@@ -399,8 +399,9 @@ Two consequences for a view:
   refuses again.
 - **The error copy of a boundary prefers a loader's `Response` body** to an empty
   status text. A non-string body and the router's own internal errors are skipped,
-  since neither is copy a user should read. A layout's error renders in its outlet, so
-  the shell's navigation still works.
+  since neither is copy a user should read. When the shell's loader data is there, a
+  layout's error renders in its outlet, so the shell's navigation still works; without
+  it the layout renders the full-screen error.
 
 Resource routes with an `action` and no UI (`$`, `api.auth.$`, `salir`) export no
 `clientAction`: there is no mounted view to keep, and a returned error result
