@@ -190,7 +190,7 @@ describe("the create choreography page action", () => {
     const response = await expectThrownResponse(
       handleCreateChoreographyAction(
         createPortalPostRequest(
-          `http://localhost/portal/coreografias/crear?evento=${event.id}`,
+          `http://localhost/portal/coreografias/crear`,
           ownerSession.cookie,
           choreographyCreationFormData({
             eventId: event.id,
@@ -255,7 +255,7 @@ describe("the create choreography page action", () => {
     function submitCreation(acknowledgedDuplicateIds: string[] = []) {
       return handleCreateChoreographyAction(
         createPortalPostRequest(
-          `http://localhost/portal/coreografias/crear?evento=${event.id}`,
+          `http://localhost/portal/coreografias/crear`,
           ownerSession.cookie,
           choreographyCreationFormData({
             acknowledgedDuplicateIds,

@@ -212,7 +212,7 @@ export function MovementsListRouteView({
         loaderData.canWrite
           ? {
               label: "Nuevo movimiento",
-              to: getCreateMovementUrl(loaderData.selectedEventId),
+              to: "/administracion/movimientos/nuevo",
             }
           : undefined
       }
@@ -279,12 +279,6 @@ export function MovementsListRouteView({
       </div>
     </AdminResourceLayout>
   );
-}
-
-function getCreateMovementUrl(selectedEventId: string | null) {
-  return selectedEventId
-    ? `/administracion/movimientos/nuevo?evento=${selectedEventId}`
-    : "/administracion/movimientos/nuevo";
 }
 
 function buildInitialFacetedFilterValues(

@@ -204,7 +204,7 @@ async function readTakingPartChoreographies(input: {
 
   return rows.map((row) => ({
     ...row,
-    groupType: row.groupType as ChoreographyGroupType,
+    groupType: row.groupType,
     roles: [
       ...(dancedIds.has(row.choreographyId) ? (["dancer"] as const) : []),
       ...(taughtIds.has(row.choreographyId) ? (["professor"] as const) : []),

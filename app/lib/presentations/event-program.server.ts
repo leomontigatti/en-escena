@@ -205,7 +205,7 @@ export async function readEventProgram(
   const dancerNamesByChoreography = await readProgramDancerNames(
     executor,
     rows
-      .filter((row) => namesDancersOf(row.groupType as ChoreographyGroupType))
+      .filter((row) => namesDancersOf(row.groupType))
       .map((row) => row.choreographyId),
   );
   const presentedScheduleIds = new Set(rows.map((row) => row.scheduleId));
@@ -218,7 +218,7 @@ export async function readEventProgram(
       choreographyId: row.choreographyId,
       choreographyNumber: row.choreographyNumber,
       dancerNames: dancerNamesByChoreography.get(row.choreographyId) ?? [],
-      groupType: row.groupType as ChoreographyGroupType,
+      groupType: row.groupType,
       // The public program carries no money: a row below its deposit is listed
       // like any other, with no badge and no gap in the numbering.
       isBelowDeposit: false,
@@ -226,7 +226,7 @@ export async function readEventProgram(
         row.experienceLevel,
         experienceLevelRequirement({
           categoryExperienceLevels: row.categoryExperienceLevels,
-          groupType: row.groupType as ChoreographyGroupType,
+          groupType: row.groupType,
         }),
       ),
       modalityName: row.modalityName,

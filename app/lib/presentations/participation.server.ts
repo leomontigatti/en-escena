@@ -15,9 +15,7 @@ import {
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
-import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-financial-status";
 import { readEventChoreographyFinancialStatuses } from "@/lib/finances/operational-summary.server";
-import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { findEvaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.server";
 import {
   computeAutomaticOrder,
@@ -158,9 +156,8 @@ export async function readParticipationRows(
         choreographyNumber: row.choreographyNumber,
         experienceLevel: row.experienceLevel,
         financialStatus:
-          financialStatuses.get(row.choreographyId) ??
-          ("depositPending" as ChoreographyFinancialStatus),
-        groupType: row.groupType as ChoreographyGroupType,
+          financialStatuses.get(row.choreographyId) ?? "depositPending",
+        groupType: row.groupType,
         modalityName: row.modalityName,
         name: row.name,
         orderNumber: row.orderNumber,

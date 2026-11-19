@@ -154,6 +154,48 @@ Design for testability:
 - A lib that defines a domain kind does not import UI types: the kind's badge variant is a string literal that matches the badge's variants.
 - `withdrawnChoreography()` is the complement of the active-rows predicate, for the writes that must reach withdrawn choreographies and only them. Releasing capacity references before a capacity is deleted is the one such write; anywhere else it would strip a live assignment.
 
+## Type assertions
+
+An assertion (`value as T`, `<T>value`) tells the type checker to stop checking,
+so a wrong shape gets through silently. Narrow instead: a type guard
+(`value is T`), a schema parse where data enters from outside, or a typed helper
+that keeps the one check every caller needs. `as const` is not an assertion and
+stays.
+
+Lint rejects assertions (`typescript/consistent-type-assertions`, `never`)
+everywhere but the files `scripts/type-assertion-allowlist.json` lists, with the
+count each may hold; one `.oxlintrc.json` override turns the rule off for exactly
+those files. The list only falls. `pnpm check:type-assertions` (pre-commit and
+CI) fails when a file's count differs from its entry, when an entry is new or
+higher than on `origin/master`, when it cannot read `origin/master`'s list, when
+any override exempts a file the list does not hold or misses one it does, and on
+a disable comment that names the rule or no rule; the rule takes none. So a
+helper that needs a cast to remove many keeps it in a file already on the list,
+within that file's entry. A file renamed or moved is a new path to the list, so it
+moves without its assertions. To lower an entry, remove the assertions and run
+`pnpm check:type-assertions --write` in the same change: it rewrites the counts
+and the override from the tree and drops a file at zero.
+
+## React effects
+
+An effect lives in a named hook in `app/hooks/`, never inline in a component or
+a route. What an effect would do usually belongs elsewhere: in the event handler
+that caused it, in state derived during render, in the route's loader, or, for
+markup that must exist first, in a ref callback or `autoFocus`. What is left (a
+subscription, a timer, focus after a render a handler cannot reach) is a hook
+whose name says what it is for, in `app/hooks/`. shadcn's `app/components/ui/`
+keeps its own.
+
+The files that called `useEffect`, `useLayoutEffect` or `useInsertionEffect`
+anywhere else when this rule landed are counted in
+`scripts/effect-allowlist.json`, and the list only falls.
+`pnpm check:effects` (pre-commit and CI) fails when a file's count differs from
+its entry, when an entry is new or higher than on `origin/master`, and when it
+cannot read `origin/master`'s list. It counts calls through any import from
+`react`, aliased, default or namespace. A file renamed or moved is a new path to
+the list, so it moves without its effects. When a file's effects move out, run
+`pnpm check:effects --write` in the same change to lower its entry.
+
 ## Style
 
 Choose clarity over cleverness. Prefer explicit control flow over compact code

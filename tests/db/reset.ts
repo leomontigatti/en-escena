@@ -55,7 +55,7 @@ export function readRows<Row extends object>(result: unknown) {
     return result as Row[];
   }
 
-  return ((result as { rows?: Row[] }).rows ?? []) as Row[];
+  return (result as { rows?: Row[] }).rows ?? [];
 }
 
 async function loadResetPlan(executor: Executor): Promise<ResetPlan> {

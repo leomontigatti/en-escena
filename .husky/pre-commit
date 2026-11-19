@@ -28,5 +28,8 @@ pnpm check:repo-styles
 pnpm check:banned-imports
 pnpm check:docs-tests
 pnpm check:labels
+# Reads `origin/master`'s allowlist and fails closed without it.
+pnpm check:type-assertions
+pnpm check:effects
 pnpm check:migration-order
 pnpm check:migration-safety

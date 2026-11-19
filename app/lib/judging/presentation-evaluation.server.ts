@@ -246,7 +246,7 @@ async function readAdministrationEvaluation(
     eventId: presentation.eventId,
     experienceLevel: presentation.experienceLevel,
     experienceLevelRequirement: experienceLevelRequirement(presentation),
-    groupType: presentation.groupType as ChoreographyGroupType,
+    groupType: presentation.groupType,
     judges,
     modalityName: presentation.modalityName,
     name: presentation.name,

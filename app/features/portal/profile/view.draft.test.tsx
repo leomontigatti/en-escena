@@ -10,7 +10,6 @@ import {
 } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
-import type { loadPortalProfile } from "@/features/portal/profile/server";
 import type { PortalProfileActionData } from "@/features/portal/profile/shared";
 import { PortalProfileRouteView } from "@/features/portal/profile/view";
 import {
@@ -21,8 +20,6 @@ import {
   updateReactDomForm,
   waitFor,
 } from "@/lib/test-support/react-dom";
-
-type ProfileLoaderData = Awaited<ReturnType<typeof loadPortalProfile>>;
 
 const renderer = createReactDomTestRenderer();
 
@@ -141,7 +138,7 @@ async function renderProfilePage(
     return (
       <PortalProfileRouteView
         actionData={useActionData() as PortalProfileActionData}
-        loaderData={useLoaderData() as ProfileLoaderData}
+        loaderData={useLoaderData()}
       />
     );
   }
@@ -171,17 +168,16 @@ async function renderProfilePage(
           return result;
         },
         element: <Page />,
-        loader: () =>
-          ({
-            academy: {
-              city: "Rosario",
-              contactName,
-              name: "Academia",
-              phone: "1155550000",
-              province: "santa_fe",
-            },
-            email: "academia@example.com",
-          }) as ProfileLoaderData,
+        loader: () => ({
+          academy: {
+            city: "Rosario",
+            contactName,
+            name: "Academia",
+            phone: "1155550000",
+            province: "santa_fe",
+          },
+          email: "academia@example.com",
+        }),
         path: "/",
       },
     ],
@@ -222,7 +218,7 @@ async function typeContactName(value: string) {
 function isSaveEnabled() {
   const button = findButton("Guardar", { exact: true });
 
-  return button !== undefined && !(button as HTMLButtonElement).disabled;
+  return button !== undefined && !button.disabled;
 }
 
 function findDialog() {

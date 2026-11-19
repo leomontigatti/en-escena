@@ -21,7 +21,6 @@ import {
 import {
   buildChoreographyOperationalFinanceRow,
   buildOperationalFinanceSummaryFromRows,
-  type ChoreographyGroupType,
   type ChoreographyOperationalFinanceRow,
   computeRosterDancerDiscounts,
   type FinanceChoreographyRow,
@@ -252,7 +251,7 @@ async function readAcademyEventFinance(input: {
         academyId: row.academyId,
         choreographyNumber: row.choreographyNumber,
         choreographyScheduleId: row.choreographyScheduleId,
-        groupType: row.groupType as ChoreographyGroupType,
+        groupType: row.groupType,
         id: row.id,
         name: row.name,
         scheduleCapacityScheduleId: row.scheduleCapacityScheduleId,

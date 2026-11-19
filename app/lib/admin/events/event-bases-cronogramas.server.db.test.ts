@@ -66,7 +66,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
           await createSignedInRequest({
             email: "admin.lista.bloques.ocupacion@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/cronogramas`,
           })
         ).request,
       ),
@@ -110,7 +110,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
           await createSignedInRequest({
             email: "admin.rutas.bloques@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/cronogramas/nuevo`,
           })
         ).request,
       ),
@@ -136,7 +136,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
     const scheduleRequest = await createScheduleAdminRequest({
       email: "admin.crea.bloque@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas`,
       intent: "create-schedule",
       schedule: buildScheduleDraft({
         modalityIds,
@@ -172,7 +172,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
           await createSignedInRequest({
             email: "admin.lista.bloques@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/cronogramas`,
           })
         ).request,
       ),
@@ -192,7 +192,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
     const editScheduleRequest = await createScheduleAdminRequest({
       email: "admin.edita.bloque@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas`,
       intent: "update-schedule",
       scheduleId: schedule?.id ?? "",
       schedule: buildScheduleDraft({
@@ -228,7 +228,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
     const deleteScheduleRequest = await createDeleteScheduleAdminRequest({
       email: "admin.borra.bloque@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas`,
       scheduleId: schedule?.id ?? "",
     });
 
@@ -253,8 +253,8 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
   // The edit form is the detail page, so the pair is saved, read back and
   // refused half-filled through the same action, on create and on edit alike.
   test("saves the award ceremony and refuses half of it through the admin action", async () => {
-    const { event, modalityIds } = await createEventScheduleAdminFixture();
-    const requestUrl = `http://localhost/administracion/cronogramas?evento=${event.id}`;
+    const { modalityIds } = await createEventScheduleAdminFixture();
+    const requestUrl = `http://localhost/administracion/cronogramas`;
     const createRequest = await createScheduleAdminRequest({
       email: "admin.crea.entrega@example.com",
       role: "admin",
@@ -368,12 +368,12 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
   });
 
   test("creates schedule capacities through the admin action", async () => {
-    const { event, schedule } = await createScheduleForCapacityAdminFixture();
+    const { schedule } = await createScheduleForCapacityAdminFixture();
     const createScheduleCapacityRequest =
       await createScheduleCapacityAdminRequest({
         email: "admin.crea.cupo-cronograma@example.com",
         role: "admin",
-        requestUrl: `http://localhost/administracion/cronogramas/${schedule.id}?evento=${event.id}`,
+        requestUrl: `http://localhost/administracion/cronogramas/${schedule.id}`,
         intent: "create-schedule-capacity",
         scheduleId: schedule.id,
         scheduleCapacity: buildScheduleCapacityDraft(),
@@ -401,8 +401,8 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
   });
 
   test("renders schedule capacities fields in the schedule detail route", async () => {
-    const { event, schedule } = await createScheduleForCapacityAdminFixture();
-    await createPersistedScheduleCapacity(event.id, schedule.id);
+    const { schedule } = await createScheduleForCapacityAdminFixture();
+    await createPersistedScheduleCapacity(schedule.id);
 
     const data = await loader(
       routeArgs(
@@ -410,7 +410,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
           await createSignedInRequest({
             email: "admin.lista.cupos-cronograma@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/cronogramas/${schedule.id}?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/cronogramas/${schedule.id}`,
           })
         ).request,
       ),
@@ -423,17 +423,14 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
   });
 
   test("updates schedule capacities through the admin action", async () => {
-    const { event, schedule } = await createScheduleForCapacityAdminFixture();
-    const scheduleCapacity = await createPersistedScheduleCapacity(
-      event.id,
-      schedule.id,
-    );
+    const { schedule } = await createScheduleForCapacityAdminFixture();
+    const scheduleCapacity = await createPersistedScheduleCapacity(schedule.id);
 
     const editScheduleCapacityRequest =
       await createScheduleCapacityAdminRequest({
         email: "admin.edita.cupo-cronograma@example.com",
         role: "admin",
-        requestUrl: `http://localhost/administracion/cronogramas/${schedule.id}?evento=${event.id}`,
+        requestUrl: `http://localhost/administracion/cronogramas/${schedule.id}`,
         intent: "update-schedule-capacity",
         scheduleId: schedule.id,
         scheduleCapacity: buildScheduleCapacityDraft({
@@ -467,16 +464,13 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
   });
 
   test("deletes schedule capacities through the admin action", async () => {
-    const { event, schedule } = await createScheduleForCapacityAdminFixture();
-    const scheduleCapacity = await createPersistedScheduleCapacity(
-      event.id,
-      schedule.id,
-    );
+    const { schedule } = await createScheduleForCapacityAdminFixture();
+    const scheduleCapacity = await createPersistedScheduleCapacity(schedule.id);
     const deleteScheduleCapacityRequest =
       await createScheduleCapacityAdminRequest({
         email: "admin.borra.cupo-cronograma@example.com",
         role: "admin",
-        requestUrl: `http://localhost/administracion/cronogramas/${schedule.id}?evento=${event.id}`,
+        requestUrl: `http://localhost/administracion/cronogramas/${schedule.id}`,
         intent: "delete-schedule-capacity",
         scheduleId: schedule.id,
         scheduleCapacityId: scheduleCapacity.id,
@@ -499,13 +493,11 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
   });
 
   test("saves inline schedule capacities through the schedule form", async () => {
-    const { event, modalities } = await createEventScheduleAdminFixture([
-      "Jazz",
-    ]);
+    const { modalities } = await createEventScheduleAdminFixture(["Jazz"]);
     const createScheduleRequest = await createScheduleAdminRequest({
       email: "admin.inline.cupos-cronograma@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas/nuevo`,
       intent: "create-schedule",
       schedule: buildScheduleDraft({
         name: "Domingo tarde",
@@ -545,7 +537,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
     const updateScheduleRequest = await createScheduleAdminRequest({
       email: "admin.inline.cupos-cronograma.edita@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/cronogramas/${schedule?.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas/${schedule?.id}`,
       intent: "update-schedule",
       scheduleId: schedule?.id ?? "",
       schedule: buildScheduleDraft({
@@ -612,7 +604,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
     const request = await createSignedInRequest({
       email: "admin.errores.precios.bloques@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios/nuevo`,
     });
     const data = await loader(routeArgs(request.request));
     await expectCreated(
@@ -678,7 +670,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
     const request = await createScheduleAdminRequest({
       email: "admin.inline.cupos.requeridos@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas/nuevo`,
       intent: "create-schedule",
       schedule: buildScheduleDraft({
         name: "Domingo tarde",
@@ -737,7 +729,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
     const request = await createScheduleAdminRequest({
       email: "admin.crea.cronograma.cupo.duplicado@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas/nuevo`,
       intent: "create-schedule",
       schedule: buildScheduleDraft({
         name: "Domingo tarde",
@@ -784,7 +776,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
     const request = await createScheduleAdminRequest({
       email: "admin.crea.cronograma.cupo.invalido@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas/nuevo`,
       intent: "create-schedule",
       schedule: buildScheduleDraft({
         name: "Domingo tarde",
@@ -826,7 +818,6 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
 
     const openRequest = await createRegistrationSwitchRequest({
       email: "admin.abre.inscripciones@example.com",
-      eventId: event.id,
       intent: "open-schedule-registration",
       scheduleId,
     });
@@ -850,7 +841,6 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
 
     const closeRequest = await createRegistrationSwitchRequest({
       email: "admin.cierra.inscripciones@example.com",
-      eventId: event.id,
       intent: "close-schedule-registration",
       scheduleId,
     });
@@ -878,7 +868,6 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
     );
     const openRequest = await createRegistrationSwitchRequest({
       email: "admin.abre.inscripciones.sin-bases@example.com",
-      eventId: event.id,
       intent: "open-schedule-registration",
       scheduleId: schedule.id,
     });
@@ -900,7 +889,7 @@ async function createScheduleForCapacityAdminFixture() {
   const scheduleRequest = await createScheduleAdminRequest({
     email: "admin.crea.bloque.cupo-cronograma@example.com",
     role: "admin",
-    requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
+    requestUrl: `http://localhost/administracion/cronogramas/nuevo`,
     intent: "create-schedule",
     schedule: buildScheduleDraft({
       totalCapacity: "12",
@@ -924,7 +913,6 @@ async function createScheduleForCapacityAdminFixture() {
 
 async function createRegistrationSwitchRequest(input: {
   email: string;
-  eventId: string;
   intent: "open-schedule-registration" | "close-schedule-registration";
   scheduleId: string;
 }) {
@@ -936,19 +924,16 @@ async function createRegistrationSwitchRequest(input: {
     body,
     email: input.email,
     role: "admin",
-    requestUrl: `http://localhost/administracion/cronogramas/${input.scheduleId}?evento=${input.eventId}`,
+    requestUrl: `http://localhost/administracion/cronogramas/${input.scheduleId}`,
   });
 }
 
-async function createPersistedScheduleCapacity(
-  eventId: string,
-  scheduleId: string,
-) {
+async function createPersistedScheduleCapacity(scheduleId: string) {
   const createScheduleCapacityRequest =
     await createScheduleCapacityAdminRequest({
       email: "admin.crea.cupo-cronograma.fixture@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/cronogramas/${scheduleId}?evento=${eventId}`,
+      requestUrl: `http://localhost/administracion/cronogramas/${scheduleId}`,
       intent: "create-schedule-capacity",
       scheduleId,
       scheduleCapacity: buildScheduleCapacityDraft(),

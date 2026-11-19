@@ -29,14 +29,14 @@ installDatabaseTestHooks();
 
 describe("`/administracion/bases-del-evento` routes", () => {
   test("renders prices without the event deposit percentage form", async () => {
-    const event = await createSavedEvent({
+    await createSavedEvent({
       name: "Regional 2026",
       ...eventDates(2030),
     });
     const listRequest = await createSignedInRequest({
       email: "admin.precios.sin.sena@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios`,
     });
     const initialData = await loader(routeArgs(listRequest.request));
     const initialMarkup = renderPreciosRoute(initialData);
@@ -48,17 +48,17 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("renders the prices list with alcance and dedicated route actions", async () => {
-    const { event, schedule } = await createEventPriceAdminFixture();
+    const { schedule } = await createEventPriceAdminFixture();
     const createBasePriceRequest = await createPriceAdminRequest({
       email: "admin.precio.base.lista@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios/nuevo`,
       intent: "create-price",
     });
     const createSchedulePriceRequest = await createPriceAdminRequest({
       email: "admin.crea.precio.bloque.lista@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios/nuevo`,
       intent: "create-price",
       price: {
         name: "Precio bloque",
@@ -79,7 +79,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const request = await createSignedInRequest({
       email: "admin.lista.precios@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios`,
     });
     const data = await loader(routeArgs(request.request));
     const markup = renderPreciosRoute(data);
@@ -92,11 +92,11 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("creates, edits and deletes prices through dedicated create and detail routes", async () => {
-    const { event, schedule } = await createEventPriceAdminFixture();
+    const { schedule } = await createEventPriceAdminFixture();
     const createPriceRequest = await createPriceAdminRequest({
       email: "admin.crea.precio@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios/nuevo`,
       intent: "create-price",
       price: {
         name: "Precio bloque",
@@ -123,7 +123,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
           await createSignedInRequest({
             email: "admin.form.precios@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/precios/nuevo`,
           })
         ).request,
       ),
@@ -137,7 +137,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
           await createSignedInRequest({
             email: "admin.detalle.precio@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/precios/${price?.id}?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/precios/${price?.id}`,
           })
         ).request,
       ),
@@ -151,7 +151,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const editPriceRequest = await createPriceAdminRequest({
       email: "admin.edita.precio@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios/${price?.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios/${price?.id}`,
       intent: "update-price",
       priceId: price?.id ?? "",
       price: {
@@ -176,7 +176,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const blockedDeleteRequest = await createDeletePriceAdminRequest({
       email: "admin.borra.precio.bloqueado@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios/${price?.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios/${price?.id}`,
       priceId: price?.id ?? "",
     });
 
@@ -195,7 +195,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const deletePriceRequest = await createDeletePriceAdminRequest({
       email: "admin.borra.precio@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios/${price?.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios/${price?.id}`,
       priceId: price?.id ?? "",
       confirmDeletion: price?.id ?? "",
     });
@@ -208,11 +208,11 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("saves a blank deadline as a deadline-less price, on create and on update", async () => {
-    const { event } = await createEventPriceAdminFixture();
+    await createEventPriceAdminFixture();
     const basePriceRequest = await createPriceAdminRequest({
       email: "admin.precio.sin.vencimiento@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios/nuevo`,
       intent: "create-price",
       price: {
         name: "Precio sin vencimiento",
@@ -238,7 +238,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const datedPriceRequest = await createPriceAdminRequest({
       email: "admin.precio.con.vencimiento@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios/nuevo`,
       intent: "create-price",
       price: {
         name: "Precio con vencimiento",
@@ -282,11 +282,11 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("refuses a second deadline-less price of the same cell", async () => {
-    const { event } = await createEventPriceAdminFixture();
+    await createEventPriceAdminFixture();
     const basePriceRequest = await createPriceAdminRequest({
       email: "admin.precio.sin.vencimiento.unico@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios/nuevo`,
       intent: "create-price",
       price: {
         name: "Precio sin vencimiento",
@@ -302,7 +302,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const duplicateRequest = await createPriceAdminRequest({
       email: "admin.precio.sin.fecha@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios/nuevo`,
       intent: "create-price",
       price: {
         name: "Otro precio sin vencimiento",
@@ -350,7 +350,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const updatePriceRequest = await createPriceAdminRequest({
       email: "admin.bloqueo.precio@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios/${price.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios/${price.id}`,
       intent: "update-price",
       priceId: price.id,
       price: {
@@ -382,7 +382,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const deletePriceRequest = await createDeletePriceAdminRequest({
       email: "admin.borra.precio.historial@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios/${price.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios/${price.id}`,
       priceId: price.id,
       confirmDeletion: price.id,
     });
@@ -405,7 +405,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const createPriceRequest = await createPriceAdminRequest({
       email: "admin.crea.precio@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios`,
       intent: "create-price",
       price: {
         name: "Precio bloque",
@@ -440,7 +440,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
           await createSignedInRequest({
             email: "admin.lista.precios@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/precios`,
           })
         ).request,
       ),
@@ -454,7 +454,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const editPriceRequest = await createPriceAdminRequest({
       email: "admin.edita.precio@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios`,
       intent: "update-price",
       priceId: price?.id ?? "",
       price: {
@@ -484,7 +484,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const deletePriceRequest = await createDeletePriceAdminRequest({
       email: "admin.borra.precio@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios`,
       priceId: price?.id ?? "",
     });
 

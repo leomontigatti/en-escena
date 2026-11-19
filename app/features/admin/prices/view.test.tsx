@@ -409,7 +409,7 @@ function installReactTestEnvironment() {
     };
   testWindow.__vite_plugin_react_preamble_installed__ = true;
 
-  window.matchMedia = (() => ({
+  window.matchMedia = () => ({
     addEventListener() {},
     addListener() {},
     dispatchEvent() {
@@ -420,7 +420,7 @@ function installReactTestEnvironment() {
     onchange: null,
     removeEventListener() {},
     removeListener() {},
-  })) as typeof window.matchMedia;
+  });
 
   window.ResizeObserver = class ResizeObserver {
     disconnect() {}

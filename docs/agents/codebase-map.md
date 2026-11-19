@@ -54,6 +54,9 @@ only list stable entry points, coordination modules and high-signal tests.
   `app/components/shared/file-upload-control-types.ts`. A field's `prepareFile` turns the
   picked file into the one the field keeps, submits and previews, and validation runs on
   its result.
+- `app/hooks` holds the named hooks that own React effects, one purpose each
+  ([coding-standards.md](coding-standards.md#react-effects)); an effect found
+  anywhere else is on the shrinking `scripts/effect-allowlist.json`.
 - `Bases del evento` is domain vocabulary for modalities, categories,
   schedules, capacities and prices. In code, prefer concrete resource names for
   feature modules and use `event-bases`/`bases` names only for aggregators that

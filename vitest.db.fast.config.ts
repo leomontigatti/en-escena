@@ -1,7 +1,5 @@
 import { fileURLToPath } from "node:url";
 
-import type { UserConfig } from "vite";
-
 import { mergeConfig } from "vitest/config";
 import { configDefaults, defineConfig } from "vitest/config";
 
@@ -26,7 +24,7 @@ const fastDatabaseModule = fileURLToPath(
 );
 
 export default mergeConfig(
-  viteConfig as UserConfig,
+  viteConfig,
   defineConfig({
     resolve: {
       alias: [

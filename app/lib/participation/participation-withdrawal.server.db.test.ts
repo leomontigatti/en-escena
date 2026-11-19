@@ -172,7 +172,7 @@ describe("participation of a withdrawn choreography", () => {
     const { request } = await createSignedInRequest({
       email: "admin.academias.participacion@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/academias?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/academias`,
     });
     const academiesList = await loadAcademiesList(request);
     const participatingByAcademy = new Map(

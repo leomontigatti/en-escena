@@ -286,12 +286,8 @@ async function buildActionRequest(input: {
   });
 }
 
-function detailUrl(input: {
-  academyId: string;
-  choreographyId: string;
-  eventId: string;
-}) {
-  return `http://localhost/administracion/finanzas/${input.academyId}/coreografias/${input.choreographyId}?evento=${input.eventId}`;
+function detailUrl(input: { academyId: string; choreographyId: string }) {
+  return `http://localhost/administracion/finanzas/${input.academyId}/coreografias/${input.choreographyId}`;
 }
 
 describe("financial detail — comprobante emission axis", () => {
@@ -868,7 +864,7 @@ describe("financial detail — what the documents leave pending", () => {
         await loadAcademyFinances({
           params: { academyId: seeded.academyId },
           request: new Request(
-            `http://localhost/administracion/finanzas/${seeded.academyId}?evento=${seeded.eventId}`,
+            `http://localhost/administracion/finanzas/${seeded.academyId}`,
             { headers: { cookie } },
           ),
         }),

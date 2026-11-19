@@ -196,7 +196,7 @@ export async function handleSeminarFinanceAction(input: {
   const intent = String(formData.get("intent") ?? "");
   const emissionContext = {
     anchor: seminarAnchor(seminarId, academyId),
-    detailUrl: seminarFinanceDetailUrl(academyId, seminarId, eventId),
+    detailUrl: seminarFinanceDetailUrl(academyId, seminarId),
     eventId,
     resolveEmissionDeps:
       input.resolveEmissionDeps ?? getComprobanteEmissionDeps,
@@ -225,15 +225,11 @@ export async function handleSeminarFinanceAction(input: {
     return result;
   }
 
-  throw redirectToDetail(academyId, seminarId, eventId);
+  throw redirectToDetail(academyId, seminarId);
 }
 
-function redirectToDetail(
-  academyId: string,
-  seminarId: string,
-  eventId: string,
-) {
-  return redirect(seminarFinanceDetailUrl(academyId, seminarId, eventId));
+function redirectToDetail(academyId: string, seminarId: string) {
+  return redirect(seminarFinanceDetailUrl(academyId, seminarId));
 }
 
 function readSeminarId(params: { seminarId?: string }) {

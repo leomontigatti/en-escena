@@ -42,7 +42,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const modalityRequest = await createSignedInRequest({
       email: "admin.crea.modalidad@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades`,
       body: formData({ intent: "create-modality", name: "Jazz" }),
     });
 
@@ -56,7 +56,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const submodalityRequest = await createSignedInRequest({
       email: "admin.crea.submodalidad@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades`,
       body: formData({
         intent: "create-submodality",
         modalityId: modality?.id ?? "",
@@ -72,7 +72,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const categoryRequest = await createSignedInRequest({
       email: "admin.crea.categoria@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/categorias?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/categorias`,
       body: formData({
         intent: "create-category",
         name: "Infantil",
@@ -92,7 +92,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
           await createSignedInRequest({
             email: "admin.lista.catalogos@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/modalidades?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/modalidades`,
           })
         ).request,
       ),
@@ -132,7 +132,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const editCategoryRequest = await createSignedInRequest({
       email: "admin.edita.categoria@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/categorias?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/categorias`,
       body: formData({
         intent: "update-category",
         id: category.id,
@@ -173,7 +173,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const deleteSubmodalityRequest = await createSignedInRequest({
       email: "admin.borra.submodalidad@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades`,
       body: formData({
         intent: "delete-submodality",
         id: submodality.id,
@@ -218,7 +218,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const request = await createSignedInRequest({
       email: "admin.categorias.rutas@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/categorias?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/categorias`,
     });
     const data = await loader(routeArgs(request.request));
 
@@ -276,7 +276,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const createRequest = await createSignedInRequest({
       email: "admin.categorias.nueva@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/categorias/nueva?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/categorias/nueva`,
       body: formData({
         intent: "create-category",
         name: "Mayores",
@@ -334,7 +334,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const updateRequest = await createSignedInRequest({
       email: "admin.categorias.edita@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/categorias/${createdCategoryId}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/categorias/${createdCategoryId}`,
       body: formData({
         intent: "update-category",
         id: createdCategoryId,
@@ -369,7 +369,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const deleteRequest = await createSignedInRequest({
       email: "admin.categorias.borra@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/categorias/${createdCategoryId}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/categorias/${createdCategoryId}`,
       body: formData({
         intent: "delete-category",
         id: createdCategoryId,
@@ -432,7 +432,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const request = await createSignedInRequest({
       email: "admin.categorias.detalle.loader@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/categorias/${category.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/categorias/${category.id}`,
     });
 
     const data = await categoryDetailLoader(
@@ -481,7 +481,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const request = await createSignedInRequest({
       email: "admin.categorias.detalle.action@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/categorias/${routeCategory.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/categorias/${routeCategory.id}`,
       body: formData({
         intent: "update-category",
         id: submittedCategory.id,
@@ -514,7 +514,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("rejects `Categoría` detail mutations outside the active event", async () => {
-    const event = await createSavedEvent({
+    await createSavedEvent({
       name: "Regional 2026",
       ...eventDates(2030),
     });
@@ -539,7 +539,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const request = await createSignedInRequest({
       email: "admin.categorias.detalle.otro-evento@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/categorias/${otherCategory.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/categorias/${otherCategory.id}`,
       body: formData({
         intent: "update-category",
         id: otherCategory.id,
@@ -591,7 +591,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const request = await createSignedInRequest({
       email: "admin.categorias.sin.confirmacion@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/categorias/${category.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/categorias/${category.id}`,
       body: formData({
         intent: "delete-category",
         id: category.id,
@@ -630,7 +630,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const blockedRequest = await createSignedInRequest({
       email: "admin.borra.modalidad.bloqueado@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades/${modality.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades/${modality.id}`,
       body: formData({
         intent: "delete-modality",
         id: modality.id,
@@ -650,7 +650,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const confirmedRequest = await createSignedInRequest({
       email: "admin.borra.modalidad@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades/${modality.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades/${modality.id}`,
       body: formData({
         intent: "delete-modality",
         id: modality.id,

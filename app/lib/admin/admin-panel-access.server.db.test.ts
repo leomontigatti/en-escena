@@ -147,7 +147,7 @@ describe("the administration panel for an auditor", () => {
     "opens the %s list inside the layout",
     async (_label, path, child) => {
       const [layout] = await openPanelScreen({
-        child: child as ChildLoader,
+        child: child,
         path,
         role: "auditor",
       });
@@ -235,7 +235,7 @@ describe("the administration panel for an auditor", () => {
     "is still refused the admin-only %s screen",
     async (_label, path, child) => {
       await expectThrownResponse(
-        openPanelScreen({ child: child as ChildLoader, path, role: "auditor" }),
+        openPanelScreen({ child: child, path, role: "auditor" }),
         403,
       );
     },
@@ -318,7 +318,7 @@ describe("the administration panel for an auditor", () => {
 
   test("lets the administrator write", async () => {
     const [layout] = await openPanelScreen({
-      child: academiesLoader as ChildLoader,
+      child: academiesLoader,
       path: "/administracion/academias",
       role: "admin",
     });
@@ -331,7 +331,7 @@ describe("the administration panel for an auditor", () => {
     async (role) => {
       await expectThrownResponse(
         openPanelScreen({
-          child: academiesLoader as ChildLoader,
+          child: academiesLoader,
           path: "/administracion/academias",
           role,
         }),

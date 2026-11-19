@@ -134,10 +134,9 @@ async function seedAcademy(
 
 async function signedIn(input: {
   academyId: string;
-  eventId: string;
   formData?: Record<string, string>;
 }) {
-  const url = `http://localhost/administracion/finanzas/${input.academyId}?evento=${input.eventId}`;
+  const url = `http://localhost/administracion/finanzas/${input.academyId}`;
   const { request } = await createSignedInRequest({
     email: ADMIN_EMAIL,
     role: "admin",

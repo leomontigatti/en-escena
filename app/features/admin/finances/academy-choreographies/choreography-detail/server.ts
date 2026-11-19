@@ -203,7 +203,7 @@ export async function handleChoreographyFinanceAction(input: {
       return result;
     }
 
-    throw redirectToDetail(academyId, choreographyId, eventId);
+    throw redirectToDetail(academyId, choreographyId);
   }
 
   if (isWaiverIntent(intent)) {
@@ -218,7 +218,7 @@ export async function handleChoreographyFinanceAction(input: {
 
   const emissionContext = {
     anchor: { kind: "choreography", choreographyId } as const,
-    detailUrl: choreographyDetailUrl(academyId, choreographyId, eventId),
+    detailUrl: choreographyDetailUrl(academyId, choreographyId),
     eventId,
     resolveEmissionDeps:
       input.resolveEmissionDeps ?? getComprobanteEmissionDeps,
@@ -288,12 +288,8 @@ async function runWaiverIntent(input: {
     : { status: "error", message: result.message };
 }
 
-function redirectToDetail(
-  academyId: string,
-  choreographyId: string,
-  eventId: string,
-) {
-  return redirect(choreographyDetailUrl(academyId, choreographyId, eventId));
+function redirectToDetail(academyId: string, choreographyId: string) {
+  return redirect(choreographyDetailUrl(academyId, choreographyId));
 }
 
 function readChoreographyId(params: { choreographyId?: string }) {

@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const requestPasswordReset = vi.hoisted(() => vi.fn());
 const exchangePasswordRecoveryCode = vi.hoisted(() => vi.fn());
-const verifyPasswordRecoveryOtp = vi.hoisted(() => vi.fn());
 const updatePasswordForRecovery = vi.hoisted(() => vi.fn());
 const signOutCurrentSession = vi.hoisted(() => vi.fn());
 
@@ -10,7 +9,6 @@ vi.mock("@/lib/auth/access-auth-provider.server", () => ({
   accessAuthProvider: {
     requestPasswordReset,
     exchangePasswordRecoveryCode,
-    verifyPasswordRecoveryOtp,
     updatePasswordForRecovery,
     signOutCurrentSession,
   },
@@ -21,14 +19,12 @@ import {
   exchangeAccessRecoveryCode,
   requestAccessRecoveryEmail,
   updateAccessRecoveryPassword,
-  verifyAccessRecoveryTokenHash,
 } from "@/lib/auth/access-recovery.server";
 
 describe("access recovery", () => {
   beforeEach(() => {
     requestPasswordReset.mockReset();
     exchangePasswordRecoveryCode.mockReset();
-    verifyPasswordRecoveryOtp.mockReset();
     updatePasswordForRecovery.mockReset();
     signOutCurrentSession.mockReset();
   });
@@ -79,32 +75,6 @@ describe("access recovery", () => {
     expect(exchangePasswordRecoveryCode).toHaveBeenCalledWith({
       code: "recovery-code",
       request: expect.any(Request),
-      redirectTo: "/cambiar-contrasena?recuperacion=1",
-    });
-  });
-
-  test("opens the recovery session from a recovery email link", async () => {
-    verifyPasswordRecoveryOtp.mockResolvedValue({
-      headers: new Headers(),
-      redirectTo: "/cambiar-contrasena?recuperacion=1",
-    });
-
-    const result = await verifyAccessRecoveryTokenHash({
-      request: new Request(
-        "http://localhost:3000/cambiar-contrasena?token_hash=hash&type=recovery",
-      ),
-      tokenHash: "hash",
-      redirectTo: "/cambiar-contrasena?recuperacion=1",
-    });
-
-    expect(result).toEqual({
-      ok: true,
-      headers: new Headers(),
-      redirectTo: "/cambiar-contrasena?recuperacion=1",
-    });
-    expect(verifyPasswordRecoveryOtp).toHaveBeenCalledWith({
-      request: expect.any(Request),
-      tokenHash: "hash",
       redirectTo: "/cambiar-contrasena?recuperacion=1",
     });
   });

@@ -13,7 +13,6 @@ import {
   type InscriptionThresholds,
 } from "@/lib/finances/inscription-financial-status";
 import {
-  type ChoreographyGroupType,
   computeRosterDancerDiscounts,
   type DancerDiscount,
 } from "@/lib/finances/operational-summary-calculations.server";
@@ -156,7 +155,7 @@ export async function readInscriptionThresholds(
         allocatedAmount: allocatedByInscription.get(row.id) ?? 0,
         choreography: {
           choreographyScheduleId: row.choreographyScheduleId,
-          groupType: row.groupType as ChoreographyGroupType,
+          groupType: row.groupType,
           scheduleCapacityScheduleId: row.scheduleCapacityScheduleId,
         },
         priceRows,

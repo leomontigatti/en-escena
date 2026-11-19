@@ -15,7 +15,6 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   exchangeAccessRecoveryCode,
   updateAccessRecoveryPassword,
-  verifyAccessRecoveryTokenHash,
 } from "@/lib/auth/access-recovery.server";
 import {
   authToastIds,
@@ -64,30 +63,12 @@ export const meta: Route.MetaFunction = () => [
 export async function loader({ request }: Route.LoaderArgs) {
   const url = readRequestedUrl(request);
   const recoveryCode = url.searchParams.get("code");
-  const recoveryTokenHash = url.searchParams.get("token_hash");
-  const recoveryType = url.searchParams.get("type");
   const isRecoveryFlow = url.searchParams.get("recuperacion") === "1";
 
   if (recoveryCode) {
     const result = await exchangeAccessRecoveryCode({
       code: recoveryCode,
       request,
-      redirectTo: "/cambiar-contrasena?recuperacion=1",
-    });
-
-    if (!result.ok) {
-      return {
-        mode: "recovery-invalid" as const,
-      };
-    }
-
-    throw redirect(result.redirectTo, { headers: result.headers });
-  }
-
-  if (recoveryTokenHash && recoveryType === "recovery") {
-    const result = await verifyAccessRecoveryTokenHash({
-      request,
-      tokenHash: recoveryTokenHash,
       redirectTo: "/cambiar-contrasena?recuperacion=1",
     });
 

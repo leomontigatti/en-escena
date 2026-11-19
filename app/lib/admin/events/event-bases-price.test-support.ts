@@ -47,7 +47,7 @@ export async function createEventPriceAdminFixture() {
   const scheduleRequest = await createScheduleAdminRequest({
     email: "admin.precio.cronograma.fixture@example.com",
     role: "admin",
-    requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
+    requestUrl: `http://localhost/administracion/cronogramas`,
     intent: "create-schedule",
     schedule: buildScheduleDraft({
       modalityIds: [modalities[0].id],

@@ -5,7 +5,6 @@ import { academies, user } from "@/db/schema";
 import {
   EMAIL_SIGN_UP_ROLES,
   getUserKind,
-  INTERNAL_USER_ROLES,
   isUserRole,
 } from "@/lib/auth/user-role.shared";
 import { userAccessStateCondition } from "@/lib/auth/user-access-state.server";
@@ -32,7 +31,6 @@ export function readUserFilters(
     query: listQuery.search,
     role: readRoleFilter(searchParams.get("rol")),
     state: readStateFilter(searchParams),
-    type: readTypeFilter(searchParams.get("tipo")),
   };
 }
 
@@ -119,12 +117,6 @@ function buildUserWhere(filters: UserListFilters): SQL<unknown> | undefined {
     clauses.push(searchCondition);
   }
 
-  if (filters.type === "academy" || filters.type === "individual") {
-    clauses.push(eq(user.role, filters.type));
-  } else if (filters.type === "internal") {
-    clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
-  }
-
   if (filters.role !== "all") {
     clauses.push(eq(user.role, filters.role));
   }
@@ -147,15 +139,4 @@ function readStateFilter(searchParams: URLSearchParams) {
 
 function readRoleFilter(value: string | null): UserListFilters["role"] {
   return value !== null && isUserRole(value) ? value : "all";
-}
-
-function readTypeFilter(value: string | null): UserListFilters["type"] {
-  switch (value) {
-    case "academy":
-    case "individual":
-    case "internal":
-      return value;
-    default:
-      return "all";
-  }
 }

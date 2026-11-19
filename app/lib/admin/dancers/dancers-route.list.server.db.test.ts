@@ -416,7 +416,7 @@ describe("`/administracion/bailarines` route: list and detail", () => {
     const { request } = await createSignedInRequest({
       email: "auditor.detail.dancers@example.com",
       role: "auditor",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&estado=todos&participando=todos&verificacion=todos&pagina=2&busqueda=Julia`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?estado=todos&participando=todos&verificacion=todos&pagina=2&busqueda=Julia`,
     });
 
     const loaderData = await detailLoader(detailRouteArgs(request, dancer.id));
@@ -452,7 +452,6 @@ describe("`/administracion/bailarines` route: list and detail", () => {
     expect(markup).toContain("text-info");
     expect(markup).toContain("Identificación");
     expect(markup).toContain("Inscripciones");
-    expect(markup).not.toContain(`evento=${event.id}`);
     expect(markup).toContain("estado=todos");
     expect(markup).toContain("participando=todos");
     expect(markup).toContain("verificacion=todos");
@@ -514,7 +513,7 @@ describe("`/administracion/bailarines` route: list and detail", () => {
     const { request } = await createSignedInRequest({
       email: "admin.con-inscripciones@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${activeEvent.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
     const loaderData = await detailLoader(detailRouteArgs(request, dancer.id));
 
@@ -559,7 +558,7 @@ describe("`/administracion/bailarines` route: list and detail", () => {
     const { request } = await createSignedInRequest({
       email: "admin.sin-inscripciones@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${activeEvent.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
     const loaderData = await detailLoader(detailRouteArgs(request, dancer.id));
 
@@ -663,7 +662,7 @@ describe("`/administracion/bailarines` route: list and detail", () => {
     const { request: detailRequest } = await createSignedInRequest({
       email: "admin.layout.bailarines.detail@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
     const listLoaderData = await loader(listRouteArgs(listRequest));
     const detailLoaderData = await detailLoader(

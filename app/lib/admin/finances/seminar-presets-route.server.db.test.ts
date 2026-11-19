@@ -44,7 +44,7 @@ async function postPreset(
   const { request: signedIn } = await createSignedInRequest({
     email: `admin.${crypto.randomUUID()}@example.com`,
     role: "admin",
-    requestUrl: academyFinancesUrl(fixture.academyId, fixture.eventId),
+    requestUrl: academyFinancesUrl(fixture.academyId),
   });
   const formData = new FormData();
   formData.set("intent", input.intent);
@@ -55,7 +55,7 @@ async function postPreset(
 
   return await academyFinancesAction(
     academyFinancesRouteArgs(
-      new Request(academyFinancesUrl(fixture.academyId, fixture.eventId), {
+      new Request(academyFinancesUrl(fixture.academyId), {
         method: "POST",
         body: formData,
         headers: { cookie: signedIn.headers.get("cookie") ?? "" },
@@ -69,7 +69,7 @@ async function loadPreviews(fixture: Fixture) {
   const { request } = await createSignedInRequest({
     email: `admin.${crypto.randomUUID()}@example.com`,
     role: "admin",
-    requestUrl: academyFinancesUrl(fixture.academyId, fixture.eventId),
+    requestUrl: academyFinancesUrl(fixture.academyId),
   });
   const loaderData = await academyFinancesLoader(
     academyFinancesRouteArgs(request, fixture.academyId),

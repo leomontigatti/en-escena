@@ -768,7 +768,7 @@ async function typeName(value: string) {
 function isSaveEnabled() {
   const button = findButton("Guardar", { exact: true });
 
-  return button !== undefined && !(button as HTMLButtonElement).disabled;
+  return button !== undefined && !button.disabled;
 }
 
 function findDialog() {
