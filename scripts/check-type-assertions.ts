@@ -218,10 +218,17 @@ function writeOverride(
   lintConfig: ReturnType<typeof readLintConfig>,
   files: string[],
 ): void {
-  const others = lintConfig.config.overrides.filter(
-    (override) =>
-      !(Object.keys(override.rules).length === 1 && ruleName in override.rules),
-  );
+  const { raw, config } = lintConfig;
+  // Each kept override is written as it was read, not as the schema parsed it,
+  // so its keys stay in their own order.
+  const rawOverrides = z
+    .looseObject({ overrides: z.array(z.unknown()).default([]) })
+    .parse(raw).overrides;
+  const others = rawOverrides.filter((_, index) => {
+    const rules = config.overrides[index]?.rules ?? {};
+
+    return !(Object.keys(rules).length === 1 && ruleName in rules);
+  });
   const overrides =
     files.length === 0
       ? others
@@ -229,7 +236,7 @@ function writeOverride(
 
   writeFileSync(
     lintConfigPath,
-    `${JSON.stringify({ ...Object(lintConfig.raw), overrides }, null, 2)}\n`,
+    `${JSON.stringify({ ...Object(raw), overrides }, null, 2)}\n`,
   );
 }
 
@@ -240,7 +247,10 @@ function main(): void {
   const lintConfig = readLintConfig();
 
   if (process.argv.includes("--write")) {
-    writeOverride(lintConfig, Object.keys(counts).sort());
+    writeOverride(
+      lintConfig,
+      Object.keys(counts).sort((left, right) => left.localeCompare(right)),
+    );
     writeCounts(allowlistPath, counts);
     spawnSync("node_modules/.bin/prettier", [
       "--write",

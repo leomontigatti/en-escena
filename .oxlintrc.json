@@ -78,6 +78,7 @@
     },
     {
       "files": ["app/**/*.tsx"],
+      "excludeFiles": ["app/components/ui/**", "**/*.test.tsx"],
       "rules": {
         "ui/no-raw-form-element": "error",
         "ui/no-restyle": "error",
@@ -88,26 +89,33 @@
         "ui/confirm-wording": "error",
         "ui/confirmation-shared": "error",
         "ui/alert-structure": "error"
-      },
-      "excludeFiles": ["app/components/ui/**", "**/*.test.tsx"]
+      }
     },
     {
       "files": ["app/**/*.ts", "app/**/*.tsx"],
+      "excludeFiles": ["app/components/ui/**", "**/*.test.ts", "**/*.test.tsx"],
       "rules": {
         "ui/no-borrar": "error",
         "ui/restricted-syntax": "error"
-      },
-      "excludeFiles": ["app/components/ui/**", "**/*.test.ts", "**/*.test.tsx"]
+      }
     },
     {
       "files": ["app/**/*.ts", "app/**/*.tsx"],
+      "excludeFiles": ["**/*.test.ts", "**/*.test.tsx"],
       "rules": {
         "code/catch-reason": "error"
-      },
-      "excludeFiles": ["**/*.test.ts", "**/*.test.tsx"]
+      }
     },
     {
       "files": ["app/**/*.ts", "app/**/*.tsx"],
+      "excludeFiles": [
+        "app/lib/shared/**",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.test-support.ts",
+        "**/*.test-support.tsx",
+        "**/test-support/**"
+      ],
       "rules": {
         "no-restricted-globals": [
           "error",
@@ -134,15 +142,7 @@
             "message": "A network call is a named function in app/lib/shared/ (like email.server.ts or decode-audio.ts); the app's own data goes through loaders, actions and fetchers."
           }
         ]
-      },
-      "excludeFiles": [
-        "app/lib/shared/**",
-        "**/*.test.ts",
-        "**/*.test.tsx",
-        "**/*.test-support.ts",
-        "**/*.test-support.tsx",
-        "**/test-support/**"
-      ]
+      }
     },
     {
       "files": [
@@ -311,9 +311,9 @@
         "app/routes/administracion.coreografias_.$choreographyId.tsx",
         "app/routes/administracion.cronogramas_.$scheduleId.tsx",
         "app/routes/administracion.eventos_.$eventId.tsx",
-        "app/routes/administracion.finanzas_.$academyId.tsx",
         "app/routes/administracion.finanzas_.$academyId_.coreografias_.$choreographyId.tsx",
         "app/routes/administracion.finanzas_.$academyId_.seminarios_.$seminarId.tsx",
+        "app/routes/administracion.finanzas_.$academyId.tsx",
         "app/routes/administracion.gran-final_.$academyId.$modalityId.tsx",
         "app/routes/administracion.modalidades_.$modalityId.tsx",
         "app/routes/administracion.movimientos_.pagos.$paymentId.tsx",
