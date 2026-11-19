@@ -550,7 +550,7 @@ marked, and do not cite the existing unmarked portal ones as precedent.
 - `ComboboxField` takes its field structurally, so the form's generics do not reach its control.
 - The search lives in `ComboboxField`, not in the library, so the clear button empties the search alone and never the chosen value.
 - A combobox popup inside a dialog renders into the dialog's portal host. The anchor must be a real element, since the popup positions against it and the host is found from it.
-- A combobox's trigger takes focus when its picker opens, because the field id sits on a search input that exists only while the popup is open.
+- When a combobox's picker opens, focus goes to its search input (to the popup on a touch, so no keyboard opens). The field id sits on that search input, which exists only while the popup is open.
 - A picker that draws from two roster tables carries the person's kind in the option value with the id, since an id alone does not say which table to insert. The section heading is presentation; the value is what the form submits.
 
 ## Data tables
@@ -621,10 +621,10 @@ marked, and do not cite the existing unmarked portal ones as precedent.
 ## Shared rules for previews and writes
 
 - The view reads a draft's preview, and the save writes from the same resolution. Both go through the classification path that registration uses, and classification runs only when the modality or the dancers changed.
-- The schedule options are the compatible capacities minus the ones that would reprice a money-holding inscription. That is the same split the save's guard makes.
+- The schedule options are the compatible capacities minus the ones that would reprice a money-holding inscription. That is the same split the save's guard makes. The assigned capacity is exempt, and while the classification is unchanged it is offered even when it is no longer compatible.
 - The modality options the view offers are exactly the ones the intent accepts, and the ones it renders disabled are exactly the ones it rejects.
 - An unanswered draft field is an empty string, as in the form: a select with nothing chosen, or a capacity the resolution left to pick.
-- The price-divergence check loads a choreography's inscriptions, event and price rows once, and answers every destination from that read. The offered options and the guard therefore use one rule and one round trip.
+- The price-divergence check loads a choreography's inscriptions, event and price rows once, and answers every destination from that read. The offered options and the guard therefore use one rule and one shared read for every destination.
 - The placement columns are written only when the draft re-resolved them, so an unchanged placement is never rewritten.
 - The capacity, deletion and modality blockers share one shape: the server writes the code and the label that gets read, and the view only lists them in the page alert.
 
@@ -651,7 +651,7 @@ marked, and do not cite the existing unmarked portal ones as precedent.
 ## Print and exports
 
 - Phone numbers are written as text, so a leading zero survives the spreadsheet.
-- A sheet name is cleaned by the shared name helper before the writer uses it. A name that cleans to nothing gets the writer's default.
+- A seminar export's sheet name is cleaned by its naming helper before the writer uses it. A name that cleans to nothing becomes `Seminario`, de-duplicated like any other, rather than the writer's default, which could repeat another sheet's.
 - Dancer names in the choreography export are sorted by surname compared as Spanish (`es-AR`), so an accented surname sorts with its letter. A withdrawn inscription is marked as such in the names.
 
 ## Navigation and transitions
@@ -748,7 +748,7 @@ sits next to the app, so distance to the database is a poor first guess.
 ### Short-lived in-process caches
 
 - `cacheFor` answers from memory for a short time after a load finishes. Reads that arrive during a load share it, and a failed load is not kept.
-- These caches live in one process. That is enough while production runs one app process, since a second process would only load twice as often. The audit totals are cached for five seconds, and the public program for twenty seconds in memory and in the browser, so an audience's reloads and the live tab's polls cost a few database reads a minute.
+- These caches live in one process. That is enough while production runs one app process, since a second process would only load twice as often. The audit totals are cached for five seconds, and the public program for twenty seconds in memory and in the browser, so an audience's reloads and the live tab's polls cost a few program reads a minute. Each request still reads its own session, and a signed-in reader's role, uncached.
 
 ### Sessions and private pages
 

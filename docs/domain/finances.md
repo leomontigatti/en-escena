@@ -520,7 +520,7 @@ reembolso primero.` (on the amount or the academy field, or after
   so instead of offering the button.
 - A payment edit checks its two allocation guards first and only then the refunds floor: a refusal of a move names the academy, and a refusal of a cut names the amount.
 - The over-cap refusal of a refund is worded differently on registration (against `Saldo disponible`) and on an edit, which also counts the refund's own amount.
-- A refund's page shows its academy and event locked, and its action never reads them, since the refund was registered with that owner and event.
+- A refund's page shows its academy and event locked, and its update keeps the stored academy and event whatever the form sends, since the refund was registered with that owner and event.
 
 ## Payment instructions
 
@@ -1395,7 +1395,7 @@ in that series, today − 10)` — ARCA's 10016 refuses a date earlier than the
 - A last-number lookup answered with errors proves nothing about how far ARCA got, so nothing is reserved, authorized or released on it. When emitting, it is a rejection with ARCA's own reason; when abandoning, it leaves the reservation `unverified`.
 - Only a CAE makes an emission approved: a `Resultado` of `A` without a CAE does not count. Errors prevent authorization and are a rejection; observaciones do not, so a comprobante can be approved with them.
 - A contingency's state decides the submit. `rejected` leaves it enabled, since retrying cannot duplicate; `not-emitted` is safe; `unverified`, `number-taken` and a live reservation block it, since retrying blindly could emit a second comprobante; `recovered` ends the operation and removes the submit, while `released` is safe to emit again and stays enabled.
-- Every refusal that applies is reported together, with none ahead of another. A refusal says whether the unit already holds its invoice, so the surface can name the refused document as a note.
+- An invoice with nothing to bill is refused as that alone; otherwise every refusal that applies (the deposit, a missing price) is reported together, with none ahead of another. A refusal says whether the unit already holds its invoice, so the surface can name the refused document as a note.
 - With no sales point configured, the floor and any live reservation are read across every point. That can only be stricter than one point.
 - Once a comprobante is recovered as already authorized, its submit button is removed, not disabled: a disabled button reads as "hold on" and invites a retry that would emit a second comprobante.
 - When an emission was seen failing for up to 45 seconds and then finished, the UI says so rather than switching silently to done, since that reads as a glitch.
@@ -1465,7 +1465,7 @@ in that series, today − 10)` — ARCA's 10016 refuses a date earlier than the
 
 - An anchor's comprobantes are listed newest first by ARCA's date, which has no time, so on one day a credit note recorded later reads as the newer one.
 - A unit's comprobantes, and a comprobante's lines, are plain tables with no search and no pagination, because a unit bills a handful of rows. A row of the comprobantes table opens that comprobante's detail; a comprobante's lines are plain rows that link nowhere.
-- The printout and its RG 4291 QR are generated on demand from the immutable snapshot. The print page renders the document and never triggers an emission; the QR reproduces what ARCA authorized.
+- The printout and its RG 4291 QR are generated on demand: the fiscal values and the QR come from the immutable snapshot, while the names it prints (people, academy, event) are read as they are now. The print page renders the document and never triggers an emission; the QR reproduces what ARCA authorized.
 - The QR payload follows RG 4291: ARCA admits only the CAE code `E`, the field names and order are the verifier's, long identifiers are numbers in the JSON though the issuer CUIT is text on input, and dates are `AAAA-MM-DD`.
 - The printout is a standalone HTML document with its own minimal styles, not the app's stylesheet.
 - Dates on the printout, and the anchor's local date, read `DD/MM/AAAA` through the same formatter as ARCA's `AAAAMMDD` fiscal dates. An unexpected shape is returned as stored rather than hidden.
@@ -1648,7 +1648,7 @@ apart beyond these surfaces:
 - Which badge axes a surface asks for stays with the surface. The portal shows `Retirada` in place of the financial status on its choreography badge, and never `Sobreasignada`, which is administration's to resolve. Its choreography `Estado` filter offers the three statuses, `Bonificada` and `Retirada`, and withdrawn choreographies are listed from the start.
 - On the movements list, `Pagos`, `Reembolsos` and `Neto` re-scope to the selected rows, since each is a sum over movements. `Neto` is selected payments minus selected refunds, so it turns negative when only refunds are ticked. With nothing selected the figures fall back to the event's summary, so an empty selection and no selection read the same.
 - The movements list's `Disponible` facet narrows to payments that still hold free money (`con`) or none (`sin`). It is a filter, not a sort, and refunds leave the list, since they have no `Disponible`.
-- The five figures of the operational finance screens appear in one fixed order on all seven screens that render `OperationalFinanceMetrics`, the individual's `Finanzas` included: `Seña total` with `Seña adeudada`, `Total` with `Saldo adeudado`, then `Saldo disponible`. `Saldo disponible` is always the academy's, even on a choreography or seminar detail, because unallocated money belongs to no unit.
+- The five figures of the operational finance screens appear in one fixed order on all seven screens that render `OperationalFinanceMetrics`, the individual's `Finanzas` included: `Seña total` with `Seña adeudada`, `Total` with `Saldo adeudado`, then `Saldo disponible`. `Saldo disponible` is always the paying owner's (the academy, or the individual, who pays as an academy does), even on a choreography or seminar detail, because unallocated money belongs to no unit.
 - A tab's four figures are summed on the client from that tab's rows, so its heading and its table cannot disagree.
 - A payment's deletion impact names a unit's resulting status only when a threshold actually un-crosses; with nothing un-crossing, naming the unchanged status would read as a consequence of the deletion. A choreography names the threshold it drops below, and a seminar names the places it loses. The impact lists every row the payment funds, withdrawn ones included, because money leaves a withdrawn row as it leaves an active one.
 - The admin seminar inscriptions list drops the `Precio` column: across seminars the row's name says less than its amounts, and the list is about what is owed.

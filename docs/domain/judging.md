@@ -78,16 +78,16 @@ Rules for presentations, judging, program, results, scores and feedback.
 - A schedule's award ceremony has both a date and a time, or neither. Only the public program announces it. A ceremony after midnight falls on the next day, and its line names that day when it is not the schedule's own.
 - A schedule that nobody presents in has no page in the printed program. Every row of a printed page is one height, whatever its two lines hold.
 - A choreography's music download carries its order number only where the reader may see it: always for administration, and for the academy once its day's program is published.
-- The public program reads the session the request carries and nothing more: it never requires one, redirects, refreshes or writes a cookie, and the reader's session stays out of the cache.
+- The public program reads the session the request carries and nothing more: it never requires one, redirects or writes a cookie, and the reader's session stays out of the cache. Reading the session can still extend its expiry in the database, as any session read does.
 - The participation list is one design for the portal and the public program. The public program adds the academy column and the portal the `Nivel` column, which tells apart presentations that otherwise differ in nothing else.
 - The day tab only narrows what is on screen, since the whole list is already loaded. The chosen day stays in the URL, so a reload or a shared link lands on it.
 - The live-day page records the judging day it knew, so a page left open when the next judging day begins asks for the new day's data. A day whose presentations are all withdrawn is over at once, since nothing is left to dance.
-- A page loaded on the live day opens once at its show page, on the URL it was loaded with: a link naming a day, a page or a search stays where it points. The page is named with its day, so a reload after the show still lands on it.
+- A page loaded on the live day opens once at its show page, on the URL it was loaded with: a link naming a day, a page or a search stays where it points. When that page is past the first, it is written into the URL with its day, so a reload after the show still lands on it.
 - An empty level reads as the reason it is empty (`Sin asignar`, `Sin nivel` or `No aplica`). The portal and the spreadsheets show it; the public program hides it.
-- A choreography's own number is distinct from its order number, and the program shows it only in the name's hover title.
-- The portal's rows say whether a deposit is still pending; the public program never does.
+- A choreography's own number is distinct from its order number, and the program shows it only in a linked name's hover title; the public program, whose names link nowhere, does not show it.
+- The portal's presentations list says above the list how many choreographies still owe their deposit, linking to `Finanzas`; no row says it, and the public program never does.
 - An individual's choreography with an unpublished result reads `Sin publicar`, never as an empty award.
-- On the academy's results list, a published presentation's name opens what the judges said about it; every other name opens its choreography. The list shows only the academy's own published rows, with no academy column, and a card per row on a phone.
+- On the academy's presentations list, a published presentation's name opens what the judges said about it, and every other name opens its choreography. The academy's results list opens that evaluation from every name, and shows only the academy's own published rows, with no academy column, and a card per row on a phone.
 
 ## Scores And Feedback
 
@@ -177,7 +177,7 @@ The `grandFinal` is the one ranking of academies in the domain. The public votes
 - Closing a round closes the round its dialog was confirmed over, and no other. A close confirmed over round 1 after a `Desempate` opened finds round 1 closed and leaves round 2 open.
 - A vote is cast only in the active event's open round, and only when it is the round the form was loaded in. A form loaded in round 1 and sent after a `Desempate` opened is refused, never cast in round 2.
 - The tie rule for the round's first place is in ADR-0018's amendment.
-- The admin result tab appears once a round closed. It ranks by weighted points with each finalist's share, calls out a round 1 tie for first place with what settles it, and calls out a `Desempate` still tied as a shared win. Nothing reveals totals while a round is open.
+- The admin result tab appears once a round closed. It ranks by weighted points with each finalist's share, calls out a round 1 tie for first place with what settles it, and calls out a `Desempate` still tied as a shared win. Nothing in the administration reveals totals while a round is open; an audit link does (§ Audit links).
 - A vote that did not count is explained in a fixed order the voter can act on: a closed round first, then the identity, then the academy.
 
 ### Voter identity
