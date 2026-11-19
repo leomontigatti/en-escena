@@ -120,8 +120,11 @@ unused code is `tsc`'s and repo conventions are the `check:*` scripts', and a ru
 that duplicates another owner stays out (decision 2 of ADR-0015). If it reports
 nothing, that is the expected result, not a reason to look for another linter.
 
-To lint only some files, pass them: `pnpm lint <paths>` (the script is plain
-`oxlint`, and `.oxlintrc.json` still applies). This repo has no ESLint, so
+To lint only some files, pass them: `pnpm lint <paths>` (the script is
+`react-router typegen && oxlint`, so the paths reach oxlint, and `.oxlintrc.json`
+still applies). The typegen comes first because the type-aware rules read the
+route types: without `.react-router/`, a route's loader is `any`, and
+`no-unnecessary-type-assertion` flags the casts that narrow it. This repo has no ESLint, so
 `pnpm exec eslint` is never the command.
 
 The un-awaited-promise rules are type-aware (`oxlint-tsgolint`), which is most of
