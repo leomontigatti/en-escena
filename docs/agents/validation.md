@@ -31,6 +31,8 @@ failure. When a step fails, fix it and rerun that step on its own
 Run `pnpm typecheck` and `pnpm build` one after the other, never in parallel:
 `pnpm build` cleans and regenerates `build/`, which TypeScript may read mid-check,
 and the result is a transient TS6053 missing-file error that is not a real failure.
+Likewise `pnpm typecheck` and `pnpm lint`: each regenerates `.react-router/`
+first, so one can delete the route types while the other reads them.
 
 ## This list is exhaustive
 
