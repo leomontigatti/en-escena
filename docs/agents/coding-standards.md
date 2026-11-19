@@ -451,7 +451,7 @@ marked, and do not cite the existing unmarked portal ones as precedent.
 - Status and origin facets keep English values in code and Spanish values in the address bar; one map per filter is read in both directions. The type facet's value is the kind's own name, so the filter is not tied to its label.
 - Retired facet names are not declared, so old links drop them on the way. A legacy spelling of a state is read as that state (`?archivado=si` is read as the suspended state), so a saved link lands on the canonical URL.
 - A tab's search and filter parameters belong to that tab. Other tabs reset them, so a stale value cannot come back with the tab.
-- On a screen with several tables, each table owns its own parameters: a table without a search box ignores the address bar's search, and a table without pages ignores the page. A page past the last one resolves to page one.
+- On a screen with several tables, each table owns its own parameters: a table without a search box ignores the address bar's search, and a table without pages ignores the page. On a client table a page past the last one resolves to page one; a server-paginated list clamps it to its last page.
 - A list's query is the one it is heading to, not the committed URL. A search still navigating is cancelled by clearing it, and a search typed over a filter still navigating keeps that filter.
 - The order token `columnId:direction` is split on its last colon, so a column id may itself contain a colon.
 
@@ -514,7 +514,7 @@ marked, and do not cite the existing unmarked portal ones as precedent.
 ## Data tables
 
 - `DataTableShell` owns no state and decides nothing about the data: the client table filters and pages in memory, the server table does it through the URL, and by the time either reaches the shell the rows are the rows to show. Its four regions are separate components, and its props are grouped by the part of the table each one is about.
-- The header rows are mapped as groups although each table has one group, so a single group holds by construction.
+- The header renderer maps every header group the table returns, although today's column definitions produce one.
 - Row selection is lifted to the view when `selectedRowIds` is passed. A selection that drives figures or actions outside the table needs that; otherwise the table keeps its own selection.
 - Select-all changes every visible row in one loop, so each change must see the previous result. Controlled selection goes through a ref for that reason.
 - `renderFilteredSummary` draws over every filtered page, so figures that sum what the reader sees follow each filter. A server table's filtered count is the page the loader sent, since no client filter narrows either number.
@@ -526,7 +526,7 @@ marked, and do not cite the existing unmarked portal ones as precedent.
 - Server table search keeps a queue of the searches it navigated with, oldest first. A search arriving from the address bar that is found in the queue is its own echo and is ignored. Anything else (Back, a shared link, a view resetting its filters) is an outside change, and the box adopts it. The typed value decides its own surrounding spaces, since the URL records the search trimmed.
 - The text filter narrows one named column and leaves the global filter out; without one, the search box is the global filter. It is derived from the search rather than stored, so a search arriving from the address bar filters the rows the same way.
 - A `matchesSearch` predicate, when given, judges the whole row and replaces the columns' filter values and the text filter column.
-- A column's internal id is English unless the column sorts. A sortable column's id is the order token the list writes in the URL (`nombre:desc`), and URLs are Spanish.
+- A column's internal id is English unless the column sorts. A new sortable column's id is the order token the list writes in the URL (`nombre:desc`), and URLs are Spanish; some older client tables still sort by an English id (`scheduledAt`).
 
 ## Measured layouts and text fit
 

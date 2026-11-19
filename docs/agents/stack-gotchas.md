@@ -103,7 +103,7 @@ Repo rules that follow from them are in [coding-standards.md](coding-standards.m
 - A scrolling region clips anything inside it that tries to escape its box. A popover or a sticky heading placed inside is cut off.
 - The app's `Button` turns off pointer events when disabled (`disabled:pointer-events-none`), so a tooltip on a disabled button hangs off a wrapper element that still gets them.
 - A view transition morphs the elements that share a name between the old and new page. The app marks only the pair a navigation touches.
-- `localStorage` can throw: `SecurityError` where storage access is denied, and `QuotaExceededError` when its quota is full. The app treats both as unavailable storage.
+- `sessionStorage` can throw: `SecurityError` where storage access is denied, and `QuotaExceededError` when its quota is full. The choreography wizard's saved answers treat both as unavailable storage.
 
 ## Browsers: web fonts, text and in-app browsers
 

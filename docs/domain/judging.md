@@ -33,12 +33,11 @@ Rules for presentations, judging, program, results, scores and feedback.
 - Removing a judge assignment is refused once that judge has a score row for that presentation, so no score is ever orphaned. A bulk removal removes the rest and reports how many it kept.
 
 - The bulk judge dialog starts each judge's checkbox from where the judge stands across the chosen rows: checked on all of them, unchecked on none, mixed on some. A judge left as it started is not submitted, so a judge on some rows stays on exactly those; a click on a mixed judge goes through mixed, so the administrator can always return to the starting state. A judge who is no longer assignable can only be taken off.
-- The removal dialog offers every judge with an assignment on the chosen rows, suspended ones included, so a suspended judge can still be taken off.
 - The judge edit's messages count what it reached, not what was asked: an assignment already in place and a judge nobody had are not counted. A removal that would take apart only scored pairs is refused rather than reported as a success, and an edit that both assigns and removes says both.
 - The `Ordenar automáticamente` dialog closes both of its steps when the ordering is confirmed, since the result is announced by the list's toast. Backing out of the confirmation keeps the chosen days, and leaving the first step asks nothing.
 - The automatic ordering is offered on every day with a row that is not withdrawn, whatever the `Estado` filter shows.
 - The running order is the list's only sort, and rows without a number always close the list, in either direction.
-- A row already numbered can take any place in the order; a late row can take any number up to one past the last.
+- A row already numbered can take any free place in the order, never a held one (a frozen or withdrawn number is refused); a late row can take any free number up to one past the last.
 - A drag means "put this row where that one is": the number moved to is the number of the row it is dropped on, and the rows on screen reorder the same way. A drop onto a held row or a held place is ignored rather than shown and then undone.
 - A manual move names the number the row had when it was picked up. When that number has changed since, the move is refused and nothing is written, so two administrators moving at once never overwrite each other. A move that works shows no message, since the refreshed list is the answer.
 - The warnings rank: `Sin jueces` comes first and is the only one drawn as destructive, since a presentation nobody judges cannot be scored. The rest follow `Seña pendiente`, `Cronograma evaluado`, `Separación`, `Fuera de bloque` and `Nivel sin asignar`, and the same order picks the row's badge.
@@ -131,7 +130,7 @@ Rules for presentations, judging, program, results, scores and feedback.
 - An administrator's correction saves one score, or one whole sheet, on its own. A judge's single score is saved alone, and a sheet is one save, because its lines and their total are one decision.
 - A judge who has saved nothing has no feedback cell on the scores page, since an empty `Sin devolución` there would read as something forgotten.
 - A save refused for a closed or not-started day says so: the day has closed, or has not started yet, and scores cannot be saved. A presentation whose choreography has no schedule yet is closed to judges, since there is no day for it to be open on.
-- A criterion's name is compared trimmed, accent-insensitively and case-insensitively, the same way the database index compares it. An empty name is never a duplicate.
+- A criterion's name is compared trimmed, accent-insensitively and case-insensitively. The database index folds case only, so the save is stricter than the index: a name that differs from another by accent alone is refused by the save. An empty name is never a duplicate.
 - A level's sheet stays listed while it holds criteria, even when no category offers that level any more. Its total counts the general criteria too, so its criteria can be cleared and its total still checked.
 - On the sheet list a criterion's kind is its row's position: adds above the separator, deducts below. A level's counter shows the general criteria's share beside its own, and only the level's own share turns red, since only that part can be wrong.
 - A modality's criteria stand as `none` (every submodality scores with one value), `incomplete` (some sheet misses 100) or `complete`. Its page, its list and the criteria editor count the same sheets.
@@ -141,7 +140,7 @@ Rules for presentations, judging, program, results, scores and feedback.
 ### Judge's screens
 
 - The judge's list resumes from the last presentation the judge opened. That place is kept for the browser session on the device only, and it belongs to the show running now, so a day that is not open has none. A day in the URL that the judge has no presentations on falls back to the judging day.
-- The judge's whole day is one page, not paginated. It is read in a dark theatre between dances, so the only number on a row is the judge's own score and the filter is the only control.
+- The judge's whole day is one page, not paginated. It is read in a dark theatre between dances, so a row carries only its running-order number and the judge's own score, and the filter is the only control above the list.
 - The presentation the judge has open is kept in the URL, so returning to the tab or a revalidation reopens it. Nothing opens on a day that is not open or on a withdrawn presentation.
 - After a score saves, the judge moves to the next presentation still owed, read from the revalidated list, and the form closes when none is left. A refusal keeps the form exactly as it was, since there is no offline copy.
 - A sheet takes the whole page rather than a dialog, since it is longer than a dialog holds. It has no previous or next buttons; saving is the way on.

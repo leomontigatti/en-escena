@@ -100,7 +100,7 @@ named as "the pool" is the academy pool of [finances.md](../domain/finances.md)
   waiver locks the inscription rows only: it moves no money, so it takes no pool lock. The owner is read without a lock and the academy is checked again under the
   locks, so a row that moved away is refused rather than charged.
 - **Money gesture on one seminar inscription:** the seminar row, the inscription row,
-  the event's seminar price list (shared), then the pool. The seminar's id is read
+  on a gesture that prices, the event's seminar price list (shared), then the pool. The seminar's id is read
   before its lock, which is safe because a seminar inscription's seminar never changes.
 - **The waiver:** the scope's active inscriptions, `FOR UPDATE`, in id order, before
   it reads whether a row is waived.

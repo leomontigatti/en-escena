@@ -632,8 +632,9 @@ contrato`, `el archivo de la autorización`).
 
 ## Spreadsheet exports
 
-- **An export starts from a dialog that downloads in place**, so the list stays
-  where it is. Nothing is chosen beforehand, and the whole-event choice is listed
+- **An export that asks for a day or a period starts from a dialog that downloads in
+  place**, so the list stays where it is; the choreography's `Exportar bailarines`
+  downloads directly. Nothing is chosen beforehand, and the whole-event choice is listed
   first.
 - **Each sheet of a workbook carries its own row type**, built with `workbookSheet`,
   so its columns and rows are checked against each other. Every workbook download
