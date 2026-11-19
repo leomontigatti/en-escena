@@ -1464,7 +1464,7 @@ in that series, today − 10)` — ARCA's 10016 refuses a date earlier than the
   database's to resolve by destroying the evidence.
 
 - An anchor's comprobantes are listed newest first by ARCA's date, which has no time, so on one day a credit note recorded later reads as the newer one.
-- A unit's comprobantes, and a comprobante's lines, are plain tables with no search and no pagination, because a unit bills a handful of rows. Each row opens the comprobante's detail.
+- A unit's comprobantes, and a comprobante's lines, are plain tables with no search and no pagination, because a unit bills a handful of rows. A row of the comprobantes table opens that comprobante's detail; a comprobante's lines are plain rows that link nowhere.
 - The printout and its RG 4291 QR are generated on demand from the immutable snapshot. The print page renders the document and never triggers an emission; the QR reproduces what ARCA authorized.
 - The QR payload follows RG 4291: ARCA admits only the CAE code `E`, the field names and order are the verifier's, long identifiers are numbers in the JSON though the issuer CUIT is text on input, and dates are `AAAA-MM-DD`.
 - The printout is a standalone HTML document with its own minimal styles, not the app's stylesheet.
