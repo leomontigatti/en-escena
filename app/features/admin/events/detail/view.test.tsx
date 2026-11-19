@@ -288,7 +288,7 @@ describe("EventDetailView form", () => {
       "active",
       "inactive",
     ]);
-    expect(panels[1]!.className).toContain("data-[state=inactive]:hidden");
+    expect(panels[1].className).toContain("data-[state=inactive]:hidden");
     expect(
       Array.from(document.querySelectorAll('[data-slot="tabs-trigger"]')).map(
         (trigger) => trigger.textContent,

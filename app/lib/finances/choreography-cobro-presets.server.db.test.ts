@@ -999,25 +999,25 @@ describe("chargeThreshold on choreographies on a choreography whose group type m
     await db
       .update(choreographyDancers)
       .set({ selectedPriceId: fixture.priceId })
-      .where(eq(choreographyDancers.id, fixture.inscriptionIds[0]!));
+      .where(eq(choreographyDancers.id, fixture.inscriptionIds[0]));
     await db
       .update(choreographies)
       .set({ groupType: "duo" })
-      .where(eq(choreographies.id, choreographyId!));
+      .where(eq(choreographies.id, choreographyId));
 
     const result = await chargeThreshold({
       kind: "choreography",
       academyId: fixture.academyId,
-      choreographyIds: [choreographyId!],
+      choreographyIds: [choreographyId],
       eventId: fixture.eventId,
       priceIdByGroupType: { solo: fixture.priceId },
       stage: "deposit",
     });
 
     expect(result).toMatchObject({ ok: false });
-    await expect(
-      readAllocations([fixture.inscriptionIds[0]!]),
-    ).resolves.toEqual([]);
+    await expect(readAllocations([fixture.inscriptionIds[0]])).resolves.toEqual(
+      [],
+    );
   });
 
   // The band the dialog reads as locked: past the new group type's deposit,
@@ -1025,7 +1025,7 @@ describe("chargeThreshold on choreographies on a choreography whose group type m
   test("stores the row in effect when the dialog names no price over a stored row of another group type", async () => {
     const fixture = await seedPresetFixture([10000]);
     const [choreographyId] = fixture.choreographyIds;
-    const inscriptionId = fixture.inscriptionIds[0]!;
+    const inscriptionId = fixture.inscriptionIds[0];
     const allocate = (amount: number, priceId: string | null) =>
       allocateToInscription({
         now: new Date(),
@@ -1040,7 +1040,7 @@ describe("chargeThreshold on choreographies on a choreography whose group type m
     await db
       .update(choreographies)
       .set({ groupType: "duo" })
-      .where(eq(choreographies.id, choreographyId!));
+      .where(eq(choreographies.id, choreographyId));
 
     const withoutDuoPrice = await allocate(500, null);
     // A deposit of 1500, already covered by the 2000 held.
@@ -1061,7 +1061,7 @@ describe("chargeThreshold on choreographies on a choreography whose group type m
       .select({ selectedPriceId: choreographyDancers.selectedPriceId })
       .from(choreographyDancers)
       .where(eq(choreographyDancers.id, inscriptionId));
-    expect(inscription?.selectedPriceId).toBe(duoPrice!.id);
+    expect(inscription?.selectedPriceId).toBe(duoPrice.id);
   });
 
   test("still funds the balance of an inscription already frozen on a row of another group type", async () => {
@@ -1070,7 +1070,7 @@ describe("chargeThreshold on choreographies on a choreography whose group type m
     await chargeThreshold({
       kind: "choreography",
       academyId: fixture.academyId,
-      choreographyIds: [choreographyId!],
+      choreographyIds: [choreographyId],
       eventId: fixture.eventId,
       priceIdByGroupType: { solo: fixture.priceId },
       stage: "deposit",
@@ -1078,14 +1078,14 @@ describe("chargeThreshold on choreographies on a choreography whose group type m
     await db
       .update(choreographies)
       .set({ groupType: "duo" })
-      .where(eq(choreographies.id, choreographyId!));
+      .where(eq(choreographies.id, choreographyId));
 
     // A row frozen before #660 guarded the roster: the preset offers no picker
     // for it, and refusing would leave it with no way to be paid.
     const result = await chargeThreshold({
       kind: "choreography",
       academyId: fixture.academyId,
-      choreographyIds: [choreographyId!],
+      choreographyIds: [choreographyId],
       eventId: fixture.eventId,
       priceIdByGroupType: {},
       stage: "balance",
@@ -1120,20 +1120,20 @@ describe.skipIf(isPgliteTestBackend())(
           await tx
             .select({ id: choreographyDancers.id })
             .from(choreographyDancers)
-            .where(eq(choreographyDancers.choreographyId, choreographyId!))
+            .where(eq(choreographyDancers.choreographyId, choreographyId))
             .for("update");
           await tx
             .update(choreographies)
             .set({ groupType: "duo" })
-            .where(eq(choreographies.id, choreographyId!));
+            .where(eq(choreographies.id, choreographyId));
         },
         contender: () =>
           chargeThreshold({
             kind: "choreography",
             academyId: fixture.academyId,
-            choreographyIds: [choreographyId!],
+            choreographyIds: [choreographyId],
             eventId: fixture.eventId,
-            priceIdByGroupType: { duo: duoPrice!.id, solo: fixture.priceId },
+            priceIdByGroupType: { duo: duoPrice.id, solo: fixture.priceId },
             stage: "deposit",
           }),
       });
@@ -1142,8 +1142,8 @@ describe.skipIf(isPgliteTestBackend())(
       const [inscription] = await db
         .select({ selectedPriceId: choreographyDancers.selectedPriceId })
         .from(choreographyDancers)
-        .where(eq(choreographyDancers.id, fixture.inscriptionIds[0]!));
-      expect(inscription?.selectedPriceId).toBe(duoPrice!.id);
+        .where(eq(choreographyDancers.id, fixture.inscriptionIds[0]));
+      expect(inscription?.selectedPriceId).toBe(duoPrice.id);
     });
   },
 );

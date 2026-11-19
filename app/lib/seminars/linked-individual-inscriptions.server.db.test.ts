@@ -267,5 +267,5 @@ async function registerIndividual(fixture: {
     })
     .returning({ id: seminarInscriptions.id });
 
-  return row!.id;
+  return row.id;
 }

@@ -352,6 +352,6 @@ async function createSeminarInscriptionFixture() {
   return {
     event,
     seminar: seminar.seminar,
-    inscriptionId: inscription!.id,
+    inscriptionId: inscription.id,
   };
 }

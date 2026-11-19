@@ -142,7 +142,7 @@ async function seedChoreographyInscription(): Promise<SeededInscription> {
       paymentDeadline: "2026-12-31",
     },
   ]);
-  const target = { id: inscription!.id, kind: "choreography" as const };
+  const target = { id: inscription.id, kind: "choreography" as const };
 
   await db.insert(payments).values({
     academyId,
@@ -171,38 +171,38 @@ async function seedChoreographyInscription(): Promise<SeededInscription> {
 
       return {
         parentIds: [choreography.id],
-        target: { id: row!.id, kind: "choreography" },
+        target: { id: row.id, kind: "choreography" },
       };
     },
     eventId: event.id,
-    foreignPriceId: foreignPrice!.id,
+    foreignPriceId: foreignPrice.id,
     fundPool: (amount) => setPool(academyId, event.id, amount),
-    otherPriceId: otherPrice!.id,
+    otherPriceId: otherPrice.id,
     parentId: choreography.id,
-    priceId: price!.id,
+    priceId: price.id,
     readSelectedPriceId: async () => {
       const [row] = await db
         .select({ selectedPriceId: choreographyDancers.selectedPriceId })
         .from(choreographyDancers)
-        .where(eq(choreographyDancers.id, inscription!.id));
+        .where(eq(choreographyDancers.id, inscription.id));
 
       return row?.selectedPriceId ?? null;
     },
     reprice: async (amount) => {
-      await db.update(prices).set({ amount }).where(eq(prices.id, price!.id));
+      await db.update(prices).set({ amount }).where(eq(prices.id, price.id));
     },
     storePrice: async (priceId) => {
       await db
         .update(choreographyDancers)
         .set({ selectedPriceId: priceId })
-        .where(eq(choreographyDancers.id, inscription!.id));
+        .where(eq(choreographyDancers.id, inscription.id));
     },
     target,
     withdraw: async () => {
       await db
         .update(choreographyDancers)
         .set({ withdrawnAt: new Date() })
-        .where(eq(choreographyDancers.id, inscription!.id));
+        .where(eq(choreographyDancers.id, inscription.id));
     },
   };
 }
@@ -240,10 +240,10 @@ async function seedSeminarInscription(): Promise<SeededInscription> {
       target: { id: fixture.nicolasInscriptionId, kind: "seminar" },
     }),
     eventId: fixture.eventId,
-    foreignPriceId: foreignPrice!.id,
+    foreignPriceId: foreignPrice.id,
     fundPool: (amount) =>
       setPool(fixture.northAcademyId, fixture.eventId, amount),
-    otherPriceId: otherPrice!.id,
+    otherPriceId: otherPrice.id,
     parentId: fixture.abrilSeminarId,
     priceId: fixture.priceId,
     readSelectedPriceId: async () => {

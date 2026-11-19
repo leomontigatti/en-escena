@@ -657,7 +657,7 @@ describe("saving a draft of the choreography detail", () => {
           await tx
             .select({ id: choreographyDancers.id })
             .from(choreographyDancers)
-            .where(eq(choreographyDancers.id, inscription!.id))
+            .where(eq(choreographyDancers.id, inscription.id))
             .for("update"),
         contender: () =>
           scenario.saveDraft(
@@ -667,7 +667,7 @@ describe("saving a draft of the choreography detail", () => {
           await tx.insert(paymentAllocations).values({
             academyId: scenario.owner.academyId,
             amount: 2000,
-            choreographyInscriptionId: inscription!.id,
+            choreographyInscriptionId: inscription.id,
             eventId: scenario.event.id,
             paymentId,
           }),
@@ -720,7 +720,7 @@ describe("saving a draft of the choreography detail", () => {
         }),
         expect.objectContaining({
           dancerId: scenario.ana.id,
-          id: expect.not.stringMatching(anaInscription!.id),
+          id: expect.not.stringMatching(anaInscription.id),
           withdrawnAt: null,
         }),
       ]),

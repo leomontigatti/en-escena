@@ -75,7 +75,7 @@ describe("useRosterRefusalToast", () => {
 
     expect(toastError).toHaveBeenCalledTimes(1);
 
-    const [message, options] = toastError.mock.calls[0]!;
+    const [message, options] = toastError.mock.calls[0];
 
     expect(message).toBe("Ya existe un bailarín archivado con ese documento.");
     expect(options?.id).toBe("roster:error");

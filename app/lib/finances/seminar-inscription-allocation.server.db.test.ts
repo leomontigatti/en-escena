@@ -143,9 +143,9 @@ async function seedFixture() {
     inscriptionId: inscription.id,
     outsiderInscriptionId: outsiderInscription.id,
     priceIds,
-    secondInscriptionId: roommates[0]!,
+    secondInscriptionId: roommates[0],
     seminarId: seminar.id,
-    thirdInscriptionId: roommates[1]!,
+    thirdInscriptionId: roommates[1],
     watchingAcademyId: watching.academyId,
   };
 }

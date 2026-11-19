@@ -97,9 +97,9 @@ async function seedFixture(quota = 5) {
     cookie: owner.cookie,
     academyId: owner.academyId,
     eventId: event.id,
-    firstInscriptionId: inscriptionRows[0]!.id,
-    priceId: priceRow!.id,
-    secondInscriptionId: inscriptionRows[1]!.id,
+    firstInscriptionId: inscriptionRows[0].id,
+    priceId: priceRow.id,
+    secondInscriptionId: inscriptionRows[1].id,
     seminarId: created.seminar.id,
   };
 }
@@ -291,7 +291,7 @@ describe("portal seminar financial detail", () => {
       academyId: individual.ownerId,
       amount: seminarPriceAmount / 2,
       eventId: fixture.eventId,
-      target: { id: inscription!.id, kind: "seminar" },
+      target: { id: inscription.id, kind: "seminar" },
       priceId: fixture.priceId,
     });
 
@@ -300,7 +300,7 @@ describe("portal seminar financial detail", () => {
     const after = await loadPortalDetail(fixture);
 
     expect(
-      after.inscriptions.find((row) => row.inscriptionId === inscription!.id),
+      after.inscriptions.find((row) => row.inscriptionId === inscription.id),
     ).toEqual({
       allocatedAmount: 0,
       anomalies: [],
@@ -308,7 +308,7 @@ describe("portal seminar financial detail", () => {
       effectivePrice: null,
       financialStatus: "paidInFull",
       firstName: "Clara",
-      inscriptionId: inscription!.id,
+      inscriptionId: inscription.id,
       lastName: "Ríos",
       linkedIndividual: true,
       owedBalanceAmount: 0,
@@ -421,7 +421,7 @@ describe("portal seminar financial detail", () => {
     });
     expect(detail.inscriptions).toEqual([
       expect.objectContaining({
-        inscriptionId: inscription!.id,
+        inscriptionId: inscription.id,
         linkedIndividual: true,
         totalAmount: 0,
       }),

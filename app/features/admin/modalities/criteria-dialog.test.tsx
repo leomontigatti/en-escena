@@ -97,7 +97,7 @@ describe("the submodality criteria editor", () => {
     });
 
     await waitFor(() =>
-      document.body.textContent!.includes(
+      document.body.textContent.includes(
         "El total de los criterios que suman debe ser igual a 100.",
       ),
     );

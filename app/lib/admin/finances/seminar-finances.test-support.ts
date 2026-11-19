@@ -91,13 +91,13 @@ export async function seedEventSeminarFinanceFixture() {
 
   return {
     abrilSeminarId: abril.id,
-    anaInscriptionId: anaInAbril!.id,
+    anaInscriptionId: anaInAbril.id,
     brunoSeminarId: bruno.id,
     eventId: event.id,
-    luzInscriptionId: luzInBruno!.id,
-    nicolasInscriptionId: nicolasInBruno!.id,
+    luzInscriptionId: luzInBruno.id,
+    nicolasInscriptionId: nicolasInBruno.id,
     northAcademyId: north.academy.id,
-    priceId: price!.id,
+    priceId: price.id,
     southAcademyId: south.academy.id,
   };
 }
@@ -260,16 +260,16 @@ export async function seedSeminarPresetFixture(input: {
   ] = await db
     .insert(seminarInscriptions)
     .values([
-      { dancerId: participant.id, seminarId: special!.id },
-      { dancerId: outsider.id, seminarId: special!.id },
-      { dancerId: participant.id, seminarId: regular!.id },
-      { dancerId: outsider.id, seminarId: regular!.id },
+      { dancerId: participant.id, seminarId: special.id },
+      { dancerId: outsider.id, seminarId: special.id },
+      { dancerId: participant.id, seminarId: regular.id },
+      { dancerId: outsider.id, seminarId: regular.id },
       {
         dancerId: leaver.id,
-        seminarId: regular!.id,
+        seminarId: regular.id,
         withdrawnAt: new Date("2030-04-01T12:00:00Z"),
       },
-      { dancerId: neighbour.id, seminarId: special!.id },
+      { dancerId: neighbour.id, seminarId: special.id },
     ])
     .returning();
 
@@ -291,16 +291,16 @@ export async function seedSeminarPresetFixture(input: {
     eventId: event.id,
     expiredPriceId,
     inscriptions: {
-      regularLeaver: regularLeaver!,
-      regularOutsider: regularOutsider!,
-      regularParticipant: regularParticipant!,
-      specialNeighbour: specialNeighbour!,
-      specialOutsider: specialOutsider!,
-      specialParticipant: specialParticipant!,
+      regularLeaver: regularLeaver,
+      regularOutsider: regularOutsider,
+      regularParticipant: regularParticipant,
+      specialNeighbour: specialNeighbour,
+      specialOutsider: specialOutsider,
+      specialParticipant: specialParticipant,
     },
     priceId,
-    regular: regular!,
-    special: special!,
+    regular: regular,
+    special: special,
   };
 }
 

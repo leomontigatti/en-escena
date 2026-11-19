@@ -68,7 +68,7 @@ describe("PresentationDayTabs", () => {
     await act(async () => {
       document
         .querySelectorAll('[role="tab"]')
-        [index]!.dispatchEvent(
+        [index].dispatchEvent(
           new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
         );
     });

@@ -306,7 +306,7 @@ describe("group-type pin on a roster change", () => {
     await expect(
       scenario.pinsGroupType({
         groupType: "duo",
-        keptDancerIds: [inscription!.dancerId],
+        keptDancerIds: [inscription.dancerId],
       }),
     ).resolves.toBe(true);
   });
@@ -322,7 +322,7 @@ describe("group-type pin on a roster change", () => {
     await expect(
       scenario.pinsGroupType({
         groupType: "solo",
-        keptDancerIds: [inscription!.dancerId],
+        keptDancerIds: [inscription.dancerId],
       }),
     ).resolves.toBe(false);
   });
@@ -339,7 +339,7 @@ describe("group-type pin on a roster change", () => {
     await expect(
       scenario.pinsGroupType({
         groupType: "duo",
-        keptDancerIds: [inscription!.dancerId],
+        keptDancerIds: [inscription.dancerId],
       }),
     ).resolves.toBe(false);
   });
@@ -358,14 +358,14 @@ describe("group-type pin on a roster change", () => {
     await db
       .update(choreographyDancers)
       .set({ withdrawnAt: new Date() })
-      .where(eq(choreographyDancers.id, withdrawn!.id));
+      .where(eq(choreographyDancers.id, withdrawn.id));
 
     // Each was charged as the solo it danced in; only the roster that remains
     // is priced by the new group type, the withdrawn dancer's new row included.
     await expect(
       scenario.pinsGroupType({
         groupType: "duo",
-        keptDancerIds: [withdrawn!.dancerId],
+        keptDancerIds: [withdrawn.dancerId],
       }),
     ).resolves.toBe(false);
   });

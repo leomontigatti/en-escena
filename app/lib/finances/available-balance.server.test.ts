@@ -96,7 +96,7 @@ describe("splitAvailableBalance", () => {
   test("draws by payment number, whatever order the payments arrive in", () => {
     const [first, second, third] = poolPayments([1000, 0], [2000, 0], [500, 0]);
     const split = splitAvailableBalance({
-      payments: [second!, third!, first!],
+      payments: [second, third, first],
       refundedAmount: 700,
     });
 

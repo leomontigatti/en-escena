@@ -99,9 +99,9 @@ describe("access emails when the provider fails (#1810)", () => {
     });
 
     expect(pendingSignUps).toHaveLength(1);
-    expect(pendingSignUps[0]!.value).toContain(NEW_EMAIL);
+    expect(pendingSignUps[0].value).toContain(NEW_EMAIL);
     expect(resendSendMock.mock.lastCall?.[0].text).toContain(
-      pendingSignUps[0]!.identifier.slice("academy-signup:".length),
+      pendingSignUps[0].identifier.slice("academy-signup:".length),
     );
   });
 
