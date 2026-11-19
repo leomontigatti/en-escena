@@ -49,7 +49,7 @@ describe("admin payment detail", () => {
     await createSignedInRequest({
       email: "admin.pago.edicion@example.com",
       role: "admin",
-      requestUrl: paymentDetailUrl("payment_pending", event.id),
+      requestUrl: paymentDetailUrl("payment_pending"),
     });
 
     await registerAcademyEventPayment({
@@ -74,7 +74,7 @@ describe("admin payment detail", () => {
       },
       intent: updatePaymentIntent,
       paymentId: payment.id,
-      requestUrl: paymentDetailUrl(payment.id, event.id),
+      requestUrl: paymentDetailUrl(payment.id),
     });
 
     await expect(
@@ -111,7 +111,7 @@ describe("admin payment detail", () => {
     await createSignedInRequest({
       email: "admin.pago.asignado@example.com",
       role: "admin",
-      requestUrl: paymentDetailUrl("payment_pending", event.id),
+      requestUrl: paymentDetailUrl("payment_pending"),
     });
 
     await registerAcademyEventPayment({
@@ -150,7 +150,7 @@ describe("admin payment detail", () => {
       },
       intent: updatePaymentIntent,
       paymentId: payment.id,
-      requestUrl: paymentDetailUrl(payment.id, event.id),
+      requestUrl: paymentDetailUrl(payment.id),
     });
 
     await expect(
@@ -183,7 +183,7 @@ describe("admin payment detail", () => {
     await createSignedInRequest({
       email: "admin.pago.eliminar.cascada@example.com",
       role: "admin",
-      requestUrl: paymentDetailUrl("payment_pending", event.id),
+      requestUrl: paymentDetailUrl("payment_pending"),
     });
 
     await registerAcademyEventPayment({
@@ -217,7 +217,7 @@ describe("admin payment detail", () => {
       },
       intent: deletePaymentIntent,
       paymentId: payment.id,
-      requestUrl: paymentDetailUrl(payment.id, event.id),
+      requestUrl: paymentDetailUrl(payment.id),
     });
 
     await expect(
@@ -245,7 +245,7 @@ describe("admin payment detail", () => {
     await createSignedInRequest({
       email: "admin.pago.eliminar.saldo@example.com",
       role: "admin",
-      requestUrl: paymentDetailUrl("payment_pending", event.id),
+      requestUrl: paymentDetailUrl("payment_pending"),
     });
 
     // Payment A: carries the deposit. Payment B: carries the balance.
@@ -306,7 +306,7 @@ describe("admin payment detail", () => {
       },
       intent: deletePaymentIntent,
       paymentId: depositPayment.id,
-      requestUrl: paymentDetailUrl(depositPayment.id, event.id),
+      requestUrl: paymentDetailUrl(depositPayment.id),
     });
 
     // There is no reversal order: money is fungible and the deletion proceeds.
@@ -386,7 +386,6 @@ describe("a payment edit or deletion against the owner's refunds", () => {
   }
 
   function editRequest(
-    seeded: Awaited<ReturnType<typeof seedRefundedPool>>,
     payment: Awaited<ReturnType<typeof findPaymentById>> & {},
     fields: { academyId?: string; amount?: number },
   ) {
@@ -401,19 +400,16 @@ describe("a payment edit or deletion against the owner's refunds", () => {
       },
       intent: updatePaymentIntent,
       paymentId: payment.id,
-      requestUrl: paymentDetailUrl(payment.id, seeded.event.id),
+      requestUrl: paymentDetailUrl(payment.id),
     });
   }
 
-  function deleteRequest(
-    seeded: Awaited<ReturnType<typeof seedRefundedPool>>,
-    paymentId: string,
-  ) {
+  function deleteRequest(paymentId: string) {
     return buildPaymentDetailPostRequest({
       fields: { confirmDeletion: paymentId, id: paymentId },
       intent: deletePaymentIntent,
       paymentId,
-      requestUrl: paymentDetailUrl(paymentId, seeded.event.id),
+      requestUrl: paymentDetailUrl(paymentId),
     });
   }
 
@@ -423,7 +419,7 @@ describe("a payment edit or deletion against the owner's refunds", () => {
     // Without the 2000 payment: 3000 − 1000 allocated = 2000 < 2500 refunded.
     await expect(
       handlePaymentDetailAction(
-        await deleteRequest(seeded, seeded.second.id),
+        await deleteRequest(seeded.second.id),
         seeded.second.id,
       ),
     ).resolves.toEqual({
@@ -451,7 +447,7 @@ describe("a payment edit or deletion against the owner's refunds", () => {
     // 3000 + 1000 − 1000 allocated = 3000 ≥ 2500 refunded.
     await expect(
       handlePaymentDetailAction(
-        await deleteRequest(seeded, seeded.second.id),
+        await deleteRequest(seeded.second.id),
         seeded.second.id,
       ),
     ).rejects.toMatchObject({ status: 302 });
@@ -463,7 +459,7 @@ describe("a payment edit or deletion against the owner's refunds", () => {
 
     await expect(
       handlePaymentDetailAction(
-        await editRequest(seeded, seeded.second, { amount: 499 }),
+        await editRequest(seeded.second, { amount: 499 }),
         seeded.second.id,
       ),
     ).resolves.toMatchObject({
@@ -476,7 +472,7 @@ describe("a payment edit or deletion against the owner's refunds", () => {
 
     await expect(
       handlePaymentDetailAction(
-        await editRequest(seeded, seeded.second, { amount: 500 }),
+        await editRequest(seeded.second, { amount: 500 }),
         seeded.second.id,
       ),
     ).resolves.toMatchObject({ status: "success" });
@@ -490,7 +486,7 @@ describe("a payment edit or deletion against the owner's refunds", () => {
 
     await expect(
       handlePaymentDetailAction(
-        await editRequest(seeded, seeded.second, {
+        await editRequest(seeded.second, {
           academyId: seeded.otherAcademy.academy.id,
         }),
         seeded.second.id,
@@ -509,7 +505,7 @@ describe("a payment edit or deletion against the owner's refunds", () => {
 
     await expect(
       handlePaymentDetailAction(
-        await editRequest(seeded, seeded.first, {
+        await editRequest(seeded.first, {
           academyId: seeded.otherAcademy.academy.id,
           amount: 999,
         }),
@@ -533,7 +529,7 @@ describe("a payment edit or deletion against the owner's refunds", () => {
           await createSignedInRequest({
             email: `${crypto.randomUUID()}@example.com`,
             role: "admin",
-            requestUrl: paymentDetailUrl(paymentId, seeded.event.id),
+            requestUrl: paymentDetailUrl(paymentId),
           })
         ).request,
         paymentId,
@@ -574,7 +570,7 @@ describe.skipIf(isPgliteTestBackend())(
         },
         intent: updatePaymentIntent,
         paymentId: payment.id,
-        requestUrl: paymentDetailUrl(payment.id, fixture.eventId),
+        requestUrl: paymentDetailUrl(payment.id),
       });
 
       const result = await runBehindAHolder({
@@ -624,7 +620,7 @@ describe.skipIf(isPgliteTestBackend())(
         },
         intent: updatePaymentIntent,
         paymentId: moved.paymentId,
-        requestUrl: paymentDetailUrl(moved.paymentId, moved.eventId),
+        requestUrl: paymentDetailUrl(moved.paymentId),
       });
 
       const result = await moved.runContender(() =>
@@ -648,7 +644,7 @@ describe.skipIf(isPgliteTestBackend())(
         fields: { confirmDeletion: moved.paymentId, id: moved.paymentId },
         intent: deletePaymentIntent,
         paymentId: moved.paymentId,
-        requestUrl: paymentDetailUrl(moved.paymentId, moved.eventId),
+        requestUrl: paymentDetailUrl(moved.paymentId),
       });
 
       const result = await moved.runContender(() =>
@@ -812,6 +808,6 @@ async function findInscriptionById(inscriptionId: string) {
   });
 }
 
-function paymentDetailUrl(paymentId: string, eventId: string) {
-  return `http://localhost/administracion/movimientos/pagos/${paymentId}?evento=${eventId}`;
+function paymentDetailUrl(paymentId: string) {
+  return `http://localhost/administracion/movimientos/pagos/${paymentId}`;
 }

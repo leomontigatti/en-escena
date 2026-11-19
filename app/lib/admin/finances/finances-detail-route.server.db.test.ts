@@ -101,7 +101,7 @@ describe("`/administracion/finanzas` academy", () => {
     const { request } = await createSignedInRequest({
       email: "admin.academias.lista@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/academias?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/academias`,
     });
 
     const loaderData = await academiesLoader(academiesRouteArgs(request));
@@ -292,7 +292,7 @@ describe("`/administracion/finanzas` academy", () => {
       amount: "25000",
       paymentDate: "2026-04-10",
       paymentMethod: "transferencia",
-      requestUrl: `http://localhost/administracion/movimientos/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/movimientos/nuevo`,
       role: "auditor",
     });
 
@@ -481,7 +481,7 @@ describe("`/administracion/finanzas` academy", () => {
       email: "academia.pagos.finanzas@example.com",
       academyName: "Academia Pagos",
     });
-    const createUrl = `http://localhost/administracion/movimientos/nuevo?evento=${event.id}`;
+    const createUrl = `http://localhost/administracion/movimientos/nuevo`;
     const { request: firstRequest } = await buildGlobalPaymentRequest({
       academyId: academy.academy.id,
       amount: "25000",
@@ -571,7 +571,7 @@ describe("`/administracion/finanzas` academy", () => {
   });
 
   test("validates positive whole-peso amounts, required method, and non-future payment dates", async () => {
-    const event = await createSavedEvent();
+    await createSavedEvent();
     const academy = await createAcademyUser({
       email: "academia.validacion.finanzas@example.com",
       academyName: "Academia Validacion",
@@ -581,7 +581,7 @@ describe("`/administracion/finanzas` academy", () => {
       amount: "10.5",
       paymentDate: "2099-01-01",
       paymentMethod: "",
-      requestUrl: `http://localhost/administracion/movimientos/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/movimientos/nuevo`,
       role: "admin",
     });
 

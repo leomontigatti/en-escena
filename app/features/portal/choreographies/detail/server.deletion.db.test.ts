@@ -53,7 +53,7 @@ describe("portal choreography deletion", () => {
       choreographyDetailAction({
         params: { choreographyId: choreography.id },
         request: createPortalPostRequest(
-          `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+          `http://localhost/portal/coreografias/${choreography.id}`,
           owner.cookie,
           legacyDeleteChoreographyFormData(choreography.id),
         ),

@@ -55,7 +55,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const selectedRequest = await createSignedInRequest({
       email: "admin.catalogos.seleccionado@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/eventos?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/eventos`,
     });
     const data = await loader(routeArgs(selectedRequest.request));
     const markup = renderRoute(data, {
@@ -132,7 +132,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       name: "Regional 2026",
       ...eventDates(2030),
     });
-    const inactiveEvent = await createSavedEvent({
+    await createSavedEvent({
       name: "Nacional 2026",
       active: false,
       ...eventDates(2030),
@@ -141,7 +141,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const request = await createSignedInRequest({
       email: "admin.no.activo@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades?evento=${inactiveEvent.id}`,
+      requestUrl: `http://localhost/administracion/modalidades`,
     });
     const data = await loader(routeArgs(request.request));
     const markup = renderModalidadesRoute(data);
@@ -179,7 +179,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const request = await createSignedInRequest({
       email: "admin.lista.modalidades@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades`,
     });
     const data = await loader(routeArgs(request.request));
     const markup = renderModalidadesRoute(data);
@@ -208,7 +208,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const modalityRequest = await createSignedInRequest({
       email: "admin.crea.modalidad@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades/nueva?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades/nueva`,
       body: formData({ intent: "create-modality", name: "Jazz" }),
     });
 
@@ -243,7 +243,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
           await createSignedInRequest({
             email: "admin.detalle.modalidad@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/modalidades/${modality?.id}?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/modalidades/${modality?.id}`,
           })
         ).request,
       ),
@@ -274,7 +274,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const submodalityRequest = await createSignedInRequest({
       email: "admin.crea.submodalidad@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades/${modality.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades/${modality.id}`,
       body: formData({
         intent: "create-submodality",
         modalityId: modality.id,
@@ -293,7 +293,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
           await createSignedInRequest({
             email: "admin.lista.catalogos@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/modalidades/${modality.id}?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/modalidades/${modality.id}`,
           })
         ).request,
       ),
@@ -313,7 +313,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const editModalityRequest = await createSignedInRequest({
       email: "admin.edita.modalidad@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades/${modality.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades/${modality.id}`,
       body: formData({
         intent: "update-modality",
         id: modality.id,
@@ -337,7 +337,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const editSubmodalityRequest = await createSignedInRequest({
       email: "admin.edita.submodalidad@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades/${modality.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades/${modality.id}`,
       body: formData({
         intent: "update-submodality",
         id: submodality?.id ?? "",
@@ -359,7 +359,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const deleteSubmodalityRequest = await createSignedInRequest({
       email: "admin.borra.submodalidad@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades/${modality.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades/${modality.id}`,
       body: formData({
         intent: "delete-submodality",
         id: submodality?.id ?? "",
@@ -395,7 +395,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const updateModalityRequest = await createSignedInRequest({
       email: "admin.inline.submodalidades@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades/${modality.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades/${modality.id}`,
       body: formData({
         intent: "update-modality",
         id: modality.id,
@@ -435,7 +435,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("renders the `Agregar` submodality editor on the modality `alta` route", async () => {
-    const event = await createSavedEvent({
+    await createSavedEvent({
       name: "Regional 2026",
       ...eventDates(2030),
     });
@@ -443,7 +443,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const request = await createSignedInRequest({
       email: "admin.alta.submodalidades@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades/nueva?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades/nueva`,
     });
     const data = await loader(routeArgs(request.request));
     const markup = renderNuevaModalidadRoute(data);
@@ -460,7 +460,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const createRequest = await createSignedInRequest({
       email: "admin.crea.modalidad.submodalidades@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades/nueva?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades/nueva`,
       body: formData({
         intent: "create-modality",
         name: "Jazz",
@@ -510,7 +510,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const createRequest = await createSignedInRequest({
       email: "admin.crea.modalidad.sin.submodalidades@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades/nueva?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades/nueva`,
       body: formData({
         intent: "create-modality",
         name: "Jazz",
@@ -533,14 +533,14 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("rejects duplicate submodality names server-side on modality creation", async () => {
-    const event = await createSavedEvent({
+    await createSavedEvent({
       name: "Regional 2026",
       ...eventDates(2030),
     });
     const createRequest = await createSignedInRequest({
       email: "admin.crea.modalidad.duplicada@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades/nueva?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades/nueva`,
       body: formData({
         intent: "create-modality",
         name: "Jazz",
@@ -567,14 +567,14 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("rejects invalid submodality rows server-side when the client is bypassed", async () => {
-    const event = await createSavedEvent({
+    await createSavedEvent({
       name: "Regional 2026",
       ...eventDates(2030),
     });
     const createRequest = await createSignedInRequest({
       email: "admin.crea.modalidad.invalida@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades/nueva?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades/nueva`,
       body: formData({
         intent: "create-modality",
         name: "Jazz",

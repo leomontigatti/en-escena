@@ -618,7 +618,7 @@ function choreographyFinanceDetailUrl(input: {
   choreographyId: string;
   eventId: string;
 }) {
-  return `http://localhost/administracion/finanzas/${input.academyId}/coreografias/${input.choreographyId}?evento=${input.eventId}`;
+  return `http://localhost/administracion/finanzas/${input.academyId}/coreografias/${input.choreographyId}`;
 }
 
 function detailRouteArgs(input: {

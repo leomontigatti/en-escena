@@ -36,7 +36,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const duplicateRequest = await createSignedInRequest({
       email: "admin.duplicado@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades`,
       body: formData({ intent: "create-modality", name: " jazz " }),
     });
 
@@ -65,7 +65,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const invalidCategoryRequest = await createSignedInRequest({
       email: "admin.categoria.invalida@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/categorias?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/categorias`,
       body: formData({
         intent: "create-category",
         name: "Infantil",
@@ -119,7 +119,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const duplicateCategoryRequest = await createSignedInRequest({
       email: "admin.categoria.duplicada@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/categorias/nueva?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/categorias/nueva`,
       body: formData({
         intent: "create-category",
         ...duplicateCategoryValues,
@@ -141,14 +141,14 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("returns price validation errors from `Bases del evento` actions", async () => {
-    const event = await createSavedEvent({
+    await createSavedEvent({
       name: "Regional 2026",
       ...eventDates(2030),
     });
     const createPriceRequest = await createPriceAdminRequest({
       email: "admin.precio.base@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios`,
       intent: "create-price",
     });
 
@@ -160,7 +160,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const duplicatePriceRequest = await createPriceAdminRequest({
       email: "admin.precio.duplicado@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios`,
       intent: "create-price",
       price: {
         name: "Precio duplicado",
@@ -192,7 +192,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const requiredPriceRequest = await createPriceAdminRequest({
       email: "admin.precio.requerido@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/precios/nuevo`,
       intent: "create-price",
       price: {
         name: "",
@@ -233,7 +233,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const requiredScheduleRequest = await createScheduleAdminRequest({
       email: "admin.bloque.requerido@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas/nuevo`,
       intent: "create-schedule",
       schedule: buildScheduleDraft({
         name: "",
@@ -286,7 +286,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       await createScheduleCapacityAdminRequest({
         email: "admin.cupo-cronograma.requerido@example.com",
         role: "admin",
-        requestUrl: `http://localhost/administracion/cronogramas/${createdBlock.id}?evento=${event.id}`,
+        requestUrl: `http://localhost/administracion/cronogramas/${createdBlock.id}`,
         intent: "create-schedule-capacity",
         scheduleId: createdBlock.id,
         scheduleCapacity: buildScheduleCapacityDraft({
@@ -326,7 +326,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     const request = await createSignedInRequest({
       email: "admin.errores.modalidad@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades/${modality.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades/${modality.id}`,
     });
     const data = await loader(routeArgs(request.request));
 

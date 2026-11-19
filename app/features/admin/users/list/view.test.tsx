@@ -14,7 +14,6 @@ describe("InternalUsersListRouteView", () => {
         query: "Sin resultados",
         role: "all",
         state: null,
-        type: "all",
       },
     });
 
@@ -33,7 +32,6 @@ describe("InternalUsersListRouteView", () => {
         query: "Ana Admin",
         role: "admin",
         state: "suspended",
-        type: "internal",
       },
       users: [
         {
@@ -49,7 +47,7 @@ describe("InternalUsersListRouteView", () => {
     });
 
     expect(markup).toContain(
-      'href="/administracion/usuarios/user-1?busqueda=Ana+Admin&amp;estado=suspended&amp;rol=admin&amp;tipo=internal"',
+      'href="/administracion/usuarios/user-1?busqueda=Ana+Admin&amp;estado=suspended&amp;rol=admin"',
     );
   });
 
@@ -62,7 +60,6 @@ describe("InternalUsersListRouteView", () => {
         query: "",
         role: "all",
         state: null,
-        type: "all",
       },
       totalCount: 51,
       totalPages: 2,
@@ -114,7 +111,6 @@ function renderRoute(
             query: "",
             role: "all",
             state: null,
-            type: "all",
           },
           totalCount: 0,
           totalPages: 1,

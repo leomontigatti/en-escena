@@ -247,7 +247,7 @@ describe("`/administracion/finanzas`", () => {
     const { request: listRequest } = await createSignedInRequest({
       email: "admin.reporte.lista@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/academias?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/academias`,
     });
     const academiesLoaderData = await academiesLoader(
       academiesRouteArgs(listRequest),
@@ -423,7 +423,7 @@ describe("`/administracion/finanzas`", () => {
       email: "academia.pago.global@example.com",
       academyName: "Academia Pago Global",
     });
-    const createUrl = `http://localhost/administracion/movimientos/nuevo?evento=${event.id}`;
+    const createUrl = `http://localhost/administracion/movimientos/nuevo`;
     const { request: loaderRequest } = await createSignedInRequest({
       email: "admin.pago.global@example.com",
       role: "admin",

@@ -106,7 +106,7 @@ async function postDetailAction(input: {
   eventId: string;
   fields: Record<string, string>;
 }) {
-  const requestUrl = `http://localhost/administracion/finanzas/${input.academyId}/coreografias/${input.choreographyId}?evento=${input.eventId}`;
+  const requestUrl = `http://localhost/administracion/finanzas/${input.academyId}/coreografias/${input.choreographyId}`;
   const signedIn = await createSignedInRequest({
     email: `admin.${crypto.randomUUID()}@example.com`,
     role: "admin",
@@ -149,7 +149,7 @@ async function loadDetail(input: {
   choreographyId: string;
   eventId: string;
 }) {
-  const requestUrl = `http://localhost/administracion/finanzas/${input.academyId}/coreografias/${input.choreographyId}?evento=${input.eventId}`;
+  const requestUrl = `http://localhost/administracion/finanzas/${input.academyId}/coreografias/${input.choreographyId}`;
   const { request } = await createSignedInRequest({
     email: `admin.${crypto.randomUUID()}@example.com`,
     role: "admin",

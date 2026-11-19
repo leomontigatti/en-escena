@@ -121,7 +121,7 @@ describe("what a `(seminar, academy)` unit's documents leave pending", () => {
     const { request } = await createSignedInRequest({
       email: `${crypto.randomUUID()}@example.com`,
       role: "admin",
-      requestUrl: `http://localhost/administracion/finanzas/${input.academyId}?evento=${input.eventId}`,
+      requestUrl: `http://localhost/administracion/finanzas/${input.academyId}`,
     });
 
     return await loadAcademyFinances({

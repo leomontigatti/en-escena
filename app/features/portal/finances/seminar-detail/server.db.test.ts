@@ -141,7 +141,7 @@ async function loadPanelDetail(fixture: Fixture) {
   return await loadSeminarFinanceDetail({
     params: { academyId: fixture.academyId, seminarId: fixture.seminarId },
     request: new Request(
-      `http://localhost/administracion/finanzas/${fixture.academyId}/seminarios/${fixture.seminarId}?evento=${fixture.eventId}`,
+      `http://localhost/administracion/finanzas/${fixture.academyId}/seminarios/${fixture.seminarId}`,
       { headers: { cookie: await adminCookie(fixture) } },
     ),
   });

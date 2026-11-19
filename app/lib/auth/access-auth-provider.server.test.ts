@@ -13,7 +13,6 @@ const betterAuthAdapter = {
   signOutCurrentSession: vi.fn(),
   startEmailSignUp: vi.fn(),
   updatePasswordForRecovery: vi.fn(),
-  verifyPasswordRecoveryOtp: vi.fn(),
 };
 
 vi.mock("@/lib/auth/access-auth-provider.betterauth.server", () => ({

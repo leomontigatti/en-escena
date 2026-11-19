@@ -52,7 +52,7 @@ describe("portal loader event active", () => {
   });
 
   test("ignores the event URL query and keeps using the active event", async () => {
-    const selectedEvent = await createSavedEvent({
+    await createSavedEvent({
       active: false,
       name: "Seleccionado",
     });
@@ -64,9 +64,7 @@ describe("portal loader event active", () => {
     });
     await activateEvent(activeEvent.id);
 
-    const loaderData = await loadPortal(
-      `http://localhost/portal?evento=${selectedEvent.id}`,
-    );
+    const loaderData = await loadPortal(`http://localhost/portal`);
 
     expect(loaderData.eventContext.activeEvent).toMatchObject({
       id: activeEvent.id,

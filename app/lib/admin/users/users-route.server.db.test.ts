@@ -154,19 +154,6 @@ describe("`/administracion/usuarios` route", () => {
       "Nora Norte",
     ]);
 
-    const byTypeRequest = await createSignedInRequest({
-      email: "admin.tipo.usuarios@example.com",
-      role: "admin",
-      requestUrl: "http://localhost/administracion/usuarios?tipo=academy",
-      name: "Admin Tipo",
-      internalUsername: "admin.tipo",
-    });
-    const byTypeData = await loader(routeArgs(byTypeRequest.request));
-
-    expect(byTypeData.users.map((savedUser) => savedUser.userType)).toEqual([
-      "academy",
-    ]);
-
     const byStatusRequest = await createSignedInRequest({
       email: "admin.estado.usuarios@example.com",
       role: "admin",
@@ -379,7 +366,6 @@ function renderRoute(
               query: "",
               role: "all",
               state: null,
-              type: "all",
             },
             ...loaderData,
           },

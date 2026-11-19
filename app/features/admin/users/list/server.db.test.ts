@@ -84,7 +84,7 @@ describe("an individual on the users list", () => {
     });
 
     const data = await loader({
-      request: await listRequest("?tipo=individual"),
+      request: await listRequest("?rol=individual"),
     });
 
     expect(data.users).toEqual([

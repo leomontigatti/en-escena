@@ -156,10 +156,7 @@ export function buildDetailUser(row: DetailUserRow): DetailUser {
 
 export function buildBackToListHref(requestUrl: string) {
   const url = new URL(requestUrl);
-  return buildPathWithSearch(
-    "/administracion/usuarios",
-    sanitizeUserDetailSearchParams(url.searchParams),
-  );
+  return buildPathWithSearch("/administracion/usuarios", url.searchParams);
 }
 
 // In-place editing on the detail does not redirect: it returns
@@ -172,15 +169,6 @@ export function buildDetailActionSuccess(
     status: "success",
     message: notificationToasts[notification].message,
   };
-}
-
-function sanitizeUserDetailSearchParams(searchParams: URLSearchParams) {
-  const nextSearchParams = new URLSearchParams(searchParams);
-
-  nextSearchParams.delete("guardado");
-  nextSearchParams.delete("tipoGuardado");
-
-  return nextSearchParams;
 }
 
 export function getDetailDescription(
