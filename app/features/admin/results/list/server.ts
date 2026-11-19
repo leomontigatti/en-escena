@@ -21,7 +21,6 @@ import {
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 import { readParticipationRows } from "@/lib/presentations/participation.server";
 import { matchesPresentationSearch } from "@/lib/presentations/search";
-import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { readFormData } from "@/lib/shared/read-form-data";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
@@ -126,7 +125,7 @@ async function loadResultsList(input: {
           categoryExperienceLevels: row.category.experienceLevels,
           groupType: row.groupType,
         }),
-        groupType: row.groupType as ChoreographyGroupType,
+        groupType: row.groupType,
         id: row.choreographyId,
         modalityName: row.modalityName,
         name: row.name,

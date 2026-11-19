@@ -191,7 +191,7 @@ export async function readJudgePresentations(
             storageKey: row.feedbackAudioStorageKey,
           })
         : null,
-      groupType: row.groupType as ChoreographyGroupType,
+      groupType: row.groupType,
       judgeAssignmentId: row.judgeAssignmentId,
       modalityName: row.modalityName,
       name: row.name,

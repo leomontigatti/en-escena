@@ -9,7 +9,6 @@ import { db } from "@/db";
 import { choreographyDancers, events, paymentAllocations } from "@/db/schema";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import { calculateDepositAmount } from "@/lib/finances/inscription-financial-status";
-import { type ChoreographyGroupType } from "@/lib/finances/operational-summary-calculations.server";
 import {
   type InscriptionPriceOption,
   resolveEffectiveBasePriceRow,
@@ -158,7 +157,7 @@ export async function readInscriptionEffectivePrices(input: {
       allocatedAmount: allocatedByInscription.get(inscription.id) ?? 0,
       choreography: {
         choreographyScheduleId: choreographyRow.choreographyScheduleId,
-        groupType: choreographyRow.groupType as ChoreographyGroupType,
+        groupType: choreographyRow.groupType,
         scheduleCapacityScheduleId: choreographyRow.scheduleCapacityScheduleId,
       },
       priceRows,

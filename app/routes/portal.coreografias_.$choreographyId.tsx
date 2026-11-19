@@ -1,7 +1,6 @@
 import { useActionData } from "react-router";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
-import type { PortalChoreographyMusicActionData } from "@/features/portal/choreographies/detail/music-editor.shared";
 import { PortalChoreographyDetailRouteView } from "@/features/portal/choreographies/detail/view";
 import {
   handlePortalChoreographyDetailRouteAction,
@@ -59,9 +58,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 export default function PortalChoreographyDetailRoute({
   loaderData,
 }: PortalChoreographyDetailRouteProps) {
-  const actionData = useActionData<
-    typeof action
-  >() as PortalChoreographyMusicActionData;
+  const actionData = useActionData<typeof action>();
 
   return (
     <PortalChoreographyDetailRouteView

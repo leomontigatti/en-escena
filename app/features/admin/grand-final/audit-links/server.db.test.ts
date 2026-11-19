@@ -61,7 +61,7 @@ async function submit(
   }
 
   return {
-    data: answer as GrandFinalListActionData,
+    data: answer,
     headers: new Headers(),
     status: 200,
   };

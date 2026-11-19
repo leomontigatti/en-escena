@@ -898,7 +898,7 @@ function trackAsync<T extends object, K extends keyof T>(
 ): TimedSpyRegistration {
   return (phases) => {
     const target = object as Record<PropertyKey, AsyncMethod>;
-    const original = target[methodName as PropertyKey];
+    const original = target[methodName];
     const spyOn = vi.spyOn as (
       target: Record<PropertyKey, AsyncMethod>,
       methodName: K,
