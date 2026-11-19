@@ -108,7 +108,7 @@
         "**/*.test.tsx",
         "**/*.test-support.ts",
         "**/*.test-support.tsx",
-        "app/lib/test-support/**"
+        "**/test-support/**"
       ],
       "rules": {
         "no-restricted-globals": [
