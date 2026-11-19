@@ -49,3 +49,11 @@ entry says so.
   data-deletion URL) are the gate, not code.
 - Nothing about a voter is personal data the organization needs: the subject
   id and a hashed email are enough to enforce one vote per identity.
+
+## Amendment (2026-11-18): Voter sign-in and the tie rule
+
+- **Tie rule.** Finalists tied on points share a place and the next place is skipped (competition ranking). When a `Desempate` stays tied, every winner is marked. A tie for first place in round 1 blocks publishing the result until a `Desempate` settles it, and a shared first place in a `Desempate` names every tied academy as a winner.
+- **Identity from the token endpoint.** The ID token comes straight from Google's token endpoint over TLS, so its signature is not checked. OpenID Connect Core §3.1.3.7 accepts that in place of checking the signature. The voter's subject is the `sub` claim.
+- **Cookies.** The voter cookies are `httpOnly` and signed, and `Secure` outside plain-HTTP development. The exchange cookie is `SameSite=Lax` and scoped to `/votar/google`, so the provider's top-level return carries it. The signed-in voter cookie covers the whole site, because the page's data requests go to `/votar.data`, which a `/votar` path does not cover.
+- **Lifetimes.** The sign-in exchange lasts 10 minutes and a signed-in voter 2 hours: long enough for an evening's round, and past it the voter signs in again.
+- **Finishing the sign-in.** The callback is checked against the exchange cookie, and that cookie is spent either way. A provider that fails to answer signs nobody in and logs why.

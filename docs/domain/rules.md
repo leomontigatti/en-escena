@@ -9,3 +9,7 @@
 - [finances.md](./finances.md) - canonical finance model: inscriptions, payments, allocations, the two thresholds and the three statuses, pricing, withdrawal and invoicing.
 
 Implementation entry points live in [docs/agents/codebase-map.md](../agents/codebase-map.md).
+
+## Academies export
+
+The auditor's academies export is a spreadsheet with one row per academy that has an active choreography or seminar inscription registered in the period of the selected event. Each row carries the academy's responsible person, its phone and the email it logs in with.

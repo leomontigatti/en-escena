@@ -36,6 +36,16 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - The correction reports back what it changed beyond the dancer: every choreography whose **category** changed is listed on the dancer detail as an inline alert, one line per choreography linking to its detail, naming the new category and saying when a required level was cleared, kept outside the new category, or left reading `Sin nivel` from a category that offered none. Any of those makes the alert a warning. A choreography whose competitive age moved inside the same category is not listed. Administration reads that it can pick the level from the choreography detail; an academy reads that it has to get in touch, since the level is administration's to set.
 - Every choreography the correction rewrites gets a fresh `updatedAt`, as does a withdrawn choreography.
 
+- Dancers are at least one year old and at most 100 years old on the event's first day. Below the floor no category fits; the ceiling catches a year typed a century off (1905 for 2005), which would otherwise resolve no category and name no cause.
+- One birth-date rule applies to every dancer form and to registration. Without an event start (no active event) only the checks that the date is real and not in the future apply, because age belongs to the pair of dancer and event. Registration is the boundary that measures age against the event being registered into.
+- A registration refused for birth dates names every dancer whose birth date blocks it, so the academy can correct its roster and retry.
+- Active inscriptions carry the age they are placed with. A save brings them up to date from the birth dates against the choreography's own event start, so an active inscription never disagrees with the placement. Once a choreography is evaluated, its stored ages stay as what the dancers competed with; a withdrawn inscription keeps its age as a record.
+- A roster dancer is refused when they belong to another academy, or when they are inactive and not already on the roster. Only active links count as already on the roster: a withdrawn inscription does not, and an inactive dancer already there is not blocked.
+- A birth-date correction re-classifies each eligible choreography over the live roster. A withdrawn inscription contributes no age and does not count toward the group type. A schedule move the correction causes is priced against the group type the roster already gives the choreography.
+- A dancer edit affects participation when it may change records of an event the dancer took part in; with an event selected, a live inscription in that event counts too. This is the participation half of the save confirmation.
+- Every dancer list offers the `Verificación` facet, with one option per status.
+- A roster person is also found by either name, by the full name in either order, or by the document typed with or without its separators.
+
 ### `Estado de alta` for roster people
 
 - `Estado de alta` is the roster status of a dancer or a professor, with two
@@ -86,6 +96,8 @@ activo.`) and no confirm-anyway escape hatch. Participating means, for the
   offer: what may be added to a roster is governed by the eligibility rule
   above, and the person's badge reads `Archivado`.
 
+- The `Estado de alta` filter of the roster lists defaults to `Activo`: a list without a status shows the active people.
+
 ### `Estado de verificación de bailarín`
 
 - A dancer's verification status has three values, shown as `Incompleto`,
@@ -112,6 +124,8 @@ activo.`) and no confirm-anyway escape hatch. Participating means, for the
   on its own beside it.
 - An academy cannot edit a `Verificado` dancer's identity or document images;
   later corrections are administrative, and the portal says so.
+- The administration's dancer edit never replaces the document images; they stay as stored.
+- An empty string counts as missing for document completeness, as a null does.
 - Verification does not block participation and does not affect the
   `Estado operativo de coreografía`.
 - Merging duplicates never carries a verification over: a survivor that takes
@@ -187,6 +201,8 @@ What the dialog announced is advisory.
   or comprobantes, pointing to the finance list where that money is reviewed;
   `¿Eliminar la coreografía?` when it has neither and will be deleted outright.
 
+- Choreography numbers identify rows; they do not count them. A deleted choreography's number is not given back, so numbers can have gaps.
+
 ### A withdrawn choreography
 
 - It is withdrawn **if and only if** `choreographies.withdrawnAt` is set. That is
@@ -206,6 +222,7 @@ What the dialog announced is advisory.
   and so cannot be released the same way. When withdrawn choreographies are the
   only thing holding it, the refusal says so
   (`No se puede eliminar el cronograma porque tiene coreografías retiradas asignadas.`).
+- It can hold more than its deposit (the `de más` state), which happens when the deposit moves down after the withdrawal.
 - It is **never revisited**: de-allocating every peso on it does not make it
   deletable, and there is no hard-delete path for it. Evidence is never destroyed
   through a side door.
@@ -314,6 +331,18 @@ What the dialog announced is advisory.
 - Only numbered rows can be selected, because a judge is assigned to a
   presentation.
 
+- The administrator's dancers export of a choreography lists each dancer with an active inscription in it, by surname. A choreography of another event is not found; a withdrawn one is refused, since its inscriptions were withdrawn with it.
+- Administration sees the presentation order number on the music file name before any day is published.
+- The participation counts export counts the active choreography inscriptions registered in the period; seminars are left out. Its by-choreography sheet also lists the withdrawn inscriptions registered in the period, because the money they keep is money of the event. Academies and dancers are distinct counts, so a dancer in two modalities is in both rows and once in the total.
+- The administration's operational status checks a stored placement against the category as it stands today, not the category stored on the row. It asks whether the placement is still legal where it sits, not whether the resolver would pick it today.
+- A stored placement the category no longer admits is an administration-only pending item. The portal is not told about it, and it is not a pending item of the academy, since the academy has no lever to repair it. A placement made by the group-tolerance branch has no stored age, so this check never flags it.
+- The lists' filters agree. A day in the URL is the schedule's own date, and the day facet is in calendar order, the same in the choreography, dancer and professor lists. An event may hold several categories of one name; the category filter offers the name once and gathers them all. The number search compares zero-padded numbers, so a partial number still finds the choreography. A list sorted by a text column breaks ties with the other text column, then by number.
+
+## Roster exports for the auditor
+
+- The dancers export lists each dancer with an active choreography or seminar inscription registered in the period of the selected event, once per academy roster they belong to. Dancers typed into a roster without registering are not in it. Each row carries the birth date as a real date, so the auditor can read each age.
+- The professors export lists a professor when a choreography they teach has an active inscription registered in the period, or when they hold an active seminar inscription of their own in it. It has one row per roster professor.
+
 ## Choreography Registration
 
 - `Registro de coreografía` works with temporary data and creates the choreography only on final confirmation.
@@ -335,6 +364,11 @@ What the dialog announced is advisory.
 - If every compatible option is full, the registration's category step replaces the schedule options with a message explaining it, instead of offering a list with nothing selectable.
 - Confirmation **warns** when the academy already has, in the same event, a non-withdrawn choreography with the same name **and** the same cast, naming it by number and name; nothing is inserted until the academy continues. Same name with a different cast is not warned about, and neither is the same cast under a different name: two solos of different dancers share a piece name all the time, and one cast dancing two pieces is ordinary. See "Duplicate warnings" below.
 
+- A roster must hold people, each once, and each old and young enough for the event before a category can be read off it. The three checks are one gate, because they answer one question: whether these dancers can register at all. A refusal reads the rows the academy picked and names the dancer and the reason.
+- A refusal names what the academy can change. A missing category names the modality and the group type the dancers resolve to. A closed path (every compatible `Cronograma` closed) names the category, modality and group type, since another path of the same event may be open. A roster refusal names only the roster.
+- Administration re-resolves a choreography it already owns and keeps seeing every compatible schedule, closed ones included; the portal is bound by the registration switch.
+- In the portal wizard, a refused category resolution stays on the dancers step with a notice. An accepted one keeps the level and schedule answers it still offers, and a changed modality or roster discards the resolution. The server refuses a pending category.
+
 ## Duplicate warnings
 
 - Uniqueness that the data supports is a **refusal** (a document number already held, in the same roster of the academy, by another record): a toast that names the taken number and links to the person holding it. Where a hard rule would turn away legitimate registrations, the guard **warns** instead: the action answers with the records it found, the surface names them, and an explicit confirmation continues. The mechanism is one and is documented in [docs/agents/form-feedback.md](../agents/form-feedback.md).
@@ -348,7 +382,7 @@ A duplicate that got past the guards above is merged from the panel, by an admin
 
 - **Two people** of the same academy and kind: every choreography and seminar inscription of the removed one moves to the survivor. The survivor keeps its names, birth date, `Estado de alta`, document, images and verification, and takes the removed document —with its images, but never its verification— only when it has no document. The document was checked against the removed person's name and birth date, not the survivor's, so a survivor that takes one is left `Sin verificar`; when the removed dancer is verified, the confirmation says so, and says the verification is discarded when the survivor keeps its own document. The removed row is deleted, not archived.
 - **Two academies**: dancers, professors, choreographies, payments, allocations and refunds move to the survivor, whose `Saldo disponible` in each event becomes the sum of both, (seminar inscriptions go with their people), and the removed academy's user is deleted, so its login stops working.
-- **A merge never moves money.** Allocations and comprobante lines point at inscription rows, and those rows move whole. For the same reason a people merge is refused when both are in the same choreography's cast or the same seminar, naming it: the two inscriptions cannot become one without moving money, so one is withdrawn first.
+- **A merge never moves money.** Allocations and comprobante lines point at inscription rows, and those rows move whole. For the same reason a people merge is refused when both are in the same choreography's cast or the same seminar, naming it: the two inscriptions cannot become one without moving money, so one is withdrawn first. Only active rows count as a shared cast: a withdrawn row moves beside the other person's active one.
 - An academy merge is refused when the removed academy has any comprobante, since a comprobante never changes academy, and when a document number is on both rosters, naming the pairs, since it would break the document rule above; one document of each pair is cleared first.
 - Choreographies are not merged: a duplicate choreography's money is moved with the payment tools and the copy is removed (see "Removing a choreography").
 
@@ -371,6 +405,14 @@ A lock is closed by a state of the choreography (withdrawn, or evaluated) or by 
 - Level clears when recalculation changes category.
 - The administrative corrections of the instance view —name, modality, submodality, experience level, schedule capacity, dancers and professors— are one draft with one `Guardar`. Nothing writes on change: every field only changes the draft, any combination of them is saved together in one transaction, or nothing is, and no part of the draft locks another. Every save that moves the schedule goes through the one guard below.
 - A change of modality or dancers asks the server to re-resolve the whole draft without writing: group type, category, level, submodality options and the compatible capacities, previewed in place before the save. `Guardar` re-resolves the draft against the current bases and occupancy and refuses it when the category no longer matches the preview, because the preview is older than the write by construction. A refused save keeps the draft on screen with the reason.
+- The draft is unchanged when the roster holds the same people, whatever their order: ticking a dancer off and on again is no change. A draft counts as answered when nothing blocks it and every open choice has an answer. A field left as saved under an unmoved placement is not asked again, so a rename is never held up by a level that went missing earlier.
+- When neither the modality nor the dancers changed, the saved placement stands, even where a later birth-date correction left it out of range for its category.
+- A roster refusal names the modality when only the modality moved, and the roster otherwise, since that is the field the administrator has to go back to.
+- A schedule capacity list that money narrows names no destination and no amount: the select is already the list. The page alert is read off the destinations that survive the price filter, not off a blanket check for money, so money that no destination would reprice is announced nowhere. The reasons are shown to the auditor too.
+- The modality correction's price question is asked of every schedule that some modality of the event accepts, not only the current modality's, because the correction is what changes which modality's schedules are in play. Money alone is not the question: inscriptions frozen against general rows can move into any modality without a price moving.
+- A schedule capacity must belong to the schedule it is assigned to, since a capacity from another schedule would be counted against the wrong total and stored as a contradictory assignment.
+- A category change that stays on the same schedule and slot still checks that the schedule accepts the category, with no place counted. An incompatibility reports the modality first, and a schedule with no accepted-category row accepts every category.
+- The academy's pending-data alert names only the missing data. A mis-filed placement is never shown to the academy, since it has no lever to repair one. The alert is hidden once the pending data is closed (withdrawn or evaluated).
 - `Guardar` confirms first only when the save has consequences beyond the fields edited: a dancer withdrawn (named), or the category, group type, schedule or list price per dancer moving (each before and after). A rename, a professors-only change or a pick of submodality or level saves without asking.
 - The experience level carries no financial guard: it is not a price key, so changing it cannot move an amount. It is editable whenever the resolved category declares levels, not only after a recalculation: a single available level still leaves the field open, because that is the only way to resolve a missing level that leaves the choreography incomplete. For a grupal the field also offers `Sin nivel`, so administration can clear the level.
 - An empty level reads `No aplica` when the category declares no levels, `Sin asignar` when it declares them and the level is required and missing, and `Sin nivel` when it declares them and a grupal chose none. Only `Sin asignar` makes the choreography incomplete; a grupal with `Sin nivel` that drops to a trio reads `Sin asignar` again.

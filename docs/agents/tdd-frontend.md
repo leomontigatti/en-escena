@@ -14,3 +14,6 @@ the frontend: a reducer, state transitions, derived state, a multi-step flow.
   `app/lib/test-support/react-dom.tsx`. A test that shares the `unit-shared` worker resets the
   module state and the jsdom URL it touches
   ([validation.md](validation.md#a-test-that-fails-and-then-passes)).
+- **Floor a Radix slider's max at 1.** A slider with max 0 renders its thumb at a NaN
+  position: browsers drop that style, but jsdom throws on it. An audio player whose
+  duration is 0 still has a slider to render.

@@ -33,7 +33,9 @@ STORAGE_URL_SIGNING_SECRET="<a-long-random-storage-signing-secret>"
   email links when a request URL is not available.
 - `BETTER_AUTH_SECRET` signs Better Auth sessions and the recovery-token cookie.
   It also signs the flash-notification cookie (`ee-flash`) by default. Use a
-  long random value per environment.
+  long random value per environment. In production a missing value throws
+  rather than falling back to a public secret, so recovery tokens cannot be
+  forged; only dev and test use the fallback.
 - `SESSION_SECRET` is optional and only overrides the signing secret for the
   flash-notification cookie. Leave it unset unless that secret must be kept
   separate from `BETTER_AUTH_SECRET`.
@@ -198,6 +200,7 @@ primary way to get a local login. It creates, on the local `DATABASE_URL`:
   administration disqualified `Viento Sur`.
 - All five are email-verified and share one password, `DEV_SEED_PASSWORD` in
   `app/lib/dev-seed/seed.server.ts`; the command prints it.
+- The demo accounts live in their own module, so a script can name them without loading the database client. The shared password carries a `ggignore` marker so GitGuardian does not report it.
 - Three events: `Evento Activo` (active, 60 days out), `Evento Futuro` and
   `Evento Finalizado`. The active one has a catalog registrations accept: a
   modality with two submodalities (`Lírico`, `Contemporáneo`), two solo
@@ -287,6 +290,14 @@ If the submitted registration email already belongs to a user, the browser still
 shows the generic response and does not reveal whether the account already
 exists.
 
+## Voter sign-in locally
+
+Outside production, with no Google credentials (`GOOGLE_CLIENT_ID` and
+`GOOGLE_CLIENT_SECRET`), the grand final's voter sign-in is a local stand-in. It
+goes straight back to the callback and vouches for one local voter, so a second
+sign-in finds the same one. In production without the credentials, voter
+sign-in is off.
+
 ## Production Email
 
 Production access emails use the app email boundary in
@@ -303,7 +314,10 @@ EMAIL_FROM="En Escena <verified-sender@example.com>"
 email the provider fails to send is logged once as `[auth:email:not-sent]`, with
 the kind of email and the provider's error but no address or secret, and kept
 as an unexpected error, which alerts. The visitor gets the same answer as when
-it is sent.
+it is sent. The email boundary throws a failure rather than logging it, so the
+caller can say what it means to the person waiting. The message names the
+provider's failure, never the recipient, and the log keeps Resend's error name
+and status, not its free-text message, which can quote the request.
 
 When the sending domain is ready, switch the app-owned emails back to Resend:
 
@@ -347,6 +361,8 @@ access flows and the local test harness:
 - Roles, academy ownership, internal usernames and suspension are app-domain
   data. Do not put authorization
   decisions in user-editable auth metadata.
+- Local credentials are Better Auth's own `account` rows (provider `credential`, the password column holding the hash), which replaced the `access_credential` table. The OAuth columns are already there, so an external provider needs no later migration.
+- Hashes migrated from `access_credential` keep their `scrypt:<salt>:<hash>` format and are checked with the old algorithm; without that they would never validate. Better Auth's own format is checked by its verifier. This is separate from the reactive reset in ADR-0013, which covers the Supabase passwords.
 
 The following are not required for local operation or implementation:
 

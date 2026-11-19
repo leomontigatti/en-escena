@@ -20,6 +20,15 @@ Rules for event context, `Bases del evento`, administration and portal behavior.
 - `Abrir inscripciones` on a `Cronograma` is refused while its event's registration readiness fails, or once the event's end date has passed; the missing items are the reasons, listed on the schedule detail. `Cerrar inscripciones` never fails. In particular, inscriptions cannot be opened while the event's categories leave an age uncovered: for every `Modalidad` and `Tipo de grupo` its categories reach, ages 1 to 100 must be covered by exactly one `Categoría`. A gap is a choreography that cannot be placed; an overlap makes the `Categoría` depend on the order the `Bases del evento` load in. A `Modalidad` that declares no `Categoría` at all for a `Tipo de grupo` is offering nothing there and is not asked for coverage; a choreography never lands on that pair either, because registration refuses a choreography that resolves to no category.
 - Registration readiness resolves a schedule the same way registration does, categories included: a `Categoría` that no `Cronograma` accepts for a `Modalidad` and `Tipo de grupo` it reaches is reported as a missing compatible schedule capacity, so a category left out of every show surfaces in the readiness instead of blocking a registration.
 
+- An event cannot be deleted while it is the `Evento activo`. A choreography inscribed on the event, withdrawn ones included, locks its dates, its deposit (`Seña`) and its deletion. Once it has choreographies, the event form shows the dates and the deposit read-only, and the name stays editable.
+- A schedule's date and time lock once choreographies or prices hold it, because they were placed and priced against it. A withdrawn choreography does not count.
+- Restructuring a schedule in use is refused only where an occupying choreography would be left out. Date and time freeze once it has dependencies. Accepted modalities and categories may widen freely and narrow only when no occupant is excluded, and the total capacity may drop only to what is occupied. Withdrawn choreographies are not asked about.
+- An edit that carries neither field of the awards ceremony date and time leaves the stored pair as it is; a blank half is stored as null.
+- A schedule capacity's group type freezes once an entry holds choreographies, because they were placed by that type. The capacity itself may still move while it holds them.
+- A schedule's occupancy is the choreographies assigned to it, not the sum of its split capacities, and its free places never go below zero: the view reads `sin lugares` instead of a negative number.
+- A category edit that drops a group type or modality link a choreography still sits on is refused. A rename keeps every path standing.
+- A modality cannot be deleted while a category, a schedule or a choreography refers to it.
+
 ## Administration and portal
 
 - The sidebars of the `Panel de administración`, the `Portal de academias` and the `Portal de particulares` show the `Evento activo`'s name with its `Estado del evento` beside it, or `Sin evento activo` when there is none, over the area's own name; they never show whether the event is active in its place (#1808). There `Finalizado` is amber, because an `Evento activo` that has ended is administration's to deactivate; the events list keeps it grey.
@@ -36,3 +45,21 @@ Rules for event context, `Bases del evento`, administration and portal behavior.
 - Participation badges are hidden in both admin and portal when there is no active event, so a row is never read as `No participando` without an event to participate in.
 - `Acción de lista` handles selected sets and can process eligible rows while reporting omitted rows.
 - `Acción de instancia` handles operations that need full instance context.
+- A record of another event is treated as missing, not forbidden: the screens only offer the active event's records, so naming it back would only say that it exists.
+- Opening a `Cronograma` is gated on readiness, but later changes to the bases close nothing. The open-schedule warning on the admin home is the only signal that the two drifted apart; closing stays a manual action.
+
+## Event documents
+
+- An event carries three PDF documents: the professors contract and two dancer documents.
+- A chosen file always replaces the stored one. Removing a document means clearing its field and choosing no file.
+- Each portal list carries the document kinds that belong to its people: the professors contract with the professors, the dancer documents with the dancers. Every list shows the same `Descargar documentos` control. A document that is not available yet shows disabled, so an academy can see that it exists.
+- Any authenticated academy user may download them, with no registration gate, because they are blank forms an academy needs before it registers.
+
+## Accreditations
+
+- Printing is administration-only. It prints the ticked professors when the address names any; otherwise it prints every professor the list's search and filters match, past the page shown.
+- An archived professor never prints, even when named in the address. Only an administrator can tick a row, and an archived row cannot be ticked.
+- Ticks live on the list and reset on any navigation, so the print never includes a professor the user cannot see. Clearing the ticks falls back to the list's matches.
+- Each professor row prints once, so a person in two academies prints twice. The sheet runs by academy, then last name, then first name.
+- Every pass carries the same QR code, which points at the public program's absolute address, built from the configured app origin. Passes print whether or not the program is visible yet, because they go out before it is published.
+- A pass is the designer's artwork at 90 × 120 mm, used whole as its background. Four passes sit on each A4 sheet, with crop marks in the gaps. The artwork and the white tile must print without relying on the browser's background-graphics setting.
