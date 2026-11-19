@@ -25,3 +25,9 @@ reads or writes the database.
   ([validation.md](validation.md#targeting-db-tests)).
 - **A migration** comes from `pnpm db:generate`, never by hand
   ([migrations.md](../db/migrations.md#everyday-flow)).
+- **A predicate written in two spellings** (the query-builder form and a raw-SQL form for a
+  hand-built `exists` or a lock-scoped count) must agree. A test compares them over a
+  fixture with withdrawn rows, since moving either one alone breaks the rule.
+- **Password-reset tokens in tests.** The token is stored in the verification table with
+  the identifier `reset-password:<token>` and the user id as its value, so a test or debug
+  flow reads the latest one there instead of depending on email delivery.

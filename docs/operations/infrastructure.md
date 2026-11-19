@@ -182,7 +182,10 @@ What a deploy does, for reference:
   `3000`.
 - Runs migrations from the entrypoint before serving (above).
 - Gates on the healthcheck at `/internal/health`: HTTP `200`, 60s start period,
-  5s interval, 10 retries.
+  5s interval, 10 retries. That check is a liveness probe that never touches the
+  database: migration success already gates startup, and a database check would
+  mark a healthy container unhealthy during a blip and cause the restart loop the
+  entrypoint's retry budget exists to prevent.
 
 ### Unexpected errors
 
@@ -195,8 +198,14 @@ it. Nothing from the request goes in: no param value, query string, form field,
 header or session, and a failed query's bound values become `[redacted]`. The
 pattern is React Router's own, recorded by the `instrumentations` export; an
 error raised before any loader ran says `unknown` when its path holds a param.
+The path is not used in its place, because a param can hold a value such as
+`%252F`, which React Router decodes differently from any segment comparison. The
+driver's own message is left out of a failed query as well, since it can quote the
+offending value: the stack keeps only the SQL and the driver's code and constraint.
 The release is `SOURCE_COMMIT`, which Coolify sets in the running container to
-the deployed commit; it reads `unknown` where unset. Read the lines in Coolify's
+the deployed commit; it reads `unknown` where unset. The user id is looked up with
+a one-second timeout and dropped when the lookup fails, since the database may be
+what failed and the line must not wait for it. Read the lines in Coolify's
 application **Logs** tab, or with
 `ssh root@rylai 'docker logs x1383fsxfsixpgmvd9quv7tj-<deployment> 2>&1 | grep "server:unexpected"'`.
 Retention there is short: `rylai`'s `/etc/docker/daemon.json` caps each
@@ -225,6 +234,11 @@ minutes after a deploy, which drops connections itself, the five addresses
 alone can send it. The release is never in the HTML: the repository is public, so the deployed commit
 would tell anyone which fixes are not live yet.
 
+The request count behind the lost-connection check is kept per minute over the last
+hour, in the container. It counts every request React Router answers, documents, data
+and resource routes alike, but not the static assets Express serves first, and a
+request counts only once it is answered, so a stalled server does not look busy.
+
 So each server line and each browser report is also kept as a row of
 `en_escena_unexpected_error`, grouped by a **signature** that stays the same for one bug across releases.
 Read the rows with `docker exec` and `psql` as in [Database](#database), for
@@ -249,6 +263,14 @@ settings:
 With the token or the chat unset (locally, in tests, in staging) nothing is
 sent, and `[ops-alert:disabled]` is logged once per process. A refused or
 unreachable post logs `[ops-alert:failed]` with the status, never the token.
+The send gives up after five seconds, since the alert goes out from the error path. A
+network failure logs only the first line of its error, which names the host and never
+the URL's path. A topic id that is not an integer is ignored, because the API would
+refuse every message.
+
+The recovery email send never throws. Better Auth would swallow a failed send and log
+the raw error itself, so the app logs the failure once, through its own path (see
+[Local auth](../local-auth.md)).
 
 #### Unexpected error maintenance task
 
@@ -326,6 +348,28 @@ which Coolify reports as `TaskFailed` after its retries.
   only by the backup shell scripts, through the `aws s3` CLI, so the application
   bundle carries no S3 client at all.
 
+- Each uploaded asset kind has one read path, shared by the portal and the
+  administration, so the two cannot disagree about whether a file is present.
+- A missing key reads as "no file" on every surface that shows one, and no read throws
+  into a loader, so one broken object cannot blank a whole detail view. A read only
+  signs the key, so an object that is gone or unreachable shows as a link that fails
+  on download, not as "no file". A signing error is logged, since nothing else
+  tells an operator that the volume is failing.
+- Removing an object that is already gone succeeds for every kind, so a retried save
+  converges.
+- Stored bytes are served from the app's own origin with `nosniff`. The content type
+  comes from the client's declared upload type, and `nosniff` keeps a browser from
+  running an object as active content inside the origin.
+- A single `bytes=` range reads only the requested slice off disk, which is what lets
+  a player seek. An open end runs to the last byte, a suffix range is the last N bytes,
+  and an end past the object is cut to it. Several ranges, or one that does not parse,
+  get the whole object.
+- A download name is ASCII, with no quotes or control characters, so it needs no
+  RFC 5987 encoding. The check runs when the URL is made, where a bad name is a
+  programming error.
+- A browser sees only a bare `403` for an object it may not read, so an unreadable
+  volume is logged when the object is served.
+
 ### Asset-kind policy
 
 Each uploaded asset kind is declared once, in `app/lib/storage/asset-kinds.ts`:
@@ -340,6 +384,10 @@ Policy violations leave the storage layer as typed rejections
 English prose; a single formatter turns a rejection into Spanish. Infrastructure
 faults — an unwritable volume, a full disk — stay exceptions, because they are
 not something the academy can correct by choosing a different file.
+
+The extension travels with the accepted upload: each key builder takes it as an
+argument rather than looking it up again, so a key cannot be built for a content type
+the policy has no extension for.
 
 ### Choreography music contract
 
@@ -372,6 +420,29 @@ longer exists.
   documents follow the same order: the upload deletes nothing, and the previous
   image goes by its stored key only after the row is written.
 
+- A save that picks a new file replaces the stored key. A refused save answers with
+  the key it was asked to keep, so a delete the academy asked for survives the answer;
+  an unexpected failure answers with none, and the form keeps the stored key. The
+  evaluation switch is written before the music upload, since it has nothing to undo
+  while the upload can still fail after it.
+- A music save takes only the stored key or an empty one, never another key from a
+  stale page or a hand-built request, since storing one would hand the academy another
+  academy's song to read and to delete. With a file the key is unused: the upload names
+  its own.
+- The day's music archive holds one file per presentation with music, named so the
+  running order reads off the file list. With more than one schedule, each file sits in
+  a folder named for its schedule's start time and name, written as `10.00` since a
+  colon is no file name on Windows. The list of missing music uses CRLF line endings so
+  it reads right in Notepad.
+- A music file that is missing from the volume is listed as missing, rather than
+  breaking the archive halfway through. The archive stores its files without
+  compression: audio barely shrinks, and the bytes stream off the volume instead of the
+  whole day sitting in memory.
+- A music file's name starts with its running-order number, padded to the width of the
+  event's highest number so the order runs across the event. Accents and spaces are
+  kept, characters that Windows or a Unix path refuses are dropped, and a name part is
+  cut at 80 characters, since some file systems cap a name at 255.
+
 ### Event documents contract
 
 Bucket, format, size limit and expiry are declared in
@@ -403,6 +474,9 @@ is written by `app/lib/events/event-documents.server.ts`.
   absent, so the retry converges. The other order reports success over bytes
   that survived, which is the one outcome "eliminar" must not mean.
 
+- Event PDFs are served inline, so a PDF opens in the browser. The download name only
+  decides what a save-as writes.
+
 ### Seminar instructor picture contract
 
 Bucket, formats, size limit and expiry are declared in
@@ -432,6 +506,13 @@ own "Guardar".
 - Deleting the **event** orphans the object, exactly as it orphans event
   documents today. Cleaning storage orphans on event deletion is a separate
   issue that has to cover both.
+- The picture changes only when the save carries the picture's marker. A body without
+  it leaves the picture alone: an absent file input looks exactly like a request to
+  remove the picture, and the costly mistake is the one that deletes.
+- The browser learns only whether the stored picture is kept, never its storage key.
+  Clearing the upload field removes the picture on save.
+- A picture chosen in the form always wins over the stored one: picking a file after
+  clearing the field is a replacement, not a removal followed by an upload.
 
 ### `Gran final` banner contract
 
@@ -457,6 +538,27 @@ banner form under the `Gran final` list.
   object nothing points at and logs `[storage:grand-final-banner:orphan]`.
 - Deleting the event or the academy (a merge too) cascades the row and orphans
   the objects, as event documents are orphaned today.
+- A banner field takes any photo: the editor frames it to the banner's 16:9 shape and
+  size, so administration never meets the shape rule. The framed picture is a
+  1920×1080 JPEG within a 500 KB budget, encoded at the best of three qualities (0.85,
+  0.75, 0.65) that fits, or the lowest when none does, because every voter's phone
+  downloads it. When the browser cannot make the picture, the editor says it could not
+  prepare the photo.
+- The photo always fills the 16:9 frame and a move stops at its edge, so a banner has
+  no empty bands. The preview and the uploaded picture come from one draw, so what
+  administration frames is what the vote page shows. A frame that spans fewer source
+  pixels than the banner's 1920 px width would enlarge the photo on upload, so the editor
+  warns about it.
+- Each banner travels as a file input and a hidden storage key: a picked file replaces
+  it, an emptied key with no file removes it, and the stored key sent back keeps it. A
+  body that carries neither field keeps the banner, since reading a missing field as a
+  removal is the costly mistake.
+- Only a finalist holds banners, and they belong to the academy within the event, so a
+  change of pick never touches them.
+- A banner save changes the row under a lock, against the row as stored rather than the
+  one the form last saw, so two saves of one academy cannot leave it pointing at an
+  object the other deleted. A voting round keeps the banner keys it opened with, so those
+  objects outlive later changes and no round loses a banner it shows.
 
 ### Individual document photo contract
 
@@ -518,6 +620,59 @@ Content`, the same as every other kind, which is what lets the feedback
   one evening, so the base twice-a-day cadence is raised for the event days.
   Adding the bucket to the production variable is a
   [pending manual step](./backups.md#pending-production-step-before-the-october-event).
+
+- A submission carries one of three intents: `keep` (the default, also when the
+  recorder was never used), `replace` or `remove`. A take removed before it was saved
+  sends nothing, and an empty file part is never read as a deletion.
+- The take preloads with the page, because its signed link expires after 300 seconds
+  and the take must still play after that.
+- Recording uses the browser's `MediaRecorder`, with webm/opus where the browser
+  supports it and the browser's default format otherwise, and the recorder stops itself
+  at five minutes.
+- The take's storage is built only when a stored take exists, so a judge or panel with
+  no takes needs no storage environment to be read or saved.
+- A save refuses in a fixed order (a presentation that is not the judge's, then a closed
+  day, then a value the sheet does not accept) and only then uploads a take, so no take
+  is stored for a save that was never going to happen.
+- A take uploaded inside a save that then rolls back stays on the volume with no row
+  pointing at it. The save logs its key under `[storage:feedback-audio:orphan]`, so it
+  can be found by hand.
+
+## ARCA credentials
+
+- The certificate and the private key are injected as base64, one line each, as a CI
+  or environment secret, and decoded to PEM when the configuration is read. A malformed
+  value has no PEM header once decoded, and it is rejected at that point with a clear
+  message.
+- ARCA runs against homologation unless production is enabled by an explicit flag, so an
+  unconfigured environment cannot issue real comprobantes. Staging sets the flag off (see
+  [Staging](./staging.md)).
+- The WSAA access ticket is cached in the process, and the client is shared per process.
+  The ticket lasts about 12 hours and ARCA refuses repeated logins, so logging in per
+  request would be refused. The cache belongs to each client instance, so tests can
+  isolate it, unlike the SDK's global static map.
+
+## `Gran final` vote: secrets, URLs and sign-in
+
+- An audit link's token is 128 bits of an HMAC of the link's id, under a key derived
+  from `BETTER_AUTH_SECRET`. Only the SHA-256 of the token is stored, so a database read
+  alone opens no link. A plain hash is enough because nobody can derive or guess a
+  128-bit token, and the lookup stays one indexed equality.
+- A live link's address and QR are derived again for each answer, and they come back
+  only from a create or a show, in answers no browser or proxy keeps. The list never
+  carries them, and the voter-code sheet and the voter sign-in answers are not cached
+  either.
+- The key for an audit link's token and the voter cookie's key both derive from
+  `BETTER_AUTH_SECRET`, which production requires: without it production fails closed,
+  while development and tests use a fixed value. An audit link whose token no longer
+  matches its stored hash after a key change is never handed over.
+- The public vote's absolute URLs, the QR codes, the sign-in redirect URI and the
+  portal's vote link are built on `APP_URL`, falling back to the request's origin. Sign-in
+  start and finish must send the same redirect URI. A QR code carries the vote page with
+  the voter's code in its `codigo` parameter.
+- The voter sign-in is Google when both Google credentials are set, a local stand-in
+  outside production, and absent in a production build without them, where the vote page
+  offers the QR code alone.
 
 ## Related runbooks
 

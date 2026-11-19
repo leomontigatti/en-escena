@@ -47,7 +47,7 @@ Participating entity that can register for events and load professors, dancers a
 _Avoid_: `user`, `professor`, `escuela`, `delegación`
 
 **`province`** — ui: "Provincia"
-Where an `academy` is, chosen from a closed list: the 24 Argentine jurisdictions, or `Otro país` for an academy from abroad. It is what reports group academies by; the city beside it stays free text. Nullable only for academies registered before the field existed; every form that saves an academy requires it.
+Where an `academy` is, chosen from a closed list: the 24 Argentine jurisdictions, or `Otro país` for an academy from abroad. It is what reports group academies by; the city beside it stays free text. Nullable only for academies registered before the field existed; every form that saves an academy requires it. In a report, academies without a province are grouped under the label `Sin provincia`.
 _Avoid_: state, region, free-text province
 
 **`academyDataStatus`** — ui: "Datos"

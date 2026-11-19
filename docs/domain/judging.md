@@ -32,6 +32,19 @@ Rules for presentations, judging, program, results, scores and feedback.
 - Assigning a judge creates the assignment only. The score row is created on the judge's first save, so an assignment with no score is a judge who has not scored yet.
 - Removing a judge assignment is refused once that judge has a score row for that presentation, so no score is ever orphaned. A bulk removal removes the rest and reports how many it kept.
 
+- The bulk judge dialog starts each judge's checkbox from where the judge stands across the chosen rows: checked on all of them, unchecked on none, mixed on some. A judge left as it started is not submitted, so a judge on some rows stays on exactly those; a click on a mixed judge goes through mixed, so the administrator can always return to the starting state. A judge who is no longer assignable can only be taken off.
+- The judge edit's messages count what it reached, not what was asked: an assignment already in place and a judge nobody had are not counted. A removal that would take apart only scored pairs is refused rather than reported as a success, and an edit that both assigns and removes says both.
+- The `Ordenar automáticamente` dialog closes both of its steps when the ordering is confirmed, since the result is announced by the list's toast. Backing out of the confirmation keeps the chosen days, and leaving the first step asks nothing.
+- The automatic ordering is offered on every day with a row that is not withdrawn, whatever the `Estado` filter shows.
+- The running order is the list's only sort, and rows without a number always close the list, in either direction.
+- A row already numbered can take any free place in the order, never a held one (a frozen or withdrawn number is refused); a late row can take any free number up to one past the last.
+- A drag means "put this row where that one is": the number moved to is the number of the row it is dropped on, and the rows on screen reorder the same way. A drop onto a held row or a held place is ignored rather than shown and then undone.
+- A manual move names the number the row had when it was picked up. When that number has changed since, the move is refused and nothing is written, so two administrators moving at once never overwrite each other. A move that works shows no message, since the refreshed list is the answer.
+- The warnings rank: `Sin jueces` comes first and is the only one drawn as destructive, since a presentation nobody judges cannot be scored. The rest follow `Seña pendiente`, `Cronograma evaluado`, `Separación`, `Fuera de bloque` and `Nivel sin asignar`, and the same order picks the row's badge.
+- A presentation's panel is listed by the judge's name.
+- A disqualification records when it happened, not who made it.
+- The music download starts from its dialog without leaving the list. The dialog turns down a day with no music before any download is asked for, since a failed download has no page to say so.
+
 ## Program And Results
 
 - Program can be published before results and reflects current order; it does not freeze a copy.
@@ -53,6 +66,28 @@ Rules for presentations, judging, program, results, scores and feedback.
 - A `Particular` whose link is `Vinculado` reads, in `Coreografías`, the same published result for each active-event choreography its link reaches, in any academy and behind the same publication gate: the award, the average and each judge's name and score, and on a disqualified presentation only `Descalificada`. The sheet breakdown and the `Devolución` stay the academy's (ADR-0019).
 - A published presentation that is not disqualified always has an award, so a `certificate` has one sentence: it certifies the dancer took part and names the award and the choreography. Every dancer still inscribed gets one, named as the roster names them; a disqualified presentation, a withdrawn choreography, a professor and an edition with no design get none. The academy opens them from the evaluation's `Acciones` (`Descargar certificados`: one dancer's, or all of them in one PDF with a page each), and a `Vinculado` `Particular` opens its own from `Coreografías`. Each opens as a PDF in a new tab, for the active event only, behind the same gate as the result.
 - Administration downloads the program as an Excel spreadsheet from the presentations list, and the results from the `Resultados` list, each for the whole event or one day, in running order. Both sheets name the dancers of a solo, a duo and a trio, one per line, and count a larger group's; the results' sheet adds each presentation's average and `Premio`; it reads live results, whether or not they are published, and lists only presentations with a result: one not evaluated yet, with nothing left to average, or disqualified is left out.
+
+- Certificates list their recipients by last name, then first name, the order the academy reads them. A certificate's sentence wraps at spaces inside the design's frame and shrinks as a whole when it does not fit, so a long name is never smaller than the words around it.
+- The results export offers only the days that have a scored presentation.
+- Publishing results is refused when the active event changed after its confirmation opened, since another administrator may have switched events. The moment results were published is shown in business time, since results are announced from the venue.
+- The program-visibility save carries the event the dialog was opened for, and is refused after a switch of the active event rather than publishing a program nobody saw. Its confirmation names the days left visible, or says that the whole program is hidden.
+- Ordering and program visibility both refuse a day outside the event's schedules, since it would publish or order nothing a schedule holds.
+- The program export is offered only for the days that have a numbered row.
+- The program spreadsheet has one row per presentation in running order. Category is kept apart from group type and modality apart from submodality, and the day is a real date so each can be filtered alone. It lists every professor of a choreography, whatever its group, by surname then name.
+- The administration's spreadsheet shows the academy's province, which is blank for an academy registered before the province was asked.
+- A schedule's award ceremony has both a date and a time, or neither. Only the public program announces it. A ceremony after midnight falls on the next day, and its line names that day when it is not the schedule's own.
+- A schedule that nobody presents in has no page in the printed program. Every row of a printed page is one height, whatever its two lines hold.
+- A choreography's music download carries its order number only where the reader may see it: always for administration, and for the academy once its day's program is published.
+- The public program reads the session the request carries and nothing more: it never requires one, redirects, refreshes or writes a cookie, and the reader's session stays out of the cache.
+- The participation list is one design for the portal and the public program. The public program adds the academy column and the portal the `Nivel` column, which tells apart presentations that otherwise differ in nothing else.
+- The day tab only narrows what is on screen, since the whole list is already loaded. The chosen day stays in the URL, so a reload or a shared link lands on it.
+- The live-day page records the judging day it knew, so a page left open when the next judging day begins asks for the new day's data. A day whose presentations are all withdrawn is over at once, since nothing is left to dance.
+- A page loaded on the live day opens once at its show page, on the URL it was loaded with: a link naming a day, a page or a search stays where it points. The page is named with its day, so a reload after the show still lands on it.
+- An empty level reads as the reason it is empty (`Sin asignar`, `Sin nivel` or `No aplica`). The portal and the spreadsheets show it; the public program hides it.
+- A choreography's own number is distinct from its order number, and the program shows it only in the name's hover title.
+- The portal's rows say whether a deposit is still pending; the public program never does.
+- An individual's choreography with an unpublished result reads `Sin publicar`, never as an empty award.
+- On the academy's results list, a published presentation's name opens what the judges said about it; every other name opens its choreography. The list shows only the academy's own published rows, with no academy column, and a card per row on a phone.
 
 ## Scores And Feedback
 
@@ -87,3 +122,92 @@ Rules for presentations, judging, program, results, scores and feedback.
 
 - `Devolución` is one optional private audio recorded by the judge for the academy, saved with the score that carries it and replaced or removed by the same save. It is allowed on a disqualified presentation, where it is stored with no value, so the academy still hears why.
 - A judge's own status on a presentation is pending while there is no value, complete with a value and a `Devolución`, without feedback with a value and none, and disqualified whenever the presentation is. The list shows `Pendiente`, the judge's own score in place of a word when complete, `Sin devolución` as a warning — the `Devolución` is optional, but the judge should notice it is missing while the day is open — and `Descalificada`. On any other day the warning gives way to the score, and an unscored presentation is `Pendiente`, past and coming days alike. It is shown to that judge only, and it is not the presentation's `Estado de participación`, which answers for the whole panel.
+
+- A judge's save is one upsert on their assignment, so a doubled tap cannot create two scores. On a disqualified presentation the stored value stays as it is, and only the feedback changes.
+- A save reads the sheet's criteria from the database inside its transaction, not from the form: a criterion added since the page loaded must be filled, a removed one is never stored, and a field the form forgot is a refusal, not a zero.
+- A sheet is saved as a whole: the stored values are cleared and the validated lines written in their place, so a removed criterion cannot survive under a total that ignores it.
+- A score is stored with one decimal. The fields and the scores columns show it back without the trailing zero, so 90 reads as 90, and a field with nothing stored is empty rather than zero. Totals read the numbers.
+- An administrator's correction saves one score, or one whole sheet, on its own. A judge's single score is saved alone, and a sheet is one save, because its lines and their total are one decision.
+- A judge who has saved nothing has no feedback cell on the scores page, since an empty `Sin devolución` there would read as something forgotten.
+- A save refused for a closed or not-started day says so: the day has closed, or has not started yet, and scores cannot be saved. A presentation whose choreography has no schedule yet is closed to judges, since there is no day for it to be open on.
+- A criterion's name is compared trimmed, accent-insensitively and case-insensitively. The database index folds case only, so the save is stricter than the index: a name that differs from another by accent alone is refused by the save. An empty name is never a duplicate.
+- A level's sheet stays listed while it holds criteria, even when no category offers that level any more. Its total counts the general criteria too, so its criteria can be cleared and its total still checked.
+- On the sheet list a criterion's kind is its row's position: adds above the separator, deducts below. A level's counter shows the general criteria's share beside its own, and only the level's own share turns red, since only that part can be wrong.
+- A modality's criteria stand as `none` (every submodality scores with one value), `incomplete` (some sheet misses 100) or `complete`. Its page, its list and the criteria editor count the same sheets.
+- The `Profesional` badge sits beside a presentation's title only in the score dialog and sheet headings and on administration's scores page. The lists carry no mark.
+- On the academy's portal, a sheet's breakdown shows what the dance earned, then what it lost, divided by a rule only when both sides have something. A deduction that bit carries a minus sign, and a zero reads as nothing taken away.
+
+### Judge's screens
+
+- The judge's list resumes from the last presentation the judge opened. That place is kept for the browser session on the device only, and it belongs to the show running now, so a day that is not open has none. A day in the URL that the judge has no presentations on falls back to the judging day.
+- The judge's whole day is one page, not paginated. It is read in a dark theatre between dances, so a row carries only its running-order number and the judge's own score, and the filter is the only control above the list.
+- The presentation the judge has open is kept in the URL, so returning to the tab or a revalidation reopens it. Nothing opens on a day that is not open or on a withdrawn presentation.
+- After a score saves, the judge moves to the next presentation still owed, read from the revalidated list, and the form closes when none is left. A refusal keeps the form exactly as it was, since there is no offline copy.
+- A sheet takes the whole page rather than a dialog, since it is longer than a dialog holds. It has no previous or next buttons; saving is the way on.
+- The score dialog never closes on an outside tap, since in a dark theatre that tap is an accident. Every other exit asks first when there is a score to lose. The dialog is laid out like the sheet so the two read the same.
+- The score field keeps digits and one point in the order typed: a second point is dropped, not moved. It shows its maximum after the value even when empty, since a sheet's lines have different maxima.
+- An empty score field and an invalid one show the same message, since the judge meant the same score in either case.
+- A sheet opens on the judge's own saved lines. An unsaved adding line is empty and a deducting line is 0, so a stray tap never stores a real 0 for a line the judge has not scored.
+- The live totals count a half-typed value as nothing. Each part's sum is unclamped; only the sheet total is clamped to 0 to 100.
+- A sheet is laid out the same way for the judge and for administration's correction: the `Devolución` first, then its parts with live sums and the total beneath them.
+- The `Devolución` is one shared row. The take starts from a red dot, never a play icon, which becomes a pause once the take is live; the same row plays it back with its waveform and a delete for the judge.
+- The microphone's permission, the recorder and the analyser failing are one refusal as far as the judge is concerned: the take did not start, and the judge sees the microphone message.
+- A take still recording when the judge taps `Guardar` is finished and saved with the score, and a save waiting on the take is posted once.
+- The waveform is a shape, not a measurement: 48 bars, with the mic level scaled so a normal voice fills them. Where the row is narrow, the oldest bars are cut, so a live take keeps showing the level it just read.
+- A take's five-minute cap counts recorded time and leaves out pauses.
+
+## `Gran final`
+
+The `grandFinal` is the one ranking of academies in the domain. The public votes for an event's `finalist` academies in a `votingRound`, and the ranking is not an `award` (ADR-0018). Eligibility and picks are per modality, so one academy can be a finalist in one modality and not another.
+
+### Finalist picks
+
+- An academy's `Gran final` page exists once per modality, on its row of the modality's list, and only where the academy has a row: eligible there or picked there. An academy the list does not hold has no page there to read or save.
+- Both of a finalist's banners are optional on save. The vote's opening needs every finalist to have both, and a refused opening names every blocker, including the finalists short of banners.
+- Saving an academy's page checks its judges first, so a refused save uploads nothing. Then the judges and the banners are written in one transaction, and the picks are checked again under the write's lock. A save that takes the last judge off a modality the academy no longer qualifies in returns to the list, with its toast carried there.
+- A pick outlives eligibility. An academy that stopped qualifying in a modality stays on that modality's list with its judges, who can only be taken off, and its name stays visible. A judge can be added only where the academy is still eligible; a removal is always allowed.
+- Moving a judge's pick to another academy in the same modality takes it from that academy. The page asks first, naming each academy that will lose the judge, and the save names them before it writes.
+- Only the event's judges pick. A judge must be a judge user with a presentation or a pick in the event, and every pick names one of them.
+- A judge's own save checks, in order: the modality belongs to the active event, the judge is one of the event's judges, the judging window is open, and then eligibility is read again.
+- On the judge's list, a saved pick whose academy stopped being eligible still reads as picked, and saving it again is refused by the server. Picks open under the same window as the scores.
+- The portal home shows one `Gran final` alert, by precedence: a finalist of the open round gets the vote link to share; an eligible academy is told it meets the requirements; any other academy is invited only while some schedule still takes inscriptions, the only time it can still qualify. No alert names a modality, since eligibility is per modality.
+
+### Voting rounds
+
+- Closing a round closes the round its dialog was confirmed over, and no other. A close confirmed over round 1 after a `Desempate` opened finds round 1 closed and leaves round 2 open.
+- A vote is cast only in the active event's open round, and only when it is the round the form was loaded in. A form loaded in round 1 and sent after a `Desempate` opened is refused, never cast in round 2.
+- The tie rule for the round's first place is in ADR-0018's amendment.
+- The admin result tab appears once a round closed. It ranks by weighted points with each finalist's share, calls out a round 1 tie for first place with what settles it, and calls out a `Desempate` still tied as a shared win. Nothing reveals totals while a round is open.
+- A vote that did not count is explained in a fixed order the voter can act on: a closed round first, then the identity, then the academy.
+
+### Voter identity
+
+- A visitor's identity on the public page takes precedence in this order: a code in the address, which votes with it and says nothing of a sign-in; then the voter's cookie; then the sign-in prompt.
+- A signed voter cookie can outlive its voter row. Then it identifies nobody, and the page asks for a sign-in as it does with no cookie.
+- The Google sign-in asks for an account choice each time, so a shared phone picks its account rather than reusing the last one.
+- Google refuses sign-in from an app's built-in browser. There the page offers the sign-in only as a way out, and the ticket's QR code still votes from the camera's browser.
+- The public privacy policy describes what the system keeps, so a change to a voter's stored fields must change it too. The Google consent screen links to it.
+
+### Vote page
+
+- Finalists show their pictures with a button each that chooses it, and the choice is confirmed from a bar fixed at the bottom. Only a visitor who can vote reaches it: a live code or a signed-in voter.
+- A finalist's two banners autoplay in a 16:9 carousel every three seconds, until a swipe or a click stops it for good, so a person looking at one picture is not pulled to the next. The dots only say that a second picture exists.
+
+### Vote codes
+
+- A batch takes at most 1000 codes. A print run is a night's tickets at most; a larger one is several batches, each voidable alone.
+- A `voteCode` is 128 random bits in base64url (22 characters, which a QR holds easily), so nobody can guess one or walk from one printed code to the next.
+- Codes print as SVG QR codes at error-correction level M with a one-module margin, as the comprobante's QR does.
+- The printed sheet names only the `Gran final` and `Escaneá y votá` on each code. The batch's name appears only in the toolbar, which does not print.
+- Voiding a batch is final. A voided batch does not print, but a vote already cast with one of its codes still counts and reads as cast. The sheet's QR encodes the vote page on the app's configured origin, falling back to the origin of the request.
+
+### Audit links
+
+- An audit link is spent by the round it audits: the round open when it was issued, or else the next one to open, or the event's last round. A link is spent once a round of its event has closed after it was issued, so a link issued between round 1's close and a `Desempate` survives.
+- The audit page counts its round's totals from the votes table, not from a counter, with the same tally as the published result. The open round's figures are read in one snapshot, so the cross-checks never disagree with the tally.
+- Every audit request reads the link and its round again, so a revocation or a close takes effect on the next reload. Only the open round's figures come from the in-process cache.
+- The audit token travels in the URL fragment, which browsers never send, so it stays out of server logs, `Referer` headers and chat link previews. The page sends it once, in the body of the form that opens the link, and the link opens only when the auditor presses the button.
+- A link in the address wins over an earlier opening in the same browser. A refused link says why, and a round not yet open shows no figures.
+- The audit page's browser session lasts 24 hours and covers the whole origin, since the page's data is read at a `.data` path that a cookie scoped to the audit path never reaches. Once a link is revoked, the next load drops its token, so every browser is refused.
+- At most three audit links are live at once, where live means neither revoked nor spent. A creation past that is refused, the menu says why, and the event row is locked for the count.
+- Creating an audit link hands it over in the same dialog, with its QR to scan from the screen and its address to copy. The auditor's name on the list opens it again later.

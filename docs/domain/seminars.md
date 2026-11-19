@@ -42,7 +42,9 @@ what runs today.
   event's: the rate is what fixes the place, a per-seminar fact, while the price
   list is shared across the event's seminars. Like the event's, it is the
   `derecho de inscripción` a withdrawal retains (#1065), which the reglamento's
-  clause fixes at 30 %.
+  clause fixes at 30 %. The upper bound stops at 99 because a deposit of the
+  whole price would make the deposit and the balance the same threshold; the
+  event's own rate runs to 100.
 - **Both are refused while any inscription of the seminar is covered** — while
   any has reached the deposit of its stored price row — because both move the
   threshold that took a place. On the form both show the shared read-only look,
@@ -97,7 +99,9 @@ rule fits; every difference is named.
   participant flag and deadline cannot change; its name can. The deadline-less
   `regular` row of a participant cell cannot be deleted or restructured while
   any active seminar inscription of the event exists, even unreferenced; its
-  amount and name may change. On the form the guards show on sight — the locked
+  amount and name may change. Withdrawn rows do not count: a withdrawn row
+  resolves no price, and registering its person again inserts a new row the
+  guard sees. On the form the guards show on sight — the locked
   fields render through the shared read-only look under an `info` alert that
   says why, and `Eliminar` opens the blocked delete dialog with the reason —
   and the server refuses all the same, for the race. The
@@ -116,8 +120,13 @@ rule fits; every difference is named.
   and the tab travels in the URL so a link can name it. The table reads the
   name, the kind and the participant cell as two badges, the deadline and the
   amount, with a facet per axis and a warning naming the participant cell whose
-  deadline-less `Común` row is missing. The seminar itself stays outside the
+  deadline-less `Común` row is missing. That warning appears only when the event
+  has seminars at all, since an event without one has nothing to close. The seminar itself stays outside the
   bases and carries no price editor.
+
+- **The participant switch** (`Para participantes`) sits inside the name input
+  on the price form, as the choreography price's special switch does: the flag
+  is a property of the row the name already describes, not a field of its own.
 
 How a seminar inscription is priced from those rows:
 
@@ -188,7 +197,9 @@ How a seminar inscription is priced from those rows:
   seminar financial detail at `$0` badged `Particular`, after the unit's
   figures, its `Saldo disponible` and the presets were derived without them.
   Nothing of the individual's money reaches the academy, and the row names the
-  person as the academy's own row does. Archiving or deleting that row, or
+  person as the academy's own row does. A person the link reaches both as a
+  dancer and as a professor is named once, as the dancer. Archiving or deleting
+  that row, or
   revoking the link, takes it away
   (`app/lib/seminars/linked-individual-inscriptions.server.ts`). A seminar the
   academy itself registered nobody in has no financial unit of its own, so its
@@ -201,10 +212,13 @@ How a seminar inscription is priced from those rows:
 - Eligibility is `Estado de alta` alone, with the same grandfather rule as the
   choreography roster: a person can be registered when they are active, and an
   archived person already on the seminar stays on it, stays visible and stays
-  deletable. Dancer verification and age do not gate a seminar.
+  deletable. Dancer verification and age do not gate a seminar. An individual
+  has no `Estado de alta`, so its own registration is always eligible.
 - One row on the roster per seminar and person, beside any withdrawn ones. The
   same person may hold an inscription in any
-  number of seminars; overlapping times are not checked.
+  number of seminars; overlapping times are not checked. An individual already
+  registered is refused with a message addressed to it, since it registers
+  itself.
 - **One person, one side.** Once an individual's link is `Vinculado`, the
   individual and the rows its link reaches are one person to a seminar
   (`app/lib/seminars/linked-person-refusals.server.ts`, under the seminar's
@@ -228,7 +242,8 @@ How a seminar inscription is priced from those rows:
   `createdAt` kept, and the row retaining its deposit while what it holds above it
   goes back to `Saldo disponible` in the same transaction (#1065). Withdrawal
   does not wait for de-allocation, and comprobantes gate nothing. What differs between the two
-  sides is who may ask and until when, never what happens to the money.
+  sides is who may ask and until when, never what happens to the money. A
+  removal that withdraws a row says so, and no surface reports it as a deletion.
 - The academy removes its own inscription until the seminar starts;
   administration removes any inscription at any time, including after the
   seminar has started, from the seminar's detail. Administration's removal is
@@ -293,7 +308,9 @@ place for good, de-allocating below it releases both.
   insert stores `reservedUntil`, **72 hours on, never past the seminar's
   start**, when the covered rows and the live reservations leave a place free
   — read under the seminar lock, so two registrations cannot both take the
-  last one — and stores nothing otherwise. An active uncovered row whose
+  last one — and stores nothing otherwise. The stored end is capped at the
+  start the seminar had at registration, so moving the seminar earlier ends the
+  reservation sooner when it is read. An active uncovered row whose
   `reservedUntil` has not passed holds a place. A lapsed reservation deletes
   nothing and hands nothing on: the row reads `Seña pendiente` again, and a row
   registered into a full seminar never gains a reservation later, holding a
@@ -365,6 +382,10 @@ place for good, de-allocating below it releases both.
 
 ## Surfaces
 
+Seminar lists open in the order of the seminar's date, then its start time, then its instructor,
+the order the finance tab opens in. Within one seminar and academy the
+inscriptions are in person order.
+
 - **Portal**: a gallery of **posters** for the active event's seminars, one per
   seminar with the instructor's picture, name, date and time, a badge with the
   academy's own active inscription count, and a single `Ver detalle`. The poster
@@ -400,3 +421,16 @@ place for good, de-allocating below it releases both.
   seminar is covered, and there is **no prices tab**: seminar prices are edited
   in the `Seminarios` tab of `Precios`, and money for a seminar lives
   under `Finanzas` (`finances.md`, "Surfaces").
+- **Auditor export**: the seminar list gives the auditor one `Exportar` entry,
+  not the write actions. It opens a dialog that starts the spreadsheet download
+  in place, offering every seminar first and then only the seminars with
+  inscriptions, the ones the file has a sheet for. The file has one sheet per
+  seminar, with its active and withdrawn inscriptions. Withdrawn ones stay in,
+  since the money allocated to them is the event's. Each figure comes from the
+  one seminar money derivation, so the file cannot quote a price the finance
+  screens do not. An amount that depends on a price is blank while an
+  inscription has none, and so is its column's total, rather than a partial sum
+  that reads as complete. A seminar is named by its instructor, with its date
+  and time when another seminar of the export shares that name. The dialog names it
+  that way; the sheet writes the same name with the characters a sheet name allows,
+  cut to 31 and de-duplicated; the file name is slugified separately.

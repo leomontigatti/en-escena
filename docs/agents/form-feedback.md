@@ -30,6 +30,12 @@ cleaned the param.
 We redirect **only when the current view stops existing or stops making sense**, not
 to show feedback.
 
+Revalidation is not automatic for every intent. The choreography detail's draft does
+not reload after a refused save, nor after `resolve-draft`, which persists nothing:
+a reload would start the edit in progress over from what is saved. A preview that
+answered a refused save is set aside so the draft is asked again, and discarding
+restarts from what is saved.
+
 ## Which channel carries a message
 
 One question decides it: **is the message about a state of the record, or about
@@ -54,6 +60,12 @@ client validation, an alert, a dialog. The result of a submit is a toast.
   fallback.
 - **Toasts auto-dismiss** (Sonner's default). The form keeps the values the
   refusal judged, so a dismissed toast costs a resubmit, not data.
+- **Copying is confirmed inline, never with a toast**: copying never reaches the
+  server. The clipboard receives the stored value exactly, and the confirmation
+  waits for the write, so a refused write leaves the icon unchanged and silent.
+- **A category's server validation names its own fields first**, in the order the
+  administrator meets them: name, ages, group types, then whether any modality was
+  chosen.
 
 ### What is not a block
 
@@ -103,6 +115,23 @@ comprobante dialogs' `contingency` on a `"warning"`, the music editor's
 `"error"` the merge dialog claims by its `intent` (`isMergeRefusal`) so the edit
 form beside it never reads it as a rejected edit.
 
+- **Money refusals share their wording.** The seminar preset dialog's warning and
+  the seminar write's refusal use one over-allocation message, and the choreography
+  and seminar writers share the nothing-retained message, so the two cannot drift.
+- **The academy's pending-operation refusals name the field** they tried to save
+  (the music, or how the choreography is evaluated), because each portal save
+  carries one field.
+- **A refusal that names choreographies lists at most five**, by number and name,
+  then `y N más`. The cap belongs to the shared formatter, so the birth-date
+  correction and the category edit refusal name their choreographies alike.
+- **A refused scores edit names the rule the value broke**: the single value's own,
+  or the sheet's when a line is out of range. A refused disqualification names the
+  presentation rather than a score, since the link the administrator followed may be
+  the part that is broken.
+- **A refused archive** of a dancer or professor who takes part in the active event
+  reaches the academy as a toast. A missing or foreign id keeps its 404: it is a URL
+  error, not a refusal.
+
 ### Testing and scope
 
 The seam is per feature: a view's interaction test asserts that a refusal reaches
@@ -142,6 +171,16 @@ Notes on the matrix:
   when there is no detail.
 - **There is no "stay-and-reset" exception.** Every dedicated create aligns to one of
   those two destinations.
+- **The `Bonificada` waiver stays on its page**: the loader revalidates and the outcome
+  toasts. The other money gestures of the choreography detail redirect after a write.
+- **A recovery by re-verification stays in the dialog** as an alert state, not a
+  toast, because it does not cross a redirect.
+- **A shown live link says nothing on success**: the dialog is the answer. A revoke
+  that went through, or a link refused since the list loaded, closes the dialog over
+  its toast.
+- **The criteria sheet editor returns to the list once the stored sheet matches what
+  was submitted.** It reads the saved data rather than navigation state, since a quick
+  action can pass through navigation without a render.
 
 ## Two transports: flash session vs. direct `actionData`
 
@@ -159,6 +198,25 @@ passed to Sonner so a re-render does not stack duplicates.
 
 This is the pattern for create/edit via dialog, edit in a detail view and inline
 delete. It touches neither the URL nor the session.
+
+- **A form in a list that saves through its own fetcher answers through that
+  fetcher.** The judge's finalist pick at the bottom of the list does; only a score's
+  answer is the route's `actionData`.
+- **The list's action data is one union that also admits a silent answer**, the
+  successful presentation move. The judge dialog and the program-visibility dialog
+  never receive it, so they narrow it with a `message` check.
+- **A refused merge reopens its dialog on the same page.** The dialog's state belongs
+  to one record: a successful merge redirects to the survivor's page, which is the
+  same route component, and the dialog must not follow there. Each refusal is a new
+  answer object, so an identical refusal toasts again.
+- **The suspend and reset-password confirmations live outside the actions menu**,
+  because choosing a menu item unmounts the menu's content. They close on the success
+  result, not on submit, so a refusal (the last active administrator, oneself, a
+  rejected password) keeps the dialog standing under its toast.
+- **A user's edit form is refilled only by its own refusal.** The route answers every
+  intent with one shape, so a suspension or password-reset refusal also carries empty
+  `editValues`, and adopting them blanked the name. The first render shows what was
+  typed; an effect corrects the defaults afterwards.
 
 ### Flash session (the cases that redirect)
 
@@ -179,6 +237,16 @@ The query param is **not** needed for edit-in-place (most cases);
 for real redirects the correct transport is the flash session, **not** a URL param.
 The URL must never show a technical notification parameter.
 
+- **A recovered emission on a financial detail** redirects with a notice that
+  deliberately differs from the dialog's recovered state, so the operator can tell an
+  emission that recovered on its own from one they recovered themselves.
+- **A vote answers by outcome.** A counted vote, or an identity that had already
+  voted, lands on the registered page (`Tu voto fue registrado`). An identity that
+  cannot vote goes back to the page, which says why. Any other answer stays on the
+  page as a toast.
+- **A create page's save stays pending while it redirects to the list**, so the leave
+  guard does not ask about the form the academy has just saved.
+
 ### Feedback transport
 
 The only transport for a message across a `redirect` is the **flash session**
@@ -187,6 +255,28 @@ the `RouteToasts` reader in `root.tsx` no longer exist. The shared catalog of
 messages/variants with stable IDs lives in `app/lib/shared/notification-toasts.ts` and feeds both the flash flow and the direct
 `actionData` one. For a new form: use the flash session (redirect) or direct
 `actionData` (stay), never a URL param.
+
+- **A waiver confirmation closes on the click**, so the fetcher it submits through
+  belongs to the component that opened it. The answer must reach something still
+  mounted to toast it.
+- **A refusal left by an earlier write is told apart by object identity.** A write
+  that redirects leaves `fetcher.data` as it was, so a refusal is this write's answer
+  only when it is a new object.
+- **A refund form keeps what was typed only against the refund version it was written
+  against.** A new version starts a new form, and a refused write's values are left
+  out when the refund changed meanwhile, so a retry cannot save stale values.
+- **On the choreography detail, the route forwards only `error` and `success` results
+  to the view.** A preview's answer goes to its fetcher, and a redirect has already
+  left the page.
+- **Refused values are keyed to their record.** A dancer's or professor's refused
+  values outlive a search in the other tabs' lists and never leak into another record.
+- **A form refilled after a refused save keeps the saved values as its defaults**, so
+  `Guardar` stays on and `Descartar cambios` returns to what is saved. The latest
+  action answer is kept across navigations that carry none (a search on a detail's
+  tab), and the values of the last refused save are kept when a later answer carries
+  only a message (a crash).
+- **A birth-date correction's schedule moves** are appended to the saved-dancer
+  feedback by one helper, so both dancer forms report the change in the same sentence.
 
 ## A third answer: the duplicate warning
 
@@ -229,10 +319,18 @@ carries it:
   again.
 - **A refusal always wins.** The warning runs after validation and after the hard
   uniqueness pre-checks, so a document number already used by another record of the same roster (dancers with dancers, professors with professors) is a refusal,
-  never a warning the user can click past.
+  never a warning the user can click past. The document index can still refuse the
+  number between that pre-check and the write.
 - **Known limit:** matching is case-insensitive and whitespace-insensitive but
   **accent-sensitive** (`lower(...)` in SQL, no folding extension installed), so
   `Sofía` and `Sofia` do not match.
+- **A match links to its page in a new tab.** The dialog sits over a half-filled
+  form, which leaving the page would lose or trip the discard guard, so the
+  comparison happens beside it.
+- **The same-name warning is asked only after the save has been confirmed**, so it
+  does not stack on the save confirmation.
+- **The duplicate-name warning carries only the matched person's display name.** For
+  a dancer the birth date is the one just typed, so repeating it would name nothing new.
 
 The comprobante emission dialog (`app/features/admin/finances/comprobante-emission`)
 is the visual precedent for "the server says wait, the user acknowledges, the same
@@ -241,6 +339,14 @@ submit is re-enabled"; the difference is only that here the acknowledgement is s
 The seam to test is the same as the matrix's: the action returns the warning and
 performs no write, the acknowledged re-submit performs it, and the form renders the
 continue action and includes the ids in the submission.
+
+## Birth date fields the form did not convert
+
+A typed birth date that never became a date-only value is refused with the birth-date
+message, even when the text reads as a date. Only a post that skipped the field's
+converter can send it, and storing it as typed would break every reader of the column.
+A date-only value the calendar does not have (`2026-02-30`) gets the same message and
+no typing-mistake explanation, since it is not one.
 
 ## Unexpected failures during a submit
 
@@ -287,7 +393,15 @@ Two consequences for a view:
   intent" no longer identifies which form failed: the delete dialog of the
   payment detail keys its re-open on the intent that was in flight
   (`shouldOpenPaymentDeleteDialog`), and the dancer detail opens no dialog at
-  all for a generic error.
+  all for a generic error. A refused status change re-opens nothing either: by the
+  time its result lands the page has reloaded with `Archivar` already opening the
+  blocked acknowledgment, and re-opening a confirmation would offer one the server
+  refuses again.
+- **The error copy of a boundary prefers a loader's `Response` body** to an empty
+  status text. A non-string body and the router's own internal errors are skipped,
+  since neither is copy a user should read. When the shell's loader data is there, a
+  layout's error renders in its outlet, so the shell's navigation still works; without
+  it the layout renders the full-screen error.
 
 Resource routes with an `action` and no UI (`$`, `api.auth.$`, `salir`) export no
 `clientAction`: there is no mounted view to keep, and a returned error result
@@ -321,6 +435,16 @@ That is why auth uses **its own query params**, translated to a toast in `ingres
 There the query param is the right tool. "Invalid link" errors (recovery
 with an invalid token, email confirmation error) are shown as an inline static page,
 without a toast, and are likewise outside the submit matrix.
+
+## Contingency alerts
+
+The comprobante contingency alert (`Cancelar`, or `Cerrar` once it is over):
+
+- **A finished contingency removes its submit button rather than disabling it.** A
+  disabled button reads as "hold on a moment" and invites a retry, and a retry after a
+  recovered comprobante would emit a second one for the same amount.
+- **Abandoning a live attempt asks once more**, beside the evidence, before anything is
+  posted: it frees the series without recording anything.
 
 ## What to test
 
