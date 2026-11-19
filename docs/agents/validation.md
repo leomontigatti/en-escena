@@ -45,7 +45,7 @@ The scripts that exist and what owns what:
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm gate`                         | The next three rows in one run: failures only, each at its file and line, and one summary line                                                                                                                                                                                          |
 | `pnpm typecheck`                    | Types, unused locals and parameters, unused labels, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports (not asset globs such as `*.css`, which `vite/client` declares) — flags in `tsconfig.json` — also run by the `Stop` hook |
-| `pnpm lint`                         | React hook mistakes, import cycles, un-awaited promises, the `ui` style guide rules, the `code` standards rules and the `Trash` import — **only** these; also run by the `Stop` hook                                                                                                    |
+| `pnpm lint`                         | React hook mistakes, import cycles, un-awaited promises, the `ui` style guide rules, the `code` standards rules, the `Trash` import and raw `fetch` outside `app/lib/shared` — **only** these; also run by the `Stop` hook                                                              |
 | `pnpm format` / `:check`            | All formatting — also applied per file by the `PostToolUse` hook                                                                                                                                                                                                                        |
 | `pnpm test:unit`                    | Unit and React suites                                                                                                                                                                                                                                                                   |
 | `pnpm test:db <path>`               | DB suite on in-process PGlite                                                                                                                                                                                                                                                           |
@@ -100,7 +100,15 @@ messages are the source of truth, so read the rules there. It owns what nothing
 else can see: React hook mistakes, import cycles, un-awaited promises, the `ui`
 style guide rules listed in the header of `scripts/oxlint-ui-plugin.mjs`, the
 coding-standards rules in `scripts/oxlint-code-plugin.mjs` (a `catch` that drops
-what it caught), and `Trash2` over `Trash` through `no-restricted-imports`. Formatting is Prettier's,
+what it caught), and `Trash2` over `Trash` through `no-restricted-imports`, and no raw
+`fetch` in `app/` outside `app/lib/shared/`: a network call is a named function
+there (`decode-audio.ts`, `email.server.ts`), and the app's own data goes
+through loaders, actions and fetchers. `no-restricted-globals` catches `fetch`
+and `no-restricted-properties` its `globalThis.`, `window.` and `self.` forms.
+Tests are outside the ban because `no-restricted-globals` also flags `typeof
+fetch` in a type. An `overrides` entry replaces a rule's options rather than
+merging them, so a later entry that sets `no-restricted-properties` for the
+same files carries the `fetch` entries too. Formatting is Prettier's,
 unused code is `tsc`'s and repo conventions are the `check:*` scripts', and a rule
 that duplicates another owner stays out (decision 2 of ADR-0015). If it reports
 nothing, that is the expected result, not a reason to look for another linter.

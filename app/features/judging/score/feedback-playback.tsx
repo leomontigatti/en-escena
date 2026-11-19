@@ -5,6 +5,7 @@ import { AudioPlayback } from "@/components/shared/audio-playback";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { Button } from "@/components/ui/button";
 import { emptyLevels, summarizePeaks } from "@/lib/judging/feedback-waveform";
+import { decodeAudioFromUrl } from "@/lib/shared/decode-audio";
 
 import { Waveform } from "./feedback-waveform";
 
@@ -31,14 +32,12 @@ function useDecodedAudio(audioUrl: string) {
       return;
     }
 
-    let isCurrent = true;
-    const audioContext = new AudioContext();
+    const controller = new AbortController();
 
-    void fetch(audioUrl)
-      .then((response) => response.arrayBuffer())
-      .then((data) => audioContext.decodeAudioData(data))
+    decodeAudioFromUrl(audioUrl, controller.signal)
       .then((buffer) => {
-        if (isCurrent) {
+        // Aborting cannot stop a decode already under way.
+        if (!controller.signal.aborted) {
           setDecoded({
             durationMs: buffer.duration * 1000,
             levels: summarizePeaks(buffer.getChannelData(0)),
@@ -46,14 +45,12 @@ function useDecodedAudio(audioUrl: string) {
         }
       })
       .catch(() => {
-        // Undecodable audio still plays; it just shows a flat line.
-      })
-      // Closing the decoding context carries nothing back: it only rejects on a
-      // context that is already closed, which is the state this asks for anyway.
-      .finally(() => void audioContext.close());
+        // Undecodable audio, an error response or an aborted request: the take
+        // still plays, it just shows a flat line.
+      });
 
     return () => {
-      isCurrent = false;
+      controller.abort();
     };
   }, [audioUrl]);
 
