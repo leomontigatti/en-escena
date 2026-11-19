@@ -634,13 +634,16 @@ contrato`, `el archivo de la autorización`).
 
 - **An export that asks for a day or a period starts from a dialog that downloads in
   place**, so the list stays where it is; the choreography's `Exportar bailarines`
-  downloads directly. Nothing is chosen beforehand, and the whole-event choice is listed
-  first.
+  downloads directly. Nothing is chosen beforehand. A day export lists the whole-event
+  choice first; a period export downloads the whole event when both dates are left
+  empty.
 - **Each sheet of a workbook carries its own row type**, built with `workbookSheet`,
   so its columns and rows are checked against each other. Every workbook download
   freezes its header row.
-- **A spreadsheet export keeps every value in a column of its own**, because a
-  spreadsheet is filtered and sorted rather than read top to bottom.
+- **A spreadsheet export keeps each value it is filtered or sorted by in a column of its
+  own**, because a spreadsheet is filtered and sorted rather than read top to bottom. Some
+  display cells still combine values: the program's `Horario` joins the start time and
+  the schedule, and a list of names shares one cell.
 - **Money is written as whole pesos in a number cell with a peso format**, so the
   spreadsheet can add it.
 - **A sum over amounts some of which are unknown is itself unknown**, rather than a
@@ -704,9 +707,10 @@ above reads for every screen; these only say what is particular to one.
   submodality is left out, and an empty level says why it is empty (`Sin asignar`,
   `Sin nivel`, `No aplica`).
 - **The results and judge lists reuse the presentation list's columns.** The order
-  column goes; the number is read-only and sits in the truncation title; the state
-  badge gives way to the award and the average; the judge's name is plain text when
-  the form is closed.
+  column goes and the number is read-only. On the results list the number sits in the
+  truncation title and the state badge gives way to the award and the average. The
+  judge list keeps its `Estado` badge, and its name is plain text when the form is
+  closed.
 - **The results actions menu lists the export first, then the publication items**, and
   with neither there is no menu.
 - **A judge's scores table is framed like the app's data tables but takes no search,
@@ -775,8 +779,8 @@ above reads for every screen; these only say what is particular to one.
 
 ### Grand final
 
-- **A round's batches and audit links sit under their own tabs**, shown only once there
-  is one. Once a round has closed, its result is the first tab, and the page opens on it.
+- **The event's vote-code batches and audit links sit under their own tabs**, each shown
+  only once there is one. Once a round has closed, its result is the first tab, and the page opens on it.
 - **The audit links run in creation order, and the vote-code batches newest first.**
   An audit link's name opens its QR and address
   again, with a revoke that asks first; a revoked link's name, or a spent one's once its
@@ -811,8 +815,8 @@ above reads for every screen; these only say what is particular to one.
   presentations among them.
 - **A results row on a phone ends its card on the award**, so a scan down the cards ends
   each one on it.
-- **The seminar removal dialog holds only a pick from the roster**, so closing it never
-  asks.
+- **The portal's seminar registration dialog holds only a pick from the roster**, so
+  closing it never asks.
 - **The seminar gallery cards clip their hover zoom with the image band's own overflow**,
   and pin the footer to the bottom so every card in a row measures the same.
 - **The individual's `Coreografías` keeps the portal `Resultados` columns in a table**

@@ -51,8 +51,9 @@ the `Gran final`'s voter identity in
 ## Lock primitives
 
 - **`FOR UPDATE` on the row a write decides on, before anything reads its state.**
-  Allocation, waiver and withdrawal serialise on the inscription row, so a racing
-  waiver or withdrawal is either read first or waits. A judge's write and a
+  Allocation, waiver and a choreography withdrawal serialise on the inscription row, so a
+  racing waiver or withdrawal is either read first or waits. A seminar withdrawal takes the
+  comprobante anchor instead and locks no inscription row before it reads its evidence. A judge's write and a
   settlement lock the presentation the same way.
 - **Several rows are locked in id order**, so two writers over an overlapping set
   cannot each hold one the other waits on. This holds for prices, inscriptions,
@@ -68,10 +69,12 @@ the `Gran final`'s voter identity in
 - **`FOR SHARE` for a vote.** A vote holds its round (and a QR-code vote its batch too)
   while it commits, so a close or a void, which are plain `UPDATE`s and conflict with
   `FOR SHARE`, waits for the votes already counting. A vote that comes behind re-reads and counts nothing.
-- **Shared and exclusive list locks.** The choreography price list and the seminar price
-  list are each taken shared by the writes that store a price or make an inscription
-  active, and exclusive by the price editor. The shared lock means two writers never
-  wait on each other; the exclusive one lets the editor's guards see whatever committed
+- **Shared and exclusive list locks.** The choreography price list is taken shared by a
+  write that makes a choreography inscription active (the portal's registration, the
+  administration's draft save); the seminar price list by a money write that stores a
+  price row on a seminar inscription and by a seminar registration. Each is taken
+  exclusive by its price editor. The shared lock means two writers never wait on each
+  other on the list (they can still wait on a row lock both take); the exclusive one lets the editor's guards see whatever committed
   first. Both are transaction-scoped.
 - **Advisory locks are transaction-scoped unless a session lock says so.** The pool
   and the comprobante anchors take `pg_advisory_xact_lock` on a hash of a single key.
@@ -120,8 +123,8 @@ named as "the pool" is the academy pool of [finances.md](../domain/finances.md)
   a payment that moved academy while it waited, rather than taking a second pool.
 - **Known cycle:** an academy merge racing a withdrawal on the academy it removes can
   deadlock. The withdrawal holds an inscription row and waits for a pool; the merge
-  holds the pool and waits for the row. Postgres aborts one of them, and no money
-  moves.
+  holds the pool and waits for the row. Postgres aborts one of them and rolls it back,
+  and the other completes.
 - **Comprobante emission:** the anchor's session lock (fail fast) taken and released on
   one reserved connection, while the emission's reads and the comprobante's insert run on
   pooled connections inside it, so the derivation runs under the lock. The insert lands
@@ -148,8 +151,10 @@ named as "the pool" is the academy pool of [finances.md](../domain/finances.md)
   roster can delete an inscription an emission is billing); the choreography row
   `FOR UPDATE`, where the stored fields are checked against what the decision was made
   on; the active inscriptions of the choreography in id order, only when the group type
-  changes; then the schedule and capacity locks. Every refusal that reads nothing under
-  a lock is decided before the transaction, and the schedule is locked before any row is
+  changes; then the schedule and capacity locks, only when the save moves the
+  choreography or changes what its schedule must accept; then the roster writes, which
+  lock each inscription they remove. Every refusal that reads nothing under a lock is
+  decided before the transaction, and the placement is decided before any row is
   written, so a refusal leaves no piece of the draft behind.
 - **Choreography removal:** the event row `NO KEY UPDATE`, the choreography row
   `FOR UPDATE`, its presentation `FOR UPDATE` (a judge's score write locks it too), the
@@ -210,8 +215,10 @@ named as "the pool" is the academy pool of [finances.md](../domain/finances.md)
   read, so a judge's score that is saving waits for the removal instead of landing between
   the read and the delete.
 - **Automatic ordering, manual move and program visibility:** the event row `FOR UPDATE`,
-  which serialises two administrators pressing the action at once. Frozen rows are read
-  under that lock, so a score saved meanwhile is seen.
+  which serialises two administrators pressing the action at once. Automatic ordering
+  reads the frozen rows once, inside that transaction; a judge's save locks the
+  presentation, not the event, so a score committed after that read is not seen by it.
+  Program visibility reads no frozen rows.
 - **Criteria save** of a submodality: the submodality row `FOR UPDATE`, one save at a time.
 - **Professional evaluation** from the portal: the choreography's presentations locked
   before the evaluation is read, against a judge's save that locks the presentation it
@@ -244,7 +251,7 @@ named as "the pool" is the academy pool of [finances.md](../domain/finances.md)
   pair refuses itself instead of failing the removal of every other pair.
 - **A price that collides with one being saved** is refused by the constraint when the
   pre-check missed it, and the refusal is asked again once the other save commits, so a
-  special price still names its schedules.
+  special price names its schedules, unless the other row is gone again by then.
 
 ## Races settled by constraints
 
@@ -284,8 +291,8 @@ named as "the pool" is the academy pool of [finances.md](../domain/finances.md)
 - **Explicit deletes.** A presentation and its judge assignments do not cascade. Deleting a
   numbered choreography deletes its presentation and its assignments explicitly, in the
   same transaction. The demo seed deletes children first for the same reason.
-- **Retired columns.** A price's old schedule column is kept until the schedule links it was
-  copied into can be dropped in a contract step. Nothing reads or writes it, and the price
+- **Retired columns.** A price's old schedule column, whose values were copied into the
+  price's schedule links, is kept until a contract step drops it. Nothing reads or writes it, and the price
   row type omits it, so no reader takes a tier from it.
 
 ## Schema traps
@@ -301,9 +308,9 @@ named as "the pool" is the academy pool of [finances.md](../domain/finances.md)
   The two agree only while a choreography's schedule and its capacity's schedule are the
   same schedule, which registration, the roster path and the detail's reassignment keep
   by writing the pair together. A writer that breaks the pair breaks the counter first.
-- **A composite key needs a constraint, not an index.** The votes' composite key references
-  the round's finalist unique key, so that key is a table constraint, created with its table
-  ahead of anything that needs it.
+- **The finalist key is a constraint, not an index.** The votes' composite key references
+  the round's finalist unique key, and a table constraint is created with its table, ahead
+  of the foreign key that needs it.
 - **An insert from a select fills the columns by position.** The vote's select lists its
   fields in the order the Drizzle table declares them, and that order must be kept when a
   field is added to either side.
@@ -348,5 +355,6 @@ DEFERRED`; the migration is edited by hand, and the schema comment says so.
   (23505) and `foreign_key_violation` (23503). Narrowing by constraint name is optional.
 - **`FOR UPDATE` outside a transaction is released at once.** It guards nothing there, so
   every locking read is inside one.
-- **An `ON CONFLICT` with no target** absorbs any unique conflict, so the vote's insert
-  says "this identity already voted" whichever index refused it.
+- **An `ON CONFLICT` with no target** absorbs any unique conflict on the vote's insert,
+  whichever index refused it. Follow-up reads then say why nothing counted: a closed round
+  first, then the identity, then the academy.
