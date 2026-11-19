@@ -87,16 +87,16 @@ async function seedChoreographyInscription(): Promise<SeededInscription> {
     eventId: event.id,
     otherKind: "seminar",
     parentId: choreography.id,
-    priceId: price!.id,
+    priceId: price.id,
     reprice: async (amount) => {
-      await db.update(prices).set({ amount }).where(eq(prices.id, price!.id));
+      await db.update(prices).set({ amount }).where(eq(prices.id, price.id));
     },
-    target: { id: inscription!.id, kind: "choreography" },
+    target: { id: inscription.id, kind: "choreography" },
     withdraw: async () => {
       await db
         .update(choreographyDancers)
         .set({ withdrawnAt: new Date() })
-        .where(eq(choreographyDancers.id, inscription!.id));
+        .where(eq(choreographyDancers.id, inscription.id));
     },
   };
 }

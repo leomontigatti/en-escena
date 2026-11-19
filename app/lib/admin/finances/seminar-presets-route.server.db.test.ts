@@ -349,7 +349,7 @@ describe("an inscription holding a price that is not today's, below its deposit"
       }),
     ).toEqual({ ok: true });
 
-    const special = (await loadPreviews(fixture))[fixture.special.id]!;
+    const special = (await loadPreviews(fixture))[fixture.special.id];
 
     expect(special.stages.deposit.neededCount).toBe(2);
     expect(
@@ -402,8 +402,8 @@ describe("an inscription holding a price that is not today's, below its deposit"
 
     const previews = await loadPreviews(fixture);
     const previewed = [
-      ...previews[fixture.special.id]!.stages.balance.people,
-      ...previews[fixture.regular.id]!.stages.balance.people,
+      ...previews[fixture.special.id].stages.balance.people,
+      ...previews[fixture.regular.id].stages.balance.people,
     ];
 
     expect(
@@ -473,7 +473,7 @@ describe("an inscription priced from the other participant cell, below its depos
     expect(
       (await loadPreviews(fixture))[
         fixture.special.id
-      ]!.stages.balance.people.find(
+      ].stages.balance.people.find(
         (person) => person.inscriptionId === specialOutsider.id,
       ),
     ).toMatchObject({ amount: 30000, priceName: "special participante" });
@@ -501,7 +501,7 @@ describe("an inscription priced from the other participant cell, below its depos
     // stored row's 25.000.
     await payShortOfOutsiderDeposit(fixture, 20000);
 
-    const deposit = (await loadPreviews(fixture))[fixture.special.id]!.stages
+    const deposit = (await loadPreviews(fixture))[fixture.special.id].stages
       .deposit;
 
     expect(
@@ -542,7 +542,7 @@ describe("an inscription priced from the other participant cell, below its depos
     expect(
       (await loadPreviews(fixture))[
         fixture.special.id
-      ]!.stages.deposit.people.find(
+      ].stages.deposit.people.find(
         (person) => person.inscriptionId === specialOutsider.id,
       ),
     ).toMatchObject({ amount: 0, overAllocatedAmount: 3000 });
@@ -572,8 +572,8 @@ describe("the seminar preset preview in the academy's finance loader", () => {
     await reserveForHours(inscriptions.specialNeighbour.id, 10);
 
     const previews = await loadPreviews(fixture);
-    const special = previews[fixture.special.id]!;
-    const regular = previews[fixture.regular.id]!;
+    const special = previews[fixture.special.id];
+    const regular = previews[fixture.regular.id];
 
     // The withdrawn person and the other academy's person are not listed.
     expect(special).toMatchObject({
@@ -639,7 +639,7 @@ describe("the seminar preset preview in the academy's finance loader", () => {
       regular.stages.deposit.neededCount,
     );
     // Nothing is left owing for the deposit, so the preview lists nobody.
-    expect(after[fixture.special.id]!.stages.deposit).toEqual({
+    expect(after[fixture.special.id].stages.deposit).toEqual({
       neededCount: 0,
       people: [],
       placesLeft: 17,
@@ -663,7 +663,7 @@ describe("the seminar preset preview in the academy's finance loader", () => {
       }),
     ).toEqual({ ok: true });
 
-    const special = (await loadPreviews(fixture))[fixture.special.id]!;
+    const special = (await loadPreviews(fixture))[fixture.special.id];
 
     expect(await readCoveredCount(fixture.special.id)).toBe(1);
     expect(special.stages.deposit.people.map((p) => p.inscriptionId)).toEqual([

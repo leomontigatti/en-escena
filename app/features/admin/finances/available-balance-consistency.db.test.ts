@@ -90,7 +90,7 @@ async function seedAcademy(event: SavedEvent) {
       academyId,
       amount: 2500,
       eventId: event.id,
-      target: choreographyTarget(inscription!.id),
+      target: choreographyTarget(inscription.id),
     }),
   );
   expect(funded).toEqual({ ok: true });
@@ -143,14 +143,14 @@ async function seedIndividual(event: SavedEvent) {
     eventId: event.id,
     seminarId: created.seminar.id,
   });
-  const [price] = options.get(inscription!.id) ?? [];
+  const [price] = options.get(inscription.id) ?? [];
   const allocated = await allocateToInscription({
     academyId: individual.ownerId,
-    amount: price!.depositAmount,
+    amount: price.depositAmount,
     eventId: event.id,
     now: new Date("2026-04-05T12:00:00Z"),
-    priceId: price!.id,
-    target: { id: inscription!.id, kind: "seminar" },
+    priceId: price.id,
+    target: { id: inscription.id, kind: "seminar" },
   });
   expect(allocated).toEqual({ ok: true });
   await registerRefundForTest({
@@ -161,7 +161,7 @@ async function seedIndividual(event: SavedEvent) {
 
   return {
     cookie: individual.cookie,
-    depositAmount: price!.depositAmount,
+    depositAmount: price.depositAmount,
     ownerId: individual.ownerId,
     seminarId: created.seminar.id,
   };

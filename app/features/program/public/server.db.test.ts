@@ -174,11 +174,11 @@ describe("loadPublicProgram", () => {
       .returning();
     const [assignment] = await db
       .insert(judgeAssignments)
-      .values({ presentationId: scoredPresentation!.id, userId: judge!.id })
+      .values({ presentationId: scoredPresentation.id, userId: judge.id })
       .returning();
     await db
       .insert(scores)
-      .values({ judgeAssignmentId: assignment!.id, value: "70.0" });
+      .values({ judgeAssignmentId: assignment.id, value: "70.0" });
 
     const [disqualified, pending] = await Promise.all(
       ["Descalificada", "Pendiente"].map((name) =>
@@ -195,12 +195,12 @@ describe("loadPublicProgram", () => {
     );
     await db.insert(presentations).values([
       {
-        choreographyId: disqualified!.id,
+        choreographyId: disqualified.id,
         disqualifiedAt: new Date(),
         eventId: event.id,
         orderNumber: 2,
       },
-      { choreographyId: pending!.id, eventId: event.id, orderNumber: 3 },
+      { choreographyId: pending.id, eventId: event.id, orderNumber: 3 },
     ]);
 
     const date = catalog.schedule.scheduledDate;
@@ -212,7 +212,7 @@ describe("loadPublicProgram", () => {
     expect(onTheDay.live?.day).toEqual({
       date,
       isOver: false,
-      evaluatedChoreographyIds: [choreography.id, disqualified!.id],
+      evaluatedChoreographyIds: [choreography.id, disqualified.id],
       startTime: catalog.schedule.startTime,
     });
 

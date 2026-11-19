@@ -408,7 +408,7 @@ describe("a linked individual's inscription on the portal seminar detail", () =>
       {
         fullName: "Ana Paz",
         hasMoney: false,
-        id: inscription!.id,
+        id: inscription.id,
         personKind: "individual",
         readOnly: true,
         status: null,
@@ -420,12 +420,12 @@ describe("a linked individual's inscription on the portal seminar detail", () =>
 
     await expect(
       deleteRequest(session.cookie, {
-        inscriptionId: inscription!.id,
+        inscriptionId: inscription.id,
         seminarId: seminar.id,
       }),
     ).resolves.toMatchObject({ status: "error" });
     await expect(loadDetail(session.cookie, seminar.id)).resolves.toMatchObject(
-      { inscriptions: [{ id: inscription!.id, readOnly: true }] },
+      { inscriptions: [{ id: inscription.id, readOnly: true }] },
     );
   });
 });

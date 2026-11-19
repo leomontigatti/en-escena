@@ -78,7 +78,7 @@ async function seedUnfundedInscription() {
     academyId,
     choreographyId: choreography.id,
     eventId: event.id,
-    inscriptionId: inscription!.id,
+    inscriptionId: inscription.id,
   };
 }
 

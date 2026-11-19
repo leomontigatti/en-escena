@@ -77,7 +77,7 @@ describe("the program list everyone outside the administration reads", () => {
     await act(async () => {
       document
         .querySelectorAll('[role="tab"]')
-        [index]!.dispatchEvent(
+        [index].dispatchEvent(
           new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
         );
     });

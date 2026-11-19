@@ -273,7 +273,7 @@ async function seedSharedDancerFixture() {
     })),
   );
 
-  const withdrawnChoreographyId = choreographyIds[choreographyIds.length - 1]!;
+  const withdrawnChoreographyId = choreographyIds[choreographyIds.length - 1];
   const withdrawnAt = new Date("2026-04-10T12:00:00Z");
   await db
     .update(choreographies)

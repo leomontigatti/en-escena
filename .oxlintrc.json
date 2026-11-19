@@ -56,6 +56,12 @@
   },
   "overrides": [
     {
+      "files": ["**/*.ts", "**/*.tsx"],
+      "rules": {
+        "typescript/no-unnecessary-type-assertion": "error"
+      }
+    },
+    {
       "files": [
         "app/components/admin/events/form.tsx",
         "app/components/auth/access-form.tsx",

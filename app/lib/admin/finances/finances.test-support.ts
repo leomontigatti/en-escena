@@ -177,7 +177,7 @@ export async function seedOwnerPoolForTest(input: {
         academyId,
         amount: input.fundedAmount,
         eventId: input.event.id,
-        target: choreographyTarget(inscription!.id),
+        target: choreographyTarget(inscription.id),
       }),
     );
     if (!funded.ok) {
@@ -185,7 +185,7 @@ export async function seedOwnerPoolForTest(input: {
     }
   }
 
-  return { academyId, inscriptionId: inscription!.id };
+  return { academyId, inscriptionId: inscription.id };
 }
 
 export function renderAcademyFinancesRoute(input: {
