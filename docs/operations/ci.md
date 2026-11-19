@@ -54,7 +54,7 @@ The commit gate before any of these is `.husky/pre-commit`: gitleaks on the
 staged diff, `lint-staged`, `check:comment-language`, `typecheck`,
 `check:file-tokens`, `check:fallow`, and the sub-second `static-checks` steps
 (`check:repo-styles`, `check:banned-imports`, `check:docs-tests`,
-`check:labels`, `check:migration-order` and `check:migration-safety`). `.husky/commit-msg` runs
+`check:labels`, `check:type-assertions`, `check:migration-order` and `check:migration-safety`). `.husky/commit-msg` runs
 `docs-gate` on the staged tree, reading the trailer from the message being
 written. Hooks can be skipped, so it is the minimum, not the validation of a
 session's work, and CI runs every one of them again. What joins it stays fast and

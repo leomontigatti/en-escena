@@ -176,7 +176,7 @@ function emit(
 }
 
 function sentVoucher(billing: ArcaBillingPort): ArcaVoucher {
-  return vi.mocked(billing.createVoucher).mock.calls[0][0] as ArcaVoucher;
+  return vi.mocked(billing.createVoucher).mock.calls[0][0];
 }
 
 /** A choreography of the given size, every dancer's deposit covered and invoiced. */

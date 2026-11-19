@@ -2,7 +2,6 @@ import { mergeConfig } from "vitest/config";
 import { configDefaults, defineConfig } from "vitest/config";
 import { globSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import type { UserConfig } from "vite";
 
 import {
   asGlob,
@@ -24,7 +23,7 @@ const testFiles = configDefaults.include.flatMap((pattern) =>
 const isolatedFiles = findModuleSwappingFiles(rootDir, testFiles);
 
 export default mergeConfig(
-  viteConfig as UserConfig,
+  viteConfig,
   defineConfig({
     resolve: {
       alias: {

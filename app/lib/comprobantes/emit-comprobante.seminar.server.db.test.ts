@@ -11,7 +11,6 @@ import {
   seminars,
 } from "@/db/schema";
 import { createDancer } from "@/lib/choreographies/registration.test-support";
-import type { ArcaVoucher } from "@/lib/comprobantes/arca/factura-c";
 import { choreographyAnchor, seminarAnchor } from "@/lib/comprobantes/anchor";
 import {
   listAnchorComprobantes,
@@ -149,8 +148,7 @@ describe("emitAnchorComprobante on a (seminar, academy) unit", () => {
     );
 
     expect(outcome).toMatchObject({ ok: true, recovered: false });
-    const sent = vi.mocked(deps.billing.createVoucher).mock
-      .calls[0][0] as ArcaVoucher;
+    const sent = vi.mocked(deps.billing.createVoucher).mock.calls[0][0];
     expect(sent.ImpTotal).toBe(20000);
     // A seminar is taught on one day, so both ends of the service period are it.
     expect(sent.FchServDesde).toBe("20301010");
@@ -500,8 +498,7 @@ describe("emitAnchorComprobante on an individual's seminar unit", () => {
     );
 
     expect(outcome).toMatchObject({ ok: true });
-    const sent = vi.mocked(deps.billing.createVoucher).mock
-      .calls[0][0] as ArcaVoucher;
+    const sent = vi.mocked(deps.billing.createVoucher).mock.calls[0][0];
     expect(sent.ImpTotal).toBe(20000);
 
     if (!outcome.ok) {

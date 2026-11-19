@@ -283,7 +283,7 @@ async function renderBrowserPage(input: {
 function isSaveEnabled() {
   const button = findButton("Guardar", { exact: true });
 
-  return button !== undefined && !(button as HTMLButtonElement).disabled;
+  return button !== undefined && !button.disabled;
 }
 
 function findDialog() {

@@ -15,7 +15,7 @@ function instrumentRequest(instrumentation: ServerInstrumentation) {
     instrument: ({ request }: { request?: InstrumentRequest }) => {
       wrap = request;
     },
-  } as never);
+  });
 
   return (handleRequest: () => Promise<unknown>) =>
     wrap?.(handleRequest) ?? handleRequest();

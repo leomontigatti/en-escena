@@ -129,7 +129,7 @@ export async function loadPriceDivergenceCheck(input: {
 
   const currentKey = {
     choreographyScheduleId: choreography.choreographyScheduleId,
-    groupType: choreography.groupType as ChoreographyGroupType,
+    groupType: choreography.groupType,
     scheduleCapacityScheduleId: choreography.scheduleCapacityScheduleId,
   };
 

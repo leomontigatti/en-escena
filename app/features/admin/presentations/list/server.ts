@@ -40,7 +40,6 @@ import {
   derivePresentationWarnings,
   type PresentationWarning,
 } from "@/lib/presentations/warnings";
-import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { readFormData } from "@/lib/shared/read-form-data";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import { namedListDay, selectListDay } from "@/lib/shared/url-tab";
@@ -583,7 +582,7 @@ function buildPresentationListItem(
     }),
     financialStatus: row.financialStatus,
     frozen: event.frozenChoreographyIds.has(row.choreographyId),
-    groupType: row.groupType as ChoreographyGroupType,
+    groupType: row.groupType,
     id: row.choreographyId,
     modalityName: row.modalityName,
     name: row.name,

@@ -79,7 +79,7 @@ function MusicEditorRoute() {
   return (
     <PortalChoreographyDetailRouteView
       actionData={useActionData() as PortalChoreographyMusicActionData}
-      loaderData={useLoaderData() as PortalChoreographyMusicLoaderData}
+      loaderData={useLoaderData()}
     />
   );
 }

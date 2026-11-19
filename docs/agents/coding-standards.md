@@ -145,6 +145,27 @@ Design for testability:
 - Return values where practical instead of hiding behavior behind side effects.
 - Keep public surface area small so behavior is easier to exercise.
 
+## Type assertions
+
+An assertion (`value as T`, `<T>value`) tells the type checker to stop checking,
+so a wrong shape gets through silently. Narrow instead: a type guard
+(`value is T`), a schema parse where data enters from outside, or a typed helper
+that keeps the one check every caller needs. `as const` is not an assertion and
+stays.
+
+Lint rejects assertions (`typescript/consistent-type-assertions`, `never`)
+everywhere but the files `scripts/type-assertion-allowlist.json` lists, with the
+count each may hold; one `.oxlintrc.json` override turns the rule off for exactly
+those files. The list only falls. `pnpm check:type-assertions` (pre-commit and
+CI) fails when a file's count differs from its entry, when an entry is new or
+higher than on `origin/master`, when it cannot read `origin/master`'s list, when
+any override exempts a file the list does not hold or misses one it does, and on
+a disable comment that names the rule or no rule; the rule takes none. So a
+helper that needs a cast to remove many keeps it in a file already on the list,
+within that file's entry. To lower an entry, remove the assertions and run
+`pnpm check:type-assertions --write` in the same change: it rewrites the counts
+and the override from the tree and drops a file at zero.
+
 ## Style
 
 Choose clarity over cleverness. Prefer explicit control flow over compact code

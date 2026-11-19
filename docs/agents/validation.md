@@ -45,7 +45,7 @@ The scripts that exist and what owns what:
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm gate`                         | The next three rows in one run: failures only, each at its file and line, and one summary line                                                                                                                                                                                          |
 | `pnpm typecheck`                    | Types, unused locals and parameters, unused labels, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports (not asset globs such as `*.css`, which `vite/client` declares) — flags in `tsconfig.json` — also run by the `Stop` hook |
-| `pnpm lint`                         | React hook mistakes, import cycles, un-awaited promises, the `ui` style guide rules, the `code` standards rules, the `Trash` import and raw `fetch` outside `app/lib/shared` — **only** these; also run by the `Stop` hook                                                              |
+| `pnpm lint`                         | React hook mistakes, import cycles, un-awaited promises, the `ui` style guide rules, the `code` standards rules, the `Trash` import, raw `fetch` outside `app/lib/shared` and type assertions outside the ratchet's allowlist — **only** these; also run by the `Stop` hook             |
 | `pnpm format` / `:check`            | All formatting — also applied per file by the `PostToolUse` hook                                                                                                                                                                                                                        |
 | `pnpm test:unit`                    | Unit and React suites                                                                                                                                                                                                                                                                   |
 | `pnpm test:db <path>`               | DB suite on in-process PGlite                                                                                                                                                                                                                                                           |
@@ -54,6 +54,7 @@ The scripts that exist and what owns what:
 | `pnpm check:banned-imports`         | Retired dependencies stay retired                                                                                                                                                                                                                                                       |
 | `pnpm check:docs-tests`             | No test asserts that a doc contains fixed text                                                                                                                                                                                                                                          |
 | `pnpm check:labels`                 | Every label a workflow, script or local skill names is in `.github/labels.json`                                                                                                                                                                                                         |
+| `pnpm check:type-assertions`        | The type-assertion ratchet: per-file counts match `scripts/type-assertion-allowlist.json`, which only falls against `origin/master` ([coding-standards.md](./coding-standards.md#type-assertions))                                                                                      |
 | `pnpm check:file-tokens`            | Staged `app` modules under the token ceiling                                                                                                                                                                                                                                            |
 | `pnpm check:migration-order`        | New migrations postdate `master`                                                                                                                                                                                                                                                        |
 | `pnpm check:migration-immutability` | Migrations already on `master` are never edited                                                                                                                                                                                                                                         |
@@ -108,7 +109,11 @@ and `no-restricted-properties` its `globalThis.`, `window.` and `self.` forms.
 Tests are outside the ban because `no-restricted-globals` also flags `typeof
 fetch` in a type. An `overrides` entry replaces a rule's options rather than
 merging them, so a later entry that sets `no-restricted-properties` for the
-same files carries the `fetch` entries too. Formatting is Prettier's,
+same files carries the `fetch` entries too. Type assertions are rejected
+everywhere but the files the type-assertion ratchet lists, whose override
+`pnpm check:type-assertions --write` writes
+([coding-standards.md](./coding-standards.md#type-assertions)); never edit that
+override by hand. Formatting is Prettier's,
 unused code is `tsc`'s and repo conventions are the `check:*` scripts', and a rule
 that duplicates another owner stays out (decision 2 of ADR-0015). If it reports
 nothing, that is the expected result, not a reason to look for another linter.

@@ -418,18 +418,17 @@ function stubRowRects() {
   for (const [index, row] of rows.entries()) {
     const top = index * 40;
 
-    row.getBoundingClientRect = () =>
-      ({
-        bottom: top + 40,
-        height: 40,
-        left: 0,
-        right: 600,
-        toJSON: () => ({}),
-        top,
-        width: 600,
-        x: 0,
-        y: top,
-      }) as DOMRect;
+    row.getBoundingClientRect = () => ({
+      bottom: top + 40,
+      height: 40,
+      left: 0,
+      right: 600,
+      toJSON: () => ({}),
+      top,
+      width: 600,
+      x: 0,
+      y: top,
+    });
   }
 }
 

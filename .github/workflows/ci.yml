@@ -105,6 +105,10 @@ jobs:
       # match as exact strings, and a typo in an `--add-label` otherwise
       # surfaces only as a refused edit when the command runs.
       - run: pnpm check:labels
+      # Type assertions only fall: each file's count matches its allowlist entry,
+      # no entry rises above origin/master's, and the lint override names exactly
+      # the listed files (docs/agents/coding-standards.md § Type assertions).
+      - run: pnpm check:type-assertions
       # Engineering prose stays English (#592). The sweep took the tree to zero
       # Spanish comments and test names; this is what keeps it there, since the
       # rule had been living in CODING_STANDARDS alone and losing every review

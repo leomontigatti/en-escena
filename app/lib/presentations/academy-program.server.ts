@@ -127,7 +127,7 @@ export async function readAcademyPresentations(
   const dancerNamesByChoreography = await readProgramDancerNames(
     executor,
     rows
-      .filter((row) => listsDancerNames(row.groupType as ChoreographyGroupType))
+      .filter((row) => listsDancerNames(row.groupType))
       .map((row) => row.choreographyId),
   );
 
@@ -142,7 +142,7 @@ export async function readAcademyPresentations(
       choreographyId: row.choreographyId,
       choreographyNumber: row.choreographyNumber,
       dancerNames: dancerNamesByChoreography.get(row.choreographyId) ?? [],
-      groupType: row.groupType as ChoreographyGroupType,
+      groupType: row.groupType,
       // A withdrawn one reads `Retirada`, never a deposit to cover.
       isBelowDeposit:
         row.withdrawnAt === null &&
@@ -152,7 +152,7 @@ export async function readAcademyPresentations(
         row.experienceLevel,
         experienceLevelRequirement({
           categoryExperienceLevels: row.categoryExperienceLevels,
-          groupType: row.groupType as ChoreographyGroupType,
+          groupType: row.groupType,
         }),
       ),
       modalityName: row.modalityName,

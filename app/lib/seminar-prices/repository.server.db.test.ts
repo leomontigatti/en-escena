@@ -311,7 +311,7 @@ function expectSavedPrice(
     throw new Error(`Expected the seminar price to be saved: ${result.error}`);
   }
 
-  return result.record as SeminarPriceRow;
+  return result.record;
 }
 
 /** An event with one seminar and one inscription on it, before it starts. */
