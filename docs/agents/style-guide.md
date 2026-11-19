@@ -530,8 +530,11 @@ What happens after the submit is [form-feedback.md](form-feedback.md).
   it, so a bulk action only reaches rows it applies to.
 - **On a server-paginated table the checkbox reaches the current page only**, since
   the rows are the loader's and nothing else on the client can be selected.
-- **A list's selection clears whenever its visible rows change** (page, search,
-  facet or sort), since a summary would otherwise add up rows no one can see.
+- **A server-paginated list whose selection drives a summary or an action clears
+  it whenever its visible rows change** (page, search, facet or sort), since the
+  summary would otherwise add up, or the action print, rows no one can see: the
+  movements list's cards and the professors list's print do this. A client-paginated
+  table keeps its selection across pages.
 - **A drag handle draws nothing when the table is not reorderable**, so a view
   hides the handles without changing its columns. The table reports what was
   dropped; the view decides what that means for the order.

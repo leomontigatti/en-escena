@@ -56,7 +56,8 @@ the `Gran final`'s voter identity in
   settlement lock the presentation the same way.
 - **Several rows are locked in id order**, so two writers over an overlapping set
   cannot each hold one the other waits on. This holds for prices, inscriptions,
-  seminars, people, assignments and academies.
+  seminars, people and academies. The removal of judge assignments locks the rows it
+  reads with no order.
 - **Only the active rows of a choreography are locked on removal.** A withdrawn row
   locked alongside would deadlock with the retained-deposit release and an academy
   merge.
@@ -64,9 +65,9 @@ the `Gran final`'s voter identity in
   choreography removal takes its event row this way: it waits for the ordering's lock,
   but an allocation racing it can take the `KEY SHARE` its foreign key to the event
   needs.
-- **`FOR SHARE` for a vote.** A vote holds its round and its batch while it commits, so
-  a close or a void, which are plain `UPDATE`s and conflict with `FOR SHARE`, waits for
-  the votes already counting. A vote that comes behind re-reads and counts nothing.
+- **`FOR SHARE` for a vote.** A vote holds its round (and a QR-code vote its batch too)
+  while it commits, so a close or a void, which are plain `UPDATE`s and conflict with
+  `FOR SHARE`, waits for the votes already counting. A vote that comes behind re-reads and counts nothing.
 - **Shared and exclusive list locks.** The choreography price list and the seminar price
   list are each taken shared by the writes that store a price or make an inscription
   active, and exclusive by the price editor. The shared lock means two writers never
@@ -94,9 +95,9 @@ named as "the pool" is the academy pool of [finances.md](../domain/finances.md)
 
 ### Finances
 
-- **Money gesture on one choreography inscription** (`Asignar dinero`, `Quitar dinero`,
-  the waiver): the inscription row, then, on a gesture that prices, the price row, then
-  the pool. The owner is read without a lock and the academy is checked again under the
+- **Money gesture on one choreography inscription** (`Asignar dinero`, `Quitar dinero`):
+  the inscription row, then, on a gesture that prices, the price row, then the pool. The
+  waiver locks the inscription rows only: it moves no money, so it takes no pool lock. The owner is read without a lock and the academy is checked again under the
   locks, so a row that moved away is refused rather than charged.
 - **Money gesture on one seminar inscription:** the seminar row, the inscription row,
   the event's seminar price list (shared), then the pool. The seminar's id is read
@@ -121,9 +122,10 @@ named as "the pool" is the academy pool of [finances.md](../domain/finances.md)
   deadlock. The withdrawal holds an inscription row and waits for a pool; the merge
   holds the pool and waits for the row. Postgres aborts one of them, and no money
   moves.
-- **Comprobante emission:** the anchor's session lock (fail fast) on one reserved
-  connection, with every read and the comprobante's insert on that connection, so the
-  derivation runs inside the lock. The insert lands before the lock is released.
+- **Comprobante emission:** the anchor's session lock (fail fast) taken and released on
+  one reserved connection, while the emission's reads and the comprobante's insert run on
+  pooled connections inside it, so the derivation runs under the lock. The insert lands
+  before the lock is released.
 
 ### Choreographies
 
@@ -223,7 +225,7 @@ named as "the pool" is the academy pool of [finances.md](../domain/finances.md)
   holds its row until commit and deletes the objects it replaced only after; waiting for
   it means the round copies the keys it wrote.
 - **A vote:** one `INSERT ... ON CONFLICT DO NOTHING` (see the constraints below), holding
-  its round and batch `FOR SHARE` while it commits.
+  its round (and, for a QR-code vote, its batch) `FOR SHARE` while it commits.
 - **A voter's sign-in:** one upsert statement, so two sign-ins of one identity make one
   voter.
 
@@ -275,8 +277,9 @@ named as "the pool" is the academy pool of [finances.md](../domain/finances.md)
   plugin refuses impersonation, so the column stays null.
 - **Restricts.** A choreography's category, and a schedule's accepted categories, do not
   cascade: they are checked first and the foreign key refuses the rest. A schedule that a
-  price covers cannot be deleted. Seminar inscriptions restrict the roster people, because
-  nobody deletes roster people today and a path that did would be refused while
+  price covers cannot be deleted. Seminar inscriptions restrict the roster people: the
+  roster merge, the one path that deletes a roster person, moves the removed person's
+  seminar inscriptions to the survivor first, and any other delete would be refused while
   inscriptions exist.
 - **Explicit deletes.** A presentation and its judge assignments do not cascade. Deleting a
   numbered choreography deletes its presentation and its assignments explicitly, in the
@@ -340,8 +343,6 @@ DEFERRED`; the migration is edited by hand, and the schema comment says so.
   would need a migration and an immutable wrapper to be indexable.
 - **Error classes are read by SQLSTATE.** The repo refuses only on `unique_violation`
   (23505) and `foreign_key_violation` (23503). Narrowing by constraint name is optional.
-- **A transaction callback commits when it returns**, whatever the return value says; see
-  Transactions above.
 - **`FOR UPDATE` outside a transaction is released at once.** It guards nothing there, so
   every locking read is inside one.
 - **An `ON CONFLICT` with no target** absorbs any unique conflict, so the vote's insert

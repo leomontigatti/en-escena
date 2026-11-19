@@ -18,7 +18,6 @@ Repo rules that follow from them are in [coding-standards.md](coding-standards.m
 
 ## React Router
 
-- Loader data is serialised on its way to the client, and a `Map` does not survive that. The app's loaders return plain objects, for the seminar and the seminar inscriptions views.
 - A failed data request is wrapped in a message that hides its cause, which is kept in `cause`. The app's error report keeps the cause headlines. A navigation whose data request fails calls `onError` once per boundary that holds the error, so the report de-duplicates per error.
 - `fetcher.submit` silently ignores the navigation-only options (`replace`, `state`, `navigate`, `fetcherKey`, `viewTransition`). The app's shared submit options are narrowed to `encType` and `method` to match.
 - The hooks `useFormAction`, `useSubmit` and `useNavigation` throw synchronously when their context is missing: outside a router, and `useNavigation` also inside a non-data router such as the memory router the render tests use. The app wraps each one in a `try`. oxlint 1.83 reads a hook inside `try` as a conditional call, so each call carries its own suppression rather than the rule being turned off for the file.

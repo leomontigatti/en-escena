@@ -213,7 +213,7 @@ down by kind, the read model does not. The unit a seminar's money rolls up into
 is the `(seminar, academy)` pair, not the seminar: a seminar is shared by every
 academy while a debt belongs to one.
 
-A seminar allocation is in its academy's `Saldo disponible` but in no choreography's rollup, since it has no choreography inscription.
+A seminar allocation reduces its academy's `Saldo disponible`, as a choreography allocation does, but is in no choreography's rollup, since it has no choreography inscription.
 
 **Covering the deposit** is the seminar's own reading of the crossing: it is
 what keeps a place in the quota for good and what freezes the seminar's kind

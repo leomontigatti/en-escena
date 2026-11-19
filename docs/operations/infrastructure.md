@@ -625,8 +625,9 @@ Content`, the same as every other kind, which is what lets the feedback
   sends nothing, and an empty file part is never read as a deletion.
 - The take preloads with the page, because its signed link expires after 300 seconds
   and the take must still play after that.
-- Recording uses the browser's `MediaRecorder` with webm/opus, which only Chrome
-  supports, and the recorder stops itself at five minutes.
+- Recording uses the browser's `MediaRecorder`, with webm/opus where the browser
+  supports it and the browser's default format otherwise, and the recorder stops itself
+  at five minutes.
 - The take's storage is built only when a stored take exists, so a judge or panel with
   no takes needs no storage environment to be read or saved.
 - A save refuses in a fixed order (a presentation that is not the judge's, then a closed
