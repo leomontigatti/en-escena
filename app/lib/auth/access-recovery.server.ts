@@ -71,24 +71,6 @@ export async function exchangeAccessRecoveryCode(input: {
   }
 }
 
-export async function verifyAccessRecoveryTokenHash(input: {
-  request: Request;
-  redirectTo: string;
-  tokenHash: string;
-}) {
-  try {
-    const result = await accessAuthProvider.verifyPasswordRecoveryOtp(input);
-
-    return {
-      ok: true as const,
-      headers: result.headers,
-      redirectTo: result.redirectTo,
-    };
-  } catch (thrown) {
-    return refuseRecoveryLink("verifyPasswordRecoveryOtp", thrown);
-  }
-}
-
 export async function updateAccessRecoveryPassword(input: {
   newPassword: string;
   request: Request;
@@ -115,10 +97,7 @@ export async function updateAccessRecoveryPassword(input: {
 // one. Anything else is the provider or the database failing, which reads the
 // same to the academy but is logged, or it would leave no trace at all.
 function refuseRecoveryLink(
-  operation:
-    | "exchangePasswordRecoveryCode"
-    | "updatePasswordForRecovery"
-    | "verifyPasswordRecoveryOtp",
+  operation: "exchangePasswordRecoveryCode" | "updatePasswordForRecovery",
   thrown: unknown,
 ) {
   if (!(thrown instanceof RecoveryLinkRefusedError)) {

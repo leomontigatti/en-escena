@@ -23,7 +23,7 @@ describe("`/administracion/finanzas/seminarios`", () => {
   test("lists every seminar inscription of the event with the prices its dialog offers", async () => {
     const fixture = await seedEventSeminarFinanceFixture();
 
-    const loaderData = await load(fixture);
+    const loaderData = await load();
 
     expect(
       loaderData.inscriptions.map((row) => ({
@@ -72,7 +72,7 @@ describe("`/administracion/finanzas/seminarios`", () => {
       target: { id: fixture.nicolasInscriptionId, kind: "seminar" },
     });
 
-    const loaderData = await load(fixture);
+    const loaderData = await load();
 
     expect(
       loaderData.inscriptions.map((row) => ({
@@ -86,11 +86,11 @@ describe("`/administracion/finanzas/seminarios`", () => {
   });
 
   test("refuses the auditor", async () => {
-    const fixture = await seedEventSeminarFinanceFixture();
+    await seedEventSeminarFinanceFixture();
     const { request } = await createSignedInRequest({
       email: "auditor.seminarios@example.com",
       role: "auditor",
-      requestUrl: seminarInscriptionFinancesUrl(fixture.eventId),
+      requestUrl: seminarInscriptionFinancesUrl(),
     });
 
     await expect(loader(routeArgs(request))).rejects.toMatchObject({
@@ -99,11 +99,11 @@ describe("`/administracion/finanzas/seminarios`", () => {
   });
 });
 
-async function load(fixture: EventSeminarFinanceFixture) {
+async function load() {
   const { request } = await createSignedInRequest({
     email: `admin.${crypto.randomUUID()}@example.com`,
     role: "admin",
-    requestUrl: seminarInscriptionFinancesUrl(fixture.eventId),
+    requestUrl: seminarInscriptionFinancesUrl(),
   });
 
   return await loader(routeArgs(request));

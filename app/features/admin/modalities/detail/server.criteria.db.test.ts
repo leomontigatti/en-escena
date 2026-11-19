@@ -148,7 +148,7 @@ async function submitCriteria(
   const { request } = await createSignedInRequest({
     body,
     email: `${crypto.randomUUID()}@example.com`,
-    requestUrl: `http://localhost/administracion/modalidades/${fixture.catalog.modality.id}?evento=${fixture.event.id}`,
+    requestUrl: `http://localhost/administracion/modalidades/${fixture.catalog.modality.id}`,
     role: "admin",
   });
 

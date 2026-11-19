@@ -43,7 +43,7 @@ describe("`Bases del evento` rejection copy", () => {
     const request = await createSignedInRequest({
       email: "admin.copia.duplicada@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades`,
       body: formData({ intent: "create-modality", name: " jazz " }),
     });
     const actionResult = await action(routeArgs(request.request));
@@ -78,7 +78,7 @@ describe("`Bases del evento` rejection copy", () => {
     const request = await createSignedInRequest({
       email: "admin.copia.submodalidad@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades`,
       body: formData({
         intent: "create-submodality",
         modalityId: modality.id,
@@ -108,7 +108,7 @@ describe("`Bases del evento` rejection copy", () => {
     const request = await createSignedInRequest({
       email: "admin.copia.modalidad@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/modalidades/nueva?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/modalidades/nueva`,
       body: formData({
         intent: "create-modality",
         name: "Jazz",
@@ -143,7 +143,7 @@ describe("`Bases del evento` rejection copy", () => {
     const request = await createScheduleAdminRequest({
       email: "admin.copia.cronograma@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas/nuevo`,
       intent: "create-schedule",
       schedule: buildScheduleDraft({ name: "", modalityIds }),
     });

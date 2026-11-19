@@ -78,7 +78,7 @@ describe("portal choreographies reads", () => {
     const ownerDetail = await choreographyDetailLoader({
       params: { choreographyId: choreography.id },
       request: new Request(
-        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        `http://localhost/portal/coreografias/${choreography.id}`,
         {
           headers: { cookie: owner.cookie },
         },
@@ -109,7 +109,7 @@ describe("portal choreographies reads", () => {
       choreographyDetailLoader({
         params: { choreographyId: choreography.id },
         request: new Request(
-          `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+          `http://localhost/portal/coreografias/${choreography.id}`,
           {
             headers: { cookie: other.cookie },
           },
@@ -151,7 +151,7 @@ describe("portal choreographies reads", () => {
       const detail = await choreographyDetailLoader({
         params: { choreographyId: choreography.id },
         request: new Request(
-          `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+          `http://localhost/portal/coreografias/${choreography.id}`,
           { headers: { cookie: owner.cookie } },
         ),
       });
@@ -209,7 +209,7 @@ describe("portal choreographies reads", () => {
     const detail = await choreographyDetailLoader({
       params: { choreographyId: choreography.id },
       request: new Request(
-        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        `http://localhost/portal/coreografias/${choreography.id}`,
         { headers: { cookie: owner.cookie } },
       ),
     });
@@ -258,7 +258,7 @@ describe("portal choreographies reads", () => {
         await choreographyDetailLoader({
           params: { choreographyId: choreography.id },
           request: new Request(
-            `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+            `http://localhost/portal/coreografias/${choreography.id}`,
             { headers: { cookie: owner.cookie } },
           ),
         })
@@ -315,7 +315,7 @@ describe("portal choreographies music-only editing", () => {
     const response = await choreographyDetailAction({
       params: { choreographyId: choreography.id },
       request: createPortalPostRequest(
-        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        `http://localhost/portal/coreografias/${choreography.id}`,
         owner.cookie,
         musicUpdateFormData({
           musicStorageKey: "music/current.mp3",
@@ -369,7 +369,7 @@ describe("portal choreographies music-only editing", () => {
       choreographyDetailLoader({
         params: { choreographyId: choreography.id },
         request: new Request(
-          `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+          `http://localhost/portal/coreografias/${choreography.id}`,
           { headers: { cookie: owner.cookie } },
         ),
       }).then((data) => data.choreography.isWithdrawn),
@@ -379,7 +379,7 @@ describe("portal choreographies music-only editing", () => {
       choreographyDetailAction({
         params: { choreographyId: choreography.id },
         request: createPortalPostRequest(
-          `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+          `http://localhost/portal/coreografias/${choreography.id}`,
           owner.cookie,
           musicUpdateFormData({ musicStorageKey: "" }),
         ),
@@ -424,7 +424,7 @@ describe("portal choreographies music-only editing", () => {
       choreographyDetailAction({
         params: { choreographyId: choreography.id },
         request: createPortalPostRequest(
-          `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+          `http://localhost/portal/coreografias/${choreography.id}`,
           owner.cookie,
           formData,
         ),

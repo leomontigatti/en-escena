@@ -11,7 +11,6 @@ import {
   seedEventSeminarFinanceFixture,
   seminarFinanceDetailRequestUrl,
   seminarInscriptionFinancesUrl,
-  type EventSeminarFinanceFixture,
 } from "@/lib/admin/finances/seminar-finances.test-support";
 import { removeSeminarInscription } from "@/lib/seminars/inscriptions.server";
 
@@ -28,7 +27,7 @@ describe("the seminar inscription money action", () => {
   test("allocates from the list, reading academy and seminar off the inscription, and stays", async () => {
     const fixture = await seedEventSeminarFinanceFixture();
 
-    const result = await postToList(fixture, {
+    const result = await postToList({
       amount: "10000",
       inscriptionId: fixture.nicolasInscriptionId,
       intent: "allocate-inscription",
@@ -44,7 +43,7 @@ describe("the seminar inscription money action", () => {
 
     // The south academy has paid nothing; the north one's payment is not its
     // money, so the allocation has nothing to come out of.
-    const result = await postToList(fixture, {
+    const result = await postToList({
       amount: "10000",
       inscriptionId: fixture.luzInscriptionId,
       intent: "allocate-inscription",
@@ -57,19 +56,19 @@ describe("the seminar inscription money action", () => {
 
   test("takes money off and releases nothing that is not excess, from the list", async () => {
     const fixture = await seedEventSeminarFinanceFixture();
-    await postToList(fixture, {
+    await postToList({
       amount: "10000",
       inscriptionId: fixture.anaInscriptionId,
       intent: "allocate-inscription",
       priceId: fixture.priceId,
     });
 
-    const removed = await postToList(fixture, {
+    const removed = await postToList({
       amount: "4000",
       inscriptionId: fixture.anaInscriptionId,
       intent: "remove-inscription-money",
     });
-    const released = await postToList(fixture, {
+    const released = await postToList({
       inscriptionId: fixture.anaInscriptionId,
       intent: "release-inscription-excess",
     });
@@ -85,12 +84,12 @@ describe("the seminar inscription money action", () => {
   test("refuses an inscription the event does not hold, and a choreography target", async () => {
     const fixture = await seedEventSeminarFinanceFixture();
 
-    const missing = await postToList(fixture, {
+    const missing = await postToList({
       amount: "1000",
       inscriptionId: "no-such-inscription",
       intent: "allocate-inscription",
     });
-    const choreographyTarget = await postToList(fixture, {
+    const choreographyTarget = await postToList({
       amount: "1000",
       inscriptionId: fixture.anaInscriptionId,
       intent: "allocate-inscription",
@@ -116,7 +115,7 @@ describe("the seminar inscription money action", () => {
         intent: "allocate-inscription",
       },
       role: "auditor",
-      url: seminarInscriptionFinancesUrl(fixture.eventId),
+      url: seminarInscriptionFinancesUrl(),
     });
 
     await expect(
@@ -128,7 +127,6 @@ describe("the seminar inscription money action", () => {
     const fixture = await seedEventSeminarFinanceFixture();
     const detailUrl = seminarFinanceDetailRequestUrl({
       academyId: fixture.northAcademyId,
-      eventId: fixture.eventId,
       seminarId: fixture.abrilSeminarId,
     });
     const request = await buildSeminarMoneyPostRequest({
@@ -162,7 +160,6 @@ describe("the seminar inscription money action", () => {
     const fixture = await seedEventSeminarFinanceFixture();
     const detailUrl = seminarFinanceDetailRequestUrl({
       academyId: fixture.northAcademyId,
-      eventId: fixture.eventId,
       seminarId: fixture.abrilSeminarId,
     });
     const request = await buildSeminarMoneyPostRequest({
@@ -196,7 +193,7 @@ describe("the deposit a withdrawn seminar inscription retains", () => {
   /** 15000 on Ana's row, then administration's removal withdraws it. */
   async function seedWithdrawn() {
     const fixture = await seedEventSeminarFinanceFixture();
-    await postToList(fixture, {
+    await postToList({
       amount: "15000",
       inscriptionId: fixture.anaInscriptionId,
       intent: "allocate-inscription",
@@ -214,7 +211,7 @@ describe("the deposit a withdrawn seminar inscription retains", () => {
     const fixture = await seedWithdrawn();
     expect(await readAllocatedAmount(fixture.anaInscriptionId)).toBe(10000);
 
-    const released = await postToList(fixture, {
+    const released = await postToList({
       inscriptionId: fixture.anaInscriptionId,
       intent: "release-retained-deposit",
     });
@@ -225,7 +222,7 @@ describe("the deposit a withdrawn seminar inscription retains", () => {
   test("refuses to allocate money to a withdrawn inscription", async () => {
     const fixture = await seedWithdrawn();
 
-    const allocated = await postToList(fixture, {
+    const allocated = await postToList({
       amount: "1000",
       inscriptionId: fixture.anaInscriptionId,
       intent: "allocate-inscription",
@@ -237,13 +234,10 @@ describe("the deposit a withdrawn seminar inscription retains", () => {
   });
 });
 
-async function postToList(
-  fixture: EventSeminarFinanceFixture,
-  fields: Record<string, string>,
-) {
+async function postToList(fields: Record<string, string>) {
   const request = await buildSeminarMoneyPostRequest({
     fields,
-    url: seminarInscriptionFinancesUrl(fixture.eventId),
+    url: seminarInscriptionFinancesUrl(),
   });
 
   return await seminarInscriptionFinancesAction(routeArgs(request, {}));

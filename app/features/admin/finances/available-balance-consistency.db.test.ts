@@ -178,7 +178,7 @@ async function adminRequest(url: string) {
 }
 
 /** Each payment's `Disponible` as its detail page reads it. */
-async function readPaymentsAvailable(academyId: string, eventId: string) {
+async function readPaymentsAvailable(academyId: string) {
   const rows = await db
     .select({ id: payments.id })
     .from(payments)
@@ -189,7 +189,7 @@ async function readPaymentsAvailable(academyId: string, eventId: string) {
   for (const row of rows) {
     const detail = await loadPaymentDetail(
       await adminRequest(
-        `http://localhost/administracion/movimientos/pagos/${row.id}?evento=${eventId}`,
+        `http://localhost/administracion/movimientos/pagos/${row.id}`,
       ),
       row.id,
     );
@@ -210,7 +210,7 @@ describe("`Saldo disponible` across surfaces", () => {
     const individualBalance = 16000 - individual.depositAmount;
 
     const financesList = await financesListLoader(
-      financesListRouteArgs(await adminRequest(financesListUrl(event.id))),
+      financesListRouteArgs(await adminRequest(financesListUrl())),
     );
     const listBalance = (academyId: string) =>
       financesList.rows.find((row) => row.academyId === academyId)
@@ -220,7 +220,7 @@ describe("`Saldo disponible` across surfaces", () => {
       (
         await academyFinancesLoader(
           academyFinancesRouteArgs(
-            await adminRequest(academyFinancesUrl(academyId, event.id)),
+            await adminRequest(academyFinancesUrl(academyId)),
             academyId,
           ),
         )
@@ -232,7 +232,7 @@ describe("`Saldo disponible` across surfaces", () => {
         choreographyId: academy.choreographyId,
       },
       request: await adminRequest(
-        `http://localhost/administracion/finanzas/${academy.academyId}/coreografias/${academy.choreographyId}?evento=${event.id}`,
+        `http://localhost/administracion/finanzas/${academy.academyId}/coreografias/${academy.choreographyId}`,
       ),
     });
     const seminarDetail = await loadSeminarFinanceDetail({
@@ -241,7 +241,7 @@ describe("`Saldo disponible` across surfaces", () => {
         seminarId: individual.seminarId,
       },
       request: await adminRequest(
-        `http://localhost/administracion/finanzas/${individual.ownerId}/seminarios/${individual.seminarId}?evento=${event.id}`,
+        `http://localhost/administracion/finanzas/${individual.ownerId}/seminarios/${individual.seminarId}`,
       ),
     });
     const portal = await loadPortalAcademyFinances(
@@ -278,14 +278,8 @@ describe("`Saldo disponible` across surfaces", () => {
       seminarDetail: individualBalance,
     });
 
-    const academyPayments = await readPaymentsAvailable(
-      academy.academyId,
-      event.id,
-    );
-    const individualPayments = await readPaymentsAvailable(
-      individual.ownerId,
-      event.id,
-    );
+    const academyPayments = await readPaymentsAvailable(academy.academyId);
+    const individualPayments = await readPaymentsAvailable(individual.ownerId);
 
     expect(academyPayments).toEqual([0, 300, 0]);
     expect(sum(academyPayments)).toBe(academyBalance);

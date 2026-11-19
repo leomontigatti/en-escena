@@ -639,7 +639,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
     );
   });
 
-  test("preserves the back-to-list search while removing detail-only search params", async () => {
+  test("carries the list search back to the list", async () => {
     const targetUser = await createSignedInRequest({
       email: "usuario.ruta.detalle@example.com",
       role: "judge",
@@ -651,7 +651,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const { request: adminRequest } = await createSignedInRequest({
       email: "admin.ruta.detalle@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}?query=ada&estado=active&guardado=si&tipoGuardado=manual`,
+      requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}?query=ada&estado=active`,
       name: "Ada Ruta",
       internalUsername: "ada.ruta",
     });
@@ -686,7 +686,6 @@ function renderListRoute(
             filters: {
               query: "",
               state: null,
-              type: "all",
             },
             users: [],
             ...loaderData,

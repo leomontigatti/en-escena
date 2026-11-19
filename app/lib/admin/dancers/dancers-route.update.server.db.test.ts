@@ -64,7 +64,7 @@ beforeEach(() => {
 
 describe("`/administracion/bailarines` route: editing a dancer", () => {
   test("updates a dancer in explicit edit mode", async () => {
-    const event = await createSavedEvent({ name: "Regional 2026" });
+    await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.mutacion.bailarines.academia@example.com",
       academyName: "Academia Mutacion",
@@ -80,7 +80,7 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
     const { request } = await createSignedInRequest({
       email: "admin.mutacion.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
 
     const result = await detailAction(
@@ -114,7 +114,7 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
   });
 
   test("refuses a birth date that leaves the dancer under one when the event starts", async () => {
-    const event = await createSavedEvent({ name: "Regional 2026" });
+    await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.bebe.bailarines.academia@example.com",
       academyName: "Academia Bebe",
@@ -130,7 +130,7 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
     const { request } = await createSignedInRequest({
       email: "admin.bebe.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
 
     const result = await detailAction(
@@ -224,7 +224,7 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
     const { request } = await createSignedInRequest({
       email: "admin.motivo.evento.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
 
     const result = await detailAction(
@@ -469,7 +469,7 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
     const { request } = await createSignedInRequest({
       email: "admin.advertencia.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
 
     const markup = renderDetailRoute(
@@ -517,7 +517,7 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
     const { request } = await createSignedInRequest({
       email: "admin.fecha.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
 
     const ninaResult = await detailAction(
@@ -618,7 +618,7 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
     const { request } = await createSignedInRequest({
       email: "admin.sincategoria.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
 
     const result = await detailAction(
@@ -687,7 +687,7 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
     const { request } = await createSignedInRequest({
       email: "admin.fecha.sin-cambios@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
 
     const lilaResult = await detailAction(
@@ -738,7 +738,7 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
   });
 
   test("verifies an unverified dancer, keeps it through a save that changes nothing it attests", async () => {
-    const event = await createSavedEvent({ name: "Regional 2026" });
+    await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.verificacion.bailarines.academia@example.com",
       academyName: "Academia Verificable",
@@ -758,7 +758,7 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
     const { request } = await createSignedInRequest({
       email: "admin.verificacion.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
 
     const readOnlyMarkup = renderDetailRoute(
@@ -788,7 +788,7 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
       identityVerifiedAt: expect.any(Date),
     });
 
-    const verifiedRequestUrl = `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`;
+    const verifiedRequestUrl = `http://localhost/administracion/bailarines/${dancer.id}`;
     const verifiedMarkup = renderDetailRoute(
       await detailLoader(
         detailRouteArgs(
@@ -921,7 +921,7 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
   });
 
   test("rejects verifying a dancer whose identity is already verified", async () => {
-    const event = await createSavedEvent({ name: "Regional 2026" });
+    await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.verificacion.repetida.bailarines.academia@example.com",
       academyName: "Academia Verificada",
@@ -942,7 +942,7 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
     const { request } = await createSignedInRequest({
       email: "admin.verificacion.repetida.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
 
     await expectThrownResponse(

@@ -11,9 +11,8 @@ export type ChoreographyFinanceActionData =
 export function choreographyDetailUrl(
   academyId: string,
   choreographyId: string,
-  eventId: string,
 ): string {
-  return `/administracion/finanzas/${academyId}/coreografias/${choreographyId}?evento=${eventId}`;
+  return `/administracion/finanzas/${academyId}/coreografias/${choreographyId}`;
 }
 
 // The `Bonificada` waiver of one inscription (ADR-0017). It lives here and not

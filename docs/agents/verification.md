@@ -62,7 +62,7 @@ says; a click made through `preview_evaluate` proves nothing about the path.
 Done when the touched screens show no console error and no React warning: a warning (a missing
 `key`, a hydration mismatch) is a finding to fix, or to report on the PR with its reason when it
 predates the change. Quote any URL with a `$`-segment route or a query string
-(`'http://localhost:5173/portal?evento=…'`) so the shell does not expand it.
+(`'http://localhost:5173/administracion/usuarios?estado=suspended'`) so the shell does not expand it.
 
 ## Evidence
 
