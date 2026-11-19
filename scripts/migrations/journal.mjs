@@ -180,14 +180,11 @@ export function findOutOfOrderEntries({ baseEntries, headEntries }) {
 
   return headEntries
     .filter((entry) => !baseTags.has(entry.tag) && entry.when <= baseWatermark)
-    .map(
-      (entry) =>
-        /** @type {JournalProblem} */ ({
-          tag: entry.tag,
-          when: entry.when,
-          reason: "out-of-order",
-        }),
-    );
+    .map((entry) => ({
+      tag: entry.tag,
+      when: entry.when,
+      reason: "out-of-order",
+    }));
 }
 
 /**

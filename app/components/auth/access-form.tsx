@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, type ComponentProps, type ReactNode } from "react";
-import { type Path, type Resolver, useForm } from "react-hook-form";
+import { type Path, useForm } from "react-hook-form";
 import type {
   DefaultValues,
   FieldValues,
@@ -28,14 +28,10 @@ export function useAccessForm<TFieldValues extends FieldValues>({
     defaultValues: values,
     mode: "onSubmit",
     // A cast the style guide asks to avoid, kept on purpose: `zodResolver`
-    // cannot infer a schema the hook only knows generically, and widens it to
-    // `FieldValues`. The types do not diverge; each route's schema and values
-    // agree, and only the generic is lost.
-    resolver: zodResolver(schema as never) as Resolver<
-      TFieldValues,
-      unknown,
-      TFieldValues
-    >,
+    // cannot infer a schema the hook only knows as `ZodTypeAny`. Cast to
+    // `never`, it takes its field types from the `useForm` call instead, so
+    // nothing checks a route's schema against its `TFieldValues`.
+    resolver: zodResolver(schema as never),
   });
   const resetKey = JSON.stringify(values);
 
