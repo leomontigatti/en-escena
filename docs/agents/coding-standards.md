@@ -176,10 +176,11 @@ moves without its assertions. To lower an entry, remove the assertions and run
 `pnpm check:type-assertions --write` in the same change: it rewrites the counts
 and the override from the tree and drops a file at zero.
 
-The ratchet does not count a non-null `!`. A `!` or a cast that leaves the type
-as it was is rejected in every `.ts` and `.tsx` file by
-`typescript/no-unnecessary-type-assertion`. With `noUncheckedIndexedAccess`
-off, `rows[0]` is already non-null, so `rows[0]!` is the common case it catches.
+The ratchet does not count a non-null `!`. A `!` or a cast that changes no type
+is an error under `typescript/no-unnecessary-type-assertion`, in the files
+listed in the `.oxlintrc.json` override that sets it: the 24 test files that
+held 107 of them. Nowhere else is it enabled. With `noUncheckedIndexedAccess`
+off, `rows[0]` is already non-null, so `rows[0]!` is the usual case.
 
 ## React effects
 

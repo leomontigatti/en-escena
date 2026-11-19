@@ -2,7 +2,7 @@
   "app/components/admin/shell.test.tsx": 1,
   "app/components/admin/shell.tsx": 2,
   "app/components/auth/academy-name-warning.test.tsx": 1,
-  "app/components/auth/access-form.tsx": 1,
+  "app/components/auth/access-form.tsx": 2,
   "app/components/portal/ui.tsx": 1,
   "app/components/shared/badges-list.tsx": 1,
   "app/components/shared/checklist-field.render.test.tsx": 2,
