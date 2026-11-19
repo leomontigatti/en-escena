@@ -167,6 +167,26 @@ moves without its assertions. To lower an entry, remove the assertions and run
 `pnpm check:type-assertions --write` in the same change: it rewrites the counts
 and the override from the tree and drops a file at zero.
 
+## React effects
+
+An effect lives in a named hook in `app/hooks/`, never inline in a component or
+a route. What an effect would do usually belongs elsewhere: in the event handler
+that caused it, in state derived during render, in the route's loader, or, for
+markup that must exist first, in a ref callback or `autoFocus`. What is left (a
+subscription, a timer, focus after a render a handler cannot reach) is a hook
+whose name says what it is for, in `app/hooks/`. shadcn's `app/components/ui/`
+keeps its own.
+
+The files that called `useEffect`, `useLayoutEffect` or `useInsertionEffect`
+anywhere else when this rule landed are counted in
+`scripts/effect-allowlist.json`, and the list only falls.
+`pnpm check:effects` (pre-commit and CI) fails when a file's count differs from
+its entry, when an entry is new or higher than on `origin/master`, and when it
+cannot read `origin/master`'s list. It counts calls through any import from
+`react`, aliased, default or namespace. A file renamed or moved is a new path to
+the list, so it moves without its effects. When a file's effects move out, run
+`pnpm check:effects --write` in the same change to lower its entry.
+
 ## Style
 
 Choose clarity over cleverness. Prefer explicit control flow over compact code

@@ -28,6 +28,7 @@
     "check:pr-title": "node --import tsx scripts/check-pr-title.ts",
     "check:file-tokens": "node --import tsx scripts/check-file-tokens.ts",
     "check:type-assertions": "node --import tsx scripts/check-type-assertions.ts",
+    "check:effects": "node --import tsx scripts/check-effects.ts",
     "check:doc-map": "node scripts/check-doc-map.mjs",
     "check:dependency-audit": "node scripts/check-dependency-audit.mjs",
     "check:migration-immutability": "node scripts/check-migration-immutability.mjs",
