@@ -1,4 +1,59 @@
 {
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "off"
+  },
+  "plugins": ["react", "import", "typescript"],
+  "jsPlugins": [
+    "./scripts/oxlint-ui-plugin.mjs",
+    "./scripts/oxlint-code-plugin.mjs"
+  ],
+  "options": {
+    "typeAware": true
+  },
+  "ignorePatterns": [
+    "build/**",
+    ".react-router/**",
+    "coverage/**",
+    "app/db/migrations/**"
+  ],
+  "rules": {
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "error",
+    "import/no-cycle": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "lucide-react",
+            "importNames": ["Trash"],
+            "message": "Use Trash2: it is the delete icon everywhere (style guide, Buttons)."
+          }
+        ]
+      }
+    ],
+    "typescript/no-floating-promises": [
+      "error",
+      {
+        "checkThenables": true
+      }
+    ],
+    "typescript/no-misused-promises": [
+      "error",
+      {
+        "checksVoidReturn": {
+          "attributes": false
+        }
+      }
+    ],
+    "typescript/consistent-type-assertions": [
+      "error",
+      {
+        "assertionStyle": "never"
+      }
+    ]
+  },
   "overrides": [
     {
       "files": [
@@ -303,60 +358,5 @@
         "typescript/consistent-type-assertions": "off"
       }
     }
-  ],
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "categories": {
-    "correctness": "off"
-  },
-  "plugins": ["react", "import", "typescript"],
-  "jsPlugins": [
-    "./scripts/oxlint-ui-plugin.mjs",
-    "./scripts/oxlint-code-plugin.mjs"
-  ],
-  "options": {
-    "typeAware": true
-  },
-  "ignorePatterns": [
-    "build/**",
-    ".react-router/**",
-    "coverage/**",
-    "app/db/migrations/**"
-  ],
-  "rules": {
-    "react-hooks/rules-of-hooks": "error",
-    "react-hooks/exhaustive-deps": "error",
-    "import/no-cycle": "error",
-    "no-restricted-imports": [
-      "error",
-      {
-        "paths": [
-          {
-            "name": "lucide-react",
-            "importNames": ["Trash"],
-            "message": "Use Trash2: it is the delete icon everywhere (style guide, Buttons)."
-          }
-        ]
-      }
-    ],
-    "typescript/no-floating-promises": [
-      "error",
-      {
-        "checkThenables": true
-      }
-    ],
-    "typescript/no-misused-promises": [
-      "error",
-      {
-        "checksVoidReturn": {
-          "attributes": false
-        }
-      }
-    ],
-    "typescript/consistent-type-assertions": [
-      "error",
-      {
-        "assertionStyle": "never"
-      }
-    ]
-  }
+  ]
 }

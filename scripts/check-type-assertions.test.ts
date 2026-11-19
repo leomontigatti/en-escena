@@ -115,7 +115,7 @@ describe("the type assertion ratchet", () => {
 });
 
 describe("disable comments", () => {
-  test("finds one that names the rule, in any form, and one that names no rule", () => {
+  test("finds a next-line or block directive that names the rule, and a line or block one that names none", () => {
     const source = [
       `${disable("disable-next-line")} ${ruleName} -- a reason`,
       "const a = 1;",

@@ -153,7 +153,7 @@ const reportSchema = z.object({
 // be listed.
 const notCounted = ["app/db/migrations/**"];
 
-// Oxlint with only this rule, no overrides and no ignore files: the count is what
+// Oxlint with only this rule, no overrides, no nested configs and no ignore files: the count is what
 // the rule reports with the allowlist empty.
 function countAssertions(files: string[]): Counts {
   const directory = mkdtempSync(path.join(tmpdir(), "type-assertions-"));
@@ -171,7 +171,15 @@ function countAssertions(files: string[]): Counts {
   try {
     const linted = spawnSync(
       "node_modules/.bin/oxlint",
-      ["-c", config, "--format", "json", "--no-ignore", ...files],
+      [
+        "-c",
+        config,
+        "--disable-nested-config",
+        "--format",
+        "json",
+        "--no-ignore",
+        ...files,
+      ],
       { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
     );
     const { diagnostics } = reportSchema.parse(JSON.parse(linted.stdout));
@@ -197,20 +205,31 @@ const findAllDisableComments = (files: string[]) =>
     })),
   );
 
-// The override is the one entry whose only rule turns this one off.
-function writeOverride(files: string[]): void {
-  const config = lintConfigSchema.parse(
-    JSON.parse(readFileSync(lintConfigPath, "utf8")),
-  );
-  const others = config.overrides.filter(
+// Plain JSON: a comment in the config throws here, before anything is written.
+function readLintConfig() {
+  const raw: unknown = JSON.parse(readFileSync(lintConfigPath, "utf8"));
+
+  return { raw, config: lintConfigSchema.parse(raw) };
+}
+
+// The override is the one entry whose only rule turns this one off. The rest of
+// the config is written back as it was read, in its own key order.
+function writeOverride(
+  lintConfig: ReturnType<typeof readLintConfig>,
+  files: string[],
+): void {
+  const others = lintConfig.config.overrides.filter(
     (override) =>
       !(Object.keys(override.rules).length === 1 && ruleName in override.rules),
   );
-  const override = { files, rules: { [ruleName]: "off" } };
+  const overrides =
+    files.length === 0
+      ? others
+      : [...others, { files, rules: { [ruleName]: "off" } }];
 
   writeFileSync(
     lintConfigPath,
-    `${JSON.stringify({ ...config, overrides: [...others, override] }, null, 2)}\n`,
+    `${JSON.stringify({ ...Object(lintConfig.raw), overrides }, null, 2)}\n`,
   );
 }
 
@@ -218,9 +237,11 @@ function main(): void {
   const files = trackedSourceFiles(notCounted);
   const counts = countAssertions(files);
 
+  const lintConfig = readLintConfig();
+
   if (process.argv.includes("--write")) {
+    writeOverride(lintConfig, Object.keys(counts).sort());
     writeCounts(allowlistPath, counts);
-    writeOverride(Object.keys(counts).sort());
     spawnSync("node_modules/.bin/prettier", [
       "--write",
       allowlistPath,
@@ -237,9 +258,7 @@ function main(): void {
     counts,
     allowlist: parseCounts(readFileSync(allowlistPath, "utf8")),
     base: readBaseList(allowlistPath),
-    overrides: lintConfigSchema.parse(
-      JSON.parse(readFileSync(lintConfigPath, "utf8")),
-    ).overrides,
+    overrides: lintConfig.config.overrides,
     disableComments: findAllDisableComments(files),
   });
 

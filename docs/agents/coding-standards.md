@@ -162,7 +162,8 @@ higher than on `origin/master`, when it cannot read `origin/master`'s list, when
 any override exempts a file the list does not hold or misses one it does, and on
 a disable comment that names the rule or no rule; the rule takes none. So a
 helper that needs a cast to remove many keeps it in a file already on the list,
-within that file's entry. To lower an entry, remove the assertions and run
+within that file's entry. A file renamed or moved is a new path to the list, so it
+moves without its assertions. To lower an entry, remove the assertions and run
 `pnpm check:type-assertions --write` in the same change: it rewrites the counts
 and the override from the tree and drops a file at zero.
 
