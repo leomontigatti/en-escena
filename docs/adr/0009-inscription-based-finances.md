@@ -96,3 +96,5 @@ records carry no annulment (`annulled*`, `cancelled*`) or actor-attribution
   active inscriptions are explicitly out of scope and pending definition.
 - Domain detail lives in [docs/domain/finances.md](../domain/finances.md), the
   single canonical finance doc.
+
+Governs: `app/db/schema/finances.ts`, `app/lib/finances/inscription-financial-status.ts`, `app/lib/finances/choreography-financial-status.ts`

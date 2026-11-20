@@ -420,8 +420,7 @@ convention retroactive. Write the next one in English.
 
 Some domain nouns stay Spanish inside identifiers. The full list:
 
-- **`comprobante`** — a term of art defined by ARCA regulation (RG 1415, cited in
-  [ADR-0011](../adr/superseded/0011-invoicing-concept-portion-and-surfaces.md)).
+- **`comprobante`** — a term of art defined by ARCA regulation (RG 1415).
   It survives for three reasons. It is a **generic container**: it covers a
   `Factura C` and a `Nota de crédito C` alike, and English has a crisp word for
   each of those and none for the category. The URL is Spanish

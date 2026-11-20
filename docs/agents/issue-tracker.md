@@ -185,8 +185,7 @@ Open therefore means "not on `master` yet", which is the honest reading.
 This is not hypothetical: ADR-0011 and ADR-0014 were both written claiming a
 `COMPLETED` issue had deleted `porcion` when every symbol they named was still
 live, and other issues closed the same way with nothing built. ADRs are
-append-only, so an error in one stands until someone appends a correction;
-ADR-0011's is still pending.
+append-only, so an error in one stands until someone appends a correction.
 
 ## When a skill says "publish to the issue tracker"
 

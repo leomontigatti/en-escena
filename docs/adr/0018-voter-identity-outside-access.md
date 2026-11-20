@@ -57,3 +57,5 @@ entry says so.
 - **Cookies.** The voter cookies are `httpOnly` and signed, and `Secure` in production. The exchange cookie is `SameSite=Lax` and scoped to `/votar/google`, so the provider's top-level return carries it. The signed-in voter cookie covers the whole site, because the page's data requests go to `/votar.data`, which a `/votar` path does not cover.
 - **Lifetimes.** The sign-in exchange lasts 10 minutes and a signed-in voter 2 hours: long enough for an evening's round, and past it the voter signs in again.
 - **Finishing the sign-in.** The callback is checked against the exchange cookie, and that cookie is spent either way. A provider that fails to answer signs nobody in and logs why.
+
+Governs: `app/lib/grand-final/voter-sign-in.server.ts`, `app/lib/grand-final/voter-identity-providers.server.ts`, `app/features/vote/sign-in.server.ts`, `app/db/schema/grand-final.ts`, `app/lib/grand-final/ranking.ts`

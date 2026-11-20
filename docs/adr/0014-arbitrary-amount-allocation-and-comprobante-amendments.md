@@ -1001,3 +1001,14 @@ it:
 
 The cost, accepted: the administrator no longer sees the owner's
 `Saldo disponible` while filling the form, and learns it from the refusal.
+
+## Amendment (2026-11-20): the superseded ADRs are deleted
+
+ADR-0011 and ADR-0012 are no longer in the tree, and neither is `docs/adr/superseded/`. The shared
+workflow's rule (agent-workflow v1.5.0) is that a superseded ADR is deleted, so a reader finds only
+decisions in force; git keeps the record (`git log -- docs/adr/superseded/`). This replaces the
+first consequence above; §8 still restates what was live in them. It also closes the consequence
+about #625 item 1: nothing moves into `docs/adr/superseded/` any more, and
+`app/lib/shared/domain-docs.test.ts` fails on an ADR file below `docs/adr/` itself.
+
+Governs: `app/lib/finances/allocation-pool.server.ts`, `app/lib/finances/inscription-thresholds.server.ts`, `app/lib/finances/inscription-price.ts`, `app/lib/finances/refunds.server.ts`, `app/lib/comprobantes/emission-plan.ts`, `app/lib/comprobantes/reservation.server.ts`, `app/lib/choreographies/inscription-withdrawal.server.ts`
