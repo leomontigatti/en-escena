@@ -34,3 +34,5 @@ Selectable event contexts can be reintroduced in V2 as explicit Evento de trabaj
 - Admin and portal list URLs should not preserve or emit `evento` query parameters.
 - Admin Bases del evento for Modalidades, Categorías, Cronogramas and Precios applies to the Evento activo in V1.
 - V2 event filtering will require a new decision to define URL shape, selector placement, read-only copy, and mutation rules.
+
+Governs: `app/lib/events/active-event.server.ts`, `app/lib/admin/event-context.server.ts`

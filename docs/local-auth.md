@@ -3,7 +3,7 @@
 This document explains how to run the current En Escena access stack locally. Better Auth is
 the only credential provider; ADR
 [0013: Exit Supabase](adr/0013-exit-supabase.md) records why the Supabase
-adoption ADRs (0001, 0005, 0006, 0008 and 0010) are superseded.
+adoption ADRs (0001, 0005, 0006, 0008 and 0010) were superseded and deleted.
 
 ## Environment
 
@@ -375,8 +375,7 @@ reference order:
 
 1. `GLOSSARY.md`, the domain glossary and repo workflows are authoritative.
 2. ADR [0013: Exit Supabase](adr/0013-exit-supabase.md) is the accepted
-   decision record: Better Auth is the credential provider. ADRs 0001 and 0006
-   are historical and superseded.
+   decision record: Better Auth is the credential provider.
 3. `docs/agents/coding-standards.md` controls test and implementation style.
 4. Vendored React/Vercel skills are supporting references when UI or route work
    is relevant: `react-best-practices`, `web-design-guidelines`,

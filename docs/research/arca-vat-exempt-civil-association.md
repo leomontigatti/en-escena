@@ -6,9 +6,10 @@
 > Law 25.920, Law 16.656, Law 24.800, WSFEv1 developer manual v4.5 and ARCA's public registry) on the
 > tax standing of En Escena's real issuer.
 >
-> Complements [ADR-0011](../adr/superseded/0011-invoicing-concept-portion-and-surfaces.md) (concept, portion
-> and surfaces), [ADR-0012](../adr/superseded/0012-arca-unreachable-contingency-and-recovery.md)
-> (contingency) and the two earlier research documents, no longer in the working tree:
+> Complements ADR-0011 (concept, portion and surfaces), ADR-0012 (contingency) and the two earlier
+> research documents, none of them in the working tree any longer:
+> `git show 93d8feaa:docs/adr/superseded/0011-invoicing-concept-portion-and-surfaces.md`,
+> `git show 93d8feaa:docs/adr/superseded/0012-arca-unreachable-contingency-and-recovery.md`,
 > `git show 6ab0610:docs/research/arca-nota-credito-posterior.md` and
 > `git show e252d96:docs/research/repr-impresa-factura-c-monotributo.md`.
 >

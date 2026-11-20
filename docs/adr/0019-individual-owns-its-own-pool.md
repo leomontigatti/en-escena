@@ -72,3 +72,5 @@ academias`, and reads the active event only, results under the same
 - Prerequisites, in order: one owner for the permission vocabulary (#740), for
   the access state (#715) and for the identity document (#735), then the roster
   person kind (#1479) before the seminar half.
+
+Governs: `app/db/schema/individuals.ts`, `app/lib/individuals/`, `app/features/individual/`

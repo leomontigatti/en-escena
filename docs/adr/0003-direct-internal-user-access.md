@@ -16,3 +16,5 @@ Internal users will be created directly from the Panel de administración with a
 ## Amendment (2026-09-30): the temporary password and the mandatory first-login change are retired
 
 The administrator now types the internal user's definitive password, on creation and on an administrative reset, and the user signs in with it straight away. The mandatory `Cambio obligatorio de contraseña` step, its `/cambiar-contrasena` mode and the `Cambio obligatorio` user state are gone; `/cambiar-contrasena` serves academy recovery only. The panel is operated by one small team that hands credentials over in person, so the forced change added a step to every judge onboarding without changing who knew the password. An administrative reset still closes the user's open sessions. The `requires_password_change` column is dropped in a follow-up contract migration once no running container selects it.
+
+Governs: `app/lib/auth/internal-access.server.ts`, `app/lib/auth/internal-username.server.ts`, `app/lib/admin/users/internal-user-create.server.ts`, `app/lib/admin/users/internal-user-password-reset.server.ts`

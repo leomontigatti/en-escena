@@ -16,6 +16,7 @@ slice, `pnpm test:unit <path>` or `pnpm test:db <path>`.
 pnpm gate                # pnpm typecheck, pnpm lint, pnpm test:unit
 pnpm test:db <path>...   # only the DB test files your change touches
 pnpm check:doc-map       # CI's docs-gate over the branch; commit-msg runs it per commit
+python3 -I ~/.agents/workflow/skills/domain-modeling/scripts/anchors.py   # ADR anchors and glossary terms still in the code
 ```
 
 Run this **once, after your edits**. Do not run `pnpm test`. Sent to a file or a
@@ -33,6 +34,13 @@ Run `pnpm typecheck` and `pnpm build` one after the other, never in parallel:
 and the result is a transient TS6053 missing-file error that is not a real failure.
 Likewise `pnpm typecheck` and `pnpm lint`: each regenerates `.react-router/`
 first, so one can delete the route types while the other reads them.
+
+The anchors check ends on `anchors: ok`, or prints one `gone:` line per ADR `Governs:` anchor
+or `GLOSSARY.md` term that has left the code, which a rename or a deletion in code causes as often
+as an edit to either document. Its `no anchor: docs/adr/README.md` line is a known defect of the
+script and passes. The code is current: a `gone:` line is a question
+for the user, never an edit to the ADR or the glossary on your own judgement. A term for something
+not built yet lives in the PRD or issue that plans it and enters `GLOSSARY.md` with its identifier.
 
 ## This list is exhaustive
 

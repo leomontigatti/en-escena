@@ -136,3 +136,12 @@ Trade-offs accepted:
   current state before that ADR was superseded.
 - Any future decision that would move state out of `sa-east` has to answer the
   co-location argument above, not just a cost or vendor argument.
+
+## Amendment (2026-11-20): the superseded ADRs are deleted
+
+ADR-0001, ADR-0005, ADR-0006, ADR-0008 and ADR-0010 are no longer in the tree. The shared
+workflow's rule (agent-workflow v1.5.0) is that a superseded ADR is deleted, so a reader finds only
+decisions in force; git keeps the record (`git log -- docs/adr/superseded/`). This replaces the
+first consequence above.
+
+Governs: `app/lib/auth/access-auth-provider.betterauth.server.ts`, `app/lib/auth/access-auth-provider.server.ts`, `app/lib/storage/filesystem-client.server.ts`, `scripts/backup-storage-to-b2.sh`

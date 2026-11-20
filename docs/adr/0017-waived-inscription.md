@@ -46,3 +46,5 @@ listed, whatever it owes, and `Seña pendiente` is a warning on the row only
 what it still does: reading a free place as `Bonificada` rather than `Pagada`
 or `Seña pendiente`, holding no money, and staying out of the choreography's
 minimum.
+
+Governs: `app/lib/finances/inscription-waiver.server.ts`

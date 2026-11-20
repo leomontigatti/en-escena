@@ -1,25 +1,28 @@
 # Architecture Decisions
 
 Read ADRs selectively. Start with the topic that matches the change, then follow
-explicit supersedes or conflict notes inside the ADR.
+explicit conflict notes inside the ADR.
 
-`docs/adr/*.md` is live decisions only. Superseded ADRs move to
-`docs/adr/superseded/` — kept for rationale, not for what runs today.
+`docs/adr/*.md` is decisions in force only. A superseded ADR is deleted in the
+change that supersedes it; git keeps the record. Each ADR ends on a `Governs:`
+line naming the code it shapes, and the anchors check in
+[validation.md](../agents/validation.md#before-committing) lists an anchor that has
+left the code.
 
 ## By Topic
 
-- Access and authentication: `0013-exit-supabase.md`, `superseded/0001-better-auth-for-access.md`, `0003-direct-internal-user-access.md`, `superseded/0005-use-supabase-postgres-before-supabase-auth.md`, `superseded/0006-use-supabase-auth-for-access.md`
+- Access and authentication: `0013-exit-supabase.md`, `0003-direct-internal-user-access.md`
 - Event context: `0002-selectable-event-contexts.md`
 - Code organization: `0004-organize-app-code-by-product-surface.md`
 - Database test strategy: `0007-db-test-isolation-model.md`
-- Uploaded assets: `0013-exit-supabase.md`, `superseded/0008-use-supabase-storage-for-uploaded-assets.md`
-- Choreography music storage: `superseded/0010-choreography-music-storage-contract.md` (live contract in `docs/operations/infrastructure.md`)
+- Uploaded assets: `0013-exit-supabase.md`
+- Choreography music storage: `docs/operations/infrastructure.md` holds the contract
 - Infrastructure and hosting: `0013-exit-supabase.md`
 - Tooling and guardrails: `0015-deterministic-guardrails.md`
 - Agent workflow: `0016-local-implementation.md`
 - `Gran final` and public vote: `0018-voter-identity-outside-access.md`
 - Individual users (`Particular`): `0019-individual-owns-its-own-pool.md`
-- Finances: `0017-waived-inscription.md`, `0014-arbitrary-amount-allocation-and-comprobante-amendments.md`, `0009-inscription-based-finances.md`, `superseded/0011-invoicing-concept-portion-and-surfaces.md`, `superseded/0012-arca-unreachable-contingency-and-recovery.md`
+- Finances: `0017-waived-inscription.md`, `0014-arbitrary-amount-allocation-and-comprobante-amendments.md`, `0009-inscription-based-finances.md`
 
 ## Decisions
 
@@ -35,13 +38,3 @@ explicit supersedes or conflict notes inside the ADR.
 - [ADR-0017: A free inscription is a waiver, not a zero price or a discount](./0017-waived-inscription.md) - records why a free choreography place is a `Bonificada` waiver on the inscription rather than a zero price row or a 100% `administrativeDiscount`.
 - [ADR-0018: A voter is not a user, and the `Gran final` is not an award](./0018-voter-identity-outside-access.md) - keeps the public voter's identity outside the access domain (own table, own cookie, own OAuth exchange) and the `grandFinal` ranking beside `award` rather than inside it.
 - [ADR-0019: An individual owns its inscriptions and money the way an academy does](./0019-individual-owns-its-own-pool.md) - makes the `individual` (`Particular`) a participating entity of its own kind with a one-person roster on the academy's existing money owner, instead of a polymorphic owner across finances.
-
-## Superseded
-
-- [ADR-0001: Better Auth for access](./superseded/0001-better-auth-for-access.md) - superseded by ADR-0013; Better Auth is live again, but in the shape ADR-0013 describes.
-- [ADR-0005: Supabase Postgres before Supabase Auth](./superseded/0005-use-supabase-postgres-before-supabase-auth.md) - superseded by ADR-0013; sequenced the Supabase adoption that has since been reversed.
-- [ADR-0006: Supabase Auth for access credentials](./superseded/0006-use-supabase-auth-for-access.md) - superseded by ADR-0013; Supabase Auth is no longer the provider.
-- [ADR-0008: Supabase Storage for uploaded assets](./superseded/0008-use-supabase-storage-for-uploaded-assets.md) - superseded by ADR-0013; uploaded assets live on a local volume now.
-- [ADR-0010: Choreography music storage contract](./superseded/0010-choreography-music-storage-contract.md) - superseded by ADR-0013; the live contract moved to `docs/operations/infrastructure.md`.
-- [ADR-0011: Invoicing concept, derived portion, and comprobante surfaces](./superseded/0011-invoicing-concept-portion-and-surfaces.md) - superseded by ADR-0014; `porción` is deleted and the portion, print and vigencia contracts it rests on were all replaced.
-- [ADR-0012: ARCA unreachable contingency and recovery](./superseded/0012-arca-unreachable-contingency-and-recovery.md) - superseded by ADR-0014; its recovery matcher was repaired by correlative reservation and its no-persistence rule reversed. Decisions 1, 2, 3 and 6 are restated in ADR-0014.
