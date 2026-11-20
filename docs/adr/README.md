@@ -5,8 +5,9 @@ explicit conflict notes inside the ADR.
 
 `docs/adr/*.md` is decisions in force only. A superseded ADR is deleted in the
 change that supersedes it; git keeps the record. Each ADR ends on a `Governs:`
-line naming the code it shapes, and the `domain-modeling` skill's `anchors.py`
-lists an anchor that has left the code.
+line naming the code it shapes, and the anchors check in
+[validation.md](../agents/validation.md#before-committing) lists an anchor that has
+left the code.
 
 ## By Topic
 

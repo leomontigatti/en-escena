@@ -180,4 +180,4 @@ project only through the files its `contract.md` lists. This repo keeps its fact
 The record of where each skill came from (`docs/agents/vendored-skills.md`) is deleted; the
 shared repo's `NOTICE` and `upstreams/` hold it.
 
-Governs: `t3.json`, `.agents/hooks/`, `docs/agents/architecture-review.md`
+Governs: `t3.json`, `.agents/hooks/`
