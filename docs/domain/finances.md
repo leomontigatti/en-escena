@@ -41,8 +41,6 @@ this document is a bug — file it, do not fix one side silently.
   Percentages are integers on the event row; amounts are rounded to the nearest
   peso with `Math.round` (half up, toward `+∞`) at the point they are derived.
 - `Administrador` mutates financial records; `Auditor` reads them.
-- Out of scope and deliberately undefined: `Descuento administrativo` (see
-  "`Descuento administrativo`").
 
 ## The model in one statement
 
@@ -261,24 +259,6 @@ pooled in that list and not at the write, so the list can display a discount the
 write will refuse to grant. The single-academy readers pass one academy id and
 are unaffected. It is a **bug, not a documented rule**; the owner of the shared
 predicate is [#489](https://github.com/leomontigatti/en-escena/issues/489).
-
-## `Descuento administrativo`
-
-`Descuento administrativo` is **reserved and deliberately undefined**. It was
-ruled out of scope, which is a scoping act and not an answer: its own
-questions — scope, place in `totalAmount`, whether it fixes, persistence,
-authority — are left standing.
-
-Three reasons it was closed rather than decided: nothing on the map depends on it
-(all twenty-one decisions were re-read and it appears in none); the common case is
-already served, because an administrator can pick the price row explicitly and a
-price row is where a commercial arrangement belongs; and the reason it keeps being
-deferred is structural — **it is the one figure in the model with no derivation
-behind it**, so it must be persisted, which is exactly the exception ADR-0009
-forbids. Whoever defines it has to argue for that exception.
-
-The term stays reserved. It is **not** tombstoned, and its absence here is a
-decision rather than an oversight.
 
 ## Prices
 

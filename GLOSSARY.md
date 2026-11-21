@@ -78,9 +78,9 @@ _Avoid_: presented, `participationStatus`, seminar attendee
 The set of rules and master data belonging to an event that define how a choreography is registered, scheduled, calculated, charged and competed.
 _Avoid_: event configuration, settings, configuration
 
-**`listAction`** — ui: "Acción de lista"
-Administrative operation available from a list view and applied to one or more selected instances.
-_Avoid_: instance action, form editing
+**`resourceActionsMenu`** — ui: "Acciones"
+The one menu of administrative operations on a resource, named by where it stands: an `Acción de lista` opens from a list view and applies to the selected instances, an `Acción de instancia` from the form or detail view of one concrete instance.
+_Avoid_: bulk action, form editing
 
 **`listQuery`** — ui: "Consulta de lista"
 What a reader asks a list through its URL: a **`listSearch`** (ui: `Búsqueda`, the `busqueda` parameter), the list's own facets, a **`listOrder`** (ui: `Orden`, the `orden` parameter, one column and a direction written `columna:direccion`) and a **`listPage`** (ui: `Página`, the `pagina` parameter). It means the same on every list: the search ignores accents and case, a value at its default is absent from the address, and the address always shows the query the list applied. What each list offers as a facet belongs to the concept it filters, not to the list query.
@@ -341,7 +341,7 @@ _Avoid_: credential, credencial, badge, pass
 The document that certifies a `dancer` took part in one choreography of an edition and the `award` it took there, in a single sentence on that edition's design. One per dancer and choreography, for every dancer still inscribed in a choreography whose result is published and is not disqualified; a professor gets none, and an edition with no design has none. The owning academy downloads them from the choreography's evaluation, and an `individual` downloads its own from `Coreografías`, both only for the active event; nothing about a download is recorded.
 _Avoid_: diploma, participation certificate, award certificate
 
-**`academyEvaluation`** — ui: "Resultados de academia"
+**`academyEvaluation`** — ui: "Evaluación"
 The evaluation detail an academy opens from its own presentations list, behind its login, for a presentation whose result is published: the `award` beside the title, the average at the top right, and one card per judge with the judge's name, their score, the `scoreSheet` breakdown when there is one, and their `feedbackAudio`. Judges who never scored are dropped in the loader, so they never reach the browser; a disqualified presentation shows `Descalificada`, no award, no average and no scores, and keeps the audios. A presentation that is not the academy's own, is not published, or belongs to hidden results answers "not found", and that check is the access control on the `feedbackAudio` signed URL.
 _Avoid_: `resultsPublication`, public results, ranking
 
