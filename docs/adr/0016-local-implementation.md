@@ -179,3 +179,5 @@ project only through the files its `contract.md` lists. This repo keeps its fact
 (`AGENTS.md` names them). The decision stands: implementation runs in a local T3 Code session.
 The record of where each skill came from (`docs/agents/vendored-skills.md`) is deleted; the
 shared repo's `NOTICE` and `upstreams/` hold it.
+
+Governs: `t3.json`, `.agents/hooks/`

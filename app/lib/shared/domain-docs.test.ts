@@ -45,23 +45,6 @@ describe("domain documentation", () => {
     expect(new Set(identifiers).size).toBe(identifiers.length);
   });
 
-  // Where an ADR lives says whether it still holds, so the file has to say the
-  // same: an ADR moved into `superseded/` without its status still reads as a
-  // live decision to whoever opens it from a link.
-  test("marks every ADR under superseded/ as superseded", async () => {
-    const supersededAdrs = (await readdir("docs/adr/superseded")).filter(
-      (name) => /^\d{4}-.+\.md$/.test(name),
-    );
-
-    expect(supersededAdrs.length).toBeGreaterThan(0);
-
-    for (const name of supersededAdrs) {
-      const adr = await readFile(`docs/adr/superseded/${name}`, "utf8");
-
-      expect(adr, name).toMatch(/^\*\*Status\*\*: superseded by ADR-\d{4}$/m);
-    }
-  });
-
   // Rehoming the contract out of ADR-0010 only helps if the new home cannot go
   // stale the way ADR-0010 did. Literal pins cannot catch that: they keep
   // saying "50 MB" long after the constant says otherwise. So read the enforced
@@ -99,24 +82,16 @@ describe("domain documentation", () => {
   // exist. The previous `/000\d-/` regex silently skipped ADR-0010 and up, so
   // the old count of 9 was passing against a partial set. See #625.
   //
-  // Recursive on both sides (README link path and `readdir`) so that moving a
-  // file into `docs/adr/superseded/` cannot make it vanish from both lists at
-  // once and leave the `toEqual` green over a partial set — the trap #625
-  // called out for whoever split this directory.
+  // The index links flat names only and the read is recursive, so an ADR moved
+  // into a subdirectory fails here instead of leaving both lists.
   test("keeps the ADR index and the ADR files in sync", async () => {
     const index = await readFile("docs/adr/README.md", "utf8");
     const linkedFiles = [
-      ...index.matchAll(/\]\(\.\/((?:superseded\/)?\d{4}-[^)]+\.md)\)/g),
+      ...index.matchAll(/\]\(\.\/(\d{4}-[^)/]+\.md)\)/g),
     ].map(([, file]) => file);
-    const adrFiles = (
-      await readdir("docs/adr", { recursive: true, withFileTypes: true })
-    )
-      .filter((entry) => entry.isFile() && /^\d{4}-.+\.md$/.test(entry.name))
-      .map((entry) =>
-        entry.parentPath.endsWith("superseded")
-          ? `superseded/${entry.name}`
-          : entry.name,
-      );
+    const adrFiles = (await readdir("docs/adr", { recursive: true })).filter(
+      (path) => /(^|[\\/])\d{4}-.+\.md$/.test(path),
+    );
 
     expect(adrFiles.length).toBeGreaterThan(0);
     expect([...linkedFiles].sort()).toEqual([...adrFiles].sort());
@@ -205,7 +180,7 @@ describe("domain documentation", () => {
   // plans legitimately name files and scripts that no longer exist, so checking
   // those repo-wide is mostly noise. A relative link has no such reading — it
   // either resolves or it rotted, usually because the document moved (every hit
-  // when this was added was an ADR rehomed into `superseded/`).
+  // when this was added was an ADR that had moved).
   test("keeps every relative markdown link pointed at an existing file", async () => {
     const roots = ["docs", ".github", ".agents", ".claude"];
     const documents = [

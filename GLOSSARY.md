@@ -68,39 +68,23 @@ _Avoid_: `portal`, public view
 
 **`choreographyOperationalList`** — ui: "Lista operativa de coreografías"
 Administrative choreography view centered on data completeness and consistency.
-_Avoid_: `choreographyFinancialList`, `choreographyParticipationList`
-
-**`choreographyFinancialList`** — ui: "Lista financiera de coreografías"
-Administrative choreography view centered on financial state.
-_Avoid_: `choreographyOperationalList`, `academyAccountBalance`
-
-**`choreographyParticipationList`** — ui: "Lista de participación de coreografías"
-Administrative choreography view centered on presentations, program and evaluation, shown as `Presentaciones` in the sidebar: where the administrator orders the presentations of the active event and assigns judges. It lists every choreography of the event, numbered or not, a **`withdrawnChoreography`** at its number when it has one and otherwise only under its `Estado` filter's `Retirada`.
-_Avoid_: `choreographyOperationalList`, `choreographyFinancialList`
+_Avoid_: financial list, presentations list
 
 **`participating`** — ui: "Participando"
 Operational indicator used in administration for academies, professors and dancers with an inscription in the active event. A `seminarInscription` never makes anyone `Participando`. The same per-event predicate, read on the roster row alone, is what decides which `seminarPrice` rows price a seminar inscription (see `forParticipants`).
 _Avoid_: presented, `participationStatus`, seminar attendee
 
-**`adminSettings`** — ui: "Ajustes de administración"
-Panel area for global configuration and active-event configuration.
-_Avoid_: dashboard, daily operation
-
 **`eventBases`** — ui: "Bases del evento"
 The set of rules and master data belonging to an event that define how a choreography is registered, scheduled, calculated, charged and competed.
 _Avoid_: event configuration, settings, configuration
 
-**`listAction`** — ui: "Acción de lista"
-Administrative operation available from a list view and applied to one or more selected instances.
-_Avoid_: `instanceAction`, form editing
+**`resourceActionsMenu`** — ui: "Acciones"
+The one menu of administrative operations on a resource, named by where it stands: an `Acción de lista` opens from a list view and applies to the selected instances, an `Acción de instancia` from the form or detail view of one concrete instance.
+_Avoid_: bulk action, form editing
 
 **`listQuery`** — ui: "Consulta de lista"
 What a reader asks a list through its URL: a **`listSearch`** (ui: `Búsqueda`, the `busqueda` parameter), the list's own facets, a **`listOrder`** (ui: `Orden`, the `orden` parameter, one column and a direction written `columna:direccion`) and a **`listPage`** (ui: `Página`, the `pagina` parameter). It means the same on every list: the search ignores accents and case, a value at its default is absent from the address, and the address always shows the query the list applied. What each list offers as a facet belongs to the concept it filters, not to the list query.
 _Avoid_: `q`, `page` (not this product's parameters), filters (for the whole query)
-
-**`instanceAction`** — ui: "Acción de instancia"
-Administrative operation available inside the form or detail view of one concrete instance.
-_Avoid_: `listAction`, bulk action
 
 **`user`** — ui: "Usuario"
 System access identity, with credentials and one main permission. An academy user has a verified email; an internal user has only a name, a `Nombre de usuario interno` and a permission.
@@ -148,10 +132,6 @@ _Avoid_: `admin`, auditor
 **`resultsPublication`** — ui: "Publicación de resultados"
 The snapshot of which presentations an `event`'s academies can read, taken by administration for the active event from the `Resultados` list with no precondition: `Mostrar resultados` publishes every presentation evaluated at that moment, `Actualizar resultados` adds the ones evaluated since, and `Ocultar resultados` takes them all down, so publishing again starts from what is evaluated then. Only membership is stored (`resultsPublishedAt` and `resultPublishedAt`); the award, the average and the scores are always read live, so a correction to a published presentation reaches the academy without publishing again.
 _Avoid_: `eventStatus`, program visibility, public results, freezing results
-
-**`financialDocument`** — ui: "Documento financiero"
-Financial record managed by an administrator, such as an invoice or a credit note.
-_Avoid_: `payment`, `imputación`, `choreographyFinancialStatus`
 
 **`professor`** — ui: "Profesor"
 Person associated with an academy and loaded by that academy as part of its data. Their document **number** alone identifies them within their academy, whatever `documentType` was chosen and archived professors included, so the same number cannot be loaded twice; creation asks for the pair, optionally, so the rule acts from the first save. A second professor of the same **name** in the academy is a warning the academy confirms, not a refusal. Neither rule crosses into **`dancer`**: one academy may hold the same number on a dancer and on a professor, because a teacher who also dances is one person on two rosters.
@@ -214,16 +194,12 @@ The short number a choreography is searched and quoted by, unique within its eve
 _Avoid_: choreography id, position, order, correlative
 
 **`withdrawnChoreography`** — ui: "Coreografía retirada"
-Choreography taken out of the event whose row survives, with every inscription it still had **withdrawn under one shared timestamp**, because some inscription of it holds money or a `comprobante` line. `Eliminar coreografía` is one action that chooses between deleting it outright and this, exactly as roster removal chooses for one dancer, and it is never refused because of money — only an evaluated presentation refuses both outcomes. It is held in `choreographies.withdrawnAt` and is roster state, not financial state, so ADR-0009 is untouched; the `notWithdrawnChoreography()` predicate and its raw-SQL twin are the only place the filter lives. When it is stamped each inscription it takes retains its deposit and releases the rest, and nothing else moves: it keeps its **`choreographyNumber`**, keeps its schedule references and keeps its **`presentation`**, number and judges included, while occupying no capacity and making neither its professors nor its academy participating. It reads as `Retirada` in place of both its operational and its financial status — a derived axis, like the **`withdrawnInscription`** it is made of — stays in the money rollups and out of the status rollups and counts, is hidden from the operational and portal lists behind the `Retirada` filter, always shown in the financial ones, and read-only. In the order it stays at the number it was announced with, marked `Retirada` wherever presentations are listed, so the numbering never shows an unexplained gap; it is never performed, scored or disqualified, its judges never change, and one withdrawn before it had a number never gets one: the `choreographyParticipationList` reaches it only through its `Retirada` filter. It is final: nothing restores it, and an academy that wants it back registers a new choreography. The choice is never revisited either: de-allocating every peso on it does not make it deletable.
+Choreography taken out of the event whose row survives, with every inscription it still had **withdrawn under one shared timestamp**, because some inscription of it holds money or a `comprobante` line. `Eliminar coreografía` is one action that chooses between deleting it outright and this, exactly as roster removal chooses for one dancer, and it is never refused because of money — only an evaluated presentation refuses both outcomes. It is held in `choreographies.withdrawnAt` and is roster state, not financial state, so ADR-0009 is untouched; the `notWithdrawnChoreography()` predicate and its raw-SQL twin are the only place the filter lives. When it is stamped each inscription it takes retains its deposit and releases the rest, and nothing else moves: it keeps its **`choreographyNumber`**, keeps its schedule references and keeps its **`presentation`**, number and judges included, while occupying no capacity and making neither its professors nor its academy participating. It reads as `Retirada` in place of both its operational and its financial status — a derived axis, like the **`withdrawnInscription`** it is made of — stays in the money rollups and out of the status rollups and counts, is hidden from the operational and portal lists behind the `Retirada` filter, always shown in the financial ones, and read-only. In the order it stays at the number it was announced with, marked `Retirada` wherever presentations are listed, so the numbering never shows an unexplained gap; it is never performed, scored or disqualified, its judges never change, and one withdrawn before it had a number never gets one: the administrator's `Presentaciones` list reaches it only through its `Retirada` filter. It is final: nothing restores it, and an academy that wants it back registers a new choreography. The choice is never revisited either: de-allocating every peso on it does not make it deletable.
 _Avoid_: choreography without active inscriptions (retired), deleted choreography, unpaid choreography, fourth financial status, cancelled choreography
 
 **`choreographyRegistration`** — ui: "Registro de coreografía"
 Academy portal flow to create a choreography in the active event while some `schedule` of it has `Inscripciones abiertas`.
 _Avoid_: choreography draft, `presentation`
-
-**`choreographyModification`** — ui: "Modificación de coreografía"
-Academy portal flow to change the permitted data of an already registered choreography, without turning exceptional structural corrections into free-form editing.
-_Avoid_: `choreographyRegistration`, administrative correction
 
 **`lockedChoreographyData`** — ui: "Datos bloqueados de coreografía"
 Data of a choreography the academy never changes, and the administrator only until the choreography is evaluated or withdrawn: modality, submodality, roster, category, level and schedule capacity. A capability of `resolveChoreographyLocks`; money locks none of it (ADR-0009).
@@ -313,10 +289,6 @@ _Avoid_: combine, archive (an archived duplicate is still a duplicate)
 Folding an academy that forked at signup into the one that stays: everything it holds moves to the survivor, and it and its user are deleted. Refused when it has a comprobante or when a document number is on both rosters.
 _Avoid_: combine, delete academy (which only removes an empty one)
 
-**`administrativeInconsistency`** — ui: "Inconsistencia administrativa"
-Internal administration alert for data requiring review or traceability without belonging to the operational, financial or competitive state.
-_Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`, disqualification
-
 **`choreographyOperationalStatus`** — ui: "Estado operativo de coreografía"
 Completeness of the data needed to present a choreography.
 _Avoid_: `choreographyFinancialStatus`, `eventStatus`
@@ -338,11 +310,11 @@ A numbered `presentation` of a schedule that already has an evaluated presentati
 _Avoid_: locked presentation, evaluated presentation (a frozen row need not be evaluated itself), closed schedule (`registrationOpen` is about inscriptions)
 
 **`presentationWarning`** — ui: "Advertencia"
-Derived, informational flag on a row of the `choreographyParticipationList`: never stored, blocks nothing. Its kinds are `belowDeposit` (`Seña pendiente`), `evaluatedSchedule` (`Cronograma evaluado`: a row without a number whose schedule already has a `frozenPresentation`, so no ordering can place it among the presentations already announced), `dancerSpacing` (`Separación`), `missingLevel` (`Nivel sin asignar`: a required `experienceLevel` is missing; a grupal with `Sin nivel` raises none), `outOfBlock` (`Fuera de bloque`: placed outside the block its schedule, category and group type put it in) and `missingJudges` (`Sin jueces`: a numbered, non-disqualified presentation with no `judgeAssignment` while another of its schedule has one — the one left behind when the panel was assigned before it was numbered). A **`withdrawnChoreography`**'s presentation raises none and counts for no other row's. Only `belowDeposit` reaches the portal; none reaches the `eventProgram`.
+Derived, informational flag on a row of the administrator's `Presentaciones` list: never stored, blocks nothing. Its kinds are `belowDeposit` (`Seña pendiente`), `evaluatedSchedule` (`Cronograma evaluado`: a row without a number whose schedule already has a `frozenPresentation`, so no ordering can place it among the presentations already announced), `dancerSpacing` (`Separación`), `missingLevel` (`Nivel sin asignar`: a required `experienceLevel` is missing; a grupal with `Sin nivel` raises none), `outOfBlock` (`Fuera de bloque`: placed outside the block its schedule, category and group type put it in) and `missingJudges` (`Sin jueces`: a numbered, non-disqualified presentation with no `judgeAssignment` while another of its schedule has one — the one left behind when the panel was assigned before it was numbered). A **`withdrawnChoreography`**'s presentation raises none and counts for no other row's. Only `belowDeposit` reaches the portal; none reaches the `eventProgram`.
 _Avoid_: error, validation, lock
 
 **`participationStatus`** — ui: "Estado de participación"
-State derived from a choreography's presentation at the event, and the presentation's evaluation status for the whole panel: `disqualified` is disqualified, `evaluated` is evaluated —disqualified, or carrying any `score` row— and not disqualified, and `pending` is everything else, a choreography with no presentation included. `PresentationEvaluationStatus` is the identifier the code reads it under, with English members and the Spanish in its labels map. The `choreographyParticipationList` shows `Evaluada` and `Descalificada` as badges, each replacing that row's `presentationWarning` badge, and shows no badge for `pending`. It answers for the panel, never for one judge: that is the `judgeScoreStatus`. A **`withdrawnChoreography`** is not one of its values: its row reads `Retirada` in place of the badge, and it is never counted as work the panel still owes.
+State derived from a choreography's presentation at the event, and the presentation's evaluation status for the whole panel: `disqualified` is disqualified, `evaluated` is evaluated —disqualified, or carrying any `score` row— and not disqualified, and `pending` is everything else, a choreography with no presentation included. `PresentationEvaluationStatus` is the identifier the code reads it under, with English members and the Spanish in its labels map. The administrator's `Presentaciones` list shows `Evaluada` and `Descalificada` as badges, each replacing that row's `presentationWarning` badge, and shows no badge for `pending`. It answers for the panel, never for one judge: that is the `judgeScoreStatus`. A **`withdrawnChoreography`** is not one of its values: its row reads `Retirada` in place of the badge, and it is never counted as work the panel still owes.
 _Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`, `judgeScoreStatus`
 
 **`judgingDay`** — ui: "Jornada"
@@ -354,7 +326,7 @@ A `presentation` closed for the whole panel and taken out of the results, held a
 _Avoid_: absence, `withdrawnChoreography`, `participationStatus`
 
 **`judgeAssignment`** — ui: "Asignación de juez"
-Relation between one judge and one `presentation` they must evaluate, unique per pair. Assigned and removed in bulk from the `choreographyParticipationList`; it survives a reordering, and the judge's suspension or change of role. Removing it is refused once that judge has a `score` for that presentation, and a bulk removal removes the rest and reports how many it kept.
+Relation between one judge and one `presentation` they must evaluate, unique per pair. Assigned and removed in bulk from the administrator's `Presentaciones` list; it survives a reordering, and the judge's suspension or change of role. Removing it is refused once that judge has a `score` for that presentation, and a bulk removal removes the rest and reports how many it kept.
 _Avoid_: `presentation`, `score`
 
 **`eventProgram`** — ui: "Programa del evento"
@@ -369,7 +341,7 @@ _Avoid_: credential, credencial, badge, pass
 The document that certifies a `dancer` took part in one choreography of an edition and the `award` it took there, in a single sentence on that edition's design. One per dancer and choreography, for every dancer still inscribed in a choreography whose result is published and is not disqualified; a professor gets none, and an edition with no design has none. The owning academy downloads them from the choreography's evaluation, and an `individual` downloads its own from `Coreografías`, both only for the active event; nothing about a download is recorded.
 _Avoid_: diploma, participation certificate, award certificate
 
-**`academyResults`** — ui: "Resultados de academia"
+**`academyEvaluation`** — ui: "Evaluación"
 The evaluation detail an academy opens from its own presentations list, behind its login, for a presentation whose result is published: the `award` beside the title, the average at the top right, and one card per judge with the judge's name, their score, the `scoreSheet` breakdown when there is one, and their `feedbackAudio`. Judges who never scored are dropped in the loader, so they never reach the browser; a disqualified presentation shows `Descalificada`, no award, no average and no scores, and keeps the audios. A presentation that is not the academy's own, is not published, or belongs to hidden results answers "not found", and that check is the access control on the `feedbackAudio` signed URL.
 _Avoid_: `resultsPublication`, public results, ranking
 
@@ -455,7 +427,7 @@ _Avoid_: `auditor` (the internal role), results page, public results
 
 **`grandFinalResult`** — ui: "Resultado de la Gran final"
 The ranking of the last `votingRound`, with each finalist's share of the weighted votes, made public by administration after the round closes and never before. Until then the public page says only whether the vote has not opened, is open, or is closed. There is no public live tally.
-_Avoid_: leaderboard, live results, `academyResults`
+_Avoid_: leaderboard, live results, `academyEvaluation`
 
 **`payment`** — ui: "Pago"
 Money received and recorded for an academy in an event, which may stay available or be applied through payment allocations. It is editable after the fact — academy, amount, date, method, reference and note — under exactly two accounting guards: the academy is frozen once the payment carries allocations, and the amount can never be edited below what is already allocated. A payment recorded in error can also be deleted, cascading its allocations.
@@ -545,30 +517,30 @@ The `availableBalanceAmount` of a **single payment**: its amount minus what its 
 _Avoid_: `Pendiente`, `owedBalanceAmount`, unpaid payment, `availableBalanceAmount` (that one is the academy's)
 
 **`owedBalanceAmount`** — ui: "Saldo adeudado"
-Shortfall of an inscription's allocations against its `inscriptionTotalAmount`, floored at zero. **Gross**: it never subtracts `availableBalanceAmount`, which is shown alongside as its own figure. Scope-owned — inscription, choreography and academy each carry it, the wider scopes by summing the narrower.
+Shortfall of an inscription's allocations against its `totalAmount`, floored at zero. **Gross**: it never subtracts `availableBalanceAmount`, which is shown alongside as its own figure. Scope-owned — inscription, choreography and academy each carry it, the wider scopes by summing the narrower.
 _Avoid_: `availableBalanceAmount`, net debt, total paid, estimated total
 
 **`owedDepositAmount`** — ui: "Seña adeudada"
-Shortfall of an inscription's allocations against its `inscriptionDepositAmount`, floored at zero. Also **gross**, also scope-owned, and always contained in `owedBalanceAmount`. The two are two cuts of the same debt, not two parts of a total.
+Shortfall of an inscription's allocations against its `depositAmount`, floored at zero. Also **gross**, also scope-owned, and always contained in `owedBalanceAmount`. The two are two cuts of the same debt, not two parts of a total.
 _Avoid_: choreography invoice, `availableBalanceAmount`, `owedBalanceAmount`, net debt
 
 **`depositPaidAmount`** — ui: "Seña pagada"
-The part of an inscription's allocations that covers its `inscriptionDepositAmount`: what is allocated, capped at the deposit. The complement of `owedDepositAmount` against the deposit on an active inscription; on a **withdrawn** one it is whatever was retained up to the deposit, which may be less with nothing owed. Scope-owned by summing, like the owed figures. Money allocated past the deposit is not in it, so it is never what a choreography has paid.
+The part of an inscription's allocations that covers its `depositAmount`: what is allocated, capped at the deposit. The complement of `owedDepositAmount` against the deposit on an active inscription; on a **withdrawn** one it is whatever was retained up to the deposit, which may be less with nothing owed. Scope-owned by summing, like the owed figures. Money allocated past the deposit is not in it, so it is never what a choreography has paid.
 _Avoid_: `owedDepositAmount`, total paid, `availableBalanceAmount`
 
-**`inscriptionDepositAmount`** — ui: "Seña de inscripción"
+**`depositAmount`** — ui: "Seña de inscripción"
 Lower threshold of an inscription: `requiredDepositPercentage` of its `selectedPrice`, computed on the **undiscounted** price so the threshold cannot move under an academy when a discount tier changes. The percentage is the event's for a choreography inscription and the seminar's own for a seminar inscription, where covering it is also what takes the place in the quota.
 _Avoid_: choreography deposit, deposit invoice, `inscriptionStage` (retired)
 
 **`registrationFee`** — ui: "Derecho de inscripción"
-The reglamento's name (#674) for the part of an inscription's price earned at registration: the same figure as its `inscriptionDepositAmount`, never a second percentage. The portal quotes it beside the `participationFee` before an inscription is registered; everywhere else the figure keeps its `Seña` names.
+The reglamento's name (#674) for the part of an inscription's price earned at registration: the same figure as its `depositAmount`, never a second percentage. The portal quotes it beside the `participationFee` before an inscription is registered; everywhere else the figure keeps its `Seña` names.
 _Avoid_: registration deposit, penalty, forfeit
 
 **`participationFee`** — ui: "Derecho de participación"
 The rest of an inscription's price, earned when the event or the seminar takes place: its `selectedPrice` minus its `registrationFee`, on the undiscounted price like the deposit. Quoted only beside the `registrationFee`, before registering.
-_Avoid_: balance, `owedBalanceAmount`, `inscriptionTotalAmount`
+_Avoid_: balance, `owedBalanceAmount`, `totalAmount`
 
-**`inscriptionTotalAmount`** — ui: "Total de inscripción"
+**`totalAmount`** — ui: "Total de inscripción"
 Upper threshold of an inscription: its `selectedPrice` minus the live `dancerDiscount`, applied exactly once, with no coalesce and no third subtrahend. On a **withdrawn** inscription it is instead what remains allocated to it — not zero. Supersedes the retired `inscriptionBalanceAmount` (`base − deposit − discount`), whose two subtrahends both moved.
 _Avoid_: `inscriptionBalanceAmount` (retired), choreography balance, `availableBalanceAmount`
 
@@ -577,8 +549,8 @@ Status of an inscription derived on read from `Σ allocations` against its two t
 _Avoid_: `choreographyFinancialState` (retired), watermark, needs attention
 
 **`waivedInscription`** — ui: "Bonificada"
-Choreography inscription that administration has granted for free, case by case: it competes like any other and is judged, scored and ranked, but owes nothing. Both its thresholds are zero and its status is `waived` (`Bonificada`), never `Pagada`, so a free place is never mistaken for a paid one. It holds no money: marking one is refused while it carries allocations, which must be taken off first, and nothing can be allocated to it. It stays out of its choreography's minimum, which is the minimum of the paying inscriptions, and a choreography whose every active inscription is waived reads `Bonificada` itself. It is outside the `dancerDiscount` qualifying set, because being free already is the benefit. It produces no `comprobante`, carries no reason, and reads `Bonificada` on the portal as well as in administration. Revoking it restores the ordinary price and `Seña pendiente`, and a `presentation` already held stays. Only all-or-nothing: a partial reduction is the reserved `administrativeDiscount`, not this. It applies to choreography inscriptions only; a `seminarInscription` has no such state.
-_Avoid_: 100% discount, zero price, `administrativeDiscount`, `Pagada`, scholarship (`Becada`), exempt (`Exenta`)
+Choreography inscription that administration has granted for free, case by case: it competes like any other and is judged, scored and ranked, but owes nothing. Both its thresholds are zero and its status is `waived` (`Bonificada`), never `Pagada`, so a free place is never mistaken for a paid one. It holds no money: marking one is refused while it carries allocations, which must be taken off first, and nothing can be allocated to it. It stays out of its choreography's minimum, which is the minimum of the paying inscriptions, and a choreography whose every active inscription is waived reads `Bonificada` itself. It is outside the `dancerDiscount` qualifying set, because being free already is the benefit. It produces no `comprobante`, carries no reason, and reads `Bonificada` on the portal as well as in administration. Revoking it restores the ordinary price and `Seña pendiente`, and a `presentation` already held stays. Only all-or-nothing: a partial reduction is an administrative discount, which is not built (#611), not this. It applies to choreography inscriptions only; a `seminarInscription` has no such state.
+_Avoid_: 100% discount, zero price, administrative discount, `Pagada`, scholarship (`Becada`), exempt (`Exenta`)
 
 **`choreographyPrice`** — ui: "Precio de coreografía"
 Amount derived for a choreography from the prices of its active inscriptions: the sum of their selected prices, one by one.
@@ -609,12 +581,8 @@ Date until which a configured price can be applied to an inscription.
 _Avoid_: deposit date, invoice due date
 
 **`dancerDiscount`** — ui: "Descuento por bailarín"
-Automatic discount that enters an inscription's `inscriptionTotalAmount` and nowhere else. It is **always live**: recomputed on every read, never frozen and never carried forward. Its qualifying set is the dancer's registered active inscriptions in the same **academy and event**, whatever their financial status and excluding any `waivedInscription`, and the most expensive one of the set is left at full price.
-_Avoid_: `administrativeDiscount`, manual discount, granted discount, frozen discount
-
-**`administrativeDiscount`** — ui: "Descuento administrativo"
-Exceptional obligation-side reduction granted by administration. **Reserved and deliberately undefined**: map #547 ruled it out of scope rather than answering it (ADR-0014 §9), because no map decision depends on it and the 80% case is already served by picking the price row explicitly. It is not tombstoned and the name stays taken. Whoever defines it has to argue the exception ADR-0009 forbids — it is the one figure in the model with no derivation behind it, so it must be persisted.
-_Avoid_: individual discount, base price, `dancerDiscount`, refund
+Automatic discount that enters an inscription's `totalAmount` and nowhere else. It is **always live**: recomputed on every read, never frozen and never carried forward. Its qualifying set is the dancer's registered active inscriptions in the same **academy and event**, whatever their financial status and excluding any `waivedInscription`, and the most expensive one of the set is left at full price.
+_Avoid_: administrative discount, manual discount, granted discount, frozen discount
 
 **`modality`** — ui: "Modalidad"
 Artistic classification chosen when registering a choreography.
@@ -640,6 +608,6 @@ _Avoid_: `category`
 A choreography's request to be judged more severely, a yes or no its academy sets and any choreography can carry. It tells the judges how to read the choreography and nothing else: the `scoreSheet`, the `award` bands, the price and the schedule are the same either way. It is independent of `experienceLevel`, so a choreography at the `Profesional` level may or may not ask for it, and one in a category with no levels can.
 _Avoid_: `experienceLevel`, professional level
 
-**`notApplicableValue`** — ui: "No aplica"
+**`notApplicable`** — ui: "No aplica"
 Empty value of a field that cannot hold one in this context, as opposed to one that has none yet. Reserved for the second case is "Sin asignar": the field admits a value and it is missing, which is what leaves a choreography `incomplete`. Rendering both the same way hides an incomplete record behind a correct-looking one. The `experienceLevel` has a third empty value, `Sin nivel`: the level is optional and none was chosen, which is complete.
 _Avoid_: `Sin asignar`, `Sin nivel`, `Sin datos`, blank

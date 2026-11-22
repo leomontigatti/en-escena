@@ -420,8 +420,7 @@ convention retroactive. Write the next one in English.
 
 Some domain nouns stay Spanish inside identifiers. The full list:
 
-- **`comprobante`** — a term of art defined by ARCA regulation (RG 1415, cited in
-  [ADR-0011](../adr/superseded/0011-invoicing-concept-portion-and-surfaces.md)).
+- **`comprobante`** — a term of art defined by ARCA regulation (RG 1415).
   It survives for three reasons. It is a **generic container**: it covers a
   `Factura C` and a `Nota de crédito C` alike, and English has a crisp word for
   each of those and none for the category. The URL is Spanish
@@ -433,9 +432,8 @@ Some domain nouns stay Spanish inside identifiers. The full list:
   One argument ADR-0011 gives for it does **not** hold, and is recorded here so
   nobody re-derives it: "`voucher` collides with discount vouchers in an app that
   has discounts". There are no discount vouchers. `coupon`, `giftCard` and
-  `promoCode` appear nowhere in the tree, and the app's discounts
-  (`dancerDiscount`, `administrativeDiscount`) are computed amounts, not
-  redeemable instruments. The reasons above are the ones doing the work.
+  `promoCode` appear nowhere in the tree, and the app's discount
+  (`dancerDiscount`) is a computed amount, not a redeemable instrument. The reasons above are the ones doing the work.
 
 **Growing this list requires an ADR.** An empty reserved list has no escape valve
 and breaks quietly; an unbounded one rots back into a mixed codebase.

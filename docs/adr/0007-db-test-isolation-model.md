@@ -175,3 +175,5 @@ one PGlite per worker instead of one per file, on `pnpm test:db` and on the
 Postgres path alike. The Postgres path stays one file at a time, which is what
 this decision needs. The isolation between tests is unchanged: the reset in
 `beforeEach`.
+
+Governs: `tests/db/`, `vitest.db.fast.config.ts`, `vitest.db.config.ts`

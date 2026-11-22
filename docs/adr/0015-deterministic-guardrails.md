@@ -171,3 +171,5 @@ The ticket carries the evidence.
   legitimate reasons on most PRs, which makes them §4 violations in practice —
   red for reasons the PR did not cause.
 - Renovate, and Dependabot major-version PRs — §5 above.
+
+Governs: `.oxlintrc.json`, `tsconfig.json`, `.husky/pre-commit`, `.gitleaks.toml`, `.github/workflows/ci.yml`, `.github/workflows/pr-title.yml`, `.github/dependabot.yml`, `scripts/check-migration-safety.mjs`, `scripts/check-dependency-audit.mjs`
