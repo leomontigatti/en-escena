@@ -13,7 +13,7 @@ import {
 } from "../../../scripts/doc-map.mjs";
 
 describe("domain documentation", () => {
-  test("gives every glossary term its canonical code identifier", async () => {
+  test("holds every glossary heading to one of its entry shapes", async () => {
     const glossary = await readFile("GLOSSARY.md", "utf8");
     const entryHeadings = glossary
       .split("\n")
@@ -29,9 +29,41 @@ describe("domain documentation", () => {
         continue;
       }
 
+      if (heading.includes("_(spoken term)_")) {
+        expect(heading, heading).toMatch(
+          /^\*\*[A-Z][^`*]*[^`*\s]\*\* _\(spoken term\)_ — ui: ".+"$/,
+        );
+        continue;
+      }
+
       expect(heading, heading).toMatch(
         /^\*\*`[A-Za-z][A-Za-z0-9]*`\*\* — ui: ".+"$/,
       );
+    }
+  });
+
+  test("defines every spoken glossary term through an identifier the glossary holds", async () => {
+    const lines = (await readFile("GLOSSARY.md", "utf8")).split("\n");
+    const identifiers = new Set(
+      lines.flatMap(
+        (line) => /^\*\*`([^`]+)`\*\* — ui: /.exec(line)?.[1] ?? [],
+      ),
+    );
+    const spokenDefinitions = lines.flatMap((line, index) =>
+      line.startsWith("**") && line.includes("_(spoken term)_")
+        ? [lines[index + 1] ?? ""]
+        : [],
+    );
+
+    for (const definition of spokenDefinitions) {
+      const named = [...definition.matchAll(/`([^`]+)`/g)].map(
+        ([, name]) => name,
+      );
+
+      expect(
+        named.some((name) => identifiers.has(name)),
+        definition,
+      ).toBe(true);
     }
   });
 

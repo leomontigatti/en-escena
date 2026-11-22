@@ -3,7 +3,10 @@
 Domain glossary for dance competitions. Defines canonical terms; the detailed rules live in [docs/domain/](docs/domain/).
 
 Each entry is the canonical English identifier, the name to use in code, followed
-by `ui:`, the Spanish term the user sees. How to read it is in
+by `ui:`, the Spanish term the user sees. A _(spoken term)_ is a concept people
+name in conversation that the code has no identifier for: its heading is the
+English phrase, and its definition names the identifiers that carry it. How to
+read both is in
 [docs/agents/coding-standards.md](docs/agents/coding-standards.md#code-language).
 
 ## Vocabulary
@@ -55,7 +58,7 @@ Whether an `academy`'s own data — its `Datos de academia` (#743) — is comple
 _Avoid_: `choreographyOperationalStatus`, verified academy, active academy, profile status
 
 **`startAcademyRegistration`** — ui: "Registro público de academia"
-Public flow through which an academy creates its initial access to the system.
+What starts the public flow through which an academy creates its initial access to the system: it takes the email and the password, and confirming the link it emails hands off to onboarding, where the account takes its kind.
 _Avoid_: `createChoreographyRegistration`, public user, free account
 
 **`portal`** — ui: "Portal de academias"
@@ -63,11 +66,11 @@ Private area where an academy manages its own data and consults information abou
 _Avoid_: `canReadAdminPanel`, public view
 
 **`canReadAdminPanel`** — ui: "Panel de administración"
-Private area for operating, auditing and configuring the active event.
+Who may enter the admin panel, the private area for operating, auditing and configuring the active event: the `admin` and the `auditor`.
 _Avoid_: `portal`, public view
 
-**`choreographyOperationalList`** — ui: "Lista operativa de coreografías"
-Administrative choreography view centered on data completeness and consistency.
+**Choreography operational list** _(spoken term)_ — ui: "Lista operativa de coreografías"
+Administrative choreography view centered on data completeness and consistency: the list that shows each choreography's `choreographyOperationalStatus`.
 _Avoid_: financial list, presentations list
 
 **`participating`** — ui: "Participando"
@@ -198,7 +201,7 @@ Choreography taken out of the event whose row survives, with every inscription i
 _Avoid_: choreography without active inscriptions (retired), deleted choreography, unpaid choreography, fourth financial status, cancelled choreography
 
 **`createChoreographyRegistration`** — ui: "Registro de coreografía"
-Academy portal flow to create a choreography in the active event while some `schedule` of it has `Inscripciones abiertas`.
+What the academy portal flow to create a choreography ends on: it creates the choreography in the active event while some `schedule` of it has `Inscripciones abiertas`.
 _Avoid_: choreography draft, `presentation`
 
 **`lockedChoreographyData`** — ui: "Datos bloqueados de coreografía"
@@ -213,8 +216,8 @@ _Avoid_: `lockedChoreographyData`, financial data
 Private audio file associated with a choreography and managed as pending operational data.
 _Avoid_: evaluation audio, `feedbackAudio`, public track
 
-**`assetKind`** — ui: "Archivo subido"
-What a private uploaded file is for, which decides what the file may be. The file itself is one an academy uploads and the system stores on the volume, referenced from a row by its key.
+**Uploaded asset** _(spoken term)_ — ui: "Archivo subido"
+Private file an academy uploads and the system stores on the volume, referenced from a row by its key. Its `assetKind` decides what the file may be.
 _Avoid_: attachment, media, public file
 
 **`assetKind`** — ui: "Tipo de archivo subido"
@@ -350,27 +353,27 @@ What one judge gave one `presentation`, one row per `judgeAssignment`, **created
 _Avoid_: `presentation`, price, `payment`, confirmed score, draft score
 
 **`submodalityCriterion`** — ui: "Criterio"
-One line of a `judgeScoreSheet`: a name, a maximum that is a whole number from 1, and a kind that either adds to the score or deducts from it, belonging to one `submodality`. It is either a `generalCriterion` or a `levelCriterion`. The adding maxima of a sheet total exactly 100, so a sheet can always reach 100, and the deduction maxima sit outside that total because a deduction is a penalty and not a share of the score. Administration defines them from the modality page one sheet at a time —the `generalEvaluationLabel`, or one level's `mandatoryTechniqueLabel`— and a level's are only saved when they complete the `generalEvaluationLabel` to 100; a sheet the `generalEvaluationLabel` leaves short is shown as incomplete (`Planilla incompleta`) until it is, and cannot be scored meanwhile. They lock as soon as any presentation of the submodality has a `score`.
+One line of a `judgeScoreSheet`: a name, a maximum that is a whole number from 1, and a kind that either adds to the score or deducts from it, belonging to one `submodality`. It is either a general criterion or a level criterion. The adding maxima of a sheet total exactly 100, so a sheet can always reach 100, and the deduction maxima sit outside that total because a deduction is a penalty and not a share of the score. Administration defines them from the modality page one sheet at a time —the general evaluation, or one level's mandatory technique— and a level's are only saved when they complete the general evaluation to 100; a sheet the general evaluation leaves short is shown as incomplete (`Planilla incompleta`) until it is, and cannot be scored meanwhile. They lock as soon as any presentation of the submodality has a `score`.
 _Avoid_: `award`, weight, percentage
 
-**`generalCriterion`** — ui: "Criterio general"
+**General criterion** _(spoken term)_ — ui: "Criterio general"
 A `submodalityCriterion` with no `experienceLevel`: it is on every `judgeScoreSheet` of its submodality, whatever the level of the choreography.
-_Avoid_: `generalEvaluationLabel`, default criterion
+_Avoid_: general evaluation, default criterion
 
-**`levelCriterion`** — ui: "Criterio de nivel"
+**Level criterion** _(spoken term)_ — ui: "Criterio de nivel"
 A `submodalityCriterion` tied to one `experienceLevel`: it is only on the sheets of the submodality's choreographies at that level.
-_Avoid_: `mandatoryTechniqueLabel`, level sheet
+_Avoid_: mandatory technique, level sheet
 
 **`generalEvaluationLabel`** — ui: "Evaluación general"
-The group of a submodality's `generalCriterion` lines, as administration configures it and as a sheet shows it, above the choreography's `mandatoryTechniqueLabel`. It means nothing outside scoring, and the judge's sheet shows it under the same name.
-_Avoid_: `generalCriterion`, `mandatoryTechniqueLabel`, general sheet
+The name of the general evaluation: the group of a submodality's general criterion lines, as administration configures it and as a sheet shows it, above the choreography's mandatory technique. It means nothing outside scoring, and the judge's sheet shows it under the same name.
+_Avoid_: general criterion, mandatory technique, general sheet
 
 **`mandatoryTechniqueLabel`** — ui: "Técnico obligatorio"
-The group of a submodality's `levelCriterion` lines for one `experienceLevel`, as administration configures it and as a sheet shows it, below the `generalEvaluationLabel`. It means nothing outside scoring, and the judge's sheet shows it under the same name.
-_Avoid_: `levelCriterion`, `generalEvaluationLabel`, level-specific criteria
+The name of the mandatory technique: the group of a submodality's level criterion lines for one `experienceLevel`, as administration configures it and as a sheet shows it, below the general evaluation. It means nothing outside scoring, and the judge's sheet shows it under the same name.
+_Avoid_: level criterion, general evaluation, level-specific criteria
 
 **`judgeScoreSheet`** — ui: "Planilla"
-How a `presentation` is scored when its `submodality` has `submodalityCriterion` rows: one field per criterion instead of one 0-100 value. Its lines are the submodality's `generalEvaluationLabel` and then the `mandatoryTechniqueLabel` of the choreography's `experienceLevel`, so two levels of one submodality are scored on different sheets. Its total is the additions minus the deductions, clamped to 0 and 100, and it is what the `score` stores as its value. A submodality with no criteria, a modality with no submodalities, and a grupal with `Sin nivel` score with a single value and have no sheet; a choreography whose level is `No aplica` or `Sin asignar` is scored on the `generalEvaluationLabel` alone.
+The sheet a judge scores a `presentation` on when its `submodality` has `submodalityCriterion` rows: one field per criterion instead of one 0-100 value. Its lines are the submodality's general evaluation and then the mandatory technique of the choreography's `experienceLevel`, so two levels of one submodality are scored on different sheets. Its total is the additions minus the deductions, clamped to 0 and 100, and it is what the `score` stores as its value. A submodality with no criteria, a modality with no submodalities, and a grupal with `Sin nivel` score with a single value and have no sheet; a choreography whose level is `No aplica` or `Sin asignar` is scored on the general evaluation alone.
 _Avoid_: `score`, `eventProgram`, printed sheet, ballot
 
 **`award`** — ui: "Premio"
@@ -552,8 +555,8 @@ _Avoid_: `choreographyFinancialState` (retired), watermark, needs attention
 Choreography inscription that administration has granted for free, case by case: it competes like any other and is judged, scored and ranked, but owes nothing. Both its thresholds are zero and its status is the same `waived` (`Bonificada`), never `Pagada`, so a free place is never mistaken for a paid one. It holds no money: marking one is refused while it carries allocations, which must be taken off first, and nothing can be allocated to it. It stays out of its choreography's minimum, which is the minimum of the paying inscriptions, and a choreography whose every active inscription is waived reads `Bonificada` itself. It is outside the `dancerDiscount` qualifying set, because being free already is the benefit. It produces no `comprobante`, carries no reason, and reads `Bonificada` on the portal as well as in administration. Revoking it restores the ordinary price and `Seña pendiente`, and a `presentation` already held stays. Only all-or-nothing: a partial reduction is an administrative discount, which is not built (#611), not this. It applies to choreography inscriptions only; a `seminarInscription` has no such state.
 _Avoid_: 100% discount, zero price, administrative discount, `Pagada`, scholarship (`Becada`), exempt (`Exenta`)
 
-**`choreographyPrice`** — ui: "Precio de coreografía"
-Amount derived for a choreography from the prices of its active inscriptions: the sum of their selected prices, one by one.
+**Choreography price** _(spoken term)_ — ui: "Precio de coreografía"
+Amount derived for a choreography from the prices of its active inscriptions: the sum of each one's `selectedPrice`, one by one.
 _Avoid_: `payment`, `choreographyFinancialStatus`, applicable price × dancers
 
 **`selectedPrice`** — ui: "Precio base"
