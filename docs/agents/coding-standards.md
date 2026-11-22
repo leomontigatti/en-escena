@@ -366,6 +366,11 @@ How to read it:
 - Where an existing symbol disagrees with the identifier in the glossary, the
   glossary wins and the symbol is pending rename; renames are tracked separately.
 - Retired terms carry no identifier: they must not appear in new code.
+- A _(spoken term)_ carries no identifier either, and is in force: it is a
+  concept people name in conversation that the code does not name. Its heading
+  is the English phrase, and its definition names at least one identifier-keyed
+  entry, which is where the anchors check still reaches it. When code comes to
+  name the concept, the entry takes that identifier in the same change.
 
 Docs quote UI copy verbatim. Spanish inside a quoted string, a route path or a
 glossary `ui:` value is data, not prose, and stays Spanish. **Which mark makes it

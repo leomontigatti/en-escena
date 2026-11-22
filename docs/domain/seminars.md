@@ -55,7 +55,7 @@ what runs today.
   (`app/lib/seminars/seminar-places.server.ts`).
 - The instructor's picture is optional at creation and uploaded from the
   seminar's detail, like an `eventDocument`. Until then the portal shows a
-  placeholder. It is a private `uploadedAsset` of kind `seminarInstructorPicture`,
+  placeholder. It is a private uploaded asset of `assetKind` `seminarInstructorPicture`,
   served by `signedUrl`, one object per seminar; replacing it leaves no sibling
   behind, and removing it or the seminar removes the object. Deleting the event
   orphans it on the volume, as event documents are orphaned today.
