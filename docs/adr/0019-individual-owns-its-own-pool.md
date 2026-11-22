@@ -57,7 +57,7 @@ keeps meaning "a person an academy loaded".
   individual is refused when a linked academy row already holds one, and the
   academy when the individual does (`Ya está inscripto como particular`). The
   academy sees the individual's inscription read-only, with a `Particular`
-  badge, and in its finances the way a `waivedInscription` reads: `$0`, outside
+  badge, and in its finances the way a `waived` inscription reads: `$0`, outside
   its totals, its `Saldo disponible` and the payment presets. The individual is
   told on registering that its academy will see it.
 - The individual's money works as an academy's: administration records and

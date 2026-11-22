@@ -8,7 +8,7 @@ Some choreographies compete for free: the host academy, a scholarship dancer, a
 sponsor agreement. They must still reach `Señada` for a `presentation`, and
 every rung of that ladder is derived from `Σ paymentAllocation` against thresholds
 computed from a positive price — so without money there is no path to a number.
-We decided that a free place is a **`waivedInscription`** (`Bonificada`): a
+We decided that a free place is a **`waived`** inscription (`Bonificada`): a
 yes/no fact on the choreography inscription, set by administration case by case,
 that zeroes both thresholds and reads as its own status `waived`, outside the
 `depositPending < depositMet < paidInFull` scale. It is roster-side state like
